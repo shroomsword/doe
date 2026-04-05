@@ -1,0 +1,20 @@
+[package]
+name = "doe"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "doe"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
+thiserror = "1"
+dirs = "5"
+indexmap = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+indoc = "2"
