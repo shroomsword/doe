@@ -33,7 +33,9 @@ use crate::error::{DoeError, Result};
 pub enum Expr {
     /// Integer literal.
     Int(i64),
-    /// Boolean literal.
+    /// Boolean literal (currently produced only by direct construction;
+    /// the parser normalises `true`/`false` to `Int(1)`/`Int(0)`).
+    #[allow(dead_code)]
     Bool(bool),
     /// Field reference, possibly qualified: `["_parent", "length"]`.
     Field(Vec<String>),
@@ -468,6 +470,7 @@ impl EvalContext {
     }
 
     /// Look up a simple name in the current frame.
+    #[allow(dead_code)]
     fn lookup_current(&self, name: &str) -> Option<i64> {
         self.frames.last()?.get(name).copied()
     }
@@ -573,6 +576,7 @@ pub fn eval(expr: &Expr, ctx: &EvalContext, src: &str) -> Result<i64> {
 }
 
 /// Convenience: parse then evaluate in one call.
+#[allow(dead_code)]
 pub fn eval_str(src: &str, ctx: &EvalContext) -> Result<i64> {
     let ast = parse(src)?;
     eval(&ast, ctx, src)

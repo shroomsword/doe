@@ -27,6 +27,7 @@ impl<'buf> Cursor<'buf> {
     }
 
     /// Create a sub-cursor covering `buf[start..start+len]`.
+    #[allow(dead_code)]
     pub fn sub(&self, start: usize, len: usize) -> Result<Cursor<'buf>> {
         let end = start + len;
         if end > self.buf.len() {
@@ -54,6 +55,7 @@ impl<'buf> Cursor<'buf> {
     pub fn is_eof(&self) -> bool { self.pos >= self.buf.len() }
 
     /// Seek to an absolute position within this cursor's window.
+    #[allow(dead_code)]
     pub fn seek(&mut self, pos: usize) -> Result<()> {
         if pos > self.buf.len() {
             return Err(DoeError::Schema(format!(
@@ -78,6 +80,7 @@ impl<'buf> Cursor<'buf> {
     }
 
     /// Peek at the next `n` bytes without advancing.
+    #[allow(dead_code)]
     pub fn peek_bytes(&self, n: usize) -> Result<&'buf [u8]> {
         if self.pos + n > self.buf.len() {
             return Err(self.overrun_error(n));
@@ -188,7 +191,7 @@ impl<'buf> Cursor<'buf> {
 mod tests {
     use super::*;
 
-    fn cur(data: &[u8]) -> Cursor { Cursor::new(data) }
+    fn cur(data: &[u8]) -> Cursor<'_> { Cursor::new(data) }
 
     // ── Position tracking ─────────────────────────────────────────────────────
 

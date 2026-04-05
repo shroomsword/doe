@@ -149,7 +149,8 @@ pub enum StringOrInt {
 }
 
 impl StringOrInt {
-    pub fn as_str(&self) -> std::borrow::Cow<str> {
+    #[allow(dead_code)]
+    pub fn as_str(&self) -> std::borrow::Cow<'_, str> {
         match self {
             StringOrInt::Int(n) => std::borrow::Cow::Owned(n.to_string()),
             StringOrInt::Str(s) => std::borrow::Cow::Borrowed(s),

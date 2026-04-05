@@ -22,6 +22,7 @@ use std::fmt::Write;
 
 use crate::value::Value;
 
+#[allow(dead_code)]
 pub const DEFAULT_INDENT: &str = "  ";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,6 +30,7 @@ pub const DEFAULT_INDENT: &str = "  ";
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Render a `Value` tree to a `String` using the default indent (`"  "`).
+#[allow(dead_code)]
 pub fn render(value: &Value) -> String {
     render_with_indent(value, DEFAULT_INDENT)
 }

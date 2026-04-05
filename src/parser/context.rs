@@ -59,12 +59,14 @@ impl ParseContext {
     }
 
     /// Look up the most recently bound value for `id` in the current scope.
+    #[allow(dead_code)]
     pub fn lookup(&self, id: &str) -> Option<&Value> {
         self.value_frames.last()?.iter().rev().find(|(k, _)| k == id).map(|(_, v)| v)
     }
 
     /// Returns the fields accumulated in the current scope so far,
     /// without popping the scope.
+    #[allow(dead_code)]
     pub fn current_fields(&self) -> &[(String, Value)] {
         self.value_frames.last().map(Vec::as_slice).unwrap_or(&[])
     }

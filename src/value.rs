@@ -60,6 +60,7 @@ impl Value {
     }
 
     /// Returns the byte length of this value, if applicable.
+    #[allow(dead_code)]
     pub fn byte_len(&self) -> Option<usize> {
         match self {
             Value::Bytes(b) => Some(b.len()),
@@ -69,6 +70,7 @@ impl Value {
     }
 
     /// Returns `true` if this value is a truthy integer (non-zero).
+    #[allow(dead_code)]
     pub fn is_truthy(&self) -> bool {
         match self {
             Value::UInt(n)            => *n != 0,
@@ -84,6 +86,7 @@ impl Value {
     }
 
     /// Returns the type name as a short string, useful for error messages.
+    #[allow(dead_code)]
     pub fn type_name(&self) -> &'static str {
         match self {
             Value::UInt(_)    => "uint",

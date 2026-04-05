@@ -18,3 +18,4 @@ indexmap = { version = "2", features = ["serde"] }
 
 [dev-dependencies]
 indoc = "2"
+tempfile = "3"

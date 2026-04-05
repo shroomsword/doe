@@ -53,6 +53,7 @@ pub struct CompiledType {
     pub name: String,
 
     /// Optional human-readable description.
+    #[allow(dead_code)]
     pub doc: Option<String>,
 
     /// Default byte order for this type's fields.
@@ -73,6 +74,8 @@ pub struct CompiledType {
 #[derive(Debug, Clone)]
 pub struct CompiledField {
     pub id: String,
+    /// Human-readable description; used by renderers (verbose mode).
+    #[allow(dead_code)]
     pub doc: Option<String>,
     pub kind: FieldKind,
     pub repeat: RepeatMode,
@@ -107,6 +110,7 @@ pub enum FieldKind {
 pub enum IntWidth { W8, W16, W32, W64 }
 
 impl IntWidth {
+    #[allow(dead_code)]
     pub fn bytes(self) -> usize {
         match self { IntWidth::W8 => 1, IntWidth::W16 => 2, IntWidth::W32 => 4, IntWidth::W64 => 8 }
     }
@@ -116,6 +120,7 @@ impl IntWidth {
 pub enum FloatWidth { F32, F64 }
 
 impl FloatWidth {
+    #[allow(dead_code)]
     pub fn bytes(self) -> usize {
         match self { FloatWidth::F32 => 4, FloatWidth::F64 => 8 }
     }
@@ -181,6 +186,7 @@ pub enum RepeatMode {
     /// Repeat a count determined at parse time.
     Count(Expr),
     /// Repeat until the most recently parsed value satisfies a predicate.
+    #[allow(dead_code)]
     Until(Expr),
 }
 

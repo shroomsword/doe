@@ -37,6 +37,7 @@ use crate::schema::raw::{
 
 /// Compile a single in-memory `RawSchema` (and its inline sub-types) into a
 /// `TypeRegistry`.  Imports are not followed — use `Compiler` for that.
+#[allow(dead_code)]
 pub fn compile_schema(schema: &RawSchema) -> Result<TypeRegistry> {
     let mut compiler = Compiler::new(vec![]);
     compiler.process_schema(schema)?;
@@ -395,6 +396,7 @@ impl Compiler {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Context passed through field compilation.
+#[allow(dead_code)]
 struct FieldCtx<'a> {
     parent_fqn: &'a str,
     type_id: &'a str,

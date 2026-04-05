@@ -27,6 +27,7 @@ pub enum DoeError {
     #[error("import cycle detected: {cycle:?}")]
     ImportCycle { cycle: Vec<String> },
 
+    #[allow(dead_code)]
     #[error("duplicate type name '{name}' defined in {first} and {second}")]
     DuplicateType {
         name: String,
