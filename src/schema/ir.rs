@@ -186,7 +186,7 @@ pub enum RepeatMode {
     /// Repeat a count determined at parse time.
     Count(Expr),
     /// Repeat until the most recently parsed value satisfies a predicate.
-    #[allow(dead_code)]
+    /// The value is bound to `_` within the expression.
     Until(Expr),
 }
 

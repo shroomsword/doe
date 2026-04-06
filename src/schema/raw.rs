@@ -133,6 +133,12 @@ pub struct RawField {
     #[serde(rename = "repeat-expr", default)]
     pub repeat_expr: Option<String>,
 
+    /// Expression evaluated after each iteration when `repeat: until`.
+    /// The most recently parsed value is bound to `_` within the expression.
+    /// Iteration stops when the expression evaluates to a non-zero (truthy) value.
+    #[serde(rename = "repeat-until", default)]
+    pub repeat_until: Option<String>,
+
     /// Expression that evaluates to a bool.  Field is skipped when false.
     #[serde(rename = "if", default)]
     pub if_expr: Option<String>,
@@ -369,6 +375,22 @@ mod tests {
         let f = &s.seq[1];
         assert_eq!(f.repeat, Some(RawRepeat::Expr));
         assert_eq!(f.repeat_expr.as_deref(), Some("count"));
+    }
+
+    #[test]
+    fn field_with_repeat_until() {
+        let yaml = indoc! {r#"
+            id: terminated
+            seq:
+              - id: items
+                type: u8
+                repeat: until
+                repeat-until: _ == 0
+        "#};
+        let s = parse(yaml);
+        let f = &s.seq[0];
+        assert_eq!(f.repeat, Some(RawRepeat::Until));
+        assert_eq!(f.repeat_until.as_deref(), Some("_ == 0"));
     }
 
     #[test]

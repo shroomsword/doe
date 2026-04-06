@@ -69,6 +69,7 @@ seq:
 | `encoding` | `utf8` (default), `ascii`, or `latin1` |
 | `repeat: eos` | Repeat the field until end of stream |
 | `repeat: expr` + `repeat-expr:` | Repeat a computed number of times |
+| `repeat: until` + `repeat-until:` | Repeat until an expression is true; `_` is the last parsed value |
 | `if:` | Skip the field when the expression is false |
 | `enum:` | Map the parsed integer to a named variant |
 | `contents:` | Assert fixed bytes (magic numbers, file signatures) |
@@ -76,9 +77,10 @@ seq:
 
 ### Expressions
 
-`size:`, `repeat-expr:`, and `if:` accept a small expression language. Earlier
+`size:`, `repeat-expr:`, `repeat-until:`, and `if:` accept a small expression language. Earlier
 fields in the same sequence are referenced by name; fields in the parent type
-via `_parent.field_name`.
+via `_parent.field_name`. Within a `repeat-until:` expression, `_` refers to
+the most recently parsed value.
 
 ```yaml
 # size from an earlier field
@@ -102,6 +104,12 @@ via `_parent.field_name`.
   type: record_t
   repeat: expr
   repeat-expr: count
+
+# repeat until a sentinel value (terminator is included in the result)
+- id: items
+  type: u8
+  repeat: until
+  repeat-until: _ == 0
 
 # parent-scope reference (inside a sub-type)
 - id: value

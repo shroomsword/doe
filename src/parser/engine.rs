@@ -113,10 +113,11 @@ impl<'reg> Engine<'reg> {
                 let mut items = Vec::new();
                 loop {
                     let v = self.parse_field_once(field, parent_ty, cursor, ctx)?;
-                    // Bind `_` temporarily so the until-expr can reference it
-                    // In a future version, this would use a named binding.
+                    // Bind the most recently parsed value to `_` so the
+                    // until-expression can reference it, matching the convention
+                    // used by KaitaiStruct.
                     let done = if let Some(n) = v.as_int() {
-                        ctx.eval_ctx.bind("_last", n);
+                        ctx.eval_ctx.bind("_", n);
                         expr::eval(until_expr, &ctx.eval_ctx, "<repeat-until>")
                             .map_err(|e| annotate(e, &field.id, &parent_ty.name))?
                             != 0
@@ -861,6 +862,85 @@ mod tests {
         "#}, "t", &data);
         if let Value::Array(items) = get_field(&v, "items") {
             assert!(items.is_empty());
+        } else { panic!("expected Array"); }
+    }
+
+    #[test]
+    fn repeat_until_null_terminator() {
+        // Classic C-string style: read bytes until value == 0x00.
+        // The terminator is included as the last item in the array.
+        let data = [0x41u8, 0x42, 0x43, 0x00]; // "ABC\0"
+        let v = parse(indoc! {r#"
+            id: t
+            seq:
+              - id: chars
+                type: u8
+                repeat: until
+                repeat-until: _ == 0
+        "#}, "t", &data);
+        if let Value::Array(items) = get_field(&v, "chars") {
+            assert_eq!(items.len(), 4); // A, B, C, and the terminator
+            assert_eq!(items[0], Value::UInt(0x41));
+            assert_eq!(items[3], Value::UInt(0x00)); // terminator included
+        } else { panic!("expected Array"); }
+    }
+
+    #[test]
+    fn repeat_until_sentinel_value() {
+        // Read u16le values until one equals 0xFFFF.
+        let data: Vec<u8> = vec![
+            0x01, 0x00,  // 1
+            0x02, 0x00,  // 2
+            0xFF, 0xFF,  // sentinel
+        ];
+        let v = parse(indoc! {r#"
+            id: t
+            seq:
+              - id: values
+                type: u16le
+                repeat: until
+                repeat-until: _ == 0xFFFF
+        "#}, "t", &data);
+        if let Value::Array(items) = get_field(&v, "values") {
+            assert_eq!(items.len(), 3);
+            assert_eq!(items[0], Value::UInt(1));
+            assert_eq!(items[1], Value::UInt(2));
+            assert_eq!(items[2], Value::UInt(0xFFFF)); // sentinel included
+        } else { panic!("expected Array"); }
+    }
+
+    #[test]
+    fn repeat_until_expression_with_bitwise() {
+        // Stop when the high bit of a byte is set.
+        let data = [0x01u8, 0x02, 0x83]; // 0x83 has high bit set
+        let v = parse(indoc! {r#"
+            id: t
+            seq:
+              - id: bytes
+                type: u8
+                repeat: until
+                repeat-until: _ & 0x80
+        "#}, "t", &data);
+        if let Value::Array(items) = get_field(&v, "bytes") {
+            assert_eq!(items.len(), 3);
+            assert_eq!(items[2], Value::UInt(0x83));
+        } else { panic!("expected Array"); }
+    }
+
+    #[test]
+    fn repeat_until_stops_at_eof_if_condition_never_met() {
+        // If the terminator condition is never true, iteration stops at EOF.
+        let data = [0x01u8, 0x02, 0x03]; // no zero byte
+        let v = parse(indoc! {r#"
+            id: t
+            seq:
+              - id: items
+                type: u8
+                repeat: until
+                repeat-until: _ == 0
+        "#}, "t", &data);
+        if let Value::Array(items) = get_field(&v, "items") {
+            assert_eq!(items.len(), 3);
         } else { panic!("expected Array"); }
     }
 

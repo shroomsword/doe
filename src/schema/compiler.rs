@@ -58,6 +58,9 @@ pub struct Compiler {
     loading_stack: Vec<String>,
     /// Set of schema ids that have already been fully processed.
     processed: HashSet<String>,
+    /// Maps schema id → the source path it was loaded from, for duplicate
+    /// detection across separately loaded schemas.
+    source_paths: HashMap<String, String>,
 }
 
 impl Compiler {
@@ -67,6 +70,7 @@ impl Compiler {
             registry: TypeRegistry::new(),
             loading_stack: Vec::new(),
             processed: HashSet::new(),
+            source_paths: HashMap::new(),
         }
     }
 
@@ -82,7 +86,25 @@ impl Compiler {
 
     /// Compile an already-parsed schema.
     pub fn process_schema(&mut self, schema: &RawSchema) -> Result<()> {
+        // If we have already processed this exact id, check whether it came
+        // from the same source.  An id being loaded again via a shared import
+        // is fine (idempotent); the same id from a *different* file is an error.
         if self.processed.contains(&schema.id) {
+            let incoming = schema.source_path
+                .as_deref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "<in-memory>".to_owned());
+            let existing = self.source_paths
+                .get(&schema.id)
+                .cloned()
+                .unwrap_or_else(|| "<unknown>".to_owned());
+            if incoming != existing {
+                return Err(DoeError::DuplicateType {
+                    name: schema.id.clone(),
+                    first: existing,
+                    second: incoming,
+                });
+            }
             return Ok(());
         }
 
@@ -117,6 +139,12 @@ impl Compiler {
 
         self.loading_stack.pop();
         self.processed.insert(schema.id.clone());
+        // Record source for future duplicate detection.
+        let source = schema.source_path
+            .as_deref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| "<in-memory>".to_owned());
+        self.source_paths.insert(schema.id.clone(), source);
         Ok(())
     }
 
@@ -452,8 +480,13 @@ fn compile_repeat(raw: &RawField, ctx: &FieldCtx) -> Result<RepeatMode> {
         None                 => Ok(RepeatMode::Once),
         Some(RawRepeat::Eos) => Ok(RepeatMode::Eos),
         Some(RawRepeat::Until) => {
-            // `repeat-until` not yet in RawField; placeholder
-            Ok(RepeatMode::Eos)
+            let s = raw.repeat_until.as_deref().ok_or_else(|| DoeError::FieldError {
+                field: raw.id.clone(),
+                context: ctx.parent_fqn.to_owned(),
+                message: "'repeat: until' requires 'repeat-until'".to_owned(),
+            })?;
+            let ast = expr::parse(s)?;
+            Ok(RepeatMode::Until(ast))
         }
         Some(RawRepeat::Expr) => {
             let s = raw.repeat_expr.as_deref().ok_or_else(|| DoeError::FieldError {
@@ -864,6 +897,32 @@ mod tests {
         assert!(matches!(err, DoeError::FieldError { .. }));
     }
 
+    #[test]
+    fn compile_repeat_until() {
+        let reg = compile(indoc! {r#"
+            id: t
+            seq:
+              - id: items
+                type: u8
+                repeat: until
+                repeat-until: _ == 0
+        "#});
+        let ty = reg.get("t").unwrap();
+        assert!(matches!(ty.fields[0].repeat, RepeatMode::Until(_)));
+    }
+
+    #[test]
+    fn repeat_until_without_repeat_until_is_error() {
+        let err = compile_err(indoc! {r#"
+            id: t
+            seq:
+              - id: items
+                type: u8
+                repeat: until
+        "#});
+        assert!(matches!(err, DoeError::FieldError { .. }));
+    }
+
     // ── Conditional fields ────────────────────────────────────────────────────
 
     #[test]
@@ -1203,5 +1262,60 @@ mod tests {
         assert_eq!(parse_enum_key(""),      None);
         assert_eq!(parse_enum_key("abc"),   None);
         assert_eq!(parse_enum_key("0xgg"),  None);
+    }
+
+    // ── Duplicate type detection ──────────────────────────────────────────────
+
+    #[test]
+    fn duplicate_top_level_id_from_different_files_is_error() {
+        // Two separately loaded in-memory schemas with the same id but
+        // different source_path values should be rejected.
+        use std::path::PathBuf;
+        let mut schema_a: RawSchema = serde_yaml::from_str(indoc! {r#"
+            id: my_type
+            seq:
+              - id: x
+                type: u8
+        "#}).unwrap();
+        schema_a.source_path = Some(PathBuf::from("/types/a.yaml"));
+
+        let mut schema_b: RawSchema = serde_yaml::from_str(indoc! {r#"
+            id: my_type
+            seq:
+              - id: y
+                type: u16
+        "#}).unwrap();
+        schema_b.source_path = Some(PathBuf::from("/types/b.yaml"));
+
+        let mut compiler = Compiler::new(vec![]);
+        compiler.process_schema(&schema_a).unwrap();
+        let err = compiler.process_schema(&schema_b).unwrap_err();
+        assert!(matches!(err, DoeError::DuplicateType { .. }),
+            "expected DuplicateType, got {:?}", err);
+        if let DoeError::DuplicateType { name, first, second } = err {
+            assert_eq!(name, "my_type");
+            assert!(first.contains("a.yaml"), "first={}", first);
+            assert!(second.contains("b.yaml"), "second={}", second);
+        }
+    }
+
+    #[test]
+    fn same_schema_loaded_twice_via_import_is_idempotent() {
+        // The same schema id from the same source is not a duplicate —
+        // this happens when a schema is reachable via multiple import paths.
+        use std::path::PathBuf;
+        let mut schema: RawSchema = serde_yaml::from_str(indoc! {r#"
+            id: shared
+            seq:
+              - id: val
+                type: u8
+        "#}).unwrap();
+        schema.source_path = Some(PathBuf::from("/types/shared.yaml"));
+
+        let mut compiler = Compiler::new(vec![]);
+        compiler.process_schema(&schema).unwrap();
+        // Processing again with the same source path should succeed silently.
+        compiler.process_schema(&schema).unwrap();
+        assert!(compiler.registry.contains("shared"));
     }
 }

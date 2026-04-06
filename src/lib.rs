@@ -29,7 +29,7 @@ use std::path::{Path, PathBuf};
 
 pub use error::{DoeError, Result};
 pub use value::Value;
-pub use config::{AvailableType, discover_types};
+pub use config::{AvailableType, DuplicateTypeError, discover_types};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // High-level API

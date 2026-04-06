@@ -19,7 +19,7 @@ use std::process;
 
 use clap::{CommandFactory, Parser as ClapParser};
 
-use doe::{discover_types, is_schema_path, OutputFormat};
+use doe::{discover_types, OutputFormat};
 use doe::config::{resolve_include_paths, Config};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,7 +76,6 @@ struct EarlyArgs {
     #[arg(short = 'c', long = "config", value_name = "FILE")]
     config: Option<PathBuf>,
 
-    // Absorb --help / -h so ignore_errors doesn't swallow it before we see it.
     #[arg(long, short = 'h', action = clap::ArgAction::SetTrue)]
     help: bool,
 }
@@ -128,6 +127,34 @@ fn run(cli: Cli) -> doe::Result<()> {
 // Help output
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Resolve include paths from CLI flags and config file, then call
+/// `discover_types`.  On duplicate errors, print every conflict to stderr
+/// and exit with a non-zero code so the user knows their type library is
+/// broken before they waste time trying to parse a file.
+fn resolve_and_check_types(
+    cli_include_paths: &[PathBuf],
+    config_path: Option<&std::path::Path>,
+) -> Vec<doe::AvailableType> {
+    let cfg_path = config_path
+        .map(std::path::Path::to_owned)
+        .or_else(Config::default_path)
+        .unwrap_or_else(|| PathBuf::from(".doe_config.yaml"));
+
+    let config = Config::load(&cfg_path).unwrap_or_default();
+    let include_paths = resolve_include_paths(cli_include_paths, &config);
+
+    match discover_types(&include_paths) {
+        Ok(types) => types,
+        Err(duplicates) => {
+            eprintln!("doe: error: duplicate type ids found in include paths\n");
+            for dup in &duplicates {
+                eprintln!("{}\n", dup);
+            }
+            process::exit(1);
+        }
+    }
+}
+
 /// Print the standard clap help text followed by a list of types discovered
 /// on the resolved include paths.
 fn print_help(cli_include_paths: &[PathBuf], config_path: Option<&std::path::Path>) {
@@ -137,20 +164,10 @@ fn print_help(cli_include_paths: &[PathBuf], config_path: Option<&std::path::Pat
     cmd.write_help(&mut help_text).unwrap_or(());
     print!("{}", String::from_utf8_lossy(&help_text));
 
-    // Resolve the include paths the same way run() does.
-    let cfg_path = config_path
-        .map(std::path::Path::to_owned)
-        .or_else(Config::default_path)
-        .unwrap_or_else(|| PathBuf::from(".doe_config.yaml"));
-
-    let config = Config::load(&cfg_path).unwrap_or_default();
-    let include_paths = resolve_include_paths(cli_include_paths, &config);
-
-    // Discover and format available types.
-    let types = discover_types(&include_paths);
+    let types = resolve_and_check_types(cli_include_paths, config_path);
 
     if types.is_empty() {
-        if include_paths.is_empty() {
+        if cli_include_paths.is_empty() {
             println!("\nAvailable types: none (no include paths configured)");
         } else {
             println!("\nAvailable types: none found on include paths");
@@ -236,20 +253,18 @@ mod tests {
 
     #[test]
     fn is_schema_path_reexported() {
+        use doe::is_schema_path;
         assert!(is_schema_path("./foo.yaml"));
         assert!(!is_schema_path("png"));
     }
 
     #[test]
-    fn print_help_no_include_paths_mentions_none() {
-        // Smoke test: print_help must not panic with no include paths.
-        // We capture nothing — just verify it runs without panic.
+    fn print_help_no_include_paths_does_not_panic() {
         print_help(&[], None);
     }
 
     #[test]
     fn print_help_with_types_does_not_panic() {
-        use std::io::Write;
         let dir = tempfile::TempDir::new().unwrap();
         std::fs::write(
             dir.path().join("mytype.yaml"),

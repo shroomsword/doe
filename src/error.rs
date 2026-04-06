@@ -69,10 +69,6 @@ pub enum DoeError {
     },
 
     /// The same type name is defined in two separate schema files.
-    ///
-    /// This variant is reserved for future use; the compiler currently uses a
-    /// first-wins strategy and emits a warning instead.
-    #[allow(dead_code)]
     #[error("duplicate type name '{name}' defined in {first} and {second}")]
     DuplicateType {
         /// The conflicting type name.
