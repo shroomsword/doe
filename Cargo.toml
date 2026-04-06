@@ -3,6 +3,10 @@ name = "doe"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "doe"
+path = "src/lib.rs"
+
 [[bin]]
 name = "doe"
 path = "src/main.rs"

@@ -1,8 +1,18 @@
 //! Raw schema types: a direct serde mirror of the YAML format.
 //!
-//! Nothing here is validated or resolved. The compiler transforms these into
-//! the typed IR in `ir.rs`. Keeping the two representations separate means
-//! serde handles all the YAML quirks while the compiler handles all the logic.
+//! These structs are deliberately free of any validation or business logic —
+//! they exist only to let `serde_yaml` deserialise a schema file into a Rust
+//! value.  The [`crate::schema::compiler`] module then transforms them into
+//! the validated, resolved [`crate::schema::ir`] representation.
+//!
+//! Keeping the two representations separate means:
+//! - `serde` handles all YAML quirks (optional fields, untagged unions, key
+//!   renaming) without cluttering the compiler.
+//! - The compiler can report precise, field-level errors without fighting
+//!   serde's error model.
+//!
+//! You generally do not need to construct these types directly; use
+//! [`crate::load_schema_file`] to parse a YAML file into a [`RawSchema`].
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -53,6 +63,7 @@ pub struct RawSchema {
 
 // ── Meta ─────────────────────────────────────────────────────────────────────
 
+/// File-level metadata; currently carries only the default byte order.
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawMeta {
@@ -62,10 +73,13 @@ pub struct RawMeta {
     pub endian: Option<RawEndian>,
 }
 
+/// Byte order as written in a schema's `meta.endian` field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RawEndian {
+    /// Little-endian (least-significant byte first).
     Le,
+    /// Big-endian (most-significant byte first).
     Be,
 }
 

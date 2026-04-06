@@ -1,7 +1,21 @@
-//! The `Value` type: the output tree produced by parsing a binary file.
+//! The [`Value`] type: the output tree produced by the binary parser.
 //!
-//! `Value` is intentionally decoupled from both the schema IR and the
-//! renderers.  The parser produces it; the renderers consume it.
+//! [`Value`] is the currency of the `doe` library — the parser produces it
+//! and the renderers consume it.  It is intentionally decoupled from both
+//! the schema IR and the renderers so that either side can be swapped out
+//! independently.
+//!
+//! # Structure preservation
+//!
+//! Struct fields are stored as `Vec<(String, Value)>` rather than
+//! `HashMap<String, Value>`.  This preserves the declaration order from the
+//! schema, which matters for two reasons:
+//!
+//! 1. **Deterministic output** — text and JSON renderers emit fields in
+//!    schema order, matching reader expectations.
+//! 2. **Expression correctness** — size and repeat-count expressions can
+//!    only reference fields that appear *earlier* in the sequence; the parser
+//!    relies on ordered insertion to evaluate them correctly.
 
 use std::fmt;
 
@@ -102,6 +116,20 @@ impl Value {
     }
 }
 
+/// Single-line display representation of a value, used by the text renderer.
+///
+/// | Variant | Example output |
+/// |---------|---------------|
+/// | `UInt(255)` | `255` |
+/// | `SInt(-1)` | `-1` |
+/// | `Float(3.14)` | `3.14` |
+/// | `Bytes` | `<8 bytes>` |
+/// | `Str("hi")` | `"hi"` |
+/// | `Enum { value: 1, name: Some("data") }` | `data (1)` |
+/// | `Enum { value: 99, name: None }` | `99` |
+/// | `Struct { type_name: "png::chunk", .. }` | `<png::chunk>` |
+/// | `Array` (3 items) | `[3 items]` |
+/// | `Absent` | `<absent>` |
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
