@@ -31,10 +31,13 @@ impl<'reg> Engine<'reg> {
     /// Parse `type_name` from the beginning of `cursor`, returning a
     /// `Value::Struct` with all fields populated.
     pub fn parse_type(&self, type_name: &str, cursor: &mut Cursor) -> Result<Value> {
-        let ty = self.registry.get(type_name).ok_or_else(|| DoeError::UnknownType {
-            type_name: type_name.to_owned(),
-            context: "<engine>".to_owned(),
-        })?;
+        let ty = self
+            .registry
+            .get(type_name)
+            .ok_or_else(|| DoeError::UnknownType {
+                type_name: type_name.to_owned(),
+                context: "<engine>".to_owned(),
+            })?;
         let mut ctx = ParseContext::new();
         self.parse_compiled_type(ty, cursor, &mut ctx)
     }
@@ -81,9 +84,7 @@ impl<'reg> Engine<'reg> {
 
         // Dispatch on repeat mode
         match &field.repeat {
-            RepeatMode::Once => {
-                self.parse_field_once(field, parent_ty, cursor, ctx)
-            }
+            RepeatMode::Once => self.parse_field_once(field, parent_ty, cursor, ctx),
             RepeatMode::Eos => {
                 let mut items = Vec::new();
                 while !cursor.is_eof() {
@@ -125,7 +126,9 @@ impl<'reg> Engine<'reg> {
                         false
                     };
                     items.push(v);
-                    if done || cursor.is_eof() { break; }
+                    if done || cursor.is_eof() {
+                        break;
+                    }
                 }
                 Ok(Value::Array(items))
             }
@@ -146,11 +149,15 @@ impl<'reg> Engine<'reg> {
         if let Some(enum_name) = &field.enum_ref {
             if let Some(n) = raw.as_int() {
                 let discriminant = n as u64;
-                let variant = parent_ty.enums
+                let variant = parent_ty
+                    .enums
                     .get(enum_name.as_str())
                     .and_then(|e| e.lookup(discriminant))
                     .map(str::to_owned);
-                return Ok(Value::Enum { value: discriminant, name: variant });
+                return Ok(Value::Enum {
+                    value: discriminant,
+                    name: variant,
+                });
             }
         }
 
@@ -175,25 +182,22 @@ impl<'reg> Engine<'reg> {
                 let e = resolve_endian(*endian, parent_ty.endian);
                 self.read_sint(*width, e, cursor)
             }
-            FieldKind::Float { width } => {
-                self.read_float(*width, parent_ty.endian, cursor)
-            }
+            FieldKind::Float { width } => self.read_float(*width, parent_ty.endian, cursor),
             FieldKind::Bytes { size } => {
                 let n = eval_size(size, &ctx.eval_ctx)? as usize;
                 let bytes = cursor.read_bytes(n)?.to_vec();
                 Ok(Value::Bytes(bytes))
             }
-            FieldKind::Str { size, encoding } => {
-                self.read_str(size, *encoding, cursor, ctx)
-            }
-            FieldKind::Bits { bit_size } => {
-                self.read_bits(*bit_size, cursor)
-            }
+            FieldKind::Str { size, encoding } => self.read_str(size, *encoding, cursor, ctx),
+            FieldKind::Bits { bit_size } => self.read_bits(*bit_size, cursor),
             FieldKind::TypeRef { type_name } => {
-                let sub_ty = self.registry.get(type_name).ok_or_else(|| DoeError::UnknownType {
-                    type_name: type_name.clone(),
-                    context: parent_ty.name.clone(),
-                })?;
+                let sub_ty = self
+                    .registry
+                    .get(type_name)
+                    .ok_or_else(|| DoeError::UnknownType {
+                        type_name: type_name.clone(),
+                        context: parent_ty.name.clone(),
+                    })?;
                 ctx.push_scope();
                 let result = self.parse_compiled_type(sub_ty, cursor, ctx);
                 let _inner_fields = ctx.pop_scope();
@@ -216,26 +220,26 @@ impl<'reg> Engine<'reg> {
 
     fn read_uint(&self, width: IntWidth, endian: Endian, cursor: &mut Cursor) -> Result<Value> {
         let v = match (width, endian) {
-            (IntWidth::W8,  _)           => cursor.read_u8()?  as u64,
+            (IntWidth::W8, _) => cursor.read_u8()? as u64,
             (IntWidth::W16, Endian::Little) => cursor.read_u16_le()? as u64,
-            (IntWidth::W16, Endian::Big)    => cursor.read_u16_be()? as u64,
+            (IntWidth::W16, Endian::Big) => cursor.read_u16_be()? as u64,
             (IntWidth::W32, Endian::Little) => cursor.read_u32_le()? as u64,
-            (IntWidth::W32, Endian::Big)    => cursor.read_u32_be()? as u64,
+            (IntWidth::W32, Endian::Big) => cursor.read_u32_be()? as u64,
             (IntWidth::W64, Endian::Little) => cursor.read_u64_le()?,
-            (IntWidth::W64, Endian::Big)    => cursor.read_u64_be()?,
+            (IntWidth::W64, Endian::Big) => cursor.read_u64_be()?,
         };
         Ok(Value::UInt(v))
     }
 
     fn read_sint(&self, width: IntWidth, endian: Endian, cursor: &mut Cursor) -> Result<Value> {
         let v = match (width, endian) {
-            (IntWidth::W8,  _)              => cursor.read_i8()?  as i64,
+            (IntWidth::W8, _) => cursor.read_i8()? as i64,
             (IntWidth::W16, Endian::Little) => cursor.read_i16_le()? as i64,
-            (IntWidth::W16, Endian::Big)    => cursor.read_i16_be()? as i64,
+            (IntWidth::W16, Endian::Big) => cursor.read_i16_be()? as i64,
             (IntWidth::W32, Endian::Little) => cursor.read_i32_le()? as i64,
-            (IntWidth::W32, Endian::Big)    => cursor.read_i32_be()? as i64,
+            (IntWidth::W32, Endian::Big) => cursor.read_i32_be()? as i64,
             (IntWidth::W64, Endian::Little) => cursor.read_i64_le()?,
-            (IntWidth::W64, Endian::Big)    => cursor.read_i64_be()?,
+            (IntWidth::W64, Endian::Big) => cursor.read_i64_be()?,
         };
         Ok(Value::SInt(v))
     }
@@ -243,9 +247,9 @@ impl<'reg> Engine<'reg> {
     fn read_float(&self, width: FloatWidth, endian: Endian, cursor: &mut Cursor) -> Result<Value> {
         let v = match (width, endian) {
             (FloatWidth::F32, Endian::Little) => cursor.read_f32_le()? as f64,
-            (FloatWidth::F32, Endian::Big)    => cursor.read_f32_be()? as f64,
+            (FloatWidth::F32, Endian::Big) => cursor.read_f32_be()? as f64,
             (FloatWidth::F64, Endian::Little) => cursor.read_f64_le()?,
-            (FloatWidth::F64, Endian::Big)    => cursor.read_f64_be()?,
+            (FloatWidth::F64, Endian::Big) => cursor.read_f64_be()?,
         };
         Ok(Value::Float(v))
     }
@@ -282,7 +286,11 @@ impl<'reg> Engine<'reg> {
         let extra_bits = (byte_count * 8) as u8 - bit_size;
         v >>= extra_bits;
         // Mask to bit_size bits
-        let mask = if bit_size >= 64 { u64::MAX } else { (1u64 << bit_size) - 1 };
+        let mask = if bit_size >= 64 {
+            u64::MAX
+        } else {
+            (1u64 << bit_size) - 1
+        };
         Ok(Value::UInt(v & mask))
     }
 }
@@ -294,8 +302,8 @@ impl<'reg> Engine<'reg> {
 fn resolve_endian(field_override: EndianOverride, type_default: Endian) -> Endian {
     match field_override {
         EndianOverride::Inherit => type_default,
-        EndianOverride::Little  => Endian::Little,
-        EndianOverride::Big     => Endian::Big,
+        EndianOverride::Little => Endian::Little,
+        EndianOverride::Big => Endian::Big,
     }
 }
 
@@ -306,7 +314,8 @@ fn eval_size(size: &SizeExpr, eval_ctx: &expr::EvalContext) -> Result<i64> {
             let v = expr::eval(e, eval_ctx, "<size>")?;
             if v < 0 {
                 return Err(DoeError::Schema(format!(
-                    "size expression evaluated to negative value: {}", v
+                    "size expression evaluated to negative value: {}",
+                    v
                 )));
             }
             Ok(v)
@@ -316,11 +325,9 @@ fn eval_size(size: &SizeExpr, eval_ctx: &expr::EvalContext) -> Result<i64> {
 
 fn decode_string(bytes: &[u8], encoding: Encoding) -> Result<String> {
     match encoding {
-        Encoding::Utf8 => {
-            std::str::from_utf8(bytes)
-                .map(str::to_owned)
-                .map_err(|e| DoeError::Schema(format!("UTF-8 decode error: {}", e)))
-        }
+        Encoding::Utf8 => std::str::from_utf8(bytes)
+            .map(str::to_owned)
+            .map_err(|e| DoeError::Schema(format!("UTF-8 decode error: {}", e))),
         Encoding::Ascii => {
             if bytes.iter().any(|&b| b > 0x7f) {
                 return Err(DoeError::Schema("non-ASCII byte in ASCII string".into()));
@@ -377,7 +384,10 @@ mod tests {
 
     fn get_field<'a>(value: &'a Value, name: &str) -> &'a Value {
         if let Value::Struct { fields, .. } = value {
-            fields.iter().find(|(k, _)| k == name).map(|(_, v)| v)
+            fields
+                .iter()
+                .find(|(k, _)| k == name)
+                .map(|(_, v)| v)
                 .unwrap_or_else(|| panic!("field '{}' not found", name))
         } else {
             panic!("expected Struct, got {:?}", value)
@@ -388,95 +398,127 @@ mod tests {
 
     #[test]
     fn parse_u8() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: u8
-        "#}, "t", &[0x42]);
+        "#},
+            "t",
+            &[0x42],
+        );
         assert_eq!(get_field(&v, "x"), &Value::UInt(0x42));
     }
 
     #[test]
     fn parse_u16_le() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: u16le
-        "#}, "t", &[0x34, 0x12]);
+        "#},
+            "t",
+            &[0x34, 0x12],
+        );
         assert_eq!(get_field(&v, "x"), &Value::UInt(0x1234));
     }
 
     #[test]
     fn parse_u16_be() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: u16be
-        "#}, "t", &[0x12, 0x34]);
+        "#},
+            "t",
+            &[0x12, 0x34],
+        );
         assert_eq!(get_field(&v, "x"), &Value::UInt(0x1234));
     }
 
     #[test]
     fn parse_u32_le() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: u32le
-        "#}, "t", &[0x78, 0x56, 0x34, 0x12]);
+        "#},
+            "t",
+            &[0x78, 0x56, 0x34, 0x12],
+        );
         assert_eq!(get_field(&v, "x"), &Value::UInt(0x12345678));
     }
 
     #[test]
     fn parse_u32_be() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: u32be
-        "#}, "t", &[0x12, 0x34, 0x56, 0x78]);
+        "#},
+            "t",
+            &[0x12, 0x34, 0x56, 0x78],
+        );
         assert_eq!(get_field(&v, "x"), &Value::UInt(0x12345678));
     }
 
     #[test]
     fn parse_u64_le() {
         let n: u64 = 0xdeadbeefcafe0001;
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: u64le
-        "#}, "t", &n.to_le_bytes());
+        "#},
+            "t",
+            &n.to_le_bytes(),
+        );
         assert_eq!(get_field(&v, "x"), &Value::UInt(n));
     }
 
     #[test]
     fn parse_u8_inherits_meta_endian() {
         // u8 endian doesn't matter, but verify meta: be doesn't break anything
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             meta:
               endian: be
             seq:
               - id: x
                 type: u8
-        "#}, "t", &[0xff]);
+        "#},
+            "t",
+            &[0xff],
+        );
         assert_eq!(get_field(&v, "x"), &Value::UInt(255));
     }
 
     #[test]
     fn parse_u16_inherits_be_meta() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             meta:
               endian: be
             seq:
               - id: x
                 type: u16
-        "#}, "t", &[0x01, 0x00]);
+        "#},
+            "t",
+            &[0x01, 0x00],
+        );
         assert_eq!(get_field(&v, "x"), &Value::UInt(0x0100));
     }
 
@@ -484,45 +526,61 @@ mod tests {
 
     #[test]
     fn parse_i8_positive() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: i8
-        "#}, "t", &[0x7f]);
+        "#},
+            "t",
+            &[0x7f],
+        );
         assert_eq!(get_field(&v, "x"), &Value::SInt(127));
     }
 
     #[test]
     fn parse_i8_negative() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: i8
-        "#}, "t", &[0xff]);
+        "#},
+            "t",
+            &[0xff],
+        );
         assert_eq!(get_field(&v, "x"), &Value::SInt(-1));
     }
 
     #[test]
     fn parse_i32_le_negative() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: i32le
-        "#}, "t", &(-100i32).to_le_bytes());
+        "#},
+            "t",
+            &(-100i32).to_le_bytes(),
+        );
         assert_eq!(get_field(&v, "x"), &Value::SInt(-100));
     }
 
     #[test]
     fn parse_i64_be_min() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: i64be
-        "#}, "t", &i64::MIN.to_be_bytes());
+        "#},
+            "t",
+            &i64::MIN.to_be_bytes(),
+        );
         assert_eq!(get_field(&v, "x"), &Value::SInt(i64::MIN));
     }
 
@@ -531,52 +589,72 @@ mod tests {
     #[test]
     fn parse_f32_le() {
         let f: f32 = 1.5;
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: f32
-        "#}, "t", &f.to_le_bytes());
+        "#},
+            "t",
+            &f.to_le_bytes(),
+        );
         if let Value::Float(got) = get_field(&v, "x") {
             assert!((got - 1.5).abs() < 1e-6);
-        } else { panic!("expected Float"); }
+        } else {
+            panic!("expected Float");
+        }
     }
 
     #[test]
     fn parse_f64_be() {
         let f: f64 = std::f64::consts::E;
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             meta:
               endian: be
             seq:
               - id: x
                 type: f64
-        "#}, "t", &f.to_be_bytes());
+        "#},
+            "t",
+            &f.to_be_bytes(),
+        );
         if let Value::Float(got) = get_field(&v, "x") {
             assert!((got - std::f64::consts::E).abs() < 1e-15);
-        } else { panic!("expected Float"); }
+        } else {
+            panic!("expected Float");
+        }
     }
 
     // ── Bytes ─────────────────────────────────────────────────────────────────
 
     #[test]
     fn parse_bytes_literal_size() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: buf
                 type: bytes
                 size: 4
-        "#}, "t", &[0xde, 0xad, 0xbe, 0xef]);
-        assert_eq!(get_field(&v, "buf"), &Value::Bytes(vec![0xde, 0xad, 0xbe, 0xef]));
+        "#},
+            "t",
+            &[0xde, 0xad, 0xbe, 0xef],
+        );
+        assert_eq!(
+            get_field(&v, "buf"),
+            &Value::Bytes(vec![0xde, 0xad, 0xbe, 0xef])
+        );
     }
 
     #[test]
     fn parse_bytes_dynamic_size() {
-        let mut data = vec![0x03u8];     // length = 3
+        let mut data = vec![0x03u8]; // length = 3
         data.extend_from_slice(&[0xaa, 0xbb, 0xcc]); // 3 bytes of data
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: length
@@ -584,13 +662,17 @@ mod tests {
               - id: buf
                 type: bytes
                 size: length
-        "#}, "t", &data);
+        "#},
+            "t",
+            &data,
+        );
         assert_eq!(get_field(&v, "buf"), &Value::Bytes(vec![0xaa, 0xbb, 0xcc]));
     }
 
     #[test]
     fn parse_bytes_zero_length() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: len
@@ -598,7 +680,10 @@ mod tests {
               - id: buf
                 type: bytes
                 size: len
-        "#}, "t", &[0x00]);
+        "#},
+            "t",
+            &[0x00],
+        );
         assert_eq!(get_field(&v, "buf"), &Value::Bytes(vec![]));
     }
 
@@ -606,51 +691,67 @@ mod tests {
 
     #[test]
     fn parse_str_fixed_size() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: name
                 type: str
                 size: 5
                 encoding: ascii
-        "#}, "t", b"hello");
+        "#},
+            "t",
+            b"hello",
+        );
         assert_eq!(get_field(&v, "name"), &Value::Str("hello".into()));
     }
 
     #[test]
     fn parse_strz_null_terminated() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: name
                 type: strz
-        "#}, "t", b"hello\x00world");
+        "#},
+            "t",
+            b"hello\x00world",
+        );
         assert_eq!(get_field(&v, "name"), &Value::Str("hello".into()));
     }
 
     #[test]
     fn parse_str_with_terminator() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: line
                 type: str
                 terminator: 10
-        "#}, "t", b"line1\nrest");
+        "#},
+            "t",
+            b"line1\nrest",
+        );
         assert_eq!(get_field(&v, "line"), &Value::Str("line1".into()));
     }
 
     #[test]
     fn parse_str_latin1() {
         // byte 0xe9 is 'é' in latin-1
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: s
                 type: str
                 size: 3
                 encoding: latin1
-        "#}, "t", &[0x63, 0x61, 0xe9]); // "café" without the f
+        "#},
+            "t",
+            &[0x63, 0x61, 0xe9],
+        ); // "café" without the f
         assert_eq!(get_field(&v, "s"), &Value::Str("caé".into()));
     }
 
@@ -658,13 +759,16 @@ mod tests {
     fn parse_str_utf8() {
         let s = "héllo";
         let bytes = s.as_bytes();
-        let yaml = format!(indoc! {r#"
+        let yaml = format!(
+            indoc! {r#"
             id: t
             seq:
               - id: s
                 type: str
                 size: {}
-        "#}, bytes.len());
+        "#},
+            bytes.len()
+        );
         let v = parse(&yaml, "t", bytes);
         assert_eq!(get_field(&v, "s"), &Value::Str("héllo".into()));
     }
@@ -674,37 +778,49 @@ mod tests {
     #[test]
     fn parse_bits_4() {
         // 0xab = 0b10101011; top 4 bits = 0b1010 = 10
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: nibble
                 type: bits
                 bit_size: 4
-        "#}, "t", &[0xab]);
+        "#},
+            "t",
+            &[0xab],
+        );
         assert_eq!(get_field(&v, "nibble"), &Value::UInt(10));
     }
 
     #[test]
     fn parse_bits_8() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: byte_val
                 type: bits
                 bit_size: 8
-        "#}, "t", &[0xff]);
+        "#},
+            "t",
+            &[0xff],
+        );
         assert_eq!(get_field(&v, "byte_val"), &Value::UInt(255));
     }
 
     #[test]
     fn parse_bits_1() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: flag
                 type: bits
                 bit_size: 1
-        "#}, "t", &[0x80]); // top bit set
+        "#},
+            "t",
+            &[0x80],
+        ); // top bit set
         assert_eq!(get_field(&v, "flag"), &Value::UInt(1));
     }
 
@@ -712,23 +828,34 @@ mod tests {
 
     #[test]
     fn parse_contents_match() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: magic
                 contents: [0x89, 0x50, 0x4e, 0x47]
-        "#}, "t", &[0x89, 0x50, 0x4e, 0x47]);
-        assert_eq!(get_field(&v, "magic"), &Value::Bytes(vec![0x89, 0x50, 0x4e, 0x47]));
+        "#},
+            "t",
+            &[0x89, 0x50, 0x4e, 0x47],
+        );
+        assert_eq!(
+            get_field(&v, "magic"),
+            &Value::Bytes(vec![0x89, 0x50, 0x4e, 0x47])
+        );
     }
 
     #[test]
     fn parse_contents_mismatch_is_error() {
-        let err = parse_err(indoc! {r#"
+        let err = parse_err(
+            indoc! {r#"
             id: t
             seq:
               - id: magic
                 contents: [0x89, 0x50, 0x4e, 0x47]
-        "#}, "t", &[0x00, 0x00, 0x00, 0x00]);
+        "#},
+            "t",
+            &[0x00, 0x00, 0x00, 0x00],
+        );
         assert!(matches!(err, DoeError::Schema(_)));
     }
 
@@ -736,7 +863,8 @@ mod tests {
 
     #[test]
     fn parse_enum_known_variant() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: kind
@@ -747,13 +875,23 @@ mod tests {
                 "0": eof
                 "1": data
                 "2": header
-        "#}, "t", &[0x01]);
-        assert_eq!(get_field(&v, "kind"), &Value::Enum { value: 1, name: Some("data".into()) });
+        "#},
+            "t",
+            &[0x01],
+        );
+        assert_eq!(
+            get_field(&v, "kind"),
+            &Value::Enum {
+                value: 1,
+                name: Some("data".into())
+            }
+        );
     }
 
     #[test]
     fn parse_enum_unknown_variant() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: kind
@@ -762,15 +900,25 @@ mod tests {
             enums:
               kind_t:
                 "0": eof
-        "#}, "t", &[0x99]);
-        assert_eq!(get_field(&v, "kind"), &Value::Enum { value: 0x99, name: None });
+        "#},
+            "t",
+            &[0x99],
+        );
+        assert_eq!(
+            get_field(&v, "kind"),
+            &Value::Enum {
+                value: 0x99,
+                name: None
+            }
+        );
     }
 
     // ── Conditional fields ────────────────────────────────────────────────────
 
     #[test]
     fn conditional_field_present() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: flags
@@ -778,13 +926,17 @@ mod tests {
               - id: extra
                 type: u32le
                 if: flags > 0
-        "#}, "t", &[0x01, 0x78, 0x56, 0x34, 0x12]);
+        "#},
+            "t",
+            &[0x01, 0x78, 0x56, 0x34, 0x12],
+        );
         assert_eq!(get_field(&v, "extra"), &Value::UInt(0x12345678));
     }
 
     #[test]
     fn conditional_field_absent() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: flags
@@ -792,7 +944,10 @@ mod tests {
               - id: extra
                 type: u32le
                 if: flags > 0
-        "#}, "t", &[0x00]); // flags = 0 → extra is absent
+        "#},
+            "t",
+            &[0x00],
+        ); // flags = 0 → extra is absent
         assert_eq!(get_field(&v, "extra"), &Value::Absent);
     }
 
@@ -800,38 +955,51 @@ mod tests {
 
     #[test]
     fn repeat_eos() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: items
                 type: u8
                 repeat: eos
-        "#}, "t", &[0x01, 0x02, 0x03]);
+        "#},
+            "t",
+            &[0x01, 0x02, 0x03],
+        );
         if let Value::Array(items) = get_field(&v, "items") {
             assert_eq!(items.len(), 3);
             assert_eq!(items[0], Value::UInt(1));
             assert_eq!(items[2], Value::UInt(3));
-        } else { panic!("expected Array"); }
+        } else {
+            panic!("expected Array");
+        }
     }
 
     #[test]
     fn repeat_eos_empty_input() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: items
                 type: u8
                 repeat: eos
-        "#}, "t", &[]);
+        "#},
+            "t",
+            &[],
+        );
         if let Value::Array(items) = get_field(&v, "items") {
             assert!(items.is_empty());
-        } else { panic!("expected Array"); }
+        } else {
+            panic!("expected Array");
+        }
     }
 
     #[test]
     fn repeat_expr_count() {
         let data = [0x03u8, 0x0a, 0x0b, 0x0c]; // count=3, items=[10,11,12]
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: count
@@ -840,17 +1008,23 @@ mod tests {
                 type: u8
                 repeat: expr
                 repeat-expr: count
-        "#}, "t", &data);
+        "#},
+            "t",
+            &data,
+        );
         if let Value::Array(items) = get_field(&v, "items") {
             assert_eq!(items.len(), 3);
             assert_eq!(items[1], Value::UInt(0x0b));
-        } else { panic!("expected Array"); }
+        } else {
+            panic!("expected Array");
+        }
     }
 
     #[test]
     fn repeat_expr_zero_count() {
         let data = [0x00u8]; // count=0
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: count
@@ -859,10 +1033,15 @@ mod tests {
                 type: u8
                 repeat: expr
                 repeat-expr: count
-        "#}, "t", &data);
+        "#},
+            "t",
+            &data,
+        );
         if let Value::Array(items) = get_field(&v, "items") {
             assert!(items.is_empty());
-        } else { panic!("expected Array"); }
+        } else {
+            panic!("expected Array");
+        }
     }
 
     #[test]
@@ -870,78 +1049,102 @@ mod tests {
         // Classic C-string style: read bytes until value == 0x00.
         // The terminator is included as the last item in the array.
         let data = [0x41u8, 0x42, 0x43, 0x00]; // "ABC\0"
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: chars
                 type: u8
                 repeat: until
                 repeat-until: _ == 0
-        "#}, "t", &data);
+        "#},
+            "t",
+            &data,
+        );
         if let Value::Array(items) = get_field(&v, "chars") {
             assert_eq!(items.len(), 4); // A, B, C, and the terminator
             assert_eq!(items[0], Value::UInt(0x41));
             assert_eq!(items[3], Value::UInt(0x00)); // terminator included
-        } else { panic!("expected Array"); }
+        } else {
+            panic!("expected Array");
+        }
     }
 
     #[test]
     fn repeat_until_sentinel_value() {
         // Read u16le values until one equals 0xFFFF.
         let data: Vec<u8> = vec![
-            0x01, 0x00,  // 1
-            0x02, 0x00,  // 2
-            0xFF, 0xFF,  // sentinel
+            0x01, 0x00, // 1
+            0x02, 0x00, // 2
+            0xFF, 0xFF, // sentinel
         ];
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: values
                 type: u16le
                 repeat: until
                 repeat-until: _ == 0xFFFF
-        "#}, "t", &data);
+        "#},
+            "t",
+            &data,
+        );
         if let Value::Array(items) = get_field(&v, "values") {
             assert_eq!(items.len(), 3);
             assert_eq!(items[0], Value::UInt(1));
             assert_eq!(items[1], Value::UInt(2));
             assert_eq!(items[2], Value::UInt(0xFFFF)); // sentinel included
-        } else { panic!("expected Array"); }
+        } else {
+            panic!("expected Array");
+        }
     }
 
     #[test]
     fn repeat_until_expression_with_bitwise() {
         // Stop when the high bit of a byte is set.
         let data = [0x01u8, 0x02, 0x83]; // 0x83 has high bit set
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: bytes
                 type: u8
                 repeat: until
                 repeat-until: _ & 0x80
-        "#}, "t", &data);
+        "#},
+            "t",
+            &data,
+        );
         if let Value::Array(items) = get_field(&v, "bytes") {
             assert_eq!(items.len(), 3);
             assert_eq!(items[2], Value::UInt(0x83));
-        } else { panic!("expected Array"); }
+        } else {
+            panic!("expected Array");
+        }
     }
 
     #[test]
     fn repeat_until_stops_at_eof_if_condition_never_met() {
         // If the terminator condition is never true, iteration stops at EOF.
         let data = [0x01u8, 0x02, 0x03]; // no zero byte
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: items
                 type: u8
                 repeat: until
                 repeat-until: _ == 0
-        "#}, "t", &data);
+        "#},
+            "t",
+            &data,
+        );
         if let Value::Array(items) = get_field(&v, "items") {
             assert_eq!(items.len(), 3);
-        } else { panic!("expected Array"); }
+        } else {
+            panic!("expected Array");
+        }
     }
 
     // ── Sub-types ─────────────────────────────────────────────────────────────
@@ -949,7 +1152,8 @@ mod tests {
     #[test]
     fn parse_subtype() {
         let data = [0x01u8, 0x00, 0x02, 0x00]; // two u16le values
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: outer
             seq:
               - id: point
@@ -961,7 +1165,10 @@ mod tests {
                     type: u16le
                   - id: y
                     type: u16le
-        "#}, "outer", &data);
+        "#},
+            "outer",
+            &data,
+        );
         let point = get_field(&v, "point");
         assert_eq!(get_field(point, "x"), &Value::UInt(1));
         assert_eq!(get_field(point, "y"), &Value::UInt(2));
@@ -970,7 +1177,8 @@ mod tests {
     #[test]
     fn parse_repeated_subtype() {
         // 2 points × 4 bytes = 8 bytes, prefixed with count byte
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: outer
             seq:
               - id: count
@@ -986,19 +1194,25 @@ mod tests {
                     type: u16le
                   - id: y
                     type: u16le
-        "#}, "outer", &[2, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00]);
+        "#},
+            "outer",
+            &[2, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00],
+        );
         if let Value::Array(points) = get_field(&v, "points") {
             assert_eq!(points.len(), 2);
             assert_eq!(get_field(&points[0], "x"), &Value::UInt(1));
             assert_eq!(get_field(&points[1], "y"), &Value::UInt(4));
-        } else { panic!("expected Array"); }
+        } else {
+            panic!("expected Array");
+        }
     }
 
     // ── Multiple fields ───────────────────────────────────────────────────────
 
     #[test]
     fn parse_multiple_fields_sequential() {
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: t
             seq:
               - id: a
@@ -1007,7 +1221,10 @@ mod tests {
                 type: u16le
               - id: c
                 type: u32le
-        "#}, "t", &[0x01, 0x03, 0x00, 0x07, 0x00, 0x00, 0x00]);
+        "#},
+            "t",
+            &[0x01, 0x03, 0x00, 0x07, 0x00, 0x00, 0x00],
+        );
         assert_eq!(get_field(&v, "a"), &Value::UInt(1));
         assert_eq!(get_field(&v, "b"), &Value::UInt(3));
         assert_eq!(get_field(&v, "c"), &Value::UInt(7));
@@ -1019,20 +1236,21 @@ mod tests {
     fn parse_tga_like_header() {
         // Minimal TGA header layout
         let data = vec![
-            0x00u8,       // id_length
-            0x00,         // colormap_type
-            0x02,         // image_type (truecolor)
-            0x00, 0x00,   // colormap_first_entry
-            0x00, 0x00,   // colormap_length
-            0x00,         // colormap_entry_size
-            0x00, 0x00,   // x_origin
-            0x00, 0x00,   // y_origin
-            0x80, 0x02,   // width = 640
-            0xe0, 0x01,   // height = 480
-            0x18,         // pixel_depth = 24
-            0x00,         // image_descriptor
+            0x00u8, // id_length
+            0x00,   // colormap_type
+            0x02,   // image_type (truecolor)
+            0x00, 0x00, // colormap_first_entry
+            0x00, 0x00, // colormap_length
+            0x00, // colormap_entry_size
+            0x00, 0x00, // x_origin
+            0x00, 0x00, // y_origin
+            0x80, 0x02, // width = 640
+            0xe0, 0x01, // height = 480
+            0x18, // pixel_depth = 24
+            0x00, // image_descriptor
         ];
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: tga_header
             meta:
               endian: le
@@ -1068,13 +1286,21 @@ mod tests {
                 "1": colormap
                 "2": truecolor
                 "3": grayscale
-        "#}, "tga_header", &data);
+        "#},
+            "tga_header",
+            &data,
+        );
 
-        assert_eq!(get_field(&v, "width"),  &Value::UInt(640));
+        assert_eq!(get_field(&v, "width"), &Value::UInt(640));
         assert_eq!(get_field(&v, "height"), &Value::UInt(480));
         assert_eq!(get_field(&v, "pixel_depth"), &Value::UInt(24));
-        assert_eq!(get_field(&v, "image_type"),
-            &Value::Enum { value: 2, name: Some("truecolor".into()) });
+        assert_eq!(
+            get_field(&v, "image_type"),
+            &Value::Enum {
+                value: 2,
+                name: Some("truecolor".into())
+            }
+        );
     }
 
     // ── Realistic: length-prefixed string list ────────────────────────────────
@@ -1083,13 +1309,13 @@ mod tests {
     fn parse_length_prefixed_strings() {
         // Format: u8 count, then (u8 len, bytes) for each string
         let data: Vec<u8> = vec![
-            0x02,               // count = 2
-            0x05,               // str 0: len = 5
-            b'h', b'e', b'l', b'l', b'o',
-            0x03,               // str 1: len = 3
+            0x02, // count = 2
+            0x05, // str 0: len = 5
+            b'h', b'e', b'l', b'l', b'o', 0x03, // str 1: len = 3
             b'f', b'o', b'o',
         ];
-        let v = parse(indoc! {r#"
+        let v = parse(
+            indoc! {r#"
             id: string_list
             seq:
               - id: count
@@ -1107,7 +1333,10 @@ mod tests {
                     type: str
                     size: length
                     encoding: ascii
-        "#}, "string_list", &data);
+        "#},
+            "string_list",
+            &data,
+        );
 
         if let Value::Array(strings) = get_field(&v, "strings") {
             assert_eq!(strings.len(), 2);
@@ -1132,12 +1361,16 @@ mod tests {
 
     #[test]
     fn buffer_underrun_is_error() {
-        let err = parse_err(indoc! {r#"
+        let err = parse_err(
+            indoc! {r#"
             id: t
             seq:
               - id: x
                 type: u32le
-        "#}, "t", &[0x01, 0x02]); // only 2 bytes, need 4
+        "#},
+            "t",
+            &[0x01, 0x02],
+        ); // only 2 bytes, need 4
         assert!(matches!(err, DoeError::Schema(_)));
     }
 
@@ -1145,10 +1378,7 @@ mod tests {
 
     #[test]
     fn decode_ascii_valid() {
-        assert_eq!(
-            decode_string(b"hello", Encoding::Ascii).unwrap(),
-            "hello"
-        );
+        assert_eq!(decode_string(b"hello", Encoding::Ascii).unwrap(), "hello");
     }
 
     #[test]
@@ -1178,13 +1408,25 @@ mod tests {
 
     #[test]
     fn resolve_endian_inherit_uses_type_default() {
-        assert_eq!(resolve_endian(EndianOverride::Inherit, Endian::Big),    Endian::Big);
-        assert_eq!(resolve_endian(EndianOverride::Inherit, Endian::Little), Endian::Little);
+        assert_eq!(
+            resolve_endian(EndianOverride::Inherit, Endian::Big),
+            Endian::Big
+        );
+        assert_eq!(
+            resolve_endian(EndianOverride::Inherit, Endian::Little),
+            Endian::Little
+        );
     }
 
     #[test]
     fn resolve_endian_override_ignores_type_default() {
-        assert_eq!(resolve_endian(EndianOverride::Little, Endian::Big),    Endian::Little);
-        assert_eq!(resolve_endian(EndianOverride::Big,    Endian::Little), Endian::Big);
+        assert_eq!(
+            resolve_endian(EndianOverride::Little, Endian::Big),
+            Endian::Little
+        );
+        assert_eq!(
+            resolve_endian(EndianOverride::Big, Endian::Little),
+            Endian::Big
+        );
     }
 }

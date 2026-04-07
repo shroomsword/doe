@@ -27,9 +27,9 @@ pub mod value;
 
 use std::path::{Path, PathBuf};
 
+pub use config::{discover_types, AvailableType, DuplicateTypeError};
 pub use error::{DoeError, Result};
 pub use value::Value;
-pub use config::{AvailableType, DuplicateTypeError, discover_types};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // High-level API
@@ -151,8 +151,8 @@ pub fn parse_file(
 
     Ok(match format {
         OutputFormat::Text { indent } => render::text::render_with_indent(&value, &indent),
-        OutputFormat::Json            => render::json::render(&value),
-        OutputFormat::JsonPretty      => render::json::render_pretty(&value),
+        OutputFormat::Json => render::json::render(&value),
+        OutputFormat::JsonPretty => render::json::render_pretty(&value),
     })
 }
 
@@ -224,19 +224,33 @@ mod tests {
     // ── is_schema_path ────────────────────────────────────────────────────────
 
     #[test]
-    fn schema_path_dot_prefix()     { assert!(is_schema_path("./my.yaml")); }
+    fn schema_path_dot_prefix() {
+        assert!(is_schema_path("./my.yaml"));
+    }
     #[test]
-    fn schema_path_absolute()       { assert!(is_schema_path("/usr/share/types/png.yaml")); }
+    fn schema_path_absolute() {
+        assert!(is_schema_path("/usr/share/types/png.yaml"));
+    }
     #[test]
-    fn schema_path_tilde()          { assert!(is_schema_path("~/types/png.yaml")); }
+    fn schema_path_tilde() {
+        assert!(is_schema_path("~/types/png.yaml"));
+    }
     #[test]
-    fn schema_path_yaml_extension() { assert!(is_schema_path("some_file.yaml")); }
+    fn schema_path_yaml_extension() {
+        assert!(is_schema_path("some_file.yaml"));
+    }
     #[test]
-    fn schema_path_yml_extension()  { assert!(is_schema_path("some_file.yml")); }
+    fn schema_path_yml_extension() {
+        assert!(is_schema_path("some_file.yml"));
+    }
     #[test]
-    fn bare_type_name_not_a_path()  { assert!(!is_schema_path("png")); }
+    fn bare_type_name_not_a_path() {
+        assert!(!is_schema_path("png"));
+    }
     #[test]
-    fn bare_type_no_extension()     { assert!(!is_schema_path("my_format")); }
+    fn bare_type_no_extension() {
+        assert!(!is_schema_path("my_format"));
+    }
 
     // ── load_schema_file ──────────────────────────────────────────────────────
 
@@ -273,7 +287,11 @@ mod tests {
         use tempfile::NamedTempFile;
 
         let mut schema_f = NamedTempFile::new().unwrap();
-        writeln!(schema_f, "id: simple\nseq:\n  - id: a\n    type: u8\n  - id: b\n    type: u16le").unwrap();
+        writeln!(
+            schema_f,
+            "id: simple\nseq:\n  - id: a\n    type: u8\n  - id: b\n    type: u16le"
+        )
+        .unwrap();
 
         let mut bin_f = NamedTempFile::new().unwrap();
         bin_f.write_all(&[0x07, 0x34, 0x12]).unwrap();
@@ -283,8 +301,11 @@ mod tests {
             schema_f.path().to_str().unwrap(),
             &[],
             Some(Path::new("/nonexistent")),
-            OutputFormat::Text { indent: "  ".into() },
-        ).unwrap();
+            OutputFormat::Text {
+                indent: "  ".into(),
+            },
+        )
+        .unwrap();
 
         assert!(out.contains("simple\n"));
         assert!(out.contains("a  7"));
@@ -297,7 +318,11 @@ mod tests {
         use tempfile::NamedTempFile;
 
         let mut schema_f = NamedTempFile::new().unwrap();
-        writeln!(schema_f, "id: pair\nseq:\n  - id: x\n    type: u8\n  - id: y\n    type: u8").unwrap();
+        writeln!(
+            schema_f,
+            "id: pair\nseq:\n  - id: x\n    type: u8\n  - id: y\n    type: u8"
+        )
+        .unwrap();
 
         let mut bin_f = NamedTempFile::new().unwrap();
         bin_f.write_all(&[0x01, 0x02]).unwrap();
@@ -308,7 +333,8 @@ mod tests {
             &[],
             Some(Path::new("/nonexistent")),
             OutputFormat::JsonPretty,
-        ).unwrap();
+        )
+        .unwrap();
 
         let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(parsed["$type"], "pair");
@@ -324,7 +350,8 @@ mod tests {
         std::fs::write(
             dir.path().join("mytype.yaml"),
             "id: mytype\nseq:\n  - id: val\n    type: u32le\n",
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut bin_f = tempfile::NamedTempFile::new().unwrap();
         use std::io::Write;
@@ -335,8 +362,11 @@ mod tests {
             "mytype",
             &[dir.path().to_owned()],
             Some(Path::new("/nonexistent")),
-            OutputFormat::Text { indent: "  ".into() },
-        ).unwrap();
+            OutputFormat::Text {
+                indent: "  ".into(),
+            },
+        )
+        .unwrap();
 
         assert!(out.contains("3735928559"));
     }
@@ -354,7 +384,9 @@ mod tests {
             schema_f.path().to_str().unwrap(),
             &[],
             Some(Path::new("/nonexistent")),
-            OutputFormat::Text { indent: "  ".into() },
+            OutputFormat::Text {
+                indent: "  ".into(),
+            },
         );
         assert!(result.is_err());
     }

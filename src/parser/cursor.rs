@@ -23,7 +23,11 @@ pub struct Cursor<'buf> {
 impl<'buf> Cursor<'buf> {
     /// Create a cursor over an entire buffer.
     pub fn new(buf: &'buf [u8]) -> Self {
-        Cursor { buf, base: 0, pos: 0 }
+        Cursor {
+            buf,
+            base: 0,
+            pos: 0,
+        }
     }
 
     /// Create a sub-cursor covering `buf[start..start+len]`.
@@ -34,25 +38,33 @@ impl<'buf> Cursor<'buf> {
             return Err(self.overrun_error(len));
         }
         Ok(Cursor {
-            buf:  &self.buf[start..end],
+            buf: &self.buf[start..end],
             base: self.base + start,
-            pos:  0,
+            pos: 0,
         })
     }
 
     // ── Position ─────────────────────────────────────────────────────────────
 
     /// Current byte offset from the start of the *root* buffer.
-    pub fn absolute_pos(&self) -> usize { self.base + self.pos }
+    pub fn absolute_pos(&self) -> usize {
+        self.base + self.pos
+    }
 
     /// Current byte offset within this cursor's window.
-    pub fn pos(&self) -> usize { self.pos }
+    pub fn pos(&self) -> usize {
+        self.pos
+    }
 
     /// Number of bytes remaining in this cursor's window.
-    pub fn remaining(&self) -> usize { self.buf.len() - self.pos }
+    pub fn remaining(&self) -> usize {
+        self.buf.len() - self.pos
+    }
 
     /// Returns `true` if the cursor is at the end of its window.
-    pub fn is_eof(&self) -> bool { self.pos >= self.buf.len() }
+    pub fn is_eof(&self) -> bool {
+        self.pos >= self.buf.len()
+    }
 
     /// Seek to an absolute position within this cursor's window.
     #[allow(dead_code)]
@@ -60,7 +72,8 @@ impl<'buf> Cursor<'buf> {
         if pos > self.buf.len() {
             return Err(DoeError::Schema(format!(
                 "seek to {} is past end of window (size {})",
-                pos, self.buf.len()
+                pos,
+                self.buf.len()
             )));
         }
         self.pos = pos;
@@ -144,12 +157,24 @@ impl<'buf> Cursor<'buf> {
         Ok(self.read_u8()? as i8)
     }
 
-    pub fn read_i16_le(&mut self) -> Result<i16> { Ok(self.read_u16_le()? as i16) }
-    pub fn read_i16_be(&mut self) -> Result<i16> { Ok(self.read_u16_be()? as i16) }
-    pub fn read_i32_le(&mut self) -> Result<i32> { Ok(self.read_u32_le()? as i32) }
-    pub fn read_i32_be(&mut self) -> Result<i32> { Ok(self.read_u32_be()? as i32) }
-    pub fn read_i64_le(&mut self) -> Result<i64> { Ok(self.read_u64_le()? as i64) }
-    pub fn read_i64_be(&mut self) -> Result<i64> { Ok(self.read_u64_be()? as i64) }
+    pub fn read_i16_le(&mut self) -> Result<i16> {
+        Ok(self.read_u16_le()? as i16)
+    }
+    pub fn read_i16_be(&mut self) -> Result<i16> {
+        Ok(self.read_u16_be()? as i16)
+    }
+    pub fn read_i32_le(&mut self) -> Result<i32> {
+        Ok(self.read_u32_le()? as i32)
+    }
+    pub fn read_i32_be(&mut self) -> Result<i32> {
+        Ok(self.read_u32_be()? as i32)
+    }
+    pub fn read_i64_le(&mut self) -> Result<i64> {
+        Ok(self.read_u64_le()? as i64)
+    }
+    pub fn read_i64_be(&mut self) -> Result<i64> {
+        Ok(self.read_u64_be()? as i64)
+    }
 
     pub fn read_f32_le(&mut self) -> Result<f32> {
         let b = self.read_bytes(4)?;
@@ -191,7 +216,9 @@ impl<'buf> Cursor<'buf> {
 mod tests {
     use super::*;
 
-    fn cur(data: &[u8]) -> Cursor<'_> { Cursor::new(data) }
+    fn cur(data: &[u8]) -> Cursor<'_> {
+        Cursor::new(data)
+    }
 
     // ── Position tracking ─────────────────────────────────────────────────────
 
@@ -482,13 +509,28 @@ mod tests {
     // ── Overrun on typed reads ────────────────────────────────────────────────
 
     #[test]
-    fn u16_overrun() { let mut c = cur(&[0x01]); assert!(c.read_u16_le().is_err()); }
+    fn u16_overrun() {
+        let mut c = cur(&[0x01]);
+        assert!(c.read_u16_le().is_err());
+    }
     #[test]
-    fn u32_overrun() { let mut c = cur(&[0x01, 0x02, 0x03]); assert!(c.read_u32_le().is_err()); }
+    fn u32_overrun() {
+        let mut c = cur(&[0x01, 0x02, 0x03]);
+        assert!(c.read_u32_le().is_err());
+    }
     #[test]
-    fn u64_overrun() { let mut c = cur(&[0u8; 7]); assert!(c.read_u64_be().is_err()); }
+    fn u64_overrun() {
+        let mut c = cur(&[0u8; 7]);
+        assert!(c.read_u64_be().is_err());
+    }
     #[test]
-    fn f32_overrun() { let mut c = cur(&[0u8; 3]); assert!(c.read_f32_le().is_err()); }
+    fn f32_overrun() {
+        let mut c = cur(&[0u8; 3]);
+        assert!(c.read_f32_le().is_err());
+    }
     #[test]
-    fn f64_overrun() { let mut c = cur(&[0u8; 7]); assert!(c.read_f64_be().is_err()); }
+    fn f64_overrun() {
+        let mut c = cur(&[0u8; 7]);
+        assert!(c.read_f64_be().is_err());
+    }
 }
