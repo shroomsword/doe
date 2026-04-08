@@ -557,9 +557,7 @@ mod tests {
         "#};
         let s = parse(yaml);
         let f = &s.seq[0];
-        assert!(
-            matches!(&f.contents, Some(RawContents::Bytes(b)) if b == &[0x89, 0x50, 0x4e, 0x47])
-        );
+        assert!(matches!(&f.contents, Some(RawContents::Bytes(b)) if b == &[0x89, 0x50, 0x4e, 0x47]));
     }
 
     #[test]
@@ -676,10 +674,7 @@ mod tests {
         assert_eq!(hdr.seq.len(), 9);
         assert!(hdr.enums.contains_key("bits_t"));
         assert!(hdr.enums.contains_key("obj_type_t"));
-        assert_eq!(
-            hdr.enums["obj_type_t"].get("2").map(String::as_str),
-            Some("exec")
-        );
+        assert_eq!(hdr.enums["obj_type_t"].get("2").map(String::as_str), Some("exec"));
     }
 
     // ── Error cases ───────────────────────────────────────────────────────────
@@ -703,10 +698,7 @@ mod tests {
             seq: []
         "#};
         let result: Result<RawSchema, _> = serde_yaml::from_str(yaml);
-        assert!(
-            result.is_err(),
-            "deny_unknown_fields should reject unknown_key"
-        );
+        assert!(result.is_err(), "deny_unknown_fields should reject unknown_key");
     }
 
     #[test]

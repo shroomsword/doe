@@ -55,21 +55,13 @@ impl ParseContext {
         if let Some(n) = value.as_int() {
             self.eval_ctx.bind(id, n);
         }
-        self.value_frames
-            .last_mut()
-            .unwrap()
-            .push((id.to_owned(), value));
+        self.value_frames.last_mut().unwrap().push((id.to_owned(), value));
     }
 
     /// Look up the most recently bound value for `id` in the current scope.
     #[allow(dead_code)]
     pub fn lookup(&self, id: &str) -> Option<&Value> {
-        self.value_frames
-            .last()?
-            .iter()
-            .rev()
-            .find(|(k, _)| k == id)
-            .map(|(_, v)| v)
+        self.value_frames.last()?.iter().rev().find(|(k, _)| k == id).map(|(_, v)| v)
     }
 
     /// Returns the fields accumulated in the current scope so far,
@@ -81,9 +73,7 @@ impl ParseContext {
 }
 
 impl Default for ParseContext {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -136,13 +126,7 @@ mod tests {
     #[test]
     fn bind_enum_registers_discriminant() {
         let mut ctx = ParseContext::new();
-        ctx.bind(
-            "kind",
-            Value::Enum {
-                value: 2,
-                name: Some("data".into()),
-            },
-        );
+        ctx.bind("kind", Value::Enum { value: 2, name: Some("data".into()) });
         let result = crate::schema::expr::eval_str("kind", &ctx.eval_ctx).unwrap();
         assert_eq!(result, 2);
     }

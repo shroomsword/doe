@@ -491,7 +491,8 @@ mod tests {
         )
         .unwrap();
 
-        let types = discover_types(&[dir1.path().to_owned(), dir2.path().to_owned()]).unwrap();
+        let types =
+            discover_types(&[dir1.path().to_owned(), dir2.path().to_owned()]).unwrap();
         assert_eq!(types.len(), 1);
         assert_eq!(types[0].doc.as_deref(), Some("from dir1"));
     }
@@ -539,7 +540,8 @@ mod tests {
         std::fs::write(dir1.path().join("png.yaml"), "id: png\nseq: []\n").unwrap();
         std::fs::write(dir2.path().join("elf.yaml"), "id: elf\nseq: []\n").unwrap();
 
-        let types = discover_types(&[dir1.path().to_owned(), dir2.path().to_owned()]).unwrap();
+        let types =
+            discover_types(&[dir1.path().to_owned(), dir2.path().to_owned()]).unwrap();
         assert_eq!(types.len(), 2);
         let ids: Vec<&str> = types.iter().map(|t| t.id.as_str()).collect();
         assert!(ids.contains(&"png"));

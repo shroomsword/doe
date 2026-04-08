@@ -27,9 +27,7 @@ pub struct TypeRegistry {
 }
 
 impl TypeRegistry {
-    pub fn new() -> Self {
-        Self::default()
-    }
+    pub fn new() -> Self { Self::default() }
 
     pub fn get(&self, name: &str) -> Option<&CompiledType> {
         self.types.get(name)
@@ -90,15 +88,9 @@ pub struct CompiledField {
 #[derive(Debug, Clone)]
 pub enum FieldKind {
     /// A fixed-width unsigned integer.
-    UInt {
-        width: IntWidth,
-        endian: EndianOverride,
-    },
+    UInt { width: IntWidth, endian: EndianOverride },
     /// A fixed-width signed integer.
-    SInt {
-        width: IntWidth,
-        endian: EndianOverride,
-    },
+    SInt { width: IntWidth, endian: EndianOverride },
     /// IEEE 754 float.
     Float { width: FloatWidth },
     /// Raw byte sequence.
@@ -115,38 +107,22 @@ pub enum FieldKind {
 
 /// Integer byte widths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IntWidth {
-    W8,
-    W16,
-    W32,
-    W64,
-}
+pub enum IntWidth { W8, W16, W32, W64 }
 
 impl IntWidth {
     #[allow(dead_code)]
     pub fn bytes(self) -> usize {
-        match self {
-            IntWidth::W8 => 1,
-            IntWidth::W16 => 2,
-            IntWidth::W32 => 4,
-            IntWidth::W64 => 8,
-        }
+        match self { IntWidth::W8 => 1, IntWidth::W16 => 2, IntWidth::W32 => 4, IntWidth::W64 => 8 }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FloatWidth {
-    F32,
-    F64,
-}
+pub enum FloatWidth { F32, F64 }
 
 impl FloatWidth {
     #[allow(dead_code)]
     pub fn bytes(self) -> usize {
-        match self {
-            FloatWidth::F32 => 4,
-            FloatWidth::F64 => 8,
-        }
+        match self { FloatWidth::F32 => 4, FloatWidth::F64 => 8 }
     }
 }
 
@@ -167,9 +143,7 @@ pub enum Endian {
 }
 
 impl Default for Endian {
-    fn default() -> Self {
-        Endian::Little
-    }
+    fn default() -> Self { Endian::Little }
 }
 
 /// How many bytes to consume for a `bytes` or `str` field.
@@ -199,9 +173,7 @@ pub enum Encoding {
 }
 
 impl Default for Encoding {
-    fn default() -> Self {
-        Encoding::Utf8
-    }
+    fn default() -> Self { Encoding::Utf8 }
 }
 
 /// Repetition mode for a field.
@@ -241,7 +213,7 @@ impl CompiledEnum {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::schema::expr::{BinaryOp, Expr};
+    use crate::schema::expr::{Expr, BinaryOp};
 
     // ── TypeRegistry ─────────────────────────────────────────────────────────
 
@@ -271,7 +243,7 @@ mod tests {
 
     #[test]
     fn int_width_bytes() {
-        assert_eq!(IntWidth::W8.bytes(), 1);
+        assert_eq!(IntWidth::W8.bytes(),  1);
         assert_eq!(IntWidth::W16.bytes(), 2);
         assert_eq!(IntWidth::W32.bytes(), 4);
         assert_eq!(IntWidth::W64.bytes(), 8);
@@ -315,24 +287,13 @@ mod tests {
 
     #[test]
     fn field_kind_uint_inherit() {
-        let fk = FieldKind::UInt {
-            width: IntWidth::W32,
-            endian: EndianOverride::Inherit,
-        };
-        assert!(matches!(
-            fk,
-            FieldKind::UInt {
-                width: IntWidth::W32,
-                endian: EndianOverride::Inherit
-            }
-        ));
+        let fk = FieldKind::UInt { width: IntWidth::W32, endian: EndianOverride::Inherit };
+        assert!(matches!(fk, FieldKind::UInt { width: IntWidth::W32, endian: EndianOverride::Inherit }));
     }
 
     #[test]
     fn field_kind_typeref() {
-        let fk = FieldKind::TypeRef {
-            type_name: "png::chunk".into(),
-        };
+        let fk = FieldKind::TypeRef { type_name: "png::chunk".into() };
         if let FieldKind::TypeRef { type_name } = &fk {
             assert_eq!(type_name, "png::chunk");
         } else {
@@ -415,9 +376,7 @@ mod tests {
         let f = CompiledField {
             id: "magic".into(),
             doc: None,
-            kind: FieldKind::Bytes {
-                size: SizeExpr::Literal(4),
-            },
+            kind: FieldKind::Bytes { size: SizeExpr::Literal(4) },
             repeat: RepeatMode::Once,
             if_expr: None,
             enum_ref: None,
@@ -437,10 +396,7 @@ mod tests {
         let f = CompiledField {
             id: "extra".into(),
             doc: None,
-            kind: FieldKind::UInt {
-                width: IntWidth::W32,
-                endian: EndianOverride::Inherit,
-            },
+            kind: FieldKind::UInt { width: IntWidth::W32, endian: EndianOverride::Inherit },
             repeat: RepeatMode::Once,
             if_expr: Some(cond),
             enum_ref: Some("record_type".into()),
@@ -457,10 +413,7 @@ mod tests {
             CompiledField {
                 id: "length".into(),
                 doc: None,
-                kind: FieldKind::UInt {
-                    width: IntWidth::W32,
-                    endian: EndianOverride::Inherit,
-                },
+                kind: FieldKind::UInt { width: IntWidth::W32, endian: EndianOverride::Inherit },
                 repeat: RepeatMode::Once,
                 if_expr: None,
                 enum_ref: None,

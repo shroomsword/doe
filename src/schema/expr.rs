@@ -76,24 +76,15 @@ pub enum BinaryOp {
 impl fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            BinaryOp::Add => "+",
-            BinaryOp::Sub => "-",
-            BinaryOp::Mul => "*",
-            BinaryOp::Div => "/",
-            BinaryOp::Rem => "%",
-            BinaryOp::Shl => "<<",
-            BinaryOp::Shr => ">>",
-            BinaryOp::BitAnd => "&",
-            BinaryOp::BitOr => "|",
-            BinaryOp::BitXor => "^",
-            BinaryOp::Eq => "==",
-            BinaryOp::Ne => "!=",
-            BinaryOp::Lt => "<",
-            BinaryOp::Gt => ">",
-            BinaryOp::Le => "<=",
-            BinaryOp::Ge => ">=",
-            BinaryOp::And => "&&",
-            BinaryOp::Or => "||",
+            BinaryOp::Add => "+",   BinaryOp::Sub => "-",
+            BinaryOp::Mul => "*",   BinaryOp::Div => "/",
+            BinaryOp::Rem => "%",   BinaryOp::Shl => "<<",
+            BinaryOp::Shr => ">>",  BinaryOp::BitAnd => "&",
+            BinaryOp::BitOr => "|", BinaryOp::BitXor => "^",
+            BinaryOp::Eq => "==",   BinaryOp::Ne => "!=",
+            BinaryOp::Lt => "<",    BinaryOp::Gt => ">",
+            BinaryOp::Le => "<=",   BinaryOp::Ge => ">=",
+            BinaryOp::And => "&&",  BinaryOp::Or => "||",
         };
         write!(f, "{}", s)
     }
@@ -108,28 +99,15 @@ enum Token {
     Int(i64),
     Ident(String),
     // Punctuation
-    Plus,
-    Minus,
-    Star,
-    Slash,
-    Percent,
-    Shl,
-    Shr,
-    Amp,
-    Pipe,
-    Caret,
-    AmpAmp,
-    PipePipe,
+    Plus, Minus, Star, Slash, Percent,
+    Shl, Shr,
+    Amp, Pipe, Caret,
+    AmpAmp, PipePipe,
     Bang,
-    EqEq,
-    BangEq,
-    Lt,
-    Gt,
-    Le,
-    Ge,
+    EqEq, BangEq,
+    Lt, Gt, Le, Ge,
     Dot,
-    LParen,
-    RParen,
+    LParen, RParen,
     Eof,
 }
 
@@ -140,10 +118,7 @@ struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     fn new(s: &'a str) -> Self {
-        Lexer {
-            src: s.as_bytes(),
-            pos: 0,
-        }
+        Lexer { src: s.as_bytes(), pos: 0 }
     }
 
     fn peek(&self) -> Option<u8> {
@@ -156,9 +131,7 @@ impl<'a> Lexer<'a> {
 
     fn advance(&mut self) -> Option<u8> {
         let b = self.src.get(self.pos).copied();
-        if b.is_some() {
-            self.pos += 1;
-        }
+        if b.is_some() { self.pos += 1; }
         b
     }
 
@@ -172,8 +145,7 @@ impl<'a> Lexer<'a> {
         let start = self.pos;
         // Hex literal
         if self.peek() == Some(b'0') && matches!(self.peek2(), Some(b'x' | b'X')) {
-            self.advance();
-            self.advance(); // consume "0x"
+            self.advance(); self.advance(); // consume "0x"
             while matches!(self.peek(), Some(b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')) {
                 self.advance();
             }
@@ -191,10 +163,7 @@ impl<'a> Lexer<'a> {
 
     fn read_ident(&mut self) -> String {
         let start = self.pos;
-        while matches!(
-            self.peek(),
-            Some(b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_')
-        ) {
+        while matches!(self.peek(), Some(b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_')) {
             self.advance();
         }
         String::from_utf8(self.src[start..self.pos].to_vec()).unwrap()
@@ -208,110 +177,55 @@ impl<'a> Lexer<'a> {
             Some(b'a'..=b'z' | b'A'..=b'Z' | b'_') => {
                 let id = self.read_ident();
                 match id.as_str() {
-                    "true" => Token::Int(1),
+                    "true"  => Token::Int(1),
                     "false" => Token::Int(0),
-                    _ => Token::Ident(id),
+                    _       => Token::Ident(id),
                 }
             }
-            Some(b'+') => {
-                self.advance();
-                Token::Plus
-            }
-            Some(b'-') => {
-                self.advance();
-                Token::Minus
-            }
-            Some(b'*') => {
-                self.advance();
-                Token::Star
-            }
-            Some(b'/') => {
-                self.advance();
-                Token::Slash
-            }
-            Some(b'%') => {
-                self.advance();
-                Token::Percent
-            }
-            Some(b'^') => {
-                self.advance();
-                Token::Caret
-            }
-            Some(b'.') => {
-                self.advance();
-                Token::Dot
-            }
-            Some(b'(') => {
-                self.advance();
-                Token::LParen
-            }
-            Some(b')') => {
-                self.advance();
-                Token::RParen
-            }
+            Some(b'+') => { self.advance(); Token::Plus }
+            Some(b'-') => { self.advance(); Token::Minus }
+            Some(b'*') => { self.advance(); Token::Star }
+            Some(b'/') => { self.advance(); Token::Slash }
+            Some(b'%') => { self.advance(); Token::Percent }
+            Some(b'^') => { self.advance(); Token::Caret }
+            Some(b'.') => { self.advance(); Token::Dot }
+            Some(b'(') => { self.advance(); Token::LParen }
+            Some(b')') => { self.advance(); Token::RParen }
             Some(b'<') => {
                 self.advance();
                 match self.peek() {
-                    Some(b'<') => {
-                        self.advance();
-                        Token::Shl
-                    }
-                    Some(b'=') => {
-                        self.advance();
-                        Token::Le
-                    }
-                    _ => Token::Lt,
+                    Some(b'<') => { self.advance(); Token::Shl }
+                    Some(b'=') => { self.advance(); Token::Le  }
+                    _          => Token::Lt,
                 }
             }
             Some(b'>') => {
                 self.advance();
                 match self.peek() {
-                    Some(b'>') => {
-                        self.advance();
-                        Token::Shr
-                    }
-                    Some(b'=') => {
-                        self.advance();
-                        Token::Ge
-                    }
-                    _ => Token::Gt,
+                    Some(b'>') => { self.advance(); Token::Shr }
+                    Some(b'=') => { self.advance(); Token::Ge  }
+                    _          => Token::Gt,
                 }
             }
             Some(b'=') => {
                 self.advance();
-                if self.peek() == Some(b'=') {
-                    self.advance();
-                    Token::EqEq
-                } else {
-                    Token::Eof
-                } // lone `=` is not valid
+                if self.peek() == Some(b'=') { self.advance(); Token::EqEq }
+                else { Token::Eof } // lone `=` is not valid
             }
             Some(b'!') => {
                 self.advance();
-                if self.peek() == Some(b'=') {
-                    self.advance();
-                    Token::BangEq
-                } else {
-                    Token::Bang
-                }
+                if self.peek() == Some(b'=') { self.advance(); Token::BangEq }
+                else { Token::Bang }
             }
             Some(b'&') => {
                 self.advance();
-                if self.peek() == Some(b'&') {
-                    self.advance();
-                    Token::AmpAmp
-                } else {
-                    Token::Amp
-                }
+                if self.peek() == Some(b'&') { self.advance(); Token::AmpAmp }
+                else { Token::Amp }
             }
             Some(b'|') => {
                 self.advance();
-                if self.peek() == Some(b'|') {
-                    self.advance();
-                    Token::PipePipe
-                } else {
-                    Token::Pipe
-                }
+                if self.peek() == Some(b'|') { self.advance(); Token::PipePipe }
+                else { Token::Pipe }
             }
             Some(c) => {
                 self.advance();
@@ -338,11 +252,7 @@ impl<'a> Parser<'a> {
     fn new(src: &'a str) -> Self {
         let mut lexer = Lexer::new(src);
         let current = lexer.next_token();
-        Parser {
-            lexer,
-            current,
-            src,
-        }
+        Parser { lexer, current, src }
     }
 
     fn bump(&mut self) -> Token {
@@ -360,9 +270,7 @@ impl<'a> Parser<'a> {
 
     // ── Grammar rules ─────────────────────────────────────────────────────
 
-    fn parse_expr(&mut self) -> Result<Expr> {
-        self.parse_or()
-    }
+    fn parse_expr(&mut self) -> Result<Expr> { self.parse_or() }
 
     fn parse_or(&mut self) -> Result<Expr> {
         let mut lhs = self.parse_and()?;
@@ -387,13 +295,13 @@ impl<'a> Parser<'a> {
     fn parse_cmp(&mut self) -> Result<Expr> {
         let lhs = self.parse_bitor()?;
         let op = match self.current {
-            Token::EqEq => BinaryOp::Eq,
-            Token::BangEq => BinaryOp::Ne,
-            Token::Lt => BinaryOp::Lt,
-            Token::Gt => BinaryOp::Gt,
-            Token::Le => BinaryOp::Le,
-            Token::Ge => BinaryOp::Ge,
-            _ => return Ok(lhs),
+            Token::EqEq  => BinaryOp::Eq,
+            Token::BangEq=> BinaryOp::Ne,
+            Token::Lt    => BinaryOp::Lt,
+            Token::Gt    => BinaryOp::Gt,
+            Token::Le    => BinaryOp::Le,
+            Token::Ge    => BinaryOp::Ge,
+            _            => return Ok(lhs),
         };
         self.bump();
         let rhs = self.parse_bitor()?;
@@ -436,7 +344,7 @@ impl<'a> Parser<'a> {
             let op = match self.current {
                 Token::Shl => BinaryOp::Shl,
                 Token::Shr => BinaryOp::Shr,
-                _ => break,
+                _          => break,
             };
             self.bump();
             let rhs = self.parse_add()?;
@@ -449,9 +357,9 @@ impl<'a> Parser<'a> {
         let mut lhs = self.parse_mul()?;
         loop {
             let op = match self.current {
-                Token::Plus => BinaryOp::Add,
+                Token::Plus  => BinaryOp::Add,
                 Token::Minus => BinaryOp::Sub,
-                _ => break,
+                _            => break,
             };
             self.bump();
             let rhs = self.parse_mul()?;
@@ -464,10 +372,10 @@ impl<'a> Parser<'a> {
         let mut lhs = self.parse_unary()?;
         loop {
             let op = match self.current {
-                Token::Star => BinaryOp::Mul,
-                Token::Slash => BinaryOp::Div,
+                Token::Star    => BinaryOp::Mul,
+                Token::Slash   => BinaryOp::Div,
                 Token::Percent => BinaryOp::Rem,
-                _ => break,
+                _              => break,
             };
             self.bump();
             let rhs = self.parse_unary()?;
@@ -478,26 +386,15 @@ impl<'a> Parser<'a> {
 
     fn parse_unary(&mut self) -> Result<Expr> {
         match self.current.clone() {
-            Token::Minus => {
-                self.bump();
-                let e = self.parse_unary()?;
-                Ok(Expr::Unary(UnaryOp::Neg, Box::new(e)))
-            }
-            Token::Bang => {
-                self.bump();
-                let e = self.parse_unary()?;
-                Ok(Expr::Unary(UnaryOp::Not, Box::new(e)))
-            }
-            _ => self.parse_primary(),
+            Token::Minus => { self.bump(); let e = self.parse_unary()?; Ok(Expr::Unary(UnaryOp::Neg, Box::new(e))) }
+            Token::Bang  => { self.bump(); let e = self.parse_unary()?; Ok(Expr::Unary(UnaryOp::Not, Box::new(e))) }
+            _            => self.parse_primary(),
         }
     }
 
     fn parse_primary(&mut self) -> Result<Expr> {
         match self.current.clone() {
-            Token::Int(n) => {
-                self.bump();
-                Ok(Expr::Int(n))
-            }
+            Token::Int(n) => { self.bump(); Ok(Expr::Int(n)) }
             Token::Ident(name) => {
                 self.bump();
                 let mut parts = vec![name];
@@ -554,9 +451,7 @@ pub struct EvalContext {
 
 impl EvalContext {
     pub fn new() -> Self {
-        EvalContext {
-            frames: vec![std::collections::HashMap::new()],
-        }
+        EvalContext { frames: vec![std::collections::HashMap::new()] }
     }
 
     pub fn push_frame(&mut self) {
@@ -571,10 +466,7 @@ impl EvalContext {
 
     /// Bind `name` → `value` in the current (innermost) frame.
     pub fn bind(&mut self, name: &str, value: i64) {
-        self.frames
-            .last_mut()
-            .unwrap()
-            .insert(name.to_owned(), value);
+        self.frames.last_mut().unwrap().insert(name.to_owned(), value);
     }
 
     /// Look up a simple name in the current frame.
@@ -608,20 +500,17 @@ impl EvalContext {
         }
 
         let name = &parts[part_idx];
-        self.frames[frame_idx]
-            .get(name.as_str())
-            .copied()
-            .ok_or_else(|| DoeError::ExprEval {
+        self.frames[frame_idx].get(name.as_str()).copied().ok_or_else(|| {
+            DoeError::ExprEval {
                 expr: src.to_owned(),
                 message: format!("unknown field '{}'", parts.join(".")),
-            })
+            }
+        })
     }
 }
 
 impl Default for EvalContext {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -631,7 +520,7 @@ impl Default for EvalContext {
 /// Evaluate an already-parsed expression against a context.
 pub fn eval(expr: &Expr, ctx: &EvalContext, src: &str) -> Result<i64> {
     match expr {
-        Expr::Int(n) => Ok(*n),
+        Expr::Int(n)  => Ok(*n),
         Expr::Bool(b) => Ok(*b as i64),
 
         Expr::Field(parts) => ctx.resolve_path(parts, src),
@@ -649,43 +538,37 @@ pub fn eval(expr: &Expr, ctx: &EvalContext, src: &str) -> Result<i64> {
             // Short-circuit logical operators before evaluating rhs
             match op {
                 BinaryOp::And => return Ok(if l == 0 { 0 } else { eval(rhs, ctx, src)? }),
-                BinaryOp::Or => return Ok(if l != 0 { 1 } else { eval(rhs, ctx, src)? }),
+                BinaryOp::Or  => return Ok(if l != 0 { 1 } else { eval(rhs, ctx, src)? }),
                 _ => {}
             }
             let r = eval(rhs, ctx, src)?;
             match op {
-                BinaryOp::Add => Ok(l.wrapping_add(r)),
-                BinaryOp::Sub => Ok(l.wrapping_sub(r)),
-                BinaryOp::Mul => Ok(l.wrapping_mul(r)),
-                BinaryOp::Div => {
+                BinaryOp::Add    => Ok(l.wrapping_add(r)),
+                BinaryOp::Sub    => Ok(l.wrapping_sub(r)),
+                BinaryOp::Mul    => Ok(l.wrapping_mul(r)),
+                BinaryOp::Div    => {
                     if r == 0 {
-                        return Err(DoeError::ExprEval {
-                            expr: src.to_owned(),
-                            message: "division by zero".to_owned(),
-                        });
+                        return Err(DoeError::ExprEval { expr: src.to_owned(), message: "division by zero".to_owned() });
                     }
                     Ok(l / r)
                 }
-                BinaryOp::Rem => {
+                BinaryOp::Rem    => {
                     if r == 0 {
-                        return Err(DoeError::ExprEval {
-                            expr: src.to_owned(),
-                            message: "modulo by zero".to_owned(),
-                        });
+                        return Err(DoeError::ExprEval { expr: src.to_owned(), message: "modulo by zero".to_owned() });
                     }
                     Ok(l % r)
                 }
-                BinaryOp::Shl => Ok(l.wrapping_shl(r as u32)),
-                BinaryOp::Shr => Ok(l.wrapping_shr(r as u32)),
+                BinaryOp::Shl    => Ok(l.wrapping_shl(r as u32)),
+                BinaryOp::Shr    => Ok(l.wrapping_shr(r as u32)),
                 BinaryOp::BitAnd => Ok(l & r),
-                BinaryOp::BitOr => Ok(l | r),
+                BinaryOp::BitOr  => Ok(l | r),
                 BinaryOp::BitXor => Ok(l ^ r),
-                BinaryOp::Eq => Ok((l == r) as i64),
-                BinaryOp::Ne => Ok((l != r) as i64),
-                BinaryOp::Lt => Ok((l < r) as i64),
-                BinaryOp::Gt => Ok((l > r) as i64),
-                BinaryOp::Le => Ok((l <= r) as i64),
-                BinaryOp::Ge => Ok((l >= r) as i64),
+                BinaryOp::Eq     => Ok((l == r) as i64),
+                BinaryOp::Ne     => Ok((l != r) as i64),
+                BinaryOp::Lt     => Ok((l <  r) as i64),
+                BinaryOp::Gt     => Ok((l >  r) as i64),
+                BinaryOp::Le     => Ok((l <= r) as i64),
+                BinaryOp::Ge     => Ok((l >= r) as i64),
                 BinaryOp::And | BinaryOp::Or => unreachable!(),
             }
         }
@@ -707,196 +590,118 @@ pub fn eval_str(src: &str, ctx: &EvalContext) -> Result<i64> {
 mod tests {
     use super::*;
 
-    fn ctx() -> EvalContext {
-        EvalContext::new()
-    }
+    fn ctx() -> EvalContext { EvalContext::new() }
 
-    fn eval(s: &str) -> i64 {
-        eval_str(s, &ctx()).expect(s)
-    }
+    fn eval(s: &str) -> i64 { eval_str(s, &ctx()).expect(s) }
 
     fn eval_with(bindings: &[(&str, i64)], s: &str) -> i64 {
         let mut c = ctx();
-        for (k, v) in bindings {
-            c.bind(k, *v);
-        }
+        for (k, v) in bindings { c.bind(k, *v); }
         eval_str(s, &c).expect(s)
     }
 
-    fn parse_err(s: &str) -> bool {
-        parse(s).is_err()
-    }
-    fn eval_err(s: &str) -> bool {
-        eval_str(s, &ctx()).is_err()
-    }
+    fn parse_err(s: &str) -> bool { parse(s).is_err() }
+    fn eval_err(s: &str) -> bool  { eval_str(s, &ctx()).is_err() }
 
     // ── Parser: literals ─────────────────────────────────────────────────────
 
     #[test]
-    fn integer_literal() {
-        assert_eq!(eval("42"), 42);
-    }
+    fn integer_literal() { assert_eq!(eval("42"), 42); }
 
     #[test]
-    fn zero_literal() {
-        assert_eq!(eval("0"), 0);
-    }
+    fn zero_literal() { assert_eq!(eval("0"), 0); }
 
     #[test]
-    fn hex_literal() {
-        assert_eq!(eval("0xff"), 255);
-    }
+    fn hex_literal() { assert_eq!(eval("0xff"), 255); }
 
     #[test]
-    fn hex_literal_upper() {
-        assert_eq!(eval("0xFF"), 255);
-    }
+    fn hex_literal_upper() { assert_eq!(eval("0xFF"), 255); }
 
     #[test]
-    fn true_literal() {
-        assert_eq!(eval("true"), 1);
-    }
+    fn true_literal() { assert_eq!(eval("true"), 1); }
 
     #[test]
-    fn false_literal() {
-        assert_eq!(eval("false"), 0);
-    }
+    fn false_literal() { assert_eq!(eval("false"), 0); }
 
     // ── Parser: arithmetic ───────────────────────────────────────────────────
 
     #[test]
-    fn addition() {
-        assert_eq!(eval("1 + 2"), 3);
-    }
+    fn addition() { assert_eq!(eval("1 + 2"), 3); }
 
     #[test]
-    fn subtraction() {
-        assert_eq!(eval("10 - 3"), 7);
-    }
+    fn subtraction() { assert_eq!(eval("10 - 3"), 7); }
 
     #[test]
-    fn multiplication() {
-        assert_eq!(eval("3 * 4"), 12);
-    }
+    fn multiplication() { assert_eq!(eval("3 * 4"), 12); }
 
     #[test]
-    fn division() {
-        assert_eq!(eval("10 / 2"), 5);
-    }
+    fn division() { assert_eq!(eval("10 / 2"), 5); }
 
     #[test]
-    fn remainder() {
-        assert_eq!(eval("10 % 3"), 1);
-    }
+    fn remainder() { assert_eq!(eval("10 % 3"), 1); }
 
     #[test]
-    fn precedence_mul_before_add() {
-        assert_eq!(eval("2 + 3 * 4"), 14);
-    }
+    fn precedence_mul_before_add() { assert_eq!(eval("2 + 3 * 4"), 14); }
 
     #[test]
-    fn parentheses_override_precedence() {
-        assert_eq!(eval("(2 + 3) * 4"), 20);
-    }
+    fn parentheses_override_precedence() { assert_eq!(eval("(2 + 3) * 4"), 20); }
 
     #[test]
-    fn unary_negation() {
-        assert_eq!(eval("-5"), -5);
-    }
+    fn unary_negation() { assert_eq!(eval("-5"), -5); }
 
     #[test]
-    fn double_negation() {
-        assert_eq!(eval("--5"), 5);
-    }
+    fn double_negation() { assert_eq!(eval("--5"), 5); }
 
     // ── Parser: bitwise ──────────────────────────────────────────────────────
 
     #[test]
-    fn bitwise_and() {
-        assert_eq!(eval("0xff & 0x0f"), 0x0f);
-    }
+    fn bitwise_and() { assert_eq!(eval("0xff & 0x0f"), 0x0f); }
 
     #[test]
-    fn bitwise_or() {
-        assert_eq!(eval("0x0f | 0xf0"), 0xff);
-    }
+    fn bitwise_or() { assert_eq!(eval("0x0f | 0xf0"), 0xff); }
 
     #[test]
-    fn bitwise_xor() {
-        assert_eq!(eval("0xff ^ 0x0f"), 0xf0);
-    }
+    fn bitwise_xor() { assert_eq!(eval("0xff ^ 0x0f"), 0xf0); }
 
     #[test]
-    fn shift_left() {
-        assert_eq!(eval("1 << 4"), 16);
-    }
+    fn shift_left() { assert_eq!(eval("1 << 4"), 16); }
 
     #[test]
-    fn shift_right() {
-        assert_eq!(eval("0x10 >> 2"), 4);
-    }
+    fn shift_right() { assert_eq!(eval("0x10 >> 2"), 4); }
 
     // ── Parser: comparison ───────────────────────────────────────────────────
 
     #[test]
-    fn eq_true() {
-        assert_eq!(eval("5 == 5"), 1);
-    }
+    fn eq_true()  { assert_eq!(eval("5 == 5"), 1); }
     #[test]
-    fn eq_false() {
-        assert_eq!(eval("5 == 6"), 0);
-    }
+    fn eq_false() { assert_eq!(eval("5 == 6"), 0); }
     #[test]
-    fn ne_true() {
-        assert_eq!(eval("5 != 6"), 1);
-    }
+    fn ne_true()  { assert_eq!(eval("5 != 6"), 1); }
     #[test]
-    fn lt_true() {
-        assert_eq!(eval("3 < 5"), 1);
-    }
+    fn lt_true()  { assert_eq!(eval("3 < 5"),  1); }
     #[test]
-    fn lt_false() {
-        assert_eq!(eval("5 < 3"), 0);
-    }
+    fn lt_false() { assert_eq!(eval("5 < 3"),  0); }
     #[test]
-    fn le_eq() {
-        assert_eq!(eval("5 <= 5"), 1);
-    }
+    fn le_eq()    { assert_eq!(eval("5 <= 5"), 1); }
     #[test]
-    fn gt_true() {
-        assert_eq!(eval("5 > 3"), 1);
-    }
+    fn gt_true()  { assert_eq!(eval("5 > 3"),  1); }
     #[test]
-    fn ge_eq() {
-        assert_eq!(eval("5 >= 5"), 1);
-    }
+    fn ge_eq()    { assert_eq!(eval("5 >= 5"), 1); }
 
     // ── Parser: logical ──────────────────────────────────────────────────────
 
     #[test]
-    fn logical_and_both_true() {
-        assert_eq!(eval("1 && 1"), 1);
-    }
+    fn logical_and_both_true() { assert_eq!(eval("1 && 1"), 1); }
     #[test]
-    fn logical_and_one_false() {
-        assert_eq!(eval("1 && 0"), 0);
-    }
+    fn logical_and_one_false() { assert_eq!(eval("1 && 0"), 0); }
     #[test]
-    fn logical_or_one_true() {
-        assert_eq!(eval("0 || 1"), 1);
-    }
+    fn logical_or_one_true()  { assert_eq!(eval("0 || 1"), 1); }
     #[test]
-    fn logical_or_both_false() {
-        assert_eq!(eval("0 || 0"), 0);
-    }
+    fn logical_or_both_false(){ assert_eq!(eval("0 || 0"), 0); }
     #[test]
-    fn logical_not_true() {
-        assert_eq!(eval("!0"), 1);
-    }
+    fn logical_not_true()     { assert_eq!(eval("!0"), 1); }
     #[test]
-    fn logical_not_false() {
-        assert_eq!(eval("!1"), 0);
-    }
+    fn logical_not_false()    { assert_eq!(eval("!1"), 0); }
 
     #[test]
     fn logical_and_short_circuits() {
@@ -971,36 +776,24 @@ mod tests {
     // ── Evaluation: division by zero ─────────────────────────────────────────
 
     #[test]
-    fn division_by_zero_is_error() {
-        assert!(eval_err("1 / 0"));
-    }
+    fn division_by_zero_is_error() { assert!(eval_err("1 / 0")); }
 
     #[test]
-    fn modulo_by_zero_is_error() {
-        assert!(eval_err("1 % 0"));
-    }
+    fn modulo_by_zero_is_error()   { assert!(eval_err("1 % 0")); }
 
     // ── Parser: error cases ───────────────────────────────────────────────────
 
     #[test]
-    fn empty_expression_is_error() {
-        assert!(parse_err(""));
-    }
+    fn empty_expression_is_error() { assert!(parse_err("")); }
 
     #[test]
-    fn trailing_operator_is_error() {
-        assert!(parse_err("1 +"));
-    }
+    fn trailing_operator_is_error() { assert!(parse_err("1 +")); }
 
     #[test]
-    fn unmatched_paren_is_error() {
-        assert!(parse_err("(1 + 2"));
-    }
+    fn unmatched_paren_is_error() { assert!(parse_err("(1 + 2")); }
 
     #[test]
-    fn dangling_dot_is_error() {
-        assert!(parse_err("foo."));
-    }
+    fn dangling_dot_is_error() { assert!(parse_err("foo.")); }
 
     // ── Complex expressions ───────────────────────────────────────────────────
 

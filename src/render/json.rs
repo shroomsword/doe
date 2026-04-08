@@ -41,7 +41,9 @@ pub fn to_json(value: &Value) -> JValue {
             // serde_json's `u64` number type handles the full u64 range
             JValue::Number((*n).into())
         }
-        Value::SInt(n) => JValue::Number((*n).into()),
+        Value::SInt(n) => {
+            JValue::Number((*n).into())
+        }
         Value::Float(f) => {
             // JSON does not support NaN or Infinity; map them to null
             serde_json::Number::from_f64(*f)
@@ -55,19 +57,23 @@ pub fn to_json(value: &Value) -> JValue {
                 "len": b.len(),
             })
         }
-        Value::Str(s) => JValue::String(s.clone()),
-        Value::Enum { value, name } => match name {
-            Some(n) => json!({
-                "$type": "enum",
-                "value": value,
-                "name": n,
-            }),
-            None => json!({
-                "$type": "enum",
-                "value": value,
-                "name": JValue::Null,
-            }),
-        },
+        Value::Str(s) => {
+            JValue::String(s.clone())
+        }
+        Value::Enum { value, name } => {
+            match name {
+                Some(n) => json!({
+                    "$type": "enum",
+                    "value": value,
+                    "name": n,
+                }),
+                None => json!({
+                    "$type": "enum",
+                    "value": value,
+                    "name": JValue::Null,
+                }),
+            }
+        }
         Value::Struct { type_name, fields } => {
             let mut map = serde_json::Map::new();
             map.insert("$type".into(), JValue::String(type_name.clone()));
@@ -76,8 +82,12 @@ pub fn to_json(value: &Value) -> JValue {
             }
             JValue::Object(map)
         }
-        Value::Array(items) => JValue::Array(items.iter().map(to_json).collect()),
-        Value::Absent => JValue::Null,
+        Value::Array(items) => {
+            JValue::Array(items.iter().map(to_json).collect())
+        }
+        Value::Absent => {
+            JValue::Null
+        }
     }
 }
 
@@ -97,9 +107,7 @@ fn hex_encode(b: &[u8]) -> String {
 mod tests {
     use super::*;
 
-    fn j(v: &Value) -> JValue {
-        to_json(v)
-    }
+    fn j(v: &Value) -> JValue { to_json(v) }
 
     fn struct_val(name: &str, fields: Vec<(&str, Value)>) -> Value {
         Value::Struct {
@@ -197,10 +205,7 @@ mod tests {
 
     #[test]
     fn enum_with_name() {
-        let v = j(&Value::Enum {
-            value: 2,
-            name: Some("data".into()),
-        });
+        let v = j(&Value::Enum { value: 2, name: Some("data".into()) });
         assert_eq!(v["$type"], "enum");
         assert_eq!(v["value"], 2u64);
         assert_eq!(v["name"], "data");
@@ -208,10 +213,7 @@ mod tests {
 
     #[test]
     fn enum_without_name() {
-        let v = j(&Value::Enum {
-            value: 99,
-            name: None,
-        });
+        let v = j(&Value::Enum { value: 99, name: None });
         assert_eq!(v["$type"], "enum");
         assert_eq!(v["value"], 99u64);
         assert!(v["name"].is_null());
@@ -227,10 +229,10 @@ mod tests {
 
     #[test]
     fn struct_fields_present() {
-        let v = j(&struct_val(
-            "t",
-            vec![("x", Value::UInt(1)), ("y", Value::UInt(2))],
-        ));
+        let v = j(&struct_val("t", vec![
+            ("x", Value::UInt(1)),
+            ("y", Value::UInt(2)),
+        ]));
         assert_eq!(v["x"], 1u64);
         assert_eq!(v["y"], 2u64);
     }
@@ -251,11 +253,7 @@ mod tests {
 
     #[test]
     fn array_of_uints() {
-        let v = j(&Value::Array(vec![
-            Value::UInt(1),
-            Value::UInt(2),
-            Value::UInt(3),
-        ]));
+        let v = j(&Value::Array(vec![Value::UInt(1), Value::UInt(2), Value::UInt(3)]));
         assert_eq!(v, json!([1u64, 2u64, 3u64]));
     }
 
@@ -313,21 +311,13 @@ mod tests {
     // ── hex_encode ────────────────────────────────────────────────────────────
 
     #[test]
-    fn hex_encode_empty() {
-        assert_eq!(hex_encode(&[]), "");
-    }
+    fn hex_encode_empty() { assert_eq!(hex_encode(&[]), ""); }
     #[test]
-    fn hex_encode_single_byte() {
-        assert_eq!(hex_encode(&[0xff]), "ff");
-    }
+    fn hex_encode_single_byte() { assert_eq!(hex_encode(&[0xff]), "ff"); }
     #[test]
-    fn hex_encode_zero_padded() {
-        assert_eq!(hex_encode(&[0x0f]), "0f");
-    }
+    fn hex_encode_zero_padded() { assert_eq!(hex_encode(&[0x0f]), "0f"); }
     #[test]
-    fn hex_encode_multi() {
-        assert_eq!(hex_encode(&[0xca, 0xfe]), "cafe");
-    }
+    fn hex_encode_multi() { assert_eq!(hex_encode(&[0xca, 0xfe]), "cafe"); }
 
     // ── Realistic: PNG-like ───────────────────────────────────────────────────
 
@@ -336,22 +326,18 @@ mod tests {
         let v = Value::Struct {
             type_name: "png".into(),
             fields: vec![
-                (
-                    "signature".into(),
-                    Value::Bytes(vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-                ),
-                (
-                    "chunks".into(),
-                    Value::Array(vec![Value::Struct {
+                ("signature".into(), Value::Bytes(vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+                ("chunks".into(), Value::Array(vec![
+                    Value::Struct {
                         type_name: "png::chunk".into(),
                         fields: vec![
                             ("length".into(), Value::UInt(13)),
-                            ("type".into(), Value::Str("IHDR".into())),
-                            ("body".into(), Value::Bytes(vec![0u8; 13])),
-                            ("crc".into(), Value::UInt(0xae426082)),
+                            ("type".into(),   Value::Str("IHDR".into())),
+                            ("body".into(),   Value::Bytes(vec![0u8; 13])),
+                            ("crc".into(),    Value::UInt(0xae426082)),
                         ],
-                    }]),
-                ),
+                    }
+                ])),
             ],
         };
         let json_str = render_pretty(&v);

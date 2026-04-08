@@ -353,10 +353,7 @@ mod tests {
 
     #[test]
     fn first_line_no_punctuation_unchanged() {
-        assert_eq!(
-            first_line("No punctuation here"),
-            Some("No punctuation here")
-        );
+        assert_eq!(first_line("No punctuation here"), Some("No punctuation here"));
     }
 
     #[test]

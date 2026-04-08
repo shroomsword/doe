@@ -66,10 +66,10 @@ impl Value {
     /// a size or repeat-count expression.
     pub fn as_int(&self) -> Option<i64> {
         match self {
-            Value::UInt(n) => Some(*n as i64),
-            Value::SInt(n) => Some(*n),
-            Value::Enum { value, .. } => Some(*value as i64),
-            _ => None,
+            Value::UInt(n)              => Some(*n as i64),
+            Value::SInt(n)              => Some(*n),
+            Value::Enum { value, .. }   => Some(*value as i64),
+            _                           => None,
         }
     }
 
@@ -78,8 +78,8 @@ impl Value {
     pub fn byte_len(&self) -> Option<usize> {
         match self {
             Value::Bytes(b) => Some(b.len()),
-            Value::Str(s) => Some(s.len()),
-            _ => None,
+            Value::Str(s)   => Some(s.len()),
+            _               => None,
         }
     }
 
@@ -87,10 +87,10 @@ impl Value {
     #[allow(dead_code)]
     pub fn is_truthy(&self) -> bool {
         match self {
-            Value::UInt(n) => *n != 0,
-            Value::SInt(n) => *n != 0,
+            Value::UInt(n)            => *n != 0,
+            Value::SInt(n)            => *n != 0,
             Value::Enum { value, .. } => *value != 0,
-            _ => false,
+            _                         => false,
         }
     }
 
@@ -103,15 +103,15 @@ impl Value {
     #[allow(dead_code)]
     pub fn type_name(&self) -> &'static str {
         match self {
-            Value::UInt(_) => "uint",
-            Value::SInt(_) => "sint",
-            Value::Float(_) => "float",
-            Value::Bytes(_) => "bytes",
-            Value::Str(_) => "str",
-            Value::Enum { .. } => "enum",
-            Value::Struct { .. } => "struct",
-            Value::Array(_) => "array",
-            Value::Absent => "absent",
+            Value::UInt(_)    => "uint",
+            Value::SInt(_)    => "sint",
+            Value::Float(_)   => "float",
+            Value::Bytes(_)   => "bytes",
+            Value::Str(_)     => "str",
+            Value::Enum { .. }=> "enum",
+            Value::Struct { ..}=> "struct",
+            Value::Array(_)   => "array",
+            Value::Absent     => "absent",
         }
     }
 }
@@ -133,19 +133,16 @@ impl Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::UInt(n) => write!(f, "{}", n),
-            Value::SInt(n) => write!(f, "{}", n),
-            Value::Float(v) => write!(f, "{}", v),
-            Value::Bytes(b) => write!(f, "<{} bytes>", b.len()),
-            Value::Str(s) => write!(f, "{:?}", s),
-            Value::Enum {
-                value,
-                name: Some(n),
-            } => write!(f, "{} ({})", n, value),
-            Value::Enum { value, name: None } => write!(f, "{}", value),
+            Value::UInt(n)                  => write!(f, "{}", n),
+            Value::SInt(n)                  => write!(f, "{}", n),
+            Value::Float(v)                 => write!(f, "{}", v),
+            Value::Bytes(b)                 => write!(f, "<{} bytes>", b.len()),
+            Value::Str(s)                   => write!(f, "{:?}", s),
+            Value::Enum { value, name: Some(n) } => write!(f, "{} ({})", n, value),
+            Value::Enum { value, name: None }    => write!(f, "{}", value),
             Value::Struct { type_name, .. } => write!(f, "<{}>", type_name),
-            Value::Array(items) => write!(f, "[{} items]", items.len()),
-            Value::Absent => write!(f, "<absent>"),
+            Value::Array(items)             => write!(f, "[{} items]", items.len()),
+            Value::Absent                   => write!(f, "<absent>"),
         }
     }
 }
@@ -178,10 +175,7 @@ mod tests {
     }
     #[test]
     fn as_int_enum_unnamed() {
-        let v = Value::Enum {
-            value: 99,
-            name: None,
-        };
+        let v = Value::Enum { value: 99, name: None };
         assert_eq!(v.as_int(), Some(99));
     }
     #[test]
@@ -236,11 +230,7 @@ mod tests {
     }
     #[test]
     fn truthy_enum_nonzero() {
-        assert!(Value::Enum {
-            value: 1,
-            name: None
-        }
-        .is_truthy());
+        assert!(Value::Enum { value: 1, name: None }.is_truthy());
     }
     #[test]
     fn falsy_float() {
