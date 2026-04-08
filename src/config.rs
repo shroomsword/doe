@@ -271,7 +271,11 @@ pub fn discover_types(
                     return None; // shadowed by higher-priority dir
                 }
                 claimed_ids.insert(header.id.clone(), path.clone());
-                Some(AvailableType { id: header.id, doc: header.doc, source: path })
+                Some(AvailableType {
+                    id: header.id,
+                    doc: header.doc,
+                    source: path,
+                })
             })
             .collect();
 
@@ -337,7 +341,9 @@ mod tests {
     #[test]
     fn cli_paths_come_before_config_paths() {
         let cli = vec![PathBuf::from("/cli/path")];
-        let cfg = Config { include_paths: vec![PathBuf::from("/config/path")] };
+        let cfg = Config {
+            include_paths: vec![PathBuf::from("/config/path")],
+        };
         let resolved = resolve_include_paths(&cli, &cfg);
         assert_eq!(resolved[0], PathBuf::from("/cli/path"));
         assert_eq!(resolved[1], PathBuf::from("/config/path"));
@@ -345,7 +351,9 @@ mod tests {
 
     #[test]
     fn empty_cli_uses_only_config_paths() {
-        let cfg = Config { include_paths: vec![PathBuf::from("/config/path")] };
+        let cfg = Config {
+            include_paths: vec![PathBuf::from("/config/path")],
+        };
         let resolved = resolve_include_paths(&[], &cfg);
         assert_eq!(resolved.len(), 1);
     }
@@ -370,7 +378,9 @@ mod tests {
 
     #[test]
     fn expand_tilde_expands_home() {
-        if dirs::home_dir().is_none() { return; }
+        if dirs::home_dir().is_none() {
+            return;
+        }
         let p = PathBuf::from("~/foo/bar");
         let expanded = expand_tilde(&p);
         assert!(expanded.to_string_lossy().contains("foo/bar"));
@@ -389,10 +399,12 @@ mod tests {
     #[test]
     fn discover_types_finds_yaml_files() {
         let dir = tempfile::TempDir::new().unwrap();
-        std::fs::write(dir.path().join("png.yaml"),
-            "id: png\ndoc: PNG image\nseq: []\n").unwrap();
-        std::fs::write(dir.path().join("elf.yaml"),
-            "id: elf\nseq: []\n").unwrap();
+        std::fs::write(
+            dir.path().join("png.yaml"),
+            "id: png\ndoc: PNG image\nseq: []\n",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("elf.yaml"), "id: elf\nseq: []\n").unwrap();
 
         let types = discover_types(&[dir.path().to_owned()]).unwrap();
         assert_eq!(types.len(), 2);
@@ -429,10 +441,16 @@ mod tests {
     #[test]
     fn discover_types_within_dir_duplicate_is_error() {
         let dir = tempfile::TempDir::new().unwrap();
-        std::fs::write(dir.path().join("a_fmt.yaml"),
-            "id: fmt\ndoc: first\nseq: []\n").unwrap();
-        std::fs::write(dir.path().join("b_fmt.yaml"),
-            "id: fmt\ndoc: second\nseq: []\n").unwrap();
+        std::fs::write(
+            dir.path().join("a_fmt.yaml"),
+            "id: fmt\ndoc: first\nseq: []\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("b_fmt.yaml"),
+            "id: fmt\ndoc: second\nseq: []\n",
+        )
+        .unwrap();
 
         let err = discover_types(&[dir.path().to_owned()]).unwrap_err();
         assert_eq!(err.len(), 1);
@@ -462,15 +480,19 @@ mod tests {
     fn discover_types_cross_dir_shadowing_is_allowed() {
         let dir1 = tempfile::TempDir::new().unwrap();
         let dir2 = tempfile::TempDir::new().unwrap();
-        std::fs::write(dir1.path().join("fmt.yaml"),
-            "id: fmt\ndoc: from dir1\nseq: []\n").unwrap();
-        std::fs::write(dir2.path().join("fmt.yaml"),
-            "id: fmt\ndoc: from dir2\nseq: []\n").unwrap();
+        std::fs::write(
+            dir1.path().join("fmt.yaml"),
+            "id: fmt\ndoc: from dir1\nseq: []\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir2.path().join("fmt.yaml"),
+            "id: fmt\ndoc: from dir2\nseq: []\n",
+        )
+        .unwrap();
 
-        let types = discover_types(&[
-            dir1.path().to_owned(),
-            dir2.path().to_owned(),
-        ]).unwrap();
+        let types =
+            discover_types(&[dir1.path().to_owned(), dir2.path().to_owned()]).unwrap();
         assert_eq!(types.len(), 1);
         assert_eq!(types[0].doc.as_deref(), Some("from dir1"));
     }
@@ -485,15 +507,12 @@ mod tests {
         std::fs::write(bad_dir.path().join("a.yaml"), "id: conflict\nseq: []\n").unwrap();
         std::fs::write(bad_dir.path().join("b.yaml"), "id: conflict\nseq: []\n").unwrap();
         // A valid file in good_dir
-        std::fs::write(good_dir.path().join("valid.yaml"),
-            "id: valid\nseq: []\n").unwrap();
+        std::fs::write(good_dir.path().join("valid.yaml"), "id: valid\nseq: []\n").unwrap();
 
         // Should return Err (because bad_dir has a duplicate), but the error
         // message should name the conflicting files from bad_dir.
-        let err = discover_types(&[
-            bad_dir.path().to_owned(),
-            good_dir.path().to_owned(),
-        ]).unwrap_err();
+        let err =
+            discover_types(&[bad_dir.path().to_owned(), good_dir.path().to_owned()]).unwrap_err();
         assert_eq!(err.len(), 1);
         assert_eq!(err[0].id, "conflict");
     }
@@ -521,10 +540,8 @@ mod tests {
         std::fs::write(dir1.path().join("png.yaml"), "id: png\nseq: []\n").unwrap();
         std::fs::write(dir2.path().join("elf.yaml"), "id: elf\nseq: []\n").unwrap();
 
-        let types = discover_types(&[
-            dir1.path().to_owned(),
-            dir2.path().to_owned(),
-        ]).unwrap();
+        let types =
+            discover_types(&[dir1.path().to_owned(), dir2.path().to_owned()]).unwrap();
         assert_eq!(types.len(), 2);
         let ids: Vec<&str> = types.iter().map(|t| t.id.as_str()).collect();
         assert!(ids.contains(&"png"));

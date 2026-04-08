@@ -19,8 +19,8 @@ use std::process;
 
 use clap::{CommandFactory, Parser as ClapParser};
 
-use doe::{discover_types, OutputFormat};
 use doe::config::{resolve_include_paths, Config};
+use doe::{discover_types, OutputFormat};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CLI definition
@@ -108,7 +108,9 @@ fn run(cli: Cli) -> doe::Result<()> {
     } else if cli.json {
         OutputFormat::Json
     } else {
-        OutputFormat::Text { indent: cli.indent.clone() }
+        OutputFormat::Text {
+            indent: cli.indent.clone(),
+        }
     };
 
     let output = doe::parse_file(
@@ -155,6 +157,16 @@ fn resolve_and_check_types(
     }
 }
 
+/// Return the first non-empty, non-whitespace-only line of `s`, trimmed,
+/// with any trailing sentence-ending punctuation (`.`, `!`, `?`) removed.
+/// Returns `None` if the string contains no such line.
+fn first_line(s: &str) -> Option<&str> {
+    s.lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .map(|l| l.trim_end_matches(|c| matches!(c, '.' | '!' | '?')))
+}
+
 /// Print the standard clap help text followed by a list of types discovered
 /// on the resolved include paths.
 fn print_help(cli_include_paths: &[PathBuf], config_path: Option<&std::path::Path>) {
@@ -181,9 +193,9 @@ fn print_help(cli_include_paths: &[PathBuf], config_path: Option<&std::path::Pat
     let max_id_len = types.iter().map(|t| t.id.len()).max().unwrap_or(0);
 
     for t in &types {
-        match &t.doc {
-            Some(doc) => println!("  {:<width$}  {}", t.id, doc, width = max_id_len),
-            None      => println!("  {}", t.id),
+        match t.doc.as_deref().and_then(first_line) {
+            Some(line) => println!("  {:<width$}  {}", t.id, line, width = max_id_len),
+            None => println!("  {}", t.id),
         }
     }
 }
@@ -224,9 +236,15 @@ mod tests {
             help: false,
         };
         assert!(matches!(
-            if cli.pretty { OutputFormat::JsonPretty }
-            else if cli.json { OutputFormat::Json }
-            else { OutputFormat::Text { indent: cli.indent.clone() } },
+            if cli.pretty {
+                OutputFormat::JsonPretty
+            } else if cli.json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Text {
+                    indent: cli.indent.clone(),
+                }
+            },
             OutputFormat::JsonPretty
         ));
     }
@@ -244,9 +262,15 @@ mod tests {
             help: false,
         };
         assert!(matches!(
-            if cli.pretty { OutputFormat::JsonPretty }
-            else if cli.json { OutputFormat::Json }
-            else { OutputFormat::Text { indent: cli.indent.clone() } },
+            if cli.pretty {
+                OutputFormat::JsonPretty
+            } else if cli.json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Text {
+                    indent: cli.indent.clone(),
+                }
+            },
             OutputFormat::Json
         ));
     }
@@ -269,7 +293,76 @@ mod tests {
         std::fs::write(
             dir.path().join("mytype.yaml"),
             "id: mytype\ndoc: A test type\nseq: []\n",
-        ).unwrap();
+        )
+        .unwrap();
         print_help(&[dir.path().to_owned()], None);
+    }
+
+    // ── first_line ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn first_line_single_line() {
+        assert_eq!(first_line("hello"), Some("hello"));
+    }
+
+    #[test]
+    fn first_line_multiline_returns_first() {
+        assert_eq!(first_line("first\nsecond\nthird"), Some("first"));
+    }
+
+    #[test]
+    fn first_line_trims_whitespace() {
+        assert_eq!(first_line("  trimmed  \nsecond"), Some("trimmed"));
+    }
+
+    #[test]
+    fn first_line_skips_leading_blank_lines() {
+        assert_eq!(first_line("\n\nactual line\nmore"), Some("actual line"));
+    }
+
+    #[test]
+    fn first_line_empty_string_is_none() {
+        assert_eq!(first_line(""), None);
+    }
+
+    #[test]
+    fn first_line_only_whitespace_is_none() {
+        assert_eq!(first_line("   \n   \n"), None);
+    }
+
+    #[test]
+    fn first_line_strips_trailing_period() {
+        assert_eq!(first_line("A PNG image file."), Some("A PNG image file"));
+    }
+
+    #[test]
+    fn first_line_strips_trailing_exclamation() {
+        assert_eq!(first_line("Watch out!"), Some("Watch out"));
+    }
+
+    #[test]
+    fn first_line_strips_trailing_question_mark() {
+        assert_eq!(first_line("Is this ELF?"), Some("Is this ELF"));
+    }
+
+    #[test]
+    fn first_line_strips_multiple_trailing_punctuation() {
+        // e.g. "Really?!" — strips all consecutive sentence-enders
+        assert_eq!(first_line("Really?!"), Some("Really"));
+    }
+
+    #[test]
+    fn first_line_no_punctuation_unchanged() {
+        assert_eq!(first_line("No punctuation here"), Some("No punctuation here"));
+    }
+
+    #[test]
+    fn first_line_block_scalar_style() {
+        // Simulates a YAML block scalar like the ELF doc field.
+        let doc = "Executable and Linkable Format (ELF).\n\nCovers 32-bit and 64-bit ELF files.";
+        assert_eq!(
+            first_line(doc),
+            Some("Executable and Linkable Format (ELF)")
+        );
     }
 }
