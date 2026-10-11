@@ -14,9 +14,11 @@
 //! 3. If `--help` was requested, print standard clap help followed by the
 //!    type list, then exit.  Otherwise, proceed with normal argument parsing.
 
-use std::path::PathBuf;
-use std::process;
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
+use anyhow::Context;
 use clap::{CommandFactory, Parser as ClapParser};
 
 use doe::config::{Config, resolve_include_paths};
@@ -84,25 +86,48 @@ struct EarlyArgs {
 // Entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn main() {
+fn main() -> ExitCode {
+    match try_main() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) if is_broken_pipe(&err) => ExitCode::SUCCESS,
+        Err(err) => {
+            report(&err);
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn try_main() -> anyhow::Result<()> {
     // ── Pass 1: extract flags without requiring positional args ───────────────
     let early = EarlyArgs::parse();
 
     if early.help {
-        print_help(&early.include_paths, early.config.as_deref());
-        process::exit(0);
+        return print_help(&early.include_paths, early.config.as_deref());
     }
 
     // ── Pass 2: full parse now that we know --help was not requested ──────────
     let cli = Cli::parse();
+    run(&cli)
+}
 
-    if let Err(e) = run(cli) {
-        eprintln!("doe: error: {}", e);
-        process::exit(1);
+/// Returns `true` if `err` was caused by the reader of stdout going away.
+fn is_broken_pipe(err: &anyhow::Error) -> bool {
+    err.chain()
+        .filter_map(|cause| cause.downcast_ref::<io::Error>())
+        .any(|e| e.kind() == io::ErrorKind::BrokenPipe)
+}
+
+/// Print `error: <message>` and each cause to stderr.
+fn report(err: &anyhow::Error) {
+    let mut stderr = io::stderr().lock();
+    // If stderr itself is unwritable there is nowhere left to report to.
+    let _ = writeln!(stderr, "error: {err}");
+    for cause in err.chain().skip(1) {
+        let _ = writeln!(stderr, "  caused by: {cause}");
     }
 }
 
-fn run(cli: Cli) -> doe::Result<()> {
+fn run(cli: &Cli) -> anyhow::Result<()> {
     let format = if cli.pretty {
         OutputFormat::JsonPretty
     } else if cli.json {
@@ -119,9 +144,18 @@ fn run(cli: Cli) -> doe::Result<()> {
         &cli.include_paths,
         cli.config.as_deref(),
         format,
-    )?;
+    )
+    .with_context(|| {
+        format!(
+            "could not parse {} as {}",
+            cli.file.display(),
+            cli.type_or_schema
+        )
+    })?;
 
-    print!("{}", output);
+    let mut stdout = io::stdout().lock();
+    write!(stdout, "{output}")?;
+    stdout.flush()?;
     Ok(())
 }
 
@@ -130,64 +164,64 @@ fn run(cli: Cli) -> doe::Result<()> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Resolve include paths from CLI flags and config file, then call
-/// `discover_types`.  On duplicate errors, print every conflict to stderr
-/// and exit with a non-zero code so the user knows their type library is
-/// broken before they waste time trying to parse a file.
+/// `discover_types`.  On duplicate errors, return an error describing every
+/// conflict so the user knows their type library is broken before they waste
+/// time trying to parse a file.
 fn resolve_and_check_types(
     cli_include_paths: &[PathBuf],
-    config_path: Option<&std::path::Path>,
-) -> Vec<doe::AvailableType> {
+    config_path: Option<&Path>,
+) -> anyhow::Result<Vec<doe::AvailableType>> {
     let cfg_path = config_path
-        .map(std::path::Path::to_owned)
+        .map(Path::to_owned)
         .or_else(Config::default_path)
         .unwrap_or_else(|| PathBuf::from(".doe_config.yaml"));
 
     let config = Config::load(&cfg_path).unwrap_or_default();
     let include_paths = resolve_include_paths(cli_include_paths, &config);
 
-    match discover_types(&include_paths) {
-        Ok(types) => types,
-        Err(duplicates) => {
-            eprintln!("doe: error: duplicate type ids found in include paths\n");
-            for dup in &duplicates {
-                eprintln!("{}\n", dup);
-            }
-            process::exit(1);
-        }
-    }
+    discover_types(&include_paths).map_err(|duplicates| {
+        let details: Vec<String> = duplicates.iter().map(ToString::to_string).collect();
+        anyhow::anyhow!(
+            "duplicate type ids found in include paths\n\n{}",
+            details.join("\n\n")
+        )
+    })
 }
 
 /// Print the standard clap help text followed by a list of types discovered
 /// on the resolved include paths.
-fn print_help(cli_include_paths: &[PathBuf], config_path: Option<&std::path::Path>) {
-    // Print clap's generated help text for the main Cli struct.
-    let mut cmd = Cli::command();
-    let mut help_text = Vec::new();
-    cmd.write_help(&mut help_text).unwrap_or(());
-    print!("{}", String::from_utf8_lossy(&help_text));
+fn print_help(cli_include_paths: &[PathBuf], config_path: Option<&Path>) -> anyhow::Result<()> {
+    let types = resolve_and_check_types(cli_include_paths, config_path)?;
 
-    let types = resolve_and_check_types(cli_include_paths, config_path);
+    let mut stdout = io::stdout().lock();
+
+    // Print clap's generated help text for the main Cli struct.
+    Cli::command().write_help(&mut stdout)?;
 
     if types.is_empty() {
         if cli_include_paths.is_empty() {
-            println!("\nAvailable types: none (no include paths configured)");
+            writeln!(
+                stdout,
+                "\nAvailable types: none (no include paths configured)"
+            )?;
         } else {
-            println!("\nAvailable types: none found on include paths");
+            writeln!(stdout, "\nAvailable types: none found on include paths")?;
         }
-        return;
+        return Ok(());
     }
 
-    println!("\nAvailable types:");
+    writeln!(stdout, "\nAvailable types:")?;
 
     // Align the doc column: pad each id to the width of the longest one.
     let max_id_len = types.iter().map(|t| t.id.len()).max().unwrap_or(0);
 
     for t in &types {
         match &t.doc {
-            Some(doc) => println!("  {:<width$}  {}", t.id, doc, width = max_id_len),
-            None => println!("  {}", t.id),
+            Some(doc) => writeln!(stdout, "  {:<max_id_len$}  {doc}", t.id)?,
+            None => writeln!(stdout, "  {}", t.id)?,
         }
     }
+    Ok(())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -210,7 +244,7 @@ mod tests {
             indent: "  ".into(),
             help: false,
         };
-        assert!(run(cli).is_err());
+        assert!(run(&cli).is_err());
     }
 
     #[test]
@@ -274,7 +308,7 @@ mod tests {
 
     #[test]
     fn print_help_no_include_paths_does_not_panic() {
-        print_help(&[], None);
+        print_help(&[], None).unwrap();
     }
 
     #[test]
@@ -285,6 +319,6 @@ mod tests {
             "id: mytype\ndoc: A test type\nseq: []\n",
         )
         .unwrap();
-        print_help(&[dir.path().to_owned()], None);
+        print_help(&[dir.path().to_owned()], None).unwrap();
     }
 }
