@@ -127,10 +127,13 @@ pub fn resolve_include_paths(cli_paths: &[PathBuf], config: &Config) -> Vec<Path
 /// ```
 pub fn expand_tilde(path: &Path) -> PathBuf {
     let s = path.to_string_lossy();
-    if (s.starts_with("~/") || s == "~")
-        && let Some(home) = dirs::home_dir()
-    {
-        return home.join(&s[2..]);
+    if let Some(home) = dirs::home_dir() {
+        if s == "~" {
+            return home;
+        }
+        if let Some(rest) = s.strip_prefix("~/") {
+            return home.join(rest);
+        }
     }
     path.to_owned()
 }
@@ -205,6 +208,11 @@ impl std::fmt::Display for DuplicateTypeError {
 ///
 /// Files that cannot be read or that contain invalid YAML are silently
 /// skipped; discovery must never prevent `--help` from printing.
+///
+/// # Errors
+///
+/// Returns every [`DuplicateTypeError`] found: two files in the same
+/// directory declaring the same `id`.
 pub fn discover_types(
     include_paths: &[PathBuf],
 ) -> std::result::Result<Vec<AvailableType>, Vec<DuplicateTypeError>> {
@@ -215,9 +223,8 @@ pub fn discover_types(
     let mut errors: Vec<DuplicateTypeError> = Vec::new();
 
     for dir in include_paths {
-        let entries = match std::fs::read_dir(dir) {
-            Ok(e) => e,
-            Err(_) => continue,
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            continue;
         };
 
         // Collect all valid schema headers from this directory first, so we

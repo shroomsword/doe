@@ -10,6 +10,7 @@ use crate::error::{DoeError, Result};
 // Cursor
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// A position-tracking window over an immutable byte buffer.
 #[derive(Debug, Clone)]
 pub struct Cursor<'buf> {
     buf: &'buf [u8],
@@ -18,6 +19,19 @@ pub struct Cursor<'buf> {
     base: usize,
     /// Current read position relative to `buf[0]`.
     pos: usize,
+}
+
+macro_rules! read_int {
+    ($($name:ident, $ty:ty, $from:ident, $width:literal;)*) => {$(
+        #[doc = concat!("Read a `", stringify!($ty), "`, advancing the cursor.")]
+        ///
+        /// # Errors
+        ///
+        /// Returns an error if fewer bytes remain than the type's width.
+        pub fn $name(&mut self) -> Result<$ty> {
+            Ok(<$ty>::$from(self.read_array::<$width>()?))
+        }
+    )*};
 }
 
 impl<'buf> Cursor<'buf> {
@@ -31,15 +45,18 @@ impl<'buf> Cursor<'buf> {
     }
 
     /// Create a sub-cursor covering `buf[start..start+len]`.
-    #[allow(dead_code)]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the window extends past the end of this cursor.
     pub fn sub(&self, start: usize, len: usize) -> Result<Cursor<'buf>> {
-        let end = start + len;
-        if end > self.buf.len() {
-            return Err(self.overrun_error(len));
-        }
+        let window = start
+            .checked_add(len)
+            .and_then(|end| self.buf.get(start..end))
+            .ok_or_else(|| self.overrun_error(len))?;
         Ok(Cursor {
-            buf: &self.buf[start..end],
-            base: self.base + start,
+            buf: window,
+            base: self.base.saturating_add(start),
             pos: 0,
         })
     }
@@ -48,7 +65,7 @@ impl<'buf> Cursor<'buf> {
 
     /// Current byte offset from the start of the *root* buffer.
     pub fn absolute_pos(&self) -> usize {
-        self.base + self.pos
+        self.base.saturating_add(self.pos)
     }
 
     /// Current byte offset within this cursor's window.
@@ -58,7 +75,7 @@ impl<'buf> Cursor<'buf> {
 
     /// Number of bytes remaining in this cursor's window.
     pub fn remaining(&self) -> usize {
-        self.buf.len() - self.pos
+        self.buf.len().saturating_sub(self.pos)
     }
 
     /// Returns `true` if the cursor is at the end of its window.
@@ -67,7 +84,10 @@ impl<'buf> Cursor<'buf> {
     }
 
     /// Seek to an absolute position within this cursor's window.
-    #[allow(dead_code)]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `pos` is past the end of the window.
     pub fn seek(&mut self, pos: usize) -> Result<()> {
         if pos > self.buf.len() {
             return Err(DoeError::Schema(format!(
@@ -83,117 +103,94 @@ impl<'buf> Cursor<'buf> {
     // ── Raw reads ─────────────────────────────────────────────────────────────
 
     /// Read exactly `n` bytes, advancing the cursor.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if fewer than `n` bytes remain.
     pub fn read_bytes(&mut self, n: usize) -> Result<&'buf [u8]> {
-        if self.pos + n > self.buf.len() {
-            return Err(self.overrun_error(n));
-        }
-        let slice = &self.buf[self.pos..self.pos + n];
-        self.pos += n;
+        let slice = self.peek_bytes(n)?;
+        self.pos = self.pos.saturating_add(n);
         Ok(slice)
     }
 
     /// Peek at the next `n` bytes without advancing.
-    #[allow(dead_code)]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if fewer than `n` bytes remain.
     pub fn peek_bytes(&self, n: usize) -> Result<&'buf [u8]> {
-        if self.pos + n > self.buf.len() {
-            return Err(self.overrun_error(n));
-        }
-        Ok(&self.buf[self.pos..self.pos + n])
+        self.pos
+            .checked_add(n)
+            .and_then(|end| self.buf.get(self.pos..end))
+            .ok_or_else(|| self.overrun_error(n))
     }
 
     /// Read bytes up to and including the first occurrence of `terminator`.
     /// Returns the slice *without* the terminator byte.
+    ///
+    /// If the terminator is not found, the rest of the window is returned.
+    ///
+    /// # Errors
+    ///
+    /// Currently infallible; the `Result` is kept for API stability.
     pub fn read_until(&mut self, terminator: u8) -> Result<&'buf [u8]> {
-        let start = self.pos;
-        while self.pos < self.buf.len() {
-            if self.buf[self.pos] == terminator {
-                let s = &self.buf[start..self.pos];
-                self.pos += 1; // consume the terminator
-                return Ok(s);
-            }
-            self.pos += 1;
+        let rest = self.buf.get(self.pos..).unwrap_or_default();
+        if let Some(len) = rest.iter().position(|&b| b == terminator) {
+            let s = rest.get(..len).unwrap_or_default();
+            self.pos = self.pos.saturating_add(len).saturating_add(1); // consume the terminator
+            Ok(s)
+        } else {
+            // Hit EOF without finding terminator — return what we have.
+            self.pos = self.buf.len();
+            Ok(rest)
         }
-        // Hit EOF without finding terminator — return what we have.
-        Ok(&self.buf[start..self.pos])
+    }
+
+    /// Read exactly `N` bytes as an array, advancing the cursor.
+    fn read_array<const N: usize>(&mut self) -> Result<[u8; N]> {
+        let bytes = self.peek_bytes(N)?;
+        let array = <[u8; N]>::try_from(bytes).map_err(|_| self.overrun_error(N))?;
+        self.pos = self.pos.saturating_add(N);
+        Ok(array)
     }
 
     // ── Typed integer reads ───────────────────────────────────────────────────
 
+    /// Read a `u8`, advancing the cursor.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no bytes remain.
     pub fn read_u8(&mut self) -> Result<u8> {
-        Ok(self.read_bytes(1)?[0])
+        Ok(u8::from_ne_bytes(self.read_array::<1>()?))
     }
 
-    pub fn read_u16_le(&mut self) -> Result<u16> {
-        let b = self.read_bytes(2)?;
-        Ok(u16::from_le_bytes([b[0], b[1]]))
-    }
-
-    pub fn read_u16_be(&mut self) -> Result<u16> {
-        let b = self.read_bytes(2)?;
-        Ok(u16::from_be_bytes([b[0], b[1]]))
-    }
-
-    pub fn read_u32_le(&mut self) -> Result<u32> {
-        let b = self.read_bytes(4)?;
-        Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
-    }
-
-    pub fn read_u32_be(&mut self) -> Result<u32> {
-        let b = self.read_bytes(4)?;
-        Ok(u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
-    }
-
-    pub fn read_u64_le(&mut self) -> Result<u64> {
-        let b = self.read_bytes(8)?;
-        Ok(u64::from_le_bytes(b.try_into().unwrap()))
-    }
-
-    pub fn read_u64_be(&mut self) -> Result<u64> {
-        let b = self.read_bytes(8)?;
-        Ok(u64::from_be_bytes(b.try_into().unwrap()))
-    }
-
+    /// Read an `i8`, advancing the cursor.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no bytes remain.
     pub fn read_i8(&mut self) -> Result<i8> {
-        Ok(self.read_u8()? as i8)
+        Ok(i8::from_ne_bytes(self.read_array::<1>()?))
     }
 
-    pub fn read_i16_le(&mut self) -> Result<i16> {
-        Ok(self.read_u16_le()? as i16)
-    }
-    pub fn read_i16_be(&mut self) -> Result<i16> {
-        Ok(self.read_u16_be()? as i16)
-    }
-    pub fn read_i32_le(&mut self) -> Result<i32> {
-        Ok(self.read_u32_le()? as i32)
-    }
-    pub fn read_i32_be(&mut self) -> Result<i32> {
-        Ok(self.read_u32_be()? as i32)
-    }
-    pub fn read_i64_le(&mut self) -> Result<i64> {
-        Ok(self.read_u64_le()? as i64)
-    }
-    pub fn read_i64_be(&mut self) -> Result<i64> {
-        Ok(self.read_u64_be()? as i64)
-    }
-
-    pub fn read_f32_le(&mut self) -> Result<f32> {
-        let b = self.read_bytes(4)?;
-        Ok(f32::from_le_bytes(b.try_into().unwrap()))
-    }
-
-    pub fn read_f32_be(&mut self) -> Result<f32> {
-        let b = self.read_bytes(4)?;
-        Ok(f32::from_be_bytes(b.try_into().unwrap()))
-    }
-
-    pub fn read_f64_le(&mut self) -> Result<f64> {
-        let b = self.read_bytes(8)?;
-        Ok(f64::from_le_bytes(b.try_into().unwrap()))
-    }
-
-    pub fn read_f64_be(&mut self) -> Result<f64> {
-        let b = self.read_bytes(8)?;
-        Ok(f64::from_be_bytes(b.try_into().unwrap()))
+    read_int! {
+        read_u16_le, u16, from_le_bytes, 2;
+        read_u16_be, u16, from_be_bytes, 2;
+        read_u32_le, u32, from_le_bytes, 4;
+        read_u32_be, u32, from_be_bytes, 4;
+        read_u64_le, u64, from_le_bytes, 8;
+        read_u64_be, u64, from_be_bytes, 8;
+        read_i16_le, i16, from_le_bytes, 2;
+        read_i16_be, i16, from_be_bytes, 2;
+        read_i32_le, i32, from_le_bytes, 4;
+        read_i32_be, i32, from_be_bytes, 4;
+        read_i64_le, i64, from_le_bytes, 8;
+        read_i64_be, i64, from_be_bytes, 8;
+        read_f32_le, f32, from_le_bytes, 4;
+        read_f32_be, f32, from_be_bytes, 4;
+        read_f64_le, f64, from_le_bytes, 8;
+        read_f64_be, f64, from_be_bytes, 8;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -390,27 +387,27 @@ mod tests {
     #[test]
     fn read_u32_le() {
         let mut c = cur(&[0x78, 0x56, 0x34, 0x12]);
-        assert_eq!(c.read_u32_le().unwrap(), 0x12345678);
+        assert_eq!(c.read_u32_le().unwrap(), 0x1234_5678);
     }
 
     #[test]
     fn read_u32_be() {
         let mut c = cur(&[0x12, 0x34, 0x56, 0x78]);
-        assert_eq!(c.read_u32_be().unwrap(), 0x12345678);
+        assert_eq!(c.read_u32_be().unwrap(), 0x1234_5678);
     }
 
     #[test]
     fn read_u64_le() {
-        let data = 0x0102030405060708u64.to_le_bytes();
+        let data = 0x0102_0304_0506_0708u64.to_le_bytes();
         let mut c = cur(&data);
-        assert_eq!(c.read_u64_le().unwrap(), 0x0102030405060708);
+        assert_eq!(c.read_u64_le().unwrap(), 0x0102_0304_0506_0708);
     }
 
     #[test]
     fn read_u64_be() {
-        let data = 0x0102030405060708u64.to_be_bytes();
+        let data = 0x0102_0304_0506_0708u64.to_be_bytes();
         let mut c = cur(&data);
-        assert_eq!(c.read_u64_be().unwrap(), 0x0102030405060708);
+        assert_eq!(c.read_u64_be().unwrap(), 0x0102_0304_0506_0708);
     }
 
     // ── Signed integer reads ──────────────────────────────────────────────────
@@ -453,7 +450,7 @@ mod tests {
         let v: f32 = 1.5;
         let data = v.to_le_bytes();
         let mut c = cur(&data);
-        assert_eq!(c.read_f32_le().unwrap(), 1.5f32);
+        assert_eq!(c.read_f32_le().unwrap().to_bits(), 1.5f32.to_bits());
     }
 
     #[test]
@@ -461,7 +458,7 @@ mod tests {
         let v: f32 = -2.0;
         let data = v.to_be_bytes();
         let mut c = cur(&data);
-        assert_eq!(c.read_f32_be().unwrap(), -2.0f32);
+        assert_eq!(c.read_f32_be().unwrap().to_bits(), (-2.0f32).to_bits());
     }
 
     #[test]
@@ -477,7 +474,7 @@ mod tests {
         let v: f64 = -1.0;
         let data = v.to_be_bytes();
         let mut c = cur(&data);
-        assert_eq!(c.read_f64_be().unwrap(), -1.0f64);
+        assert_eq!(c.read_f64_be().unwrap().to_bits(), (-1.0f64).to_bits());
     }
 
     // ── Sub-cursor ────────────────────────────────────────────────────────────

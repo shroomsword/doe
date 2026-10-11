@@ -30,6 +30,7 @@ pub enum DoeError {
     Io {
         /// The path that was being accessed.
         path: PathBuf,
+        /// The underlying I/O error.
         #[source]
         source: std::io::Error,
     },
@@ -41,6 +42,7 @@ pub enum DoeError {
     Yaml {
         /// The schema file that triggered the error.
         path: PathBuf,
+        /// The underlying YAML error.
         #[source]
         source: serde_yaml::Error,
     },

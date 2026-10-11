@@ -37,7 +37,11 @@ use crate::schema::raw::{
 
 /// Compile a single in-memory `RawSchema` (and its inline sub-types) into a
 /// `TypeRegistry`.  Imports are not followed — use `Compiler` for that.
-#[allow(dead_code)]
+///
+/// # Errors
+///
+/// Returns an error if the schema is invalid or references unknown types,
+/// enums, or fields.
 pub fn compile_schema(schema: &RawSchema) -> Result<TypeRegistry> {
     let mut compiler = Compiler::new(vec![]);
     compiler.process_schema(schema)?;
@@ -49,6 +53,7 @@ pub fn compile_schema(schema: &RawSchema) -> Result<TypeRegistry> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Stateful compiler that accumulates types across multiple schema files.
+#[derive(Debug)]
 pub struct Compiler {
     /// Directories to search for bare schema names (e.g. `"png"` → `<dir>/png.yaml`).
     include_paths: Vec<PathBuf>,
@@ -64,6 +69,8 @@ pub struct Compiler {
 }
 
 impl Compiler {
+    /// Create a compiler that resolves bare schema names against
+    /// `include_paths`, in priority order.
     pub fn new(include_paths: Vec<PathBuf>) -> Self {
         Compiler {
             include_paths,
@@ -78,6 +85,10 @@ impl Compiler {
 
     /// Load and compile a schema by name (resolved through include paths) or
     /// by explicit path.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the schema cannot be found, read, or compiled.
     pub fn load(&mut self, name_or_path: &str, relative_to: Option<&Path>) -> Result<()> {
         let path = self.resolve_path(name_or_path, relative_to)?;
         let schema = load_yaml(&path)?;
@@ -85,6 +96,11 @@ impl Compiler {
     }
 
     /// Compile an already-parsed schema.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the schema is invalid, conflicts with an already
+    /// loaded id, or has an import cycle.
     pub fn process_schema(&mut self, schema: &RawSchema) -> Result<()> {
         // If we have already processed this exact id, check whether it came
         // from the same source.  An id being loaded again via a shared import
@@ -93,8 +109,7 @@ impl Compiler {
             let incoming = schema
                 .source_path
                 .as_deref()
-                .map(|p| p.display().to_string())
-                .unwrap_or_else(|| "<in-memory>".to_owned());
+                .map_or_else(|| "<in-memory>".to_owned(), |p| p.display().to_string());
             let existing = self
                 .source_paths
                 .get(&schema.id)
@@ -132,7 +147,6 @@ impl Compiler {
         let endian = raw_endian_to_ir(schema.meta.endian.unwrap_or(RawEndian::Le));
         self.compile_type_decl(
             &schema.id,
-            &schema.id,
             &schema.seq,
             &schema.types,
             &schema.enums,
@@ -145,8 +159,7 @@ impl Compiler {
         let source = schema
             .source_path
             .as_deref()
-            .map(|p| p.display().to_string())
-            .unwrap_or_else(|| "<in-memory>".to_owned());
+            .map_or_else(|| "<in-memory>".to_owned(), |p| p.display().to_string());
         self.source_paths.insert(schema.id.clone(), source);
         Ok(())
     }
@@ -168,7 +181,7 @@ impl Compiler {
 
     fn collect_nested_names(&mut self, prefix: &str, types: &IndexMap<String, RawTypeDecl>) {
         for (name, decl) in types {
-            let fqn = format!("{}::{}", prefix, name);
+            let fqn = format!("{prefix}::{name}");
             self.registry
                 .types
                 .entry(fqn.clone())
@@ -183,8 +196,7 @@ impl Compiler {
     /// the registry.  Recursively compiles nested `types:` declarations.
     fn compile_type_decl(
         &mut self,
-        fqn: &str,     // fully-qualified name for this type
-        type_id: &str, // bare name (last segment), used in error messages
+        fqn: &str, // fully-qualified name for this type
         seq: &[RawField],
         types: &IndexMap<String, RawTypeDecl>,
         enums: &IndexMap<String, HashMap<String, String>>,
@@ -200,9 +212,7 @@ impl Compiler {
         for raw_field in seq {
             let ctx = FieldCtx {
                 parent_fqn: fqn,
-                type_id,
                 seen_ids: &seen_ids,
-                endian,
                 enums: &compiled_enums,
             };
             let compiled = self.compile_field(raw_field, &ctx)?;
@@ -221,23 +231,16 @@ impl Compiler {
 
         // Recurse into nested types
         for (name, decl) in types {
-            let child_fqn = format!("{}::{}", fqn, name);
+            let child_fqn = format!("{fqn}::{name}");
             // Nested types inherit endian from parent unless they override it
             // (RawTypeDecl has no meta; endian is purely inherited)
-            self.compile_type_decl(
-                &child_fqn,
-                name,
-                &decl.seq,
-                &decl.types,
-                &decl.enums,
-                endian,
-            )?;
+            self.compile_type_decl(&child_fqn, &decl.seq, &decl.types, &decl.enums, endian)?;
         }
 
         Ok(())
     }
 
-    fn compile_field(&self, raw: &RawField, ctx: &FieldCtx) -> Result<CompiledField> {
+    fn compile_field(&self, raw: &RawField, ctx: &FieldCtx<'_>) -> Result<CompiledField> {
         let kind = if let Some(contents) = &raw.contents {
             compile_contents(contents, &raw.id, ctx.parent_fqn)?
         } else {
@@ -280,7 +283,7 @@ impl Compiler {
         &self,
         type_name: &str,
         raw: &RawField,
-        ctx: &FieldCtx,
+        ctx: &FieldCtx<'_>,
     ) -> Result<FieldKind> {
         let context = format!("{}.{}", ctx.parent_fqn, raw.id);
 
@@ -445,13 +448,13 @@ impl Compiler {
         // 2 & 3. Walk up parent hierarchy
         let mut scope = parent_fqn;
         loop {
-            let candidate = format!("{}::{}", scope, name);
+            let candidate = format!("{scope}::{name}");
             if self.registry.contains(&candidate) {
                 return Some(candidate);
             }
             // Strip one level
-            match scope.rfind("::") {
-                Some(idx) => scope = &scope[..idx],
+            match scope.rsplit_once("::") {
+                Some((parent, _)) => scope = parent,
                 None => break,
             }
         }
@@ -476,10 +479,10 @@ impl Compiler {
         }
 
         // Bare name: search include paths
-        let stem = if name_or_path.ends_with(".yaml") || name_or_path.ends_with(".yml") {
+        let stem = if crate::has_schema_extension(name_or_path) {
             name_or_path.to_owned()
         } else {
-            format!("{}.yaml", name_or_path)
+            format!("{name_or_path}.yaml")
         };
 
         let mut searched = Vec::new();
@@ -503,12 +506,9 @@ impl Compiler {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Context passed through field compilation.
-#[allow(dead_code)]
 struct FieldCtx<'a> {
     parent_fqn: &'a str,
-    type_id: &'a str,
     seen_ids: &'a [String],
-    endian: Endian,
     enums: &'a HashMap<String, CompiledEnum>,
 }
 
@@ -538,7 +538,7 @@ fn compile_encoding(enc: Option<RawEncoding>) -> Encoding {
     }
 }
 
-fn compile_size(raw: &RawField, ctx: &FieldCtx) -> Result<SizeExpr> {
+fn compile_size(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<SizeExpr> {
     match &raw.size {
         None => Err(DoeError::FieldError {
             field: raw.id.clone(),
@@ -548,7 +548,15 @@ fn compile_size(raw: &RawField, ctx: &FieldCtx) -> Result<SizeExpr> {
                 raw.type_ref.as_deref().unwrap_or("?")
             ),
         }),
-        Some(StringOrInt::Int(n)) => Ok(SizeExpr::Literal(*n as usize)),
+        Some(StringOrInt::Int(n)) => {
+            usize::try_from(*n)
+                .map(SizeExpr::Literal)
+                .map_err(|_| DoeError::FieldError {
+                    field: raw.id.clone(),
+                    context: ctx.parent_fqn.to_owned(),
+                    message: format!("size {n} is too large"),
+                })
+        }
         Some(StringOrInt::Str(s)) => {
             // Validate: all bare identifiers in the expression must refer to
             // fields that appear earlier in the same seq.
@@ -560,7 +568,7 @@ fn compile_size(raw: &RawField, ctx: &FieldCtx) -> Result<SizeExpr> {
 }
 
 /// Parse and compile a `repeat-expr` expression.
-fn compile_repeat(raw: &RawField, ctx: &FieldCtx) -> Result<RepeatMode> {
+fn compile_repeat(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<RepeatMode> {
     match raw.repeat {
         None => Ok(RepeatMode::Once),
         Some(RawRepeat::Eos) => Ok(RepeatMode::Eos),
@@ -640,7 +648,7 @@ fn parse_enum_key(s: &str) -> Option<u64> {
 /// Check that a dynamic size/repeat-count expression only references field
 /// names that have already appeared in the sequence (i.e. can have been
 /// parsed before this field is encountered).
-fn validate_size_expr_refs(expr_str: &str, ctx: &FieldCtx) -> Result<()> {
+fn validate_size_expr_refs(expr_str: &str, ctx: &FieldCtx<'_>) -> Result<()> {
     // We walk identifiers in the expression string with a simple token scan
     // rather than re-implementing the AST walk; the expression parser will
     // catch actual syntax errors.
@@ -648,7 +656,7 @@ fn validate_size_expr_refs(expr_str: &str, ctx: &FieldCtx) -> Result<()> {
     check_field_refs_in_expr(&ast, ctx, expr_str)
 }
 
-fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx, src: &str) -> Result<()> {
+fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx<'_>, src: &str) -> Result<()> {
     use expr::Expr;
     match e {
         Expr::Int(_) | Expr::Bool(_) => Ok(()),
@@ -657,14 +665,15 @@ fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx, src: &str) -> Result
             if parts.first().map(String::as_str) == Some("_parent") {
                 return Ok(());
             }
-            let name = &parts[0];
+            let Some(name) = parts.first() else {
+                return Ok(());
+            };
             if !ctx.seen_ids.iter().any(|id| id == name) {
                 return Err(DoeError::FieldError {
                     field: name.clone(),
                     context: ctx.parent_fqn.to_owned(),
                     message: format!(
-                        "size expression '{}' references '{}' which has not been defined yet in this seq",
-                        src, name
+                        "size expression '{src}' references '{name}' which has not been defined yet in this seq"
                     ),
                 });
             }
@@ -679,6 +688,11 @@ fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx, src: &str) -> Result
 }
 
 /// Load a YAML schema from disk.
+///
+/// # Errors
+///
+/// Returns [`DoeError::Io`] if the file cannot be read, or [`DoeError::Yaml`]
+/// if it is not a valid schema.
 pub fn load_yaml(path: &Path) -> Result<RawSchema> {
     let text = std::fs::read_to_string(path).map_err(|e| DoeError::Io {
         path: path.to_owned(),
@@ -716,12 +730,12 @@ mod tests {
 
     #[test]
     fn compile_u8_field() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: x
                 type: u8
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(
             ty.fields[0].kind,
@@ -734,12 +748,12 @@ mod tests {
 
     #[test]
     fn compile_u32be_field() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: x
                 type: u32be
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(
             ty.fields[0].kind,
@@ -752,12 +766,12 @@ mod tests {
 
     #[test]
     fn compile_u64le_field() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: x
                 type: u64le
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(
             ty.fields[0].kind,
@@ -770,12 +784,12 @@ mod tests {
 
     #[test]
     fn compile_i32_field() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: x
                 type: i32
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(
             ty.fields[0].kind,
@@ -788,12 +802,12 @@ mod tests {
 
     #[test]
     fn compile_i16be_field() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: x
                 type: i16be
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(
             ty.fields[0].kind,
@@ -812,13 +826,13 @@ mod tests {
             ("u32", IntWidth::W32),
             ("u64", IntWidth::W64),
         ] {
-            let yaml = format!("id: t\nseq:\n  - id: x\n    type: {}", type_str);
+            let yaml = format!("id: t\nseq:\n  - id: x\n    type: {type_str}");
             let reg = compile(&yaml);
             let ty = reg.get("t").unwrap();
             if let FieldKind::UInt { width, .. } = ty.fields[0].kind {
-                assert_eq!(&width, expected_width, "width mismatch for {}", type_str);
+                assert_eq!(&width, expected_width, "width mismatch for {type_str}");
             } else {
-                panic!("expected UInt for {}", type_str);
+                panic!("expected UInt for {type_str}");
             }
         }
     }
@@ -827,12 +841,12 @@ mod tests {
 
     #[test]
     fn compile_f32_field() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: x
                 type: f32
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(
             ty.fields[0].kind,
@@ -844,12 +858,12 @@ mod tests {
 
     #[test]
     fn compile_f64_field() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: x
                 type: f64
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(
             ty.fields[0].kind,
@@ -863,13 +877,13 @@ mod tests {
 
     #[test]
     fn compile_bytes_literal_size() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: buf
                 type: bytes
                 size: 16
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(
             ty.fields[0].kind,
@@ -881,7 +895,7 @@ mod tests {
 
     #[test]
     fn compile_bytes_dynamic_size() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: len
@@ -889,7 +903,7 @@ mod tests {
               - id: buf
                 type: bytes
                 size: len
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(
             ty.fields[1].kind,
@@ -901,14 +915,14 @@ mod tests {
 
     #[test]
     fn compile_str_with_size() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: name
                 type: str
                 size: 8
                 encoding: ascii
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         if let FieldKind::Str {
             size: StrSize::Fixed(SizeExpr::Literal(8)),
@@ -923,12 +937,12 @@ mod tests {
 
     #[test]
     fn compile_strz() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: name
                 type: strz
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(
             ty.fields[0].kind,
@@ -941,13 +955,13 @@ mod tests {
 
     #[test]
     fn compile_str_with_terminator() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: name
                 type: str
                 terminator: 0x0a
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(
             ty.fields[0].kind,
@@ -962,25 +976,25 @@ mod tests {
 
     #[test]
     fn compile_bits_field() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: flags
                 type: bits
                 bit_size: 4
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(ty.fields[0].kind, FieldKind::Bits { bit_size: 4 }));
     }
 
     #[test]
     fn bits_without_bit_size_is_error() {
-        let err = compile_err(indoc! {r#"
+        let err = compile_err(indoc! {r"
             id: t
             seq:
               - id: flags
                 type: bits
-        "#});
+        "});
         assert!(matches!(err, DoeError::FieldError { .. }));
     }
 
@@ -988,12 +1002,12 @@ mod tests {
 
     #[test]
     fn compile_contents_bytes() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: magic
                 contents: [0x89, 0x50, 0x4e, 0x47]
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(
             matches!(&ty.fields[0].kind, FieldKind::Contents(b) if b == &[0x89u8, 0x50, 0x4e, 0x47])
@@ -1016,20 +1030,20 @@ mod tests {
 
     #[test]
     fn compile_repeat_eos() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: items
                 type: u8
                 repeat: eos
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(ty.fields[0].repeat, RepeatMode::Eos));
     }
 
     #[test]
     fn compile_repeat_expr() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: count
@@ -1038,46 +1052,46 @@ mod tests {
                 type: u8
                 repeat: expr
                 repeat-expr: count
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(ty.fields[1].repeat, RepeatMode::Count(_)));
     }
 
     #[test]
     fn repeat_expr_without_repeat_expr_is_error() {
-        let err = compile_err(indoc! {r#"
+        let err = compile_err(indoc! {r"
             id: t
             seq:
               - id: items
                 type: u8
                 repeat: expr
-        "#});
+        "});
         assert!(matches!(err, DoeError::FieldError { .. }));
     }
 
     #[test]
     fn compile_repeat_until() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: items
                 type: u8
                 repeat: until
                 repeat-until: _ == 0
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(matches!(ty.fields[0].repeat, RepeatMode::Until(_)));
     }
 
     #[test]
     fn repeat_until_without_repeat_until_is_error() {
-        let err = compile_err(indoc! {r#"
+        let err = compile_err(indoc! {r"
             id: t
             seq:
               - id: items
                 type: u8
                 repeat: until
-        "#});
+        "});
         assert!(matches!(err, DoeError::FieldError { .. }));
     }
 
@@ -1085,7 +1099,7 @@ mod tests {
 
     #[test]
     fn compile_if_expr() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: flags
@@ -1093,7 +1107,7 @@ mod tests {
               - id: extra
                 type: u32
                 if: flags > 0
-        "#});
+        "});
         let ty = reg.get("t").unwrap();
         assert!(ty.fields[1].if_expr.is_some());
     }
@@ -1142,13 +1156,13 @@ mod tests {
 
     #[test]
     fn unknown_enum_ref_is_error() {
-        let err = compile_err(indoc! {r#"
+        let err = compile_err(indoc! {r"
             id: t
             seq:
               - id: x
                 type: u8
                 enum: nonexistent
-        "#});
+        "});
         assert!(matches!(err, DoeError::UnknownEnum { .. }));
     }
 
@@ -1156,7 +1170,7 @@ mod tests {
 
     #[test]
     fn compile_inline_subtype() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: outer
             seq:
               - id: hdr
@@ -1168,7 +1182,7 @@ mod tests {
                     type: u32
                   - id: version
                     type: u16
-        "#});
+        "});
         assert!(reg.contains("outer"));
         assert!(reg.contains("outer::header"));
         let hdr = reg.get("outer::header").unwrap();
@@ -1178,7 +1192,7 @@ mod tests {
 
     #[test]
     fn subtype_ref_resolved_correctly() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: outer
             seq:
               - id: hdr
@@ -1188,7 +1202,7 @@ mod tests {
                 seq:
                   - id: val
                     type: u8
-        "#});
+        "});
         let outer = reg.get("outer").unwrap();
         if let FieldKind::TypeRef { type_name } = &outer.fields[0].kind {
             assert_eq!(type_name, "outer::header");
@@ -1199,7 +1213,7 @@ mod tests {
 
     #[test]
     fn compile_nested_subtypes() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: root
             seq:
               - id: a
@@ -1214,7 +1228,7 @@ mod tests {
                     seq:
                       - id: val
                         type: u32
-        "#});
+        "});
         assert!(reg.contains("root"));
         assert!(reg.contains("root::level1"));
         assert!(reg.contains("root::level1::level2"));
@@ -1225,7 +1239,7 @@ mod tests {
     #[test]
     fn size_expr_forward_ref_is_error() {
         // `buf` is defined before `len`, so `size: len` is a forward ref.
-        let err = compile_err(indoc! {r#"
+        let err = compile_err(indoc! {r"
             id: t
             seq:
               - id: buf
@@ -1233,17 +1247,16 @@ mod tests {
                 size: len
               - id: len
                 type: u32
-        "#});
+        "});
         assert!(
             matches!(err, DoeError::FieldError { .. }),
-            "expected FieldError, got {:?}",
-            err
+            "expected FieldError, got {err:?}"
         );
     }
 
     #[test]
     fn size_expr_back_ref_is_ok() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: t
             seq:
               - id: len
@@ -1251,7 +1264,7 @@ mod tests {
               - id: buf
                 type: bytes
                 size: len
-        "#});
+        "});
         assert!(reg.contains("t"));
     }
 
@@ -1259,26 +1272,26 @@ mod tests {
 
     #[test]
     fn big_endian_propagated_to_type() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: be_file
             meta:
               endian: be
             seq:
               - id: val
                 type: u32
-        "#});
+        "});
         let ty = reg.get("be_file").unwrap();
         assert_eq!(ty.endian, Endian::Big);
     }
 
     #[test]
     fn little_endian_is_default() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: le_file
             seq:
               - id: val
                 type: u32
-        "#});
+        "});
         let ty = reg.get("le_file").unwrap();
         assert_eq!(ty.endian, Endian::Little);
     }
@@ -1287,33 +1300,33 @@ mod tests {
 
     #[test]
     fn unknown_type_ref_is_error() {
-        let err = compile_err(indoc! {r#"
+        let err = compile_err(indoc! {r"
             id: t
             seq:
               - id: x
                 type: does_not_exist
-        "#});
+        "});
         assert!(matches!(err, DoeError::UnknownType { .. }));
     }
 
     #[test]
     fn field_without_type_or_contents_is_error() {
-        let err = compile_err(indoc! {r#"
+        let err = compile_err(indoc! {r"
             id: t
             seq:
               - id: x
-        "#});
+        "});
         assert!(matches!(err, DoeError::FieldError { .. }));
     }
 
     #[test]
     fn bytes_without_size_is_error() {
-        let err = compile_err(indoc! {r#"
+        let err = compile_err(indoc! {r"
             id: t
             seq:
               - id: buf
                 type: bytes
-        "#});
+        "});
         assert!(matches!(err, DoeError::FieldError { .. }));
     }
 
@@ -1321,7 +1334,7 @@ mod tests {
 
     #[test]
     fn png_like_compiles() {
-        let reg = compile(indoc! {r#"
+        let reg = compile(indoc! {r"
             id: png
             meta:
               endian: be
@@ -1345,7 +1358,7 @@ mod tests {
                     size: length
                   - id: crc
                     type: u32be
-        "#});
+        "});
         assert!(reg.contains("png"));
         assert!(reg.contains("png::chunk"));
 
@@ -1437,21 +1450,21 @@ mod tests {
         // Two separately loaded in-memory schemas with the same id but
         // different source_path values should be rejected.
         use std::path::PathBuf;
-        let mut schema_a: RawSchema = serde_yaml::from_str(indoc! {r#"
+        let mut schema_a: RawSchema = serde_yaml::from_str(indoc! {r"
             id: my_type
             seq:
               - id: x
                 type: u8
-        "#})
+        "})
         .unwrap();
         schema_a.source_path = Some(PathBuf::from("/types/a.yaml"));
 
-        let mut schema_b: RawSchema = serde_yaml::from_str(indoc! {r#"
+        let mut schema_b: RawSchema = serde_yaml::from_str(indoc! {r"
             id: my_type
             seq:
               - id: y
                 type: u16
-        "#})
+        "})
         .unwrap();
         schema_b.source_path = Some(PathBuf::from("/types/b.yaml"));
 
@@ -1460,8 +1473,7 @@ mod tests {
         let err = compiler.process_schema(&schema_b).unwrap_err();
         assert!(
             matches!(err, DoeError::DuplicateType { .. }),
-            "expected DuplicateType, got {:?}",
-            err
+            "expected DuplicateType, got {err:?}"
         );
         if let DoeError::DuplicateType {
             name,
@@ -1470,8 +1482,8 @@ mod tests {
         } = err
         {
             assert_eq!(name, "my_type");
-            assert!(first.contains("a.yaml"), "first={}", first);
-            assert!(second.contains("b.yaml"), "second={}", second);
+            assert!(first.contains("a.yaml"), "first={first}");
+            assert!(second.contains("b.yaml"), "second={second}");
         }
     }
 
@@ -1480,12 +1492,12 @@ mod tests {
         // The same schema id from the same source is not a duplicate —
         // this happens when a schema is reachable via multiple import paths.
         use std::path::PathBuf;
-        let mut schema: RawSchema = serde_yaml::from_str(indoc! {r#"
+        let mut schema: RawSchema = serde_yaml::from_str(indoc! {r"
             id: shared
             seq:
               - id: val
                 type: u8
-        "#})
+        "})
         .unwrap();
         schema.source_path = Some(PathBuf::from("/types/shared.yaml"));
 

@@ -18,11 +18,9 @@
 //!       ...
 //! ```
 
-use std::fmt::Write;
-
 use crate::value::Value;
 
-#[allow(dead_code)]
+/// The default indentation unit: two spaces.
 pub const DEFAULT_INDENT: &str = "  ";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -30,7 +28,6 @@ pub const DEFAULT_INDENT: &str = "  ";
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Render a `Value` tree to a `String` using the default indent (`"  "`).
-#[allow(dead_code)]
 pub fn render(value: &Value) -> String {
     render_with_indent(value, DEFAULT_INDENT)
 }
@@ -60,7 +57,7 @@ fn write_value(out: &mut String, value: &Value, depth: usize, indent: &str, labe
         | Value::Str(_)
         | Value::Enum { .. }
         | Value::Absent => {
-            write_line(out, depth, indent, label, &format!("{}", value));
+            write_line(out, depth, indent, label, &format!("{value}"));
         }
 
         // ── Struct ────────────────────────────────────────────────────────
@@ -69,7 +66,8 @@ fn write_value(out: &mut String, value: &Value, depth: usize, indent: &str, labe
                 write_line(out, depth, indent, Some(lbl), type_name);
             } else {
                 // Top-level: just print the type name as the header
-                writeln!(out, "{}", type_name).unwrap();
+                out.push_str(type_name);
+                out.push('\n');
             }
             for (field_id, field_val) in fields {
                 // Skip absent fields entirely — no output for them
@@ -94,7 +92,7 @@ fn write_value(out: &mut String, value: &Value, depth: usize, indent: &str, labe
                 ),
             );
             for (i, item) in items.iter().enumerate() {
-                let index_label = format!("[{}]", i);
+                let index_label = format!("[{i}]");
                 write_value(out, item, depth + 1, indent, Some(&index_label));
             }
         }
@@ -211,7 +209,7 @@ mod tests {
         );
         let out = render(&v);
         assert!(out.contains("a  1"));
-        assert!(!out.contains("b"));
+        assert!(!out.contains('b'));
         assert!(out.contains("c  3"));
     }
 
@@ -254,7 +252,7 @@ mod tests {
         let inner = Value::Struct {
             type_name: "header".into(),
             fields: vec![
-                ("magic".into(), Value::UInt(0xdeadbeef)),
+                ("magic".into(), Value::UInt(0xdead_beef)),
                 ("version".into(), Value::UInt(2)),
             ],
         };
@@ -347,8 +345,11 @@ mod tests {
             fields: vec![
                 ("length".into(), Value::UInt(len)),
                 ("type".into(), Value::Str(tag.into())),
-                ("body".into(), Value::Bytes(vec![0u8; len as usize])),
-                ("crc".into(), Value::UInt(0xdeadbeef)),
+                (
+                    "body".into(),
+                    Value::Bytes(vec![0u8; usize::try_from(len).unwrap()]),
+                ),
+                ("crc".into(), Value::UInt(0xdead_beef)),
             ],
         };
         let v = Value::Struct {

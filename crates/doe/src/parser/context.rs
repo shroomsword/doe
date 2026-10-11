@@ -19,13 +19,16 @@ use crate::value::Value;
 /// - `eval_ctx`: numeric bindings for the expression evaluator.
 /// - `value_stack`: the actual `Value` objects (needed to look up struct
 ///   fields by name if we ever support more complex path expressions).
+#[derive(Debug)]
 pub struct ParseContext {
+    /// Numeric bindings visible to size, repeat, and `if` expressions.
     pub eval_ctx: EvalContext,
-    /// Stack of frames; each frame is a vec of (field_id, Value).
+    /// Stack of frames; each frame is a vec of (`field_id`, Value).
     value_frames: Vec<Vec<(String, Value)>>,
 }
 
 impl ParseContext {
+    /// Create a context with a single, empty root scope.
     pub fn new() -> Self {
         ParseContext {
             eval_ctx: EvalContext::new(),
@@ -55,14 +58,15 @@ impl ParseContext {
         if let Some(n) = value.as_int() {
             self.eval_ctx.bind(id, n);
         }
-        self.value_frames
-            .last_mut()
-            .unwrap()
-            .push((id.to_owned(), value));
+        if self.value_frames.is_empty() {
+            self.value_frames.push(Vec::new());
+        }
+        if let Some(frame) = self.value_frames.last_mut() {
+            frame.push((id.to_owned(), value));
+        }
     }
 
     /// Look up the most recently bound value for `id` in the current scope.
-    #[allow(dead_code)]
     pub fn lookup(&self, id: &str) -> Option<&Value> {
         self.value_frames
             .last()?
@@ -74,9 +78,8 @@ impl ParseContext {
 
     /// Returns the fields accumulated in the current scope so far,
     /// without popping the scope.
-    #[allow(dead_code)]
     pub fn current_fields(&self) -> &[(String, Value)] {
-        self.value_frames.last().map(Vec::as_slice).unwrap_or(&[])
+        self.value_frames.last().map_or(&[], Vec::as_slice)
     }
 }
 
