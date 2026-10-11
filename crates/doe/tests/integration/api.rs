@@ -1,0 +1,173 @@
+use std::path::Path;
+
+use doe::*;
+
+// ── is_schema_path ────────────────────────────────────────────────────────
+
+#[test]
+fn schema_path_dot_prefix() {
+    assert!(is_schema_path("./my.yaml"));
+}
+#[test]
+fn schema_path_absolute() {
+    assert!(is_schema_path("/usr/share/types/png.yaml"));
+}
+#[test]
+fn schema_path_tilde() {
+    assert!(is_schema_path("~/types/png.yaml"));
+}
+#[test]
+fn schema_path_yaml_extension() {
+    assert!(is_schema_path("some_file.yaml"));
+}
+#[test]
+fn schema_path_yml_extension() {
+    assert!(is_schema_path("some_file.yml"));
+}
+#[test]
+fn bare_type_name_not_a_path() {
+    assert!(!is_schema_path("png"));
+}
+#[test]
+fn bare_type_no_extension() {
+    assert!(!is_schema_path("my_format"));
+}
+
+// ── load_schema_file ──────────────────────────────────────────────────────
+
+#[test]
+fn load_schema_file_ok() {
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "id: t\nseq:\n  - id: x\n    type: u8").unwrap();
+    let s = load_schema_file(f.path()).unwrap();
+    assert_eq!(s.id, "t");
+    assert!(s.source_path.is_some());
+}
+
+#[test]
+fn load_schema_file_missing_is_error() {
+    assert!(load_schema_file(Path::new("/nonexistent.yaml")).is_err());
+}
+
+#[test]
+fn load_schema_file_bad_yaml_is_error() {
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "unknown_key: true").unwrap();
+    assert!(load_schema_file(f.path()).is_err());
+}
+
+// ── parse_file end-to-end ─────────────────────────────────────────────────
+
+#[test]
+fn parse_file_text_output() {
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    let mut schema_f = NamedTempFile::new().unwrap();
+    writeln!(
+        schema_f,
+        "id: simple\nseq:\n  - id: a\n    type: u8\n  - id: b\n    type: u16le"
+    )
+    .unwrap();
+
+    let mut bin_f = NamedTempFile::new().unwrap();
+    bin_f.write_all(&[0x07, 0x34, 0x12]).unwrap();
+
+    let out = parse_file(
+        bin_f.path(),
+        schema_f.path().to_str().unwrap(),
+        &[],
+        Some(Path::new("/nonexistent")),
+        OutputFormat::Text {
+            indent: "  ".into(),
+        },
+    )
+    .unwrap();
+
+    assert!(out.contains("simple\n"));
+    assert!(out.contains("a  7"));
+    assert!(out.contains("b  4660"));
+}
+
+#[test]
+fn parse_file_json_output() {
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    let mut schema_f = NamedTempFile::new().unwrap();
+    writeln!(
+        schema_f,
+        "id: pair\nseq:\n  - id: x\n    type: u8\n  - id: y\n    type: u8"
+    )
+    .unwrap();
+
+    let mut bin_f = NamedTempFile::new().unwrap();
+    bin_f.write_all(&[0x01, 0x02]).unwrap();
+
+    let out = parse_file(
+        bin_f.path(),
+        schema_f.path().to_str().unwrap(),
+        &[],
+        Some(Path::new("/nonexistent")),
+        OutputFormat::JsonPretty,
+    )
+    .unwrap();
+
+    let parsed: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(parsed["$type"], "pair");
+    assert_eq!(parsed["x"], 1u64);
+    assert_eq!(parsed["y"], 2u64);
+}
+
+#[test]
+fn parse_file_via_include_path() {
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    let dir = TempDir::new().unwrap();
+    std::fs::write(
+        dir.path().join("mytype.yaml"),
+        "id: mytype\nseq:\n  - id: val\n    type: u32le\n",
+    )
+    .unwrap();
+
+    let mut bin_f = tempfile::NamedTempFile::new().unwrap();
+    bin_f.write_all(&0xdead_beefu32.to_le_bytes()).unwrap();
+
+    let out = parse_file(
+        bin_f.path(),
+        "mytype",
+        &[dir.path().to_owned()],
+        Some(Path::new("/nonexistent")),
+        OutputFormat::Text {
+            indent: "  ".into(),
+        },
+    )
+    .unwrap();
+
+    assert!(out.contains("3735928559"));
+}
+
+#[test]
+fn parse_file_missing_binary_is_error() {
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    let mut schema_f = NamedTempFile::new().unwrap();
+    writeln!(schema_f, "id: t\nseq:\n  - id: x\n    type: u8").unwrap();
+
+    let result = parse_file(
+        Path::new("/nonexistent/file.bin"),
+        schema_f.path().to_str().unwrap(),
+        &[],
+        Some(Path::new("/nonexistent")),
+        OutputFormat::Text {
+            indent: "  ".into(),
+        },
+    );
+    assert!(result.is_err());
+}
