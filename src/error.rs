@@ -25,7 +25,6 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum DoeError {
     // ── I/O ──────────────────────────────────────────────────────────────────
-
     /// A file could not be opened or read.
     #[error("could not read file {path}: {source}")]
     Io {
@@ -36,7 +35,6 @@ pub enum DoeError {
     },
 
     // ── YAML ─────────────────────────────────────────────────────────────────
-
     /// A YAML file exists but could not be parsed or does not match the
     /// expected schema structure.
     #[error("YAML parse error in {path}: {source}")]
@@ -48,7 +46,6 @@ pub enum DoeError {
     },
 
     // ── Schema resolution ────────────────────────────────────────────────────
-
     /// A bare type name (e.g. `"png"`) could not be found on any include path.
     #[error("schema not found: '{name}' (searched: {searched:?})")]
     SchemaNotFound {
@@ -80,7 +77,6 @@ pub enum DoeError {
     },
 
     // ── Expression ───────────────────────────────────────────────────────────
-
     /// The expression string in a `size:`, `repeat-expr:`, or `if:` field
     /// could not be parsed.
     #[error("expression parse error in '{expr}': {message}")]
@@ -102,7 +98,6 @@ pub enum DoeError {
     },
 
     // ── IR compilation ───────────────────────────────────────────────────────
-
     /// A field's `type:` value does not match any primitive name or known
     /// user-defined type.
     #[error("unknown type '{type_name}' referenced in {context}")]

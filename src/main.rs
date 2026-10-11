@@ -19,8 +19,8 @@ use std::process;
 
 use clap::{CommandFactory, Parser as ClapParser};
 
-use doe::{discover_types, OutputFormat};
 use doe::config::{resolve_include_paths, Config};
+use doe::{discover_types, OutputFormat};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CLI definition
@@ -108,7 +108,9 @@ fn run(cli: Cli) -> doe::Result<()> {
     } else if cli.json {
         OutputFormat::Json
     } else {
-        OutputFormat::Text { indent: cli.indent.clone() }
+        OutputFormat::Text {
+            indent: cli.indent.clone(),
+        }
     };
 
     let output = doe::parse_file(
@@ -183,7 +185,7 @@ fn print_help(cli_include_paths: &[PathBuf], config_path: Option<&std::path::Pat
     for t in &types {
         match &t.doc {
             Some(doc) => println!("  {:<width$}  {}", t.id, doc, width = max_id_len),
-            None      => println!("  {}", t.id),
+            None => println!("  {}", t.id),
         }
     }
 }
@@ -224,9 +226,15 @@ mod tests {
             help: false,
         };
         assert!(matches!(
-            if cli.pretty { OutputFormat::JsonPretty }
-            else if cli.json { OutputFormat::Json }
-            else { OutputFormat::Text { indent: cli.indent.clone() } },
+            if cli.pretty {
+                OutputFormat::JsonPretty
+            } else if cli.json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Text {
+                    indent: cli.indent.clone(),
+                }
+            },
             OutputFormat::JsonPretty
         ));
     }
@@ -244,9 +252,15 @@ mod tests {
             help: false,
         };
         assert!(matches!(
-            if cli.pretty { OutputFormat::JsonPretty }
-            else if cli.json { OutputFormat::Json }
-            else { OutputFormat::Text { indent: cli.indent.clone() } },
+            if cli.pretty {
+                OutputFormat::JsonPretty
+            } else if cli.json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Text {
+                    indent: cli.indent.clone(),
+                }
+            },
             OutputFormat::Json
         ));
     }
@@ -269,7 +283,8 @@ mod tests {
         std::fs::write(
             dir.path().join("mytype.yaml"),
             "id: mytype\ndoc: A test type\nseq: []\n",
-        ).unwrap();
+        )
+        .unwrap();
         print_help(&[dir.path().to_owned()], None);
     }
 }
