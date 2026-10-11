@@ -16,6 +16,8 @@
 //! | Array(items)  | JSON array                                              |
 //! | Absent        | `null`                                                  |
 
+use std::fmt::Write;
+
 use serde_json::{Value as JValue, json};
 
 use crate::value::Value;
@@ -44,9 +46,7 @@ pub fn to_json(value: &Value) -> JValue {
         Value::SInt(n) => JValue::Number((*n).into()),
         Value::Float(f) => {
             // JSON does not support NaN or Infinity; map them to null
-            serde_json::Number::from_f64(*f)
-                .map(JValue::Number)
-                .unwrap_or(JValue::Null)
+            serde_json::Number::from_f64(*f).map_or(JValue::Null, JValue::Number)
         }
         Value::Bytes(b) => {
             json!({
@@ -86,7 +86,12 @@ pub fn to_json(value: &Value) -> JValue {
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn hex_encode(b: &[u8]) -> String {
-    b.iter().map(|byte| format!("{:02x}", byte)).collect()
+    b.iter()
+        .fold(String::with_capacity(b.len() * 2), |mut out, byte| {
+            // Writing to a `String` cannot fail.
+            let _ = write!(out, "{byte:02x}");
+            out
+        })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -185,7 +190,7 @@ mod tests {
 
     #[test]
     fn empty_str() {
-        assert_eq!(j(&Value::Str("".into())), json!(""));
+        assert_eq!(j(&Value::Str(String::new())), json!(""));
     }
 
     #[test]
@@ -348,7 +353,7 @@ mod tests {
                             ("length".into(), Value::UInt(13)),
                             ("type".into(), Value::Str("IHDR".into())),
                             ("body".into(), Value::Bytes(vec![0u8; 13])),
-                            ("crc".into(), Value::UInt(0xae426082)),
+                            ("crc".into(), Value::UInt(0xae42_6082)),
                         ],
                     }]),
                 ),

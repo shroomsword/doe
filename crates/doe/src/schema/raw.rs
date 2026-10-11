@@ -152,7 +152,9 @@ pub struct RawField {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum RawContents {
+    /// A list of byte values.
     Bytes(Vec<u8>),
+    /// A string.
     Str(String),
 }
 
@@ -160,12 +162,14 @@ pub enum RawContents {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum StringOrInt {
+    /// A bare integer.
     Int(u64),
+    /// A string, typically an expression.
     Str(String),
 }
 
 impl StringOrInt {
-    #[allow(dead_code)]
+    /// The value as text, formatting integers in decimal.
     pub fn as_str(&self) -> std::borrow::Cow<'_, str> {
         match self {
             StringOrInt::Int(n) => std::borrow::Cow::Owned(n.to_string()),
@@ -174,16 +178,21 @@ impl StringOrInt {
     }
 }
 
+/// String encoding as written in a schema.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
 pub enum RawEncoding {
+    /// UTF-8.
     #[default]
     Utf8,
+    /// 7-bit ASCII.
     Ascii,
+    /// ISO 8859-1.
     Latin1,
 }
 
+/// Repetition mode as written in a schema.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RawRepeat {
@@ -201,9 +210,11 @@ pub enum RawRepeat {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawTypeDecl {
+    /// Human-readable description.
     #[serde(default)]
     pub doc: Option<String>,
 
+    /// The type's fields, in order.
     #[serde(default)]
     pub seq: Vec<RawField>,
 
@@ -240,12 +251,12 @@ mod tests {
 
     #[test]
     fn minimal_schema_round_trip() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: simple
             seq:
               - id: value
                 type: u32
-        "#};
+        "};
         let s = parse(yaml);
         assert_eq!(s.id, "simple");
         assert_eq!(s.seq.len(), 1);
@@ -269,22 +280,22 @@ mod tests {
 
     #[test]
     fn meta_endian_little_endian() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: le_file
             meta:
               endian: le
             seq: []
-        "#};
+        "};
         let s = parse(yaml);
         assert_eq!(s.meta.endian, Some(RawEndian::Le));
     }
 
     #[test]
     fn default_meta_has_no_endian() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: no_meta
             seq: []
-        "#};
+        "};
         let s = parse(yaml);
         assert!(s.meta.endian.is_none());
     }
@@ -293,13 +304,13 @@ mod tests {
 
     #[test]
     fn field_with_size_integer() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: buf
             seq:
               - id: data
                 type: bytes
                 size: 16
-        "#};
+        "};
         let s = parse(yaml);
         let f = &s.seq[0];
         assert_eq!(f.type_ref.as_deref(), Some("bytes"));
@@ -308,7 +319,7 @@ mod tests {
 
     #[test]
     fn field_with_size_expression() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: var_buf
             seq:
               - id: length
@@ -316,7 +327,7 @@ mod tests {
               - id: data
                 type: bytes
                 size: length
-        "#};
+        "};
         let s = parse(yaml);
         let f = &s.seq[1];
         assert!(matches!(&f.size, Some(StringOrInt::Str(e)) if e == "length"));
@@ -324,14 +335,14 @@ mod tests {
 
     #[test]
     fn field_with_terminator_and_encoding() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: strs
             seq:
               - id: name
                 type: str
                 terminator: 0
                 encoding: ascii
-        "#};
+        "};
         let s = parse(yaml);
         let f = &s.seq[0];
         assert_eq!(f.terminator, Some(0));
@@ -340,20 +351,20 @@ mod tests {
 
     #[test]
     fn field_with_repeat_eos() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: list
             seq:
               - id: items
                 type: u8
                 repeat: eos
-        "#};
+        "};
         let s = parse(yaml);
         assert_eq!(s.seq[0].repeat, Some(RawRepeat::Eos));
     }
 
     #[test]
     fn field_with_repeat_expr() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: counted
             seq:
               - id: count
@@ -362,7 +373,7 @@ mod tests {
                 type: u8
                 repeat: expr
                 repeat-expr: count
-        "#};
+        "};
         let s = parse(yaml);
         let f = &s.seq[1];
         assert_eq!(f.repeat, Some(RawRepeat::Expr));
@@ -371,14 +382,14 @@ mod tests {
 
     #[test]
     fn field_with_repeat_until() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: terminated
             seq:
               - id: items
                 type: u8
                 repeat: until
                 repeat-until: _ == 0
-        "#};
+        "};
         let s = parse(yaml);
         let f = &s.seq[0];
         assert_eq!(f.repeat, Some(RawRepeat::Until));
@@ -387,7 +398,7 @@ mod tests {
 
     #[test]
     fn field_with_if_expression() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: conditional
             seq:
               - id: flags
@@ -395,7 +406,7 @@ mod tests {
               - id: extra
                 type: u32
                 if: flags > 0
-        "#};
+        "};
         let s = parse(yaml);
         assert_eq!(s.seq[1].if_expr.as_deref(), Some("flags > 0"));
     }
@@ -423,13 +434,13 @@ mod tests {
 
     #[test]
     fn field_bit_size() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: bitfield
             seq:
               - id: flags
                 type: bits
                 bit_size: 4
-        "#};
+        "};
         let s = parse(yaml);
         assert_eq!(s.seq[0].bit_size, Some(4));
     }
@@ -452,7 +463,7 @@ mod tests {
 
     #[test]
     fn inline_type_declaration() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: outer
             seq:
               - id: hdr
@@ -464,7 +475,7 @@ mod tests {
                     type: u32
                   - id: version
                     type: u16
-        "#};
+        "};
         let s = parse(yaml);
         assert!(s.types.contains_key("header"));
         let hdr = &s.types["header"];
@@ -474,7 +485,7 @@ mod tests {
 
     #[test]
     fn nested_type_declaration() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: deeply_nested
             seq:
               - id: top
@@ -489,7 +500,7 @@ mod tests {
                     seq:
                       - id: value
                         type: u32
-        "#};
+        "};
         let s = parse(yaml);
         let outer = &s.types["outer_type"];
         assert!(outer.types.contains_key("inner_type"));
@@ -524,13 +535,13 @@ mod tests {
 
     #[test]
     fn imports_parsed() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: with_imports
             imports:
               - zlib_block
               - ./local_helper.yaml
             seq: []
-        "#};
+        "};
         let s = parse(yaml);
         assert_eq!(s.imports.len(), 2);
         assert_eq!(s.imports[0], "zlib_block");
@@ -541,12 +552,12 @@ mod tests {
 
     #[test]
     fn contents_as_byte_array() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: magic_file
             seq:
               - id: magic
                 contents: [0x89, 0x50, 0x4e, 0x47]
-        "#};
+        "};
         let s = parse(yaml);
         let f = &s.seq[0];
         assert!(
@@ -678,22 +689,22 @@ mod tests {
 
     #[test]
     fn missing_id_fails() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             seq:
               - id: value
                 type: u32
-        "#};
+        "};
         let result: Result<RawSchema, _> = serde_yaml::from_str(yaml);
         assert!(result.is_err());
     }
 
     #[test]
     fn unknown_field_fails() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: bad
             unknown_key: true
             seq: []
-        "#};
+        "};
         let result: Result<RawSchema, _> = serde_yaml::from_str(yaml);
         assert!(
             result.is_err(),
@@ -703,11 +714,11 @@ mod tests {
 
     #[test]
     fn field_without_id_fails() {
-        let yaml = indoc! {r#"
+        let yaml = indoc! {r"
             id: bad
             seq:
               - type: u32
-        "#};
+        "};
         let result: Result<RawSchema, _> = serde_yaml::from_str(yaml);
         assert!(result.is_err(), "field missing id should fail");
     }

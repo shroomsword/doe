@@ -27,18 +27,22 @@ pub struct TypeRegistry {
 }
 
 impl TypeRegistry {
+    /// Create an empty registry.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Look up a type by fully-qualified name.
     pub fn get(&self, name: &str) -> Option<&CompiledType> {
         self.types.get(name)
     }
 
+    /// Insert a type, replacing any existing type with the same name.
     pub fn insert(&mut self, name: String, ty: CompiledType) {
         self.types.insert(name, ty);
     }
 
+    /// Returns `true` if a type with this fully-qualified name exists.
     pub fn contains(&self, name: &str) -> bool {
         self.types.contains_key(name)
     }
@@ -55,7 +59,6 @@ pub struct CompiledType {
     pub name: String,
 
     /// Optional human-readable description.
-    #[allow(dead_code)]
     pub doc: Option<String>,
 
     /// Default byte order for this type's fields.
@@ -73,13 +76,16 @@ pub struct CompiledType {
 // Compiled field
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// A single compiled field of a [`CompiledType`].
 #[derive(Debug, Clone)]
 pub struct CompiledField {
+    /// The field's identifier within its type.
     pub id: String,
     /// Human-readable description; used by renderers (verbose mode).
-    #[allow(dead_code)]
     pub doc: Option<String>,
+    /// What the field contains.
     pub kind: FieldKind,
+    /// How many times the field repeats.
     pub repeat: RepeatMode,
     /// Compiled `if:` predicate, if present.
     pub if_expr: Option<Expr>,
@@ -87,28 +93,50 @@ pub struct CompiledField {
     pub enum_ref: Option<String>,
 }
 
+/// The kind of data a field holds.
 #[derive(Debug, Clone)]
 pub enum FieldKind {
     /// A fixed-width unsigned integer.
     UInt {
+        /// Width of the integer.
         width: IntWidth,
+        /// Byte-order override for this field.
         endian: EndianOverride,
     },
     /// A fixed-width signed integer.
     SInt {
+        /// Width of the integer.
         width: IntWidth,
+        /// Byte-order override for this field.
         endian: EndianOverride,
     },
     /// IEEE 754 float.
-    Float { width: FloatWidth },
+    Float {
+        /// Width of the float.
+        width: FloatWidth,
+    },
     /// Raw byte sequence.
-    Bytes { size: SizeExpr },
+    Bytes {
+        /// Number of bytes to read.
+        size: SizeExpr,
+    },
     /// String with optional terminator or explicit size.
-    Str { size: StrSize, encoding: Encoding },
+    Str {
+        /// How the string's extent is determined.
+        size: StrSize,
+        /// Character encoding of the bytes.
+        encoding: Encoding,
+    },
     /// Bit field.
-    Bits { bit_size: u8 },
+    Bits {
+        /// Number of bits to read.
+        bit_size: u8,
+    },
     /// A reference to another compiled type by its fully-qualified name.
-    TypeRef { type_name: String },
+    TypeRef {
+        /// Fully-qualified name of the referenced type.
+        type_name: String,
+    },
     /// Fixed literal content — parser reads and asserts exact bytes.
     Contents(Vec<u8>),
 }
@@ -116,14 +144,18 @@ pub enum FieldKind {
 /// Integer byte widths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntWidth {
+    /// 8 bits.
     W8,
+    /// 16 bits.
     W16,
+    /// 32 bits.
     W32,
+    /// 64 bits.
     W64,
 }
 
 impl IntWidth {
-    #[allow(dead_code)]
+    /// The width in bytes.
     pub fn bytes(self) -> usize {
         match self {
             IntWidth::W8 => 1,
@@ -134,14 +166,17 @@ impl IntWidth {
     }
 }
 
+/// Float byte widths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FloatWidth {
+    /// 32-bit float.
     F32,
+    /// 64-bit float.
     F64,
 }
 
 impl FloatWidth {
-    #[allow(dead_code)]
+    /// The width in bytes.
     pub fn bytes(self) -> usize {
         match self {
             FloatWidth::F32 => 4,
@@ -155,7 +190,9 @@ impl FloatWidth {
 pub enum EndianOverride {
     /// Use the type's (or schema's) default.
     Inherit,
+    /// Force little-endian.
     Little,
+    /// Force big-endian.
     Big,
 }
 
@@ -163,7 +200,9 @@ pub enum EndianOverride {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Endian {
     #[default]
+    /// Least significant byte first.
     Little,
+    /// Most significant byte first.
     Big,
 }
 
@@ -186,11 +225,15 @@ pub enum StrSize {
     Fixed(SizeExpr),
 }
 
+/// String character encoding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Encoding {
+    /// UTF-8.
     #[default]
     Utf8,
+    /// 7-bit ASCII.
     Ascii,
+    /// ISO 8859-1.
     Latin1,
 }
 
@@ -215,10 +258,12 @@ pub enum RepeatMode {
 /// An enum: maps integer discriminant → variant name.
 #[derive(Debug, Clone, Default)]
 pub struct CompiledEnum {
+    /// Variant names keyed by discriminant.
     pub variants: HashMap<u64, String>,
 }
 
 impl CompiledEnum {
+    /// The variant name for discriminant `v`, if any.
     pub fn lookup(&self, v: u64) -> Option<&str> {
         self.variants.get(&v).map(String::as_str)
     }
@@ -297,7 +342,7 @@ mod tests {
 
     #[test]
     fn endian_default_is_little() {
-        let e: Endian = Default::default();
+        let e = Endian::default();
         assert_eq!(e, Endian::Little);
     }
 
@@ -482,7 +527,7 @@ mod tests {
 
     #[test]
     fn encoding_default_is_utf8() {
-        let e: Encoding = Default::default();
+        let e = Encoding::default();
         assert_eq!(e, Encoding::Utf8);
     }
 }

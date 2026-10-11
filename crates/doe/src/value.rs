@@ -43,6 +43,7 @@ pub enum Value {
     Str(String),
     /// An integer with an optional symbolic name from an enum.
     Enum {
+        /// The numeric discriminant.
         value: u64,
         /// `None` when the discriminant has no matching variant.
         name: Option<String>,
@@ -66,15 +67,14 @@ impl Value {
     /// a size or repeat-count expression.
     pub fn as_int(&self) -> Option<i64> {
         match self {
-            Value::UInt(n) => Some(*n as i64),
+            Value::UInt(n) => Some(n.cast_signed()),
             Value::SInt(n) => Some(*n),
-            Value::Enum { value, .. } => Some(*value as i64),
+            Value::Enum { value, .. } => Some(value.cast_signed()),
             _ => None,
         }
     }
 
     /// Returns the byte length of this value, if applicable.
-    #[allow(dead_code)]
     pub fn byte_len(&self) -> Option<usize> {
         match self {
             Value::Bytes(b) => Some(b.len()),
@@ -84,7 +84,6 @@ impl Value {
     }
 
     /// Returns `true` if this value is a truthy integer (non-zero).
-    #[allow(dead_code)]
     pub fn is_truthy(&self) -> bool {
         match self {
             Value::UInt(n) => *n != 0,
@@ -100,7 +99,6 @@ impl Value {
     }
 
     /// Returns the type name as a short string, useful for error messages.
-    #[allow(dead_code)]
     pub fn type_name(&self) -> &'static str {
         match self {
             Value::UInt(_) => "uint",
@@ -133,17 +131,17 @@ impl Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::UInt(n) => write!(f, "{}", n),
-            Value::SInt(n) => write!(f, "{}", n),
-            Value::Float(v) => write!(f, "{}", v),
+            Value::UInt(n) => write!(f, "{n}"),
+            Value::SInt(n) => write!(f, "{n}"),
+            Value::Float(v) => write!(f, "{v}"),
             Value::Bytes(b) => write!(f, "<{} bytes>", b.len()),
-            Value::Str(s) => write!(f, "{:?}", s),
+            Value::Str(s) => write!(f, "{s:?}"),
             Value::Enum {
                 value,
                 name: Some(n),
-            } => write!(f, "{} ({})", n, value),
-            Value::Enum { value, name: None } => write!(f, "{}", value),
-            Value::Struct { type_name, .. } => write!(f, "<{}>", type_name),
+            } => write!(f, "{n} ({value})"),
+            Value::Enum { value, name: None } => write!(f, "{value}"),
+            Value::Struct { type_name, .. } => write!(f, "<{type_name}>"),
             Value::Array(items) => write!(f, "[{} items]", items.len()),
             Value::Absent => write!(f, "<absent>"),
         }
@@ -276,7 +274,7 @@ mod tests {
         assert_eq!(Value::SInt(0).type_name(), "sint");
         assert_eq!(Value::Float(0.0).type_name(), "float");
         assert_eq!(Value::Bytes(vec![]).type_name(), "bytes");
-        assert_eq!(Value::Str("".into()).type_name(), "str");
+        assert_eq!(Value::Str(String::new()).type_name(), "str");
         assert_eq!(
             Value::Enum {
                 value: 0,
@@ -325,7 +323,7 @@ mod tests {
             value: 1,
             name: Some("header".into()),
         };
-        assert_eq!(format!("{}", v), "header (1)");
+        assert_eq!(format!("{v}"), "header (1)");
     }
     #[test]
     fn display_enum_unnamed() {
@@ -333,7 +331,7 @@ mod tests {
             value: 42,
             name: None,
         };
-        assert_eq!(format!("{}", v), "42");
+        assert_eq!(format!("{v}"), "42");
     }
     #[test]
     fn display_struct() {
@@ -341,7 +339,7 @@ mod tests {
             type_name: "png::chunk".into(),
             fields: vec![],
         };
-        assert_eq!(format!("{}", v), "<png::chunk>");
+        assert_eq!(format!("{v}"), "<png::chunk>");
     }
     #[test]
     fn display_array() {

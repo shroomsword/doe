@@ -29,13 +29,13 @@ use crate::error::{DoeError, Result};
 // AST
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// A parsed expression.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     /// Integer literal.
     Int(i64),
     /// Boolean literal (currently produced only by direct construction;
     /// the parser normalises `true`/`false` to `Int(1)`/`Int(0)`).
-    #[allow(dead_code)]
     Bool(bool),
     /// Field reference, possibly qualified: `["_parent", "length"]`.
     Field(Vec<String>),
@@ -45,31 +45,53 @@ pub enum Expr {
     Binary(BinaryOp, Box<Expr>, Box<Expr>),
 }
 
+/// A unary operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
+    /// Arithmetic negation (`-x`).
     Neg,
+    /// Logical not (`!x`).
     Not,
 }
 
+/// A binary operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp {
+    /// Addition (`+`).
     Add,
+    /// Subtraction (`-`).
     Sub,
+    /// Multiplication (`*`).
     Mul,
+    /// Integer division (`/`).
     Div,
+    /// Remainder (`%`).
     Rem,
+    /// Left shift (`<<`).
     Shl,
+    /// Right shift (`>>`).
     Shr,
+    /// Bitwise and (`&`).
     BitAnd,
+    /// Bitwise or (`|`).
     BitOr,
+    /// Bitwise exclusive or (`^`).
     BitXor,
+    /// Equality (`==`).
     Eq,
+    /// Inequality (`!=`).
     Ne,
+    /// Less than (`<`).
     Lt,
+    /// Greater than (`>`).
     Gt,
+    /// Less than or equal (`<=`).
     Le,
+    /// Greater than or equal (`>=`).
     Ge,
+    /// Short-circuit logical and (`&&`).
     And,
+    /// Short-circuit logical or (`||`).
     Or,
 }
 
@@ -95,7 +117,7 @@ impl fmt::Display for BinaryOp {
             BinaryOp::And => "&&",
             BinaryOp::Or => "||",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -177,16 +199,13 @@ impl<'a> Lexer<'a> {
             while matches!(self.peek(), Some(b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')) {
                 self.advance();
             }
-            let hex = std::str::from_utf8(&self.src[start + 2..self.pos]).unwrap();
+            let hex = self.slice_str(start.saturating_add(2), self.pos);
             return i64::from_str_radix(hex, 16).unwrap_or(0);
         }
         while matches!(self.peek(), Some(b'0'..=b'9')) {
             self.advance();
         }
-        std::str::from_utf8(&self.src[start..self.pos])
-            .unwrap()
-            .parse()
-            .unwrap_or(0)
+        self.slice_str(start, self.pos).parse().unwrap_or(0)
     }
 
     fn read_ident(&mut self) -> String {
@@ -197,7 +216,15 @@ impl<'a> Lexer<'a> {
         ) {
             self.advance();
         }
-        String::from_utf8(self.src[start..self.pos].to_vec()).unwrap()
+        self.slice_str(start, self.pos).to_owned()
+    }
+
+    /// The source text between two byte offsets (empty if out of range).
+    fn slice_str(&self, from: usize, to: usize) -> &str {
+        self.src
+            .get(from..to)
+            .and_then(|bytes| std::str::from_utf8(bytes).ok())
+            .unwrap_or_default()
     }
 
     fn next_token(&mut self) -> Token {
@@ -527,6 +554,10 @@ impl<'a> Parser<'a> {
 }
 
 /// Parse an expression string into an AST.
+///
+/// # Errors
+///
+/// Returns [`DoeError::ExprParse`] on a syntax error.
 pub fn parse(src: &str) -> Result<Expr> {
     let mut p = Parser::new(src);
     let e = p.parse_expr()?;
@@ -547,22 +578,26 @@ pub fn parse(src: &str) -> Result<Expr> {
 ///
 /// Each "frame" is a flat mapping of field name → integer value.
 /// `_parent` walks one frame up the stack.
+#[derive(Debug)]
 pub struct EvalContext {
     /// Frames stored outer-to-inner; last element is current scope.
     frames: Vec<std::collections::HashMap<String, i64>>,
 }
 
 impl EvalContext {
+    /// Create a context with one empty (root) frame.
     pub fn new() -> Self {
         EvalContext {
             frames: vec![std::collections::HashMap::new()],
         }
     }
 
+    /// Enter a new, empty scope.
     pub fn push_frame(&mut self) {
         self.frames.push(std::collections::HashMap::new());
     }
 
+    /// Leave the innermost scope. The root scope is never popped.
     pub fn pop_frame(&mut self) {
         if self.frames.len() > 1 {
             self.frames.pop();
@@ -571,50 +606,52 @@ impl EvalContext {
 
     /// Bind `name` → `value` in the current (innermost) frame.
     pub fn bind(&mut self, name: &str, value: i64) {
-        self.frames
-            .last_mut()
-            .unwrap()
-            .insert(name.to_owned(), value);
+        if self.frames.is_empty() {
+            self.frames.push(std::collections::HashMap::new());
+        }
+        if let Some(frame) = self.frames.last_mut() {
+            frame.insert(name.to_owned(), value);
+        }
     }
 
     /// Look up a simple name in the current frame.
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn lookup_current(&self, name: &str) -> Option<i64> {
         self.frames.last()?.get(name).copied()
     }
 
     /// Resolve a qualified path like `["_parent", "count"]`.
     fn resolve_path(&self, parts: &[String], src: &str) -> Result<i64> {
-        let mut frame_idx = self.frames.len() - 1; // start at innermost
-        let mut part_idx = 0;
+        let eval_err = |message: &str| DoeError::ExprEval {
+            expr: src.to_owned(),
+            message: message.to_owned(),
+        };
+        // Start at the innermost frame.
+        let mut frame_idx = self
+            .frames
+            .len()
+            .checked_sub(1)
+            .ok_or_else(|| eval_err("no scope available"))?;
+        let mut rest = parts;
 
         // Walk _parent segments
-        while part_idx < parts.len() && parts[part_idx] == "_parent" {
-            if frame_idx == 0 {
-                return Err(DoeError::ExprEval {
-                    expr: src.to_owned(),
-                    message: "_parent: already at root scope".to_owned(),
-                });
-            }
-            frame_idx -= 1;
-            part_idx += 1;
+        while let Some((first, tail)) = rest.split_first()
+            && first == "_parent"
+        {
+            frame_idx = frame_idx
+                .checked_sub(1)
+                .ok_or_else(|| eval_err("_parent: already at root scope"))?;
+            rest = tail;
         }
 
-        if part_idx >= parts.len() {
-            return Err(DoeError::ExprEval {
-                expr: src.to_owned(),
-                message: "field path ends at _parent with no field name".to_owned(),
-            });
-        }
-
-        let name = &parts[part_idx];
-        self.frames[frame_idx]
-            .get(name.as_str())
+        let name = rest
+            .first()
+            .ok_or_else(|| eval_err("field path ends at _parent with no field name"))?;
+        self.frames
+            .get(frame_idx)
+            .and_then(|frame| frame.get(name.as_str()))
             .copied()
-            .ok_or_else(|| DoeError::ExprEval {
-                expr: src.to_owned(),
-                message: format!("unknown field '{}'", parts.join(".")),
-            })
+            .ok_or_else(|| eval_err(&format!("unknown field '{}'", parts.join("."))))
     }
 }
 
@@ -629,18 +666,23 @@ impl Default for EvalContext {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Evaluate an already-parsed expression against a context.
+///
+/// # Errors
+///
+/// Returns [`DoeError::ExprEval`] for unknown fields, a bad `_parent`
+/// path, or division or remainder by zero.
 pub fn eval(expr: &Expr, ctx: &EvalContext, src: &str) -> Result<i64> {
     match expr {
         Expr::Int(n) => Ok(*n),
-        Expr::Bool(b) => Ok(*b as i64),
+        Expr::Bool(b) => Ok(i64::from(*b)),
 
         Expr::Field(parts) => ctx.resolve_path(parts, src),
 
         Expr::Unary(op, inner) => {
             let v = eval(inner, ctx, src)?;
             match op {
-                UnaryOp::Neg => Ok(-v),
-                UnaryOp::Not => Ok(if v == 0 { 1 } else { 0 }),
+                UnaryOp::Neg => Ok(v.wrapping_neg()),
+                UnaryOp::Not => Ok(i64::from(v == 0)),
             }
         }
 
@@ -664,7 +706,7 @@ pub fn eval(expr: &Expr, ctx: &EvalContext, src: &str) -> Result<i64> {
                             message: "division by zero".to_owned(),
                         });
                     }
-                    Ok(l / r)
+                    Ok(l.wrapping_div(r))
                 }
                 BinaryOp::Rem => {
                     if r == 0 {
@@ -673,27 +715,38 @@ pub fn eval(expr: &Expr, ctx: &EvalContext, src: &str) -> Result<i64> {
                             message: "modulo by zero".to_owned(),
                         });
                     }
-                    Ok(l % r)
+                    Ok(l.wrapping_rem(r))
                 }
-                BinaryOp::Shl => Ok(l.wrapping_shl(r as u32)),
-                BinaryOp::Shr => Ok(l.wrapping_shr(r as u32)),
+                BinaryOp::Shl => Ok(l.wrapping_shl(shift_amount(r))),
+                BinaryOp::Shr => Ok(l.wrapping_shr(shift_amount(r))),
                 BinaryOp::BitAnd => Ok(l & r),
                 BinaryOp::BitOr => Ok(l | r),
                 BinaryOp::BitXor => Ok(l ^ r),
-                BinaryOp::Eq => Ok((l == r) as i64),
-                BinaryOp::Ne => Ok((l != r) as i64),
-                BinaryOp::Lt => Ok((l < r) as i64),
-                BinaryOp::Gt => Ok((l > r) as i64),
-                BinaryOp::Le => Ok((l <= r) as i64),
-                BinaryOp::Ge => Ok((l >= r) as i64),
-                BinaryOp::And | BinaryOp::Or => unreachable!(),
+                BinaryOp::Eq => Ok(i64::from(l == r)),
+                BinaryOp::Ne => Ok(i64::from(l != r)),
+                BinaryOp::Lt => Ok(i64::from(l < r)),
+                BinaryOp::Gt => Ok(i64::from(l > r)),
+                BinaryOp::Le => Ok(i64::from(l <= r)),
+                BinaryOp::Ge => Ok(i64::from(l >= r)),
+                // Handled above with short-circuit evaluation; kept consistent for exhaustiveness.
+                BinaryOp::And => Ok(if l == 0 { 0 } else { r }),
+                BinaryOp::Or => Ok(if l != 0 { 1 } else { r }),
             }
         }
     }
 }
 
+/// The shift distance for `<<` and `>>`: the low six bits of `r`, which is
+/// what a 64-bit shift uses.
+fn shift_amount(r: i64) -> u32 {
+    u32::try_from(r & 63).unwrap_or(0)
+}
+
 /// Convenience: parse then evaluate in one call.
-#[allow(dead_code)]
+///
+/// # Errors
+///
+/// Returns any error from [`parse`] or [`eval`].
 pub fn eval_str(src: &str, ctx: &EvalContext) -> Result<i64> {
     let ast = parse(src)?;
     eval(&ast, ctx, src)

@@ -36,6 +36,7 @@ pub use value::Value;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Selects the output format produced by [`parse_file`].
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OutputFormat {
     /// Indented human-readable text.
     ///
@@ -182,11 +183,14 @@ pub fn parse_file(
 /// assert!(!is_schema_path("my_format"));
 /// ```
 pub fn is_schema_path(s: &str) -> bool {
-    s.starts_with('.')
-        || s.starts_with('/')
-        || s.starts_with('~')
-        || s.ends_with(".yaml")
-        || s.ends_with(".yml")
+    s.starts_with('.') || s.starts_with('/') || s.starts_with('~') || has_schema_extension(s)
+}
+
+/// Returns `true` if `s` ends in `.yaml` or `.yml`, ignoring ASCII case.
+pub(crate) fn has_schema_extension(s: &str) -> bool {
+    Path::new(s)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("yaml") || ext.eq_ignore_ascii_case("yml"))
 }
 
 /// Load and deserialise a YAML schema file from `path`.
@@ -344,6 +348,7 @@ mod tests {
 
     #[test]
     fn parse_file_via_include_path() {
+        use std::io::Write;
         use tempfile::TempDir;
 
         let dir = TempDir::new().unwrap();
@@ -354,8 +359,7 @@ mod tests {
         .unwrap();
 
         let mut bin_f = tempfile::NamedTempFile::new().unwrap();
-        use std::io::Write;
-        bin_f.write_all(&0xdeadbeefu32.to_le_bytes()).unwrap();
+        bin_f.write_all(&0xdead_beefu32.to_le_bytes()).unwrap();
 
         let out = parse_file(
             bin_f.path(),
