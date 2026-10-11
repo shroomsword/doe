@@ -1,25 +1,59 @@
-[package]
-name = "doe"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+exclude = ["fuzz"]
 
-[lib]
-name = "doe"
-path = "src/lib.rs"
+[workspace.package]
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+repository = "https://github.com/shroomsword/doe"
+authors = ["shroomsword"]
 
-[[bin]]
-name = "doe"
-path = "src/main.rs"
-
-[dependencies]
-clap = { version = "4", features = ["derive"] }
-serde = { version = "1", features = ["derive"] }
+# Every dependency is declared here once, with default features disabled. Members enable the features they need:
+#   [dependencies]
+#   clap = { workspace = true, features = ["std", "derive", "help", "usage", "error-context", "color"] }
+[workspace.dependencies]
+clap = { version = "4", default-features = false }
+serde = { version = "1", default-features = false }
 serde_yaml = "0.9"
-serde_json = "1"
+serde_json = { version = "1", default-features = false }
 thiserror = "1"
 dirs = "5"
-indexmap = { version = "2", features = ["serde"] }
-
-[dev-dependencies]
+indexmap = { version = "2", default-features = false }
 indoc = "2"
 tempfile = "3"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unreachable_pub = "warn"
+missing_debug_implementations = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Pedantic opt-outs. Each needs a reason.
+must_use_candidate = "allow" # fires on nearly every pure function; #[must_use] is applied deliberately instead
+too_many_lines = "allow"     # no size limits on functions, modules, or files
+
+# Restriction lints enforcing the no-panic, no-placeholder, and suppression rules.
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+unreachable = "warn"
+todo = "warn"
+unimplemented = "warn"
+indexing_slicing = "warn"
+string_slice = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+dbg_macro = "warn"
+exit = "warn"
+allow_attributes_without_reason = "warn"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+overflow-checks = true
