@@ -76,17 +76,13 @@ pub struct RawMeta {
 /// Byte order as written in a schema's `meta.endian` field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum RawEndian {
     /// Little-endian (least-significant byte first).
+    #[default]
     Le,
     /// Big-endian (most-significant byte first).
     Be,
-}
-
-impl Default for RawEndian {
-    fn default() -> Self {
-        RawEndian::Le
-    }
 }
 
 // ── Field ────────────────────────────────────────────────────────────────────
@@ -180,16 +176,12 @@ impl StringOrInt {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum RawEncoding {
+    #[default]
     Utf8,
     Ascii,
     Latin1,
-}
-
-impl Default for RawEncoding {
-    fn default() -> Self {
-        RawEncoding::Utf8
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]

@@ -122,7 +122,7 @@ impl Value {
 /// |---------|---------------|
 /// | `UInt(255)` | `255` |
 /// | `SInt(-1)` | `-1` |
-/// | `Float(3.14)` | `3.14` |
+/// | `Float(2.75)` | `2.75` |
 /// | `Bytes` | `<8 bytes>` |
 /// | `Str("hi")` | `"hi"` |
 /// | `Enum { value: 1, name: Some("data") }` | `data (1)` |
@@ -309,7 +309,7 @@ mod tests {
     }
     #[test]
     fn display_float() {
-        assert_eq!(format!("{}", Value::Float(3.14)), "3.14");
+        assert_eq!(format!("{}", Value::Float(2.75)), "2.75");
     }
     #[test]
     fn display_bytes() {

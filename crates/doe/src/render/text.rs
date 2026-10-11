@@ -146,9 +146,9 @@ mod tests {
 
     #[test]
     fn render_float() {
-        let v = struct_val("t", vec![("f", Value::Float(3.14))]);
+        let v = struct_val("t", vec![("f", Value::Float(2.75))]);
         let out = render(&v);
-        assert!(out.contains("f  3.14"));
+        assert!(out.contains("f  2.75"));
     }
 
     #[test]
@@ -280,7 +280,7 @@ mod tests {
             type_name: "mid".into(),
             fields: vec![("data".into(), innermost)],
         };
-        let v = struct_val("root", vec![("child".into(), mid)]);
+        let v = struct_val("root", vec![("child", mid)]);
         let out = render(&v);
 
         assert!(out.contains("root\n"));
