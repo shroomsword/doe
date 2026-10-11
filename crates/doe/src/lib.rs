@@ -1,4 +1,4 @@
-#![doc = include_str!("../README.md")]
+#![doc = include_str!("../../../README.md")]
 //!
 //! ---
 //!
@@ -27,7 +27,7 @@ pub mod value;
 
 use std::path::{Path, PathBuf};
 
-pub use config::{discover_types, AvailableType, DuplicateTypeError};
+pub use config::{AvailableType, DuplicateTypeError, discover_types};
 pub use error::{DoeError, Result};
 pub use value::Value;
 
@@ -108,7 +108,7 @@ pub fn parse_file(
     config_path: Option<&Path>,
     format: OutputFormat,
 ) -> Result<String> {
-    use config::{resolve_include_paths, Config};
+    use config::{Config, resolve_include_paths};
     use parser::{cursor::Cursor, engine::Engine};
     use schema::compiler::Compiler;
 

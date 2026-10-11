@@ -236,11 +236,13 @@ mod tests {
     }
     #[test]
     fn truthy_enum_nonzero() {
-        assert!(Value::Enum {
-            value: 1,
-            name: None
-        }
-        .is_truthy());
+        assert!(
+            Value::Enum {
+                value: 1,
+                name: None
+            }
+            .is_truthy()
+        );
     }
     #[test]
     fn falsy_float() {

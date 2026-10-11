@@ -19,8 +19,8 @@ use std::process;
 
 use clap::{CommandFactory, Parser as ClapParser};
 
-use doe::config::{resolve_include_paths, Config};
-use doe::{discover_types, OutputFormat};
+use doe::config::{Config, resolve_include_paths};
+use doe::{OutputFormat, discover_types};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CLI definition

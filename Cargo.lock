@@ -89,7 +89,6 @@ dependencies = [
  "anstream",
  "anstyle",
  "clap_lex",
- "strsim",
 ]
 
 [[package]]
@@ -141,7 +140,6 @@ dependencies = [
 name = "doe"
 version = "0.1.0"
 dependencies = [
- "clap",
  "dirs",
  "indexmap",
  "indoc",
@@ -150,6 +148,15 @@ dependencies = [
  "serde_yaml",
  "tempfile",
  "thiserror",
+]
+
+[[package]]
+name = "doe-cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "doe",
+ "tempfile",
 ]
 
 [[package]]
@@ -452,12 +459,6 @@ dependencies = [
  "serde",
  "unsafe-libyaml",
 ]
-
-[[package]]
-name = "strsim"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "syn"

@@ -16,7 +16,7 @@
 //! | Array(items)  | JSON array                                              |
 //! | Absent        | `null`                                                  |
 
-use serde_json::{json, Value as JValue};
+use serde_json::{Value as JValue, json};
 
 use crate::value::Value;
 

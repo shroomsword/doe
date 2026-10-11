@@ -1,0 +1,47 @@
+# cargo-deny configuration. Install at the repository root. CI runs `cargo deny --locked check`.
+# Validate locally with `cargo deny check` after any change; field names follow the current cargo-deny format.
+
+[graph]
+all-features = true
+
+[advisories]
+yanked = "deny"
+ignore = [
+    # Each entry needs an ID, a reason, and a GitHub issue that tracks removing it:
+    # { id = "RUSTSEC-0000-0000", reason = "#123: not reachable from our usage; upgrade pending" },
+]
+
+[licenses]
+allow = [
+    # Preferred.
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    # Other permissive licenses required by common crates (see rust-practices, "Dependencies").
+    "Unicode-3.0",         # unicode-ident (every proc-macro user)
+    "Unicode-DFS-2016",    # older unicode-ident releases
+    "ISC",                 # ring, untrusted, libloading
+    "Zlib",                # foldhash, graphics and compression crates
+    "BSL-1.0",             # ryu, clipboard-win, xxhash-rust
+    "CC0-1.0",             # public-domain dedications
+    "0BSD",
+    "MIT-0",
+    "CDLA-Permissive-2.0", # webpki-roots, webpki-root-certs (rustls certificate bundles)
+    # Copyleft licenses, including MPL-2.0, are added only with the user's approval.
+]
+confidence-threshold = 0.93
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+deny = [
+    # Crates excluded from the project, each with a reason:
+    # { crate = "openssl", reason = "use rustls" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
