@@ -179,7 +179,7 @@ seq:
 Each additional level of nesting is indented by two spaces. Absent fields
 (from a false `if:` guard) are omitted entirely.
 
-```
+```text
 elf
   header  elf::elf_header
     magic  <4 bytes>
@@ -229,7 +229,7 @@ doe header.bin elf.yaml --pretty
 
 ## CLI reference
 
-```
+```text
 Usage: doe [OPTIONS] <FILE> <TYPE_OR_SCHEMA>
 
 Arguments:
@@ -288,6 +288,7 @@ let output = parse_file(
 )?;
 
 print!("{}", output);
+# Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
 For lower-level control, use the modules directly:
@@ -296,6 +297,7 @@ For lower-level control, use the modules directly:
 use doe::schema::compiler::Compiler;
 use doe::parser::{cursor::Cursor, engine::Engine};
 use doe::render::json;
+# let include_dir = std::path::PathBuf::from("types");
 
 // Compile a schema
 let mut compiler = Compiler::new(vec![include_dir]);
@@ -309,6 +311,7 @@ let value = engine.parse_type("my_format", &mut cursor)?;
 
 // Render
 println!("{}", json::render_pretty(&value));
+# Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
 ## License
