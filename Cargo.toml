@@ -22,7 +22,9 @@ serde_json = { version = "1", default-features = false }
 thiserror = "1"
 dirs = "5"
 indexmap = { version = "2", default-features = false }
+assert_cmd = "2"
 indoc = "2"
+predicates = { version = "3", default-features = false }
 tempfile = "3"
 
 [workspace.lints.rust]
