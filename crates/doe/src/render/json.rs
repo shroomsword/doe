@@ -133,9 +133,9 @@ mod tests {
 
     #[test]
     fn float_to_json() {
-        let v = j(&Value::Float(3.14));
+        let v = j(&Value::Float(2.75));
         assert!(v.is_number());
-        assert!((v.as_f64().unwrap() - 3.14).abs() < 1e-10);
+        assert!((v.as_f64().unwrap() - 2.75).abs() < 1e-10);
     }
 
     #[test]

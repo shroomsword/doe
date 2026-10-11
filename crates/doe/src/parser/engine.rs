@@ -146,19 +146,19 @@ impl<'reg> Engine<'reg> {
         let raw = self.read_kind(&field.kind, parent_ty, cursor, ctx)?;
 
         // Apply enum mapping if present
-        if let Some(enum_name) = &field.enum_ref {
-            if let Some(n) = raw.as_int() {
-                let discriminant = n as u64;
-                let variant = parent_ty
-                    .enums
-                    .get(enum_name.as_str())
-                    .and_then(|e| e.lookup(discriminant))
-                    .map(str::to_owned);
-                return Ok(Value::Enum {
-                    value: discriminant,
-                    name: variant,
-                });
-            }
+        if let Some(enum_name) = &field.enum_ref
+            && let Some(n) = raw.as_int()
+        {
+            let discriminant = n as u64;
+            let variant = parent_ty
+                .enums
+                .get(enum_name.as_str())
+                .and_then(|e| e.lookup(discriminant))
+                .map(str::to_owned);
+            return Ok(Value::Enum {
+                value: discriminant,
+                name: variant,
+            });
         }
 
         Ok(raw)
@@ -276,7 +276,7 @@ impl<'reg> Engine<'reg> {
         // Read the minimum number of bytes needed, then extract the bits.
         // For the initial implementation we read whole bytes and mask.
         // Sub-byte bit fields across byte boundaries are deferred.
-        let byte_count = ((bit_size as usize) + 7) / 8;
+        let byte_count = (bit_size as usize).div_ceil(8);
         let bytes = cursor.read_bytes(byte_count)?;
         let mut v: u64 = 0;
         for &b in bytes {

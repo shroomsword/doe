@@ -160,16 +160,11 @@ pub enum EndianOverride {
 }
 
 /// Byte order resolved to a concrete value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Endian {
+    #[default]
     Little,
     Big,
-}
-
-impl Default for Endian {
-    fn default() -> Self {
-        Endian::Little
-    }
 }
 
 /// How many bytes to consume for a `bytes` or `str` field.
@@ -191,17 +186,12 @@ pub enum StrSize {
     Fixed(SizeExpr),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Encoding {
+    #[default]
     Utf8,
     Ascii,
     Latin1,
-}
-
-impl Default for Encoding {
-    fn default() -> Self {
-        Encoding::Utf8
-    }
 }
 
 /// Repetition mode for a field.

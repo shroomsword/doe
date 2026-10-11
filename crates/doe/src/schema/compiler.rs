@@ -253,16 +253,16 @@ impl Compiler {
         };
 
         let repeat = compile_repeat(raw, ctx)?;
-        let if_expr = raw.if_expr.as_deref().map(|s| expr::parse(s)).transpose()?;
+        let if_expr = raw.if_expr.as_deref().map(expr::parse).transpose()?;
 
         // Validate enum reference if present
-        if let Some(enum_name) = &raw.enum_ref {
-            if !ctx.enums.contains_key(enum_name.as_str()) {
-                return Err(DoeError::UnknownEnum {
-                    enum_name: enum_name.clone(),
-                    context: format!("{}.{}", ctx.parent_fqn, raw.id),
-                });
-            }
+        if let Some(enum_name) = &raw.enum_ref
+            && !ctx.enums.contains_key(enum_name.as_str())
+        {
+            return Err(DoeError::UnknownEnum {
+                enum_name: enum_name.clone(),
+                context: format!("{}.{}", ctx.parent_fqn, raw.id),
+            });
         }
 
         Ok(CompiledField {
