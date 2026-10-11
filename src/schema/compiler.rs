@@ -90,11 +90,13 @@ impl Compiler {
         // from the same source.  An id being loaded again via a shared import
         // is fine (idempotent); the same id from a *different* file is an error.
         if self.processed.contains(&schema.id) {
-            let incoming = schema.source_path
+            let incoming = schema
+                .source_path
                 .as_deref()
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "<in-memory>".to_owned());
-            let existing = self.source_paths
+            let existing = self
+                .source_paths
                 .get(&schema.id)
                 .cloned()
                 .unwrap_or_else(|| "<unknown>".to_owned());
@@ -140,7 +142,8 @@ impl Compiler {
         self.loading_stack.pop();
         self.processed.insert(schema.id.clone());
         // Record source for future duplicate detection.
-        let source = schema.source_path
+        let source = schema
+            .source_path
             .as_deref()
             .map(|p| p.display().to_string())
             .unwrap_or_else(|| "<in-memory>".to_owned());
@@ -154,7 +157,10 @@ impl Compiler {
     /// that forward references within the same schema work during compilation.
     fn collect_type_names(&mut self, schema: &RawSchema) {
         // The root type
-        self.registry.types.entry(schema.id.clone()).or_insert_with(|| placeholder(&schema.id));
+        self.registry
+            .types
+            .entry(schema.id.clone())
+            .or_insert_with(|| placeholder(&schema.id));
 
         let prefix = schema.id.clone();
         self.collect_nested_names(&prefix, &schema.types);
@@ -163,7 +169,10 @@ impl Compiler {
     fn collect_nested_names(&mut self, prefix: &str, types: &IndexMap<String, RawTypeDecl>) {
         for (name, decl) in types {
             let fqn = format!("{}::{}", prefix, name);
-            self.registry.types.entry(fqn.clone()).or_insert_with(|| placeholder(&fqn));
+            self.registry
+                .types
+                .entry(fqn.clone())
+                .or_insert_with(|| placeholder(&fqn));
             self.collect_nested_names(&fqn, &decl.types);
         }
     }
@@ -174,8 +183,8 @@ impl Compiler {
     /// the registry.  Recursively compiles nested `types:` declarations.
     fn compile_type_decl(
         &mut self,
-        fqn: &str,           // fully-qualified name for this type
-        type_id: &str,       // bare name (last segment), used in error messages
+        fqn: &str,     // fully-qualified name for this type
+        type_id: &str, // bare name (last segment), used in error messages
         seq: &[RawField],
         types: &IndexMap<String, RawTypeDecl>,
         enums: &IndexMap<String, HashMap<String, String>>,
@@ -232,11 +241,14 @@ impl Compiler {
         let kind = if let Some(contents) = &raw.contents {
             compile_contents(contents, &raw.id, ctx.parent_fqn)?
         } else {
-            let type_name = raw.type_ref.as_deref().ok_or_else(|| DoeError::FieldError {
-                field: raw.id.clone(),
-                context: ctx.parent_fqn.to_owned(),
-                message: "field has neither 'type' nor 'contents'".to_owned(),
-            })?;
+            let type_name = raw
+                .type_ref
+                .as_deref()
+                .ok_or_else(|| DoeError::FieldError {
+                    field: raw.id.clone(),
+                    context: ctx.parent_fqn.to_owned(),
+                    message: "field has neither 'type' nor 'contents'".to_owned(),
+                })?;
             self.compile_type_ref(type_name, raw, ctx)?
         };
 
@@ -274,32 +286,96 @@ impl Compiler {
 
         match type_name {
             // ── Unsigned integers ────────────────────────────────────────
-            "u8"    => Ok(FieldKind::UInt { width: IntWidth::W8,  endian: EndianOverride::Inherit }),
-            "u16"   => Ok(FieldKind::UInt { width: IntWidth::W16, endian: EndianOverride::Inherit }),
-            "u32"   => Ok(FieldKind::UInt { width: IntWidth::W32, endian: EndianOverride::Inherit }),
-            "u64"   => Ok(FieldKind::UInt { width: IntWidth::W64, endian: EndianOverride::Inherit }),
-            "u16le" => Ok(FieldKind::UInt { width: IntWidth::W16, endian: EndianOverride::Little }),
-            "u32le" => Ok(FieldKind::UInt { width: IntWidth::W32, endian: EndianOverride::Little }),
-            "u64le" => Ok(FieldKind::UInt { width: IntWidth::W64, endian: EndianOverride::Little }),
-            "u16be" => Ok(FieldKind::UInt { width: IntWidth::W16, endian: EndianOverride::Big }),
-            "u32be" => Ok(FieldKind::UInt { width: IntWidth::W32, endian: EndianOverride::Big }),
-            "u64be" => Ok(FieldKind::UInt { width: IntWidth::W64, endian: EndianOverride::Big }),
+            "u8" => Ok(FieldKind::UInt {
+                width: IntWidth::W8,
+                endian: EndianOverride::Inherit,
+            }),
+            "u16" => Ok(FieldKind::UInt {
+                width: IntWidth::W16,
+                endian: EndianOverride::Inherit,
+            }),
+            "u32" => Ok(FieldKind::UInt {
+                width: IntWidth::W32,
+                endian: EndianOverride::Inherit,
+            }),
+            "u64" => Ok(FieldKind::UInt {
+                width: IntWidth::W64,
+                endian: EndianOverride::Inherit,
+            }),
+            "u16le" => Ok(FieldKind::UInt {
+                width: IntWidth::W16,
+                endian: EndianOverride::Little,
+            }),
+            "u32le" => Ok(FieldKind::UInt {
+                width: IntWidth::W32,
+                endian: EndianOverride::Little,
+            }),
+            "u64le" => Ok(FieldKind::UInt {
+                width: IntWidth::W64,
+                endian: EndianOverride::Little,
+            }),
+            "u16be" => Ok(FieldKind::UInt {
+                width: IntWidth::W16,
+                endian: EndianOverride::Big,
+            }),
+            "u32be" => Ok(FieldKind::UInt {
+                width: IntWidth::W32,
+                endian: EndianOverride::Big,
+            }),
+            "u64be" => Ok(FieldKind::UInt {
+                width: IntWidth::W64,
+                endian: EndianOverride::Big,
+            }),
 
             // ── Signed integers ──────────────────────────────────────────
-            "i8"    => Ok(FieldKind::SInt { width: IntWidth::W8,  endian: EndianOverride::Inherit }),
-            "i16"   => Ok(FieldKind::SInt { width: IntWidth::W16, endian: EndianOverride::Inherit }),
-            "i32"   => Ok(FieldKind::SInt { width: IntWidth::W32, endian: EndianOverride::Inherit }),
-            "i64"   => Ok(FieldKind::SInt { width: IntWidth::W64, endian: EndianOverride::Inherit }),
-            "i16le" => Ok(FieldKind::SInt { width: IntWidth::W16, endian: EndianOverride::Little }),
-            "i32le" => Ok(FieldKind::SInt { width: IntWidth::W32, endian: EndianOverride::Little }),
-            "i64le" => Ok(FieldKind::SInt { width: IntWidth::W64, endian: EndianOverride::Little }),
-            "i16be" => Ok(FieldKind::SInt { width: IntWidth::W16, endian: EndianOverride::Big }),
-            "i32be" => Ok(FieldKind::SInt { width: IntWidth::W32, endian: EndianOverride::Big }),
-            "i64be" => Ok(FieldKind::SInt { width: IntWidth::W64, endian: EndianOverride::Big }),
+            "i8" => Ok(FieldKind::SInt {
+                width: IntWidth::W8,
+                endian: EndianOverride::Inherit,
+            }),
+            "i16" => Ok(FieldKind::SInt {
+                width: IntWidth::W16,
+                endian: EndianOverride::Inherit,
+            }),
+            "i32" => Ok(FieldKind::SInt {
+                width: IntWidth::W32,
+                endian: EndianOverride::Inherit,
+            }),
+            "i64" => Ok(FieldKind::SInt {
+                width: IntWidth::W64,
+                endian: EndianOverride::Inherit,
+            }),
+            "i16le" => Ok(FieldKind::SInt {
+                width: IntWidth::W16,
+                endian: EndianOverride::Little,
+            }),
+            "i32le" => Ok(FieldKind::SInt {
+                width: IntWidth::W32,
+                endian: EndianOverride::Little,
+            }),
+            "i64le" => Ok(FieldKind::SInt {
+                width: IntWidth::W64,
+                endian: EndianOverride::Little,
+            }),
+            "i16be" => Ok(FieldKind::SInt {
+                width: IntWidth::W16,
+                endian: EndianOverride::Big,
+            }),
+            "i32be" => Ok(FieldKind::SInt {
+                width: IntWidth::W32,
+                endian: EndianOverride::Big,
+            }),
+            "i64be" => Ok(FieldKind::SInt {
+                width: IntWidth::W64,
+                endian: EndianOverride::Big,
+            }),
 
             // ── Floats ───────────────────────────────────────────────────
-            "f32" => Ok(FieldKind::Float { width: FloatWidth::F32 }),
-            "f64" => Ok(FieldKind::Float { width: FloatWidth::F64 }),
+            "f32" => Ok(FieldKind::Float {
+                width: FloatWidth::F32,
+            }),
+            "f64" => Ok(FieldKind::Float {
+                width: FloatWidth::F64,
+            }),
 
             // ── Bytes ────────────────────────────────────────────────────
             "bytes" => {
@@ -322,7 +398,10 @@ impl Compiler {
                 } else {
                     StrSize::Fixed(compile_size(raw, ctx)?)
                 };
-                Ok(FieldKind::Str { size: str_size, encoding: enc })
+                Ok(FieldKind::Str {
+                    size: str_size,
+                    encoding: enc,
+                })
             }
 
             // ── Bits ─────────────────────────────────────────────────────
@@ -373,7 +452,7 @@ impl Compiler {
             // Strip one level
             match scope.rfind("::") {
                 Some(idx) => scope = &scope[..idx],
-                None      => break,
+                None => break,
             }
         }
 
@@ -445,13 +524,16 @@ fn placeholder(fqn: &str) -> CompiledType {
 }
 
 fn raw_endian_to_ir(e: RawEndian) -> Endian {
-    match e { RawEndian::Le => Endian::Little, RawEndian::Be => Endian::Big }
+    match e {
+        RawEndian::Le => Endian::Little,
+        RawEndian::Be => Endian::Big,
+    }
 }
 
 fn compile_encoding(enc: Option<RawEncoding>) -> Encoding {
     match enc.unwrap_or(RawEncoding::Utf8) {
-        RawEncoding::Utf8   => Encoding::Utf8,
-        RawEncoding::Ascii  => Encoding::Ascii,
+        RawEncoding::Utf8 => Encoding::Utf8,
+        RawEncoding::Ascii => Encoding::Ascii,
         RawEncoding::Latin1 => Encoding::Latin1,
     }
 }
@@ -461,7 +543,10 @@ fn compile_size(raw: &RawField, ctx: &FieldCtx) -> Result<SizeExpr> {
         None => Err(DoeError::FieldError {
             field: raw.id.clone(),
             context: ctx.parent_fqn.to_owned(),
-            message: format!("'{}' type requires 'size'", raw.type_ref.as_deref().unwrap_or("?")),
+            message: format!(
+                "'{}' type requires 'size'",
+                raw.type_ref.as_deref().unwrap_or("?")
+            ),
         }),
         Some(StringOrInt::Int(n)) => Ok(SizeExpr::Literal(*n as usize)),
         Some(StringOrInt::Str(s)) => {
@@ -477,23 +562,29 @@ fn compile_size(raw: &RawField, ctx: &FieldCtx) -> Result<SizeExpr> {
 /// Parse and compile a `repeat-expr` expression.
 fn compile_repeat(raw: &RawField, ctx: &FieldCtx) -> Result<RepeatMode> {
     match raw.repeat {
-        None                 => Ok(RepeatMode::Once),
+        None => Ok(RepeatMode::Once),
         Some(RawRepeat::Eos) => Ok(RepeatMode::Eos),
         Some(RawRepeat::Until) => {
-            let s = raw.repeat_until.as_deref().ok_or_else(|| DoeError::FieldError {
-                field: raw.id.clone(),
-                context: ctx.parent_fqn.to_owned(),
-                message: "'repeat: until' requires 'repeat-until'".to_owned(),
-            })?;
+            let s = raw
+                .repeat_until
+                .as_deref()
+                .ok_or_else(|| DoeError::FieldError {
+                    field: raw.id.clone(),
+                    context: ctx.parent_fqn.to_owned(),
+                    message: "'repeat: until' requires 'repeat-until'".to_owned(),
+                })?;
             let ast = expr::parse(s)?;
             Ok(RepeatMode::Until(ast))
         }
         Some(RawRepeat::Expr) => {
-            let s = raw.repeat_expr.as_deref().ok_or_else(|| DoeError::FieldError {
-                field: raw.id.clone(),
-                context: ctx.parent_fqn.to_owned(),
-                message: "'repeat: expr' requires 'repeat-expr'".to_owned(),
-            })?;
+            let s = raw
+                .repeat_expr
+                .as_deref()
+                .ok_or_else(|| DoeError::FieldError {
+                    field: raw.id.clone(),
+                    context: ctx.parent_fqn.to_owned(),
+                    message: "'repeat: expr' requires 'repeat-expr'".to_owned(),
+                })?;
             let ast = expr::parse(s)?;
             Ok(RepeatMode::Count(ast))
         }
@@ -503,7 +594,7 @@ fn compile_repeat(raw: &RawField, ctx: &FieldCtx) -> Result<RepeatMode> {
 fn compile_contents(contents: &RawContents, field_id: &str, parent_fqn: &str) -> Result<FieldKind> {
     let bytes = match contents {
         RawContents::Bytes(b) => b.clone(),
-        RawContents::Str(s)   => s.as_bytes().to_vec(),
+        RawContents::Str(s) => s.as_bytes().to_vec(),
     };
     if bytes.is_empty() {
         return Err(DoeError::FieldError {
@@ -524,9 +615,11 @@ fn compile_enums(
     for (enum_name, raw_map) in raw_enums {
         let mut ce = CompiledEnum::default();
         for (key_str, variant_name) in raw_map {
-            let key: u64 = parse_enum_key(key_str).ok_or_else(|| DoeError::Schema(
-                format!("enum '{enum_name}' in {context}: invalid key '{key_str}'")
-            ))?;
+            let key: u64 = parse_enum_key(key_str).ok_or_else(|| {
+                DoeError::Schema(format!(
+                    "enum '{enum_name}' in {context}: invalid key '{key_str}'"
+                ))
+            })?;
             ce.variants.insert(key, variant_name.clone());
         }
         result.insert(enum_name.clone(), ce);
@@ -577,8 +670,8 @@ fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx, src: &str) -> Result
             }
             Ok(())
         }
-        Expr::Unary(_, inner)        => check_field_refs_in_expr(inner, ctx, src),
-        Expr::Binary(_, lhs, rhs)    => {
+        Expr::Unary(_, inner) => check_field_refs_in_expr(inner, ctx, src),
+        Expr::Binary(_, lhs, rhs) => {
             check_field_refs_in_expr(lhs, ctx, src)?;
             check_field_refs_in_expr(rhs, ctx, src)
         }
@@ -630,8 +723,13 @@ mod tests {
                 type: u8
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(ty.fields[0].kind,
-            FieldKind::UInt { width: IntWidth::W8, endian: EndianOverride::Inherit }));
+        assert!(matches!(
+            ty.fields[0].kind,
+            FieldKind::UInt {
+                width: IntWidth::W8,
+                endian: EndianOverride::Inherit
+            }
+        ));
     }
 
     #[test]
@@ -643,8 +741,13 @@ mod tests {
                 type: u32be
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(ty.fields[0].kind,
-            FieldKind::UInt { width: IntWidth::W32, endian: EndianOverride::Big }));
+        assert!(matches!(
+            ty.fields[0].kind,
+            FieldKind::UInt {
+                width: IntWidth::W32,
+                endian: EndianOverride::Big
+            }
+        ));
     }
 
     #[test]
@@ -656,8 +759,13 @@ mod tests {
                 type: u64le
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(ty.fields[0].kind,
-            FieldKind::UInt { width: IntWidth::W64, endian: EndianOverride::Little }));
+        assert!(matches!(
+            ty.fields[0].kind,
+            FieldKind::UInt {
+                width: IntWidth::W64,
+                endian: EndianOverride::Little
+            }
+        ));
     }
 
     #[test]
@@ -669,8 +777,13 @@ mod tests {
                 type: i32
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(ty.fields[0].kind,
-            FieldKind::SInt { width: IntWidth::W32, endian: EndianOverride::Inherit }));
+        assert!(matches!(
+            ty.fields[0].kind,
+            FieldKind::SInt {
+                width: IntWidth::W32,
+                endian: EndianOverride::Inherit
+            }
+        ));
     }
 
     #[test]
@@ -682,15 +795,22 @@ mod tests {
                 type: i16be
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(ty.fields[0].kind,
-            FieldKind::SInt { width: IntWidth::W16, endian: EndianOverride::Big }));
+        assert!(matches!(
+            ty.fields[0].kind,
+            FieldKind::SInt {
+                width: IntWidth::W16,
+                endian: EndianOverride::Big
+            }
+        ));
     }
 
     #[test]
     fn compile_all_unsigned_widths() {
         for (type_str, expected_width) in &[
-            ("u8", IntWidth::W8), ("u16", IntWidth::W16),
-            ("u32", IntWidth::W32), ("u64", IntWidth::W64),
+            ("u8", IntWidth::W8),
+            ("u16", IntWidth::W16),
+            ("u32", IntWidth::W32),
+            ("u64", IntWidth::W64),
         ] {
             let yaml = format!("id: t\nseq:\n  - id: x\n    type: {}", type_str);
             let reg = compile(&yaml);
@@ -714,7 +834,12 @@ mod tests {
                 type: f32
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(ty.fields[0].kind, FieldKind::Float { width: FloatWidth::F32 }));
+        assert!(matches!(
+            ty.fields[0].kind,
+            FieldKind::Float {
+                width: FloatWidth::F32
+            }
+        ));
     }
 
     #[test]
@@ -726,7 +851,12 @@ mod tests {
                 type: f64
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(ty.fields[0].kind, FieldKind::Float { width: FloatWidth::F64 }));
+        assert!(matches!(
+            ty.fields[0].kind,
+            FieldKind::Float {
+                width: FloatWidth::F64
+            }
+        ));
     }
 
     // ── Bytes and strings ─────────────────────────────────────────────────────
@@ -741,7 +871,12 @@ mod tests {
                 size: 16
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(ty.fields[0].kind, FieldKind::Bytes { size: SizeExpr::Literal(16) }));
+        assert!(matches!(
+            ty.fields[0].kind,
+            FieldKind::Bytes {
+                size: SizeExpr::Literal(16)
+            }
+        ));
     }
 
     #[test]
@@ -756,7 +891,12 @@ mod tests {
                 size: len
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(ty.fields[1].kind, FieldKind::Bytes { size: SizeExpr::Dynamic(_) }));
+        assert!(matches!(
+            ty.fields[1].kind,
+            FieldKind::Bytes {
+                size: SizeExpr::Dynamic(_)
+            }
+        ));
     }
 
     #[test]
@@ -770,7 +910,11 @@ mod tests {
                 encoding: ascii
         "#});
         let ty = reg.get("t").unwrap();
-        if let FieldKind::Str { size: StrSize::Fixed(SizeExpr::Literal(8)), encoding } = &ty.fields[0].kind {
+        if let FieldKind::Str {
+            size: StrSize::Fixed(SizeExpr::Literal(8)),
+            encoding,
+        } = &ty.fields[0].kind
+        {
             assert_eq!(*encoding, Encoding::Ascii);
         } else {
             panic!("unexpected field kind: {:?}", ty.fields[0].kind);
@@ -786,7 +930,13 @@ mod tests {
                 type: strz
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(ty.fields[0].kind, FieldKind::Str { size: StrSize::Terminator(0), .. }));
+        assert!(matches!(
+            ty.fields[0].kind,
+            FieldKind::Str {
+                size: StrSize::Terminator(0),
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -799,7 +949,13 @@ mod tests {
                 terminator: 0x0a
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(ty.fields[0].kind, FieldKind::Str { size: StrSize::Terminator(0x0a), .. }));
+        assert!(matches!(
+            ty.fields[0].kind,
+            FieldKind::Str {
+                size: StrSize::Terminator(0x0a),
+                ..
+            }
+        ));
     }
 
     // ── Bits ─────────────────────────────────────────────────────────────────
@@ -839,7 +995,9 @@ mod tests {
                 contents: [0x89, 0x50, 0x4e, 0x47]
         "#});
         let ty = reg.get("t").unwrap();
-        assert!(matches!(&ty.fields[0].kind, FieldKind::Contents(b) if b == &[0x89u8, 0x50, 0x4e, 0x47]));
+        assert!(
+            matches!(&ty.fields[0].kind, FieldKind::Contents(b) if b == &[0x89u8, 0x50, 0x4e, 0x47])
+        );
     }
 
     #[test]
@@ -1076,8 +1234,11 @@ mod tests {
               - id: len
                 type: u32
         "#});
-        assert!(matches!(err, DoeError::FieldError { .. }),
-            "expected FieldError, got {:?}", err);
+        assert!(
+            matches!(err, DoeError::FieldError { .. }),
+            "expected FieldError, got {:?}",
+            err
+        );
     }
 
     #[test]
@@ -1192,7 +1353,12 @@ mod tests {
         assert_eq!(chunk.fields.len(), 4);
 
         // body.size should be dynamic (references `length`)
-        assert!(matches!(chunk.fields[2].kind, FieldKind::Bytes { size: SizeExpr::Dynamic(_) }));
+        assert!(matches!(
+            chunk.fields[2].kind,
+            FieldKind::Bytes {
+                size: SizeExpr::Dynamic(_)
+            }
+        ));
     }
 
     #[test]
@@ -1244,9 +1410,9 @@ mod tests {
 
     #[test]
     fn parse_enum_key_decimal() {
-        assert_eq!(parse_enum_key("0"),   Some(0));
+        assert_eq!(parse_enum_key("0"), Some(0));
         assert_eq!(parse_enum_key("255"), Some(255));
-        assert_eq!(parse_enum_key("1"),   Some(1));
+        assert_eq!(parse_enum_key("1"), Some(1));
     }
 
     #[test]
@@ -1259,9 +1425,9 @@ mod tests {
 
     #[test]
     fn parse_enum_key_invalid() {
-        assert_eq!(parse_enum_key(""),      None);
-        assert_eq!(parse_enum_key("abc"),   None);
-        assert_eq!(parse_enum_key("0xgg"),  None);
+        assert_eq!(parse_enum_key(""), None);
+        assert_eq!(parse_enum_key("abc"), None);
+        assert_eq!(parse_enum_key("0xgg"), None);
     }
 
     // ── Duplicate type detection ──────────────────────────────────────────────
@@ -1276,7 +1442,8 @@ mod tests {
             seq:
               - id: x
                 type: u8
-        "#}).unwrap();
+        "#})
+        .unwrap();
         schema_a.source_path = Some(PathBuf::from("/types/a.yaml"));
 
         let mut schema_b: RawSchema = serde_yaml::from_str(indoc! {r#"
@@ -1284,15 +1451,24 @@ mod tests {
             seq:
               - id: y
                 type: u16
-        "#}).unwrap();
+        "#})
+        .unwrap();
         schema_b.source_path = Some(PathBuf::from("/types/b.yaml"));
 
         let mut compiler = Compiler::new(vec![]);
         compiler.process_schema(&schema_a).unwrap();
         let err = compiler.process_schema(&schema_b).unwrap_err();
-        assert!(matches!(err, DoeError::DuplicateType { .. }),
-            "expected DuplicateType, got {:?}", err);
-        if let DoeError::DuplicateType { name, first, second } = err {
+        assert!(
+            matches!(err, DoeError::DuplicateType { .. }),
+            "expected DuplicateType, got {:?}",
+            err
+        );
+        if let DoeError::DuplicateType {
+            name,
+            first,
+            second,
+        } = err
+        {
             assert_eq!(name, "my_type");
             assert!(first.contains("a.yaml"), "first={}", first);
             assert!(second.contains("b.yaml"), "second={}", second);
@@ -1309,7 +1485,8 @@ mod tests {
             seq:
               - id: val
                 type: u8
-        "#}).unwrap();
+        "#})
+        .unwrap();
         schema.source_path = Some(PathBuf::from("/types/shared.yaml"));
 
         let mut compiler = Compiler::new(vec![]);

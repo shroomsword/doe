@@ -83,8 +83,15 @@ fn write_value(out: &mut String, value: &Value, depth: usize, indent: &str, labe
         // ── Array ─────────────────────────────────────────────────────────
         Value::Array(items) => {
             write_line(
-                out, depth, indent, label,
-                &format!("[{} item{}]", items.len(), if items.len() == 1 { "" } else { "s" }),
+                out,
+                depth,
+                indent,
+                label,
+                &format!(
+                    "[{} item{}]",
+                    items.len(),
+                    if items.len() == 1 { "" } else { "s" }
+                ),
             );
             for (i, item) in items.iter().enumerate() {
                 let index_label = format!("[{}]", i);
@@ -160,18 +167,32 @@ mod tests {
 
     #[test]
     fn render_enum_named() {
-        let v = struct_val("t", vec![
-            ("kind", Value::Enum { value: 1, name: Some("data".into()) })
-        ]);
+        let v = struct_val(
+            "t",
+            vec![(
+                "kind",
+                Value::Enum {
+                    value: 1,
+                    name: Some("data".into()),
+                },
+            )],
+        );
         let out = render(&v);
         assert!(out.contains("kind  data (1)"));
     }
 
     #[test]
     fn render_enum_unnamed() {
-        let v = struct_val("t", vec![
-            ("kind", Value::Enum { value: 99, name: None })
-        ]);
+        let v = struct_val(
+            "t",
+            vec![(
+                "kind",
+                Value::Enum {
+                    value: 99,
+                    name: None,
+                },
+            )],
+        );
         let out = render(&v);
         assert!(out.contains("kind  99"));
     }
@@ -180,11 +201,14 @@ mod tests {
 
     #[test]
     fn absent_field_not_rendered() {
-        let v = struct_val("t", vec![
-            ("a", Value::UInt(1)),
-            ("b", Value::Absent),
-            ("c", Value::UInt(3)),
-        ]);
+        let v = struct_val(
+            "t",
+            vec![
+                ("a", Value::UInt(1)),
+                ("b", Value::Absent),
+                ("c", Value::UInt(3)),
+            ],
+        );
         let out = render(&v);
         assert!(out.contains("a  1"));
         assert!(!out.contains("b"));
@@ -195,13 +219,13 @@ mod tests {
 
     #[test]
     fn render_array_of_uints() {
-        let v = struct_val("t", vec![
-            ("items", Value::Array(vec![
-                Value::UInt(10),
-                Value::UInt(20),
-                Value::UInt(30),
-            ]))
-        ]);
+        let v = struct_val(
+            "t",
+            vec![(
+                "items",
+                Value::Array(vec![Value::UInt(10), Value::UInt(20), Value::UInt(30)]),
+            )],
+        );
         let out = render(&v);
         assert!(out.contains("items  [3 items]"));
         assert!(out.contains("[0]  10"));
@@ -296,14 +320,15 @@ mod tests {
     fn array_of_structs() {
         let make_point = |x: u64, y: u64| Value::Struct {
             type_name: "point".into(),
-            fields: vec![
-                ("x".into(), Value::UInt(x)),
-                ("y".into(), Value::UInt(y)),
-            ],
+            fields: vec![("x".into(), Value::UInt(x)), ("y".into(), Value::UInt(y))],
         };
-        let v = struct_val("t", vec![
-            ("points", Value::Array(vec![make_point(1, 2), make_point(3, 4)]))
-        ]);
+        let v = struct_val(
+            "t",
+            vec![(
+                "points",
+                Value::Array(vec![make_point(1, 2), make_point(3, 4)]),
+            )],
+        );
         let out = render(&v);
         assert!(out.contains("points  [2 items]"));
         assert!(out.contains("[0]  point"));
@@ -321,16 +346,19 @@ mod tests {
             type_name: "png::chunk".into(),
             fields: vec![
                 ("length".into(), Value::UInt(len)),
-                ("type".into(),   Value::Str(tag.into())),
-                ("body".into(),   Value::Bytes(vec![0u8; len as usize])),
-                ("crc".into(),    Value::UInt(0xdeadbeef)),
+                ("type".into(), Value::Str(tag.into())),
+                ("body".into(), Value::Bytes(vec![0u8; len as usize])),
+                ("crc".into(), Value::UInt(0xdeadbeef)),
             ],
         };
         let v = Value::Struct {
             type_name: "png".into(),
             fields: vec![
                 ("signature".into(), Value::Bytes(vec![0u8; 8])),
-                ("chunks".into(),    Value::Array(vec![chunk("IHDR", 13), chunk("IEND", 0)])),
+                (
+                    "chunks".into(),
+                    Value::Array(vec![chunk("IHDR", 13), chunk("IEND", 0)]),
+                ),
             ],
         };
         let out = render(&v);
