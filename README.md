@@ -1,4 +1,7 @@
 # doe
+
+[![CI](https://github.com/shroomsword/doe/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shroomsword/doe/actions/workflows/ci.yml?query=branch%3Amain)
+
 decoder of everything
 
 `doe` parses binary files according to a declarative YAML schema and prints
