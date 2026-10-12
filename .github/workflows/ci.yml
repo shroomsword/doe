@@ -1,0 +1,255 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Format check
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: cargo-deny
+
+      # Checks advisories (RustSec), licenses, bans, and sources against deny.toml. A newly published advisory can
+      # fail this step on an unrelated PR; that is an unexpected CI failure and is reported, not suppressed.
+      - name: Dependency checks
+        run: cargo deny --locked check
+
+  # Same platforms as the build matrix below. Keep the two matrices in sync.
+  test:
+    name: test (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            native: true
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            native: true
+          # The runner is Apple Silicon, so this variant compiles the tests but cannot execute them.
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            native: false
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            native: true
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: test-${{ matrix.target }}
+
+      # Native variants run unit, integration, and doc tests on the host. The cross-compiled variant only
+      # compiles them (--no-run), which still catches platform-specific compile errors in test code.
+      - name: Test
+        env:
+          TARGET: ${{ matrix.target }}
+          NATIVE: ${{ matrix.native }}
+        run: |
+          set -euo pipefail
+          if [[ "$NATIVE" == "true" ]]; then
+            cargo test --workspace --all-features --locked
+          else
+            cargo test --workspace --all-features --locked --target "$TARGET" --no-run
+          fi
+
+  # One variant per shipped platform. Keep this matrix in sync with the test matrix above and with the release
+  # workflow's build matrix.
+  build:
+    name: build (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          # Cross-compiled on the Apple Silicon runner; the macOS SDK supports both architectures.
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: build-${{ matrix.target }}
+
+      - name: Build (release profile)
+        run: cargo build --workspace --all-features --release --locked --target ${{ matrix.target }}
+
+      # Checks the minimum supported Rust version declared in Cargo.toml, if any. Only the library and binary
+      # targets are checked, because dev-dependencies may legitimately require a newer compiler. Run once, on Linux.
+      - name: MSRV check
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          set -euo pipefail
+          msrv=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '[.packages[].rust_version | select(. != null)] | max // empty')
+          if [[ -z "$msrv" ]]; then
+            echo "No rust-version declared; skipping MSRV check"
+            exit 0
+          fi
+          echo "Checking MSRV ${msrv}"
+          rustup toolchain install "$msrv" --profile minimal
+          cargo "+${msrv}" check --workspace --all-features --locked
+
+  doc:
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Documentation
+        run: cargo doc --workspace --all-features --no-deps --locked
+
+  # Library API compatibility against the PR's base branch. On events other than pull_request the steps are skipped
+  # and the job succeeds, so the ci aggregate is not blocked.
+  semver:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        if: github.event_name == 'pull_request'
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        if: github.event_name == 'pull_request'
+        with:
+          tool: cargo-semver-checks
+
+      # Checks every library crate that also exists on the base branch. Breaking changes pass only when the PR carries
+      # the `breaking` label, read at run time so that re-running the job picks up a label added later.
+      - name: Semver check
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          base="origin/${BASE}"
+          metadata=$(cargo metadata --no-deps --format-version 1)
+          root=$(jq -r .workspace_root <<< "$metadata")
+          packages=()
+          while IFS=$'\t' read -r name manifest; do
+            if git cat-file -e "${base}:${manifest#"$root"/}" 2>/dev/null; then
+              packages+=(--package "$name")
+            else
+              echo "Skipping ${name}: not present on ${BASE}"
+            fi
+          done < <(jq -r '.packages[]
+            | select(any(.targets[]; any(.kind[]; . == "lib" or . == "rlib")))
+            | [.name, .manifest_path] | @tsv' <<< "$metadata")
+          if [[ ${#packages[@]} -eq 0 ]]; then
+            echo "No library crates to check"
+            exit 0
+          fi
+          if cargo semver-checks --baseline-rev "$base" "${packages[@]}"; then
+            exit 0
+          fi
+          if gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name' | grep -qx breaking; then
+            echo "::warning::Breaking API changes found; the PR carries the breaking label"
+            exit 0
+          fi
+          echo "::error::Breaking API changes found (or the check failed; see above). If the break is intended, add the breaking label and re-run this job."
+          exit 1
+
+  # Builds the fuzz targets (not part of the workspace) and replays each target's committed seeds. This is a
+  # regression check, not fuzzing: real fuzzing runs are done by hand (see the README).
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          toolchain: nightly
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: fuzz
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: cargo-fuzz
+
+      # The target is explicit because the prebuilt cargo-fuzz binary defaults to its own (musl) host triple, for
+      # which the sanitizers cannot be used.
+      - name: Build fuzz targets
+        run: cargo +nightly fuzz build --target x86_64-unknown-linux-gnu
+
+      - name: Replay seeds
+        run: |
+          set -euo pipefail
+          for target in cursor expr engine schema; do
+            mkdir -p "fuzz/corpus/${target}"
+            cargo +nightly fuzz run --target x86_64-unknown-linux-gnu "${target}" "fuzz/corpus/${target}" "fuzz/seeds/${target}" -- -runs=2000
+          done
+
+  # Aggregate result. This is the only check the ruleset requires.
+  ci:
+    if: always()
+    needs: [lint, test, build, doc, semver, fuzz]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        env:
+          FAILED: >-
+            ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+            || contains(needs.*.result, 'skipped') }}
+        run: |
+          if [[ "$FAILED" == "true" ]]; then
+            echo "::error::One or more CI jobs did not succeed"
+            exit 1
+          fi
