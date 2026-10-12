@@ -15,7 +15,17 @@ path = "src/main.rs"
 [dependencies]
 doe = { path = "../doe" }
 anyhow = { workspace = true, features = ["std"] }
+anstream = { workspace = true, features = ["auto", "wincon"] }
+anstyle = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["std", "derive", "help", "usage", "error-context", "color"] }
+
+clap_complete.workspace = true
+clap_mangen.workspace = true
+clap-verbosity-flag = { workspace = true, features = ["log"] }
+etcetera.workspace = true
+fern.workspace = true
+humantime.workspace = true
+log.workspace = true
 
 [dev-dependencies]
 assert_cmd.workspace = true

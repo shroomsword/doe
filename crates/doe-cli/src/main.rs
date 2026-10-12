@@ -1,113 +1,58 @@
 //! `doe` binary — CLI entry point.
 //!
-//! All logic lives in the `doe` library crate.  This file is responsible
-//! only for argument parsing, delegating to `doe::parse_file`, and writing
-//! output / exit codes.
-//!
-//! ## Help generation
-//!
-//! `--help` output is augmented with the list of types available on the
-//! configured include paths.  This requires a two-pass strategy:
-//!
-//! 1. Parse flags only (no positional args) to discover `-I` / `-c` values.
-//! 2. Load the config, resolve include paths, and scan for available types.
-//! 3. If `--help` was requested, print standard clap help followed by the
-//!    type list, then exit.  Otherwise, proceed with normal argument parsing.
+//! All logic lives in the `doe` library crate.  This file parses arguments,
+//! sets up logging, runs the requested command and maps the result to an
+//! exit code.
+
+mod cli;
+mod commands;
+mod logging;
 
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use anyhow::Context;
-use clap::{CommandFactory, Parser as ClapParser};
+use clap::Parser;
+use doe::config::Config;
 
-use doe::config::{Config, resolve_include_paths};
-use doe::{OutputFormat, discover_types};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CLI definition
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// doe — binary file parser
-///
-/// Parses a binary FILE according to a schema and prints the result.
-/// The schema can be supplied as either a known type name resolved from the
-/// include paths, or a path to a YAML schema file.
-#[derive(ClapParser, Debug)]
-#[command(name = "doe", version, about, long_about = None, disable_help_flag = true)]
-struct Cli {
-    /// Binary file to parse.
-    file: PathBuf,
-
-    /// Type name (e.g. `png`) or path to a YAML schema file.
-    type_or_schema: String,
-
-    /// Add a directory to the schema search path (repeatable).
-    #[arg(short = 'I', long = "include-path", value_name = "DIR")]
-    include_paths: Vec<PathBuf>,
-
-    /// Config file path [default: ~/.config/doe/config.toml].
-    #[arg(short = 'c', long = "config", value_name = "FILE")]
-    config: Option<PathBuf>,
-
-    /// Emit compact JSON output.
-    #[arg(long)]
-    json: bool,
-
-    /// Emit pretty-printed JSON output.
-    #[arg(long)]
-    pretty: bool,
-
-    /// Indentation string for text output [default: two spaces].
-    #[arg(long, default_value = "  ", value_name = "STR")]
-    indent: String,
-
-    /// Print help, including available types from the include paths.
-    #[arg(long, short = 'h', action = clap::ArgAction::SetTrue)]
-    help: bool,
-}
-
-/// Flags-only subset of the CLI, used in the first pass to extract `-I` / `-c`
-/// before positional arguments are required.
-#[derive(ClapParser, Debug)]
-#[command(disable_help_flag = true, ignore_errors = true)]
-struct EarlyArgs {
-    #[arg(short = 'I', long = "include-path", value_name = "DIR")]
-    include_paths: Vec<PathBuf>,
-
-    #[arg(short = 'c', long = "config", value_name = "FILE")]
-    config: Option<PathBuf>,
-
-    #[arg(long, short = 'h', action = clap::ArgAction::SetTrue)]
-    help: bool,
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Entry point
-// ─────────────────────────────────────────────────────────────────────────────
+use crate::cli::Cli;
+use crate::logging::LogSettings;
 
 fn main() -> ExitCode {
-    match try_main() {
+    let cli = Cli::parse();
+    match try_main(&cli) {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) if is_broken_pipe(&err) => ExitCode::SUCCESS,
         Err(err) => {
-            report(&err);
+            report(&cli, &err);
             ExitCode::FAILURE
         }
     }
 }
 
-fn try_main() -> anyhow::Result<()> {
-    // ── Pass 1: extract flags without requiring positional args ───────────────
-    let early = EarlyArgs::parse();
-
-    if early.help {
-        return print_help(&early.include_paths, early.config.as_deref());
+fn try_main(cli: &Cli) -> anyhow::Result<()> {
+    // Generating completions or the man page needs neither config nor logs.
+    if cli.command.is_some() {
+        return commands::dispatch(cli, &Config::default());
     }
 
-    // ── Pass 2: full parse now that we know --help was not requested ──────────
-    let cli = Cli::parse();
-    run(&cli)
+    // A broken config file is reported as the command's error, but logging is
+    // set up first so the error reaches the log file and honours `-q`.
+    let config = Config::load_or_default(cli.config.as_deref());
+    let loaded = config.as_ref().ok();
+
+    logging::init(&LogSettings {
+        stderr_level: cli.verbosity.log_level_filter(),
+        color: cli.color,
+        file_level_flag: cli.log_level.map(Into::into),
+        file_level_config: loaded.and_then(|c| c.log.level),
+        file_path: cli.log_file.as_deref(),
+    })?;
+    log::debug!(
+        "config file: {}",
+        commands::describe_config(cli.config.as_deref())
+    );
+
+    commands::dispatch(cli, &config?)
 }
 
 /// Returns `true` if `err` was caused by the reader of stdout going away.
@@ -117,104 +62,18 @@ fn is_broken_pipe(err: &anyhow::Error) -> bool {
         .any(|e| e.kind() == io::ErrorKind::BrokenPipe)
 }
 
-/// Print `error: <message>` and each cause to stderr.
-fn report(err: &anyhow::Error) {
-    let mut stderr = io::stderr().lock();
-    // If stderr itself is unwritable there is nowhere left to report to.
-    let _ = writeln!(stderr, "error: {err}");
+/// Report a failure: `error: <message>` and each cause, through the logger.
+fn report(cli: &Cli, err: &anyhow::Error) {
+    let mut message = err.to_string();
     for cause in err.chain().skip(1) {
-        let _ = writeln!(stderr, "  caused by: {cause}");
+        message.push_str("\n  caused by: ");
+        message.push_str(&cause.to_string());
     }
-}
-
-fn run(cli: &Cli) -> anyhow::Result<()> {
-    let format = if cli.pretty {
-        OutputFormat::JsonPretty
-    } else if cli.json {
-        OutputFormat::Json
-    } else {
-        OutputFormat::Text {
-            indent: cli.indent.clone(),
-        }
-    };
-
-    let output = doe::parse_file(
-        &cli.file,
-        &cli.type_or_schema,
-        &cli.include_paths,
-        cli.config.as_deref(),
-        format,
-    )
-    .with_context(|| {
-        format!(
-            "could not parse {} as {}",
-            cli.file.display(),
-            cli.type_or_schema
-        )
-    })?;
-
-    let mut stdout = io::stdout().lock();
-    write!(stdout, "{output}")?;
-    stdout.flush()?;
-    Ok(())
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Help output
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Resolve include paths from CLI flags and config file, then call
-/// `discover_types`.  On duplicate errors, return an error describing every
-/// conflict so the user knows their type library is broken before they waste
-/// time trying to parse a file.
-fn resolve_and_check_types(
-    cli_include_paths: &[PathBuf],
-    config_path: Option<&Path>,
-) -> anyhow::Result<Vec<doe::AvailableType>> {
-    let config = Config::load_or_default(config_path).unwrap_or_default();
-    let include_paths = resolve_include_paths(cli_include_paths, &config);
-
-    discover_types(&include_paths).map_err(|duplicates| {
-        let details: Vec<String> = duplicates.iter().map(ToString::to_string).collect();
-        anyhow::anyhow!(
-            "duplicate type ids found in include paths\n\n{}",
-            details.join("\n\n")
-        )
-    })
-}
-
-/// Print the standard clap help text followed by a list of types discovered
-/// on the resolved include paths.
-fn print_help(cli_include_paths: &[PathBuf], config_path: Option<&Path>) -> anyhow::Result<()> {
-    let types = resolve_and_check_types(cli_include_paths, config_path)?;
-
-    let mut stdout = io::stdout().lock();
-
-    // Print clap's generated help text for the main Cli struct.
-    Cli::command().write_help(&mut stdout)?;
-
-    if types.is_empty() {
-        if cli_include_paths.is_empty() {
-            writeln!(
-                stdout,
-                "\nAvailable types: none (no include paths configured)"
-            )?;
-        } else {
-            writeln!(stdout, "\nAvailable types: none found on include paths")?;
-        }
-        return Ok(());
+    if logging::installed() {
+        log::error!("{message}");
+    } else if cli.verbosity.log_level_filter() >= log::LevelFilter::Error {
+        let mut stderr = logging::color_stream(io::stderr(), cli.color);
+        // If stderr itself is unwritable there is nowhere left to report to.
+        let _ = writeln!(stderr, "error: {message}");
     }
-
-    writeln!(stdout, "\nAvailable types:")?;
-
-    // Align the doc column: pad each id to the width of the longest one.
-    let max_id_len = types.iter().map(|t| t.id.len()).max().unwrap_or(0);
-
-    for t in &types {
-        match &t.doc {
-            Some(doc) => writeln!(stdout, "  {:<max_id_len$}  {doc}", t.id)?,
-            None => writeln!(stdout, "  {}", t.id)?,
-        }
-    }
-    Ok(())
 }

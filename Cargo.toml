@@ -22,6 +22,7 @@ serde_json = { version = "1", default-features = false }
 thiserror = "1"
 etcetera = "0.11"
 toml = { version = "1", default-features = false }
+humantime = "2"
 log = "0.4"
 fern = { version = "0.7", default-features = false }
 anstream = { version = "1", default-features = false }
