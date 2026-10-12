@@ -1,13 +1,16 @@
 //! Configuration loading and include-path resolution.
 //!
-//! `doe` stores user configuration in a YAML file at
-//! `~/.doe/config/config.yaml` (overrideable with `-c`/`--config`).  The
-//! only key currently recognised is `include_paths`:
+//! `doe` stores user configuration in a TOML file at
+//! `$XDG_CONFIG_HOME/doe/config.toml`, falling back to
+//! `~/.config/doe/config.toml` (including on macOS), or the Windows
+//! known-folder location on Windows.  The location can be overridden with
+//! `-c`/`--config`.  Two keys are recognised:
 //!
-//! ```yaml
-//! include_paths:
-//!   - ~/.doe/types
-//!   - /usr/share/doe/types
+//! ```toml
+//! include_paths = ["~/.doe/types", "/usr/share/doe/types"]
+//!
+//! [log]
+//! level = "debug"
 //! ```
 //!
 //! When a bare type name such as `"png"` is requested, `doe` searches each
@@ -16,6 +19,7 @@
 
 use std::path::{Path, PathBuf};
 
+use etcetera::BaseStrategy;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{DoeError, Result};
@@ -26,15 +30,16 @@ use crate::error::{DoeError, Result};
 
 /// Contents of the `doe` configuration file.
 ///
-/// Serialises to and from the YAML structure shown in the module documentation.
+/// Serialises to and from the TOML structure shown in the module documentation.
 /// Unknown keys are rejected to surface typos early.
 ///
 /// # Example config file
 ///
-/// ```yaml
-/// include_paths:
-///   - ~/.doe/types
-///   - /usr/share/doe/types
+/// ```toml
+/// include_paths = ["~/.doe/types", "/usr/share/doe/types"]
+///
+/// [log]
+/// level = "debug"
 /// ```
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -45,6 +50,37 @@ pub struct Config {
     /// Tilde expansion (`~/`) is applied to each path.
     #[serde(default)]
     pub include_paths: Vec<PathBuf>,
+
+    /// Logging settings.
+    #[serde(default)]
+    pub log: LogConfig,
+}
+
+/// The `[log]` table of the configuration file.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct LogConfig {
+    /// Verbosity of the log file. The built-in default applies when unset.
+    #[serde(default)]
+    pub level: Option<LogLevel>,
+}
+
+/// A log verbosity, from `off` (nothing) to `trace` (everything).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    /// Log nothing.
+    Off,
+    /// Errors only.
+    Error,
+    /// Errors and warnings.
+    Warn,
+    /// Also informational messages.
+    Info,
+    /// Also debug messages.
+    Debug,
+    /// Also trace messages.
+    Trace,
 }
 
 impl Config {
@@ -57,7 +93,7 @@ impl Config {
     /// # Errors
     ///
     /// Returns [`DoeError::Io`] if the file exists but cannot be read, or
-    /// [`DoeError::Yaml`] if it cannot be parsed.
+    /// [`DoeError::Toml`] if it cannot be parsed.
     pub fn load(path: &Path) -> Result<Self> {
         if !path.exists() {
             return Ok(Config::default());
@@ -66,18 +102,38 @@ impl Config {
             path: path.to_owned(),
             source: e,
         })?;
-        serde_yaml::from_str(&text).map_err(|e| DoeError::Yaml {
+        toml::from_str(&text).map_err(|e| DoeError::Toml {
             path: path.to_owned(),
             source: e,
         })
     }
 
-    /// Return the platform-default config file path: `~/.doe/config/config.yaml`.
+    /// Load the configuration from `path`, or from [`Config::default_path`]
+    /// when `path` is `None`.
+    ///
+    /// If no path is given and the default location cannot be determined, the
+    /// default (empty) configuration is returned.
+    ///
+    /// # Errors
+    ///
+    /// See [`Config::load`].
+    pub fn load_or_default(path: Option<&Path>) -> Result<Self> {
+        match path.map(Path::to_owned).or_else(Self::default_path) {
+            Some(path) => Self::load(&path),
+            None => Ok(Config::default()),
+        }
+    }
+
+    /// Return the platform-default config file path:
+    /// `$XDG_CONFIG_HOME/doe/config.toml` (`~/.config/doe/config.toml` when the
+    /// variable is unset), or the Windows known-folder equivalent.
     ///
     /// Returns `None` if the user's home directory cannot be determined
     /// (unusual but possible in sandboxed environments).
     pub fn default_path() -> Option<PathBuf> {
-        dirs::home_dir().map(|h| h.join(".doe").join("config").join("config.yaml"))
+        etcetera::choose_base_strategy()
+            .ok()
+            .map(|strategy| strategy.config_dir().join("doe").join("config.toml"))
     }
 }
 
@@ -127,7 +183,7 @@ pub fn resolve_include_paths(cli_paths: &[PathBuf], config: &Config) -> Vec<Path
 /// ```
 pub fn expand_tilde(path: &Path) -> PathBuf {
     let s = path.to_string_lossy();
-    if let Some(home) = dirs::home_dir() {
+    if let Ok(home) = etcetera::home_dir() {
         if s == "~" {
             return home;
         }

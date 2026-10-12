@@ -238,7 +238,7 @@ Arguments:
 
 Options:
   -I, --include-path <DIR>  Add a directory to the schema search path (repeatable)
-  -c, --config <FILE>       Config file path [default: ~/.doe/config/config.yaml]
+  -c, --config <FILE>       Config file path [default: ~/.config/doe/config.toml]
       --json                Emit compact JSON
       --pretty              Emit pretty-printed JSON
       --indent <STR>        Indentation string for text output [default: "  "]
@@ -252,17 +252,26 @@ through the configured include paths.
 
 ## Configuration
 
-`doe` reads `~/.doe/config/config.yaml` on startup. The only current key is
-`include_paths`, a list of directories to search for bare type names:
+`doe` reads a TOML file on startup, from `$XDG_CONFIG_HOME/doe/config.toml`
+(`~/.config/doe/config.toml` when the variable is unset, on macOS as well) or
+the known-folder location on Windows. `-c`/`--config` selects another file. A
+missing file is not an error; a file that does not parse, or has an unknown
+key, is, and the message names the file and line.
 
-```yaml
-include_paths:
-  - ~/.doe/types
-  - /usr/share/doe/types
+```toml
+include_paths = ["~/.doe/types", "/usr/share/doe/types"]
+
+[log]
+level = "debug"
 ```
 
-Command-line `-I` paths take priority over config-file paths. A missing config
-file is not an error.
+| Key | Type | Meaning | Overriding flag |
+|-----|------|---------|-----------------|
+| `include_paths` | list of paths | Directories searched for bare type names, in order. `~/` is expanded. | `-I`/`--include-path` (these come first) |
+| `log.level` | `off`, `error`, `warn`, `info`, `debug`, `trace` | Verbosity of the log file. Default `debug`. | `--log-level` |
+
+> **Upgrading:** earlier versions read `~/.doe/config/config.yaml`. That file
+> is no longer read; move its settings into the TOML file above.
 
 ## Using as a library
 

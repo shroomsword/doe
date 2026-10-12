@@ -46,7 +46,7 @@ struct Cli {
     #[arg(short = 'I', long = "include-path", value_name = "DIR")]
     include_paths: Vec<PathBuf>,
 
-    /// Config file path [default: ~/.doe/config/config.yaml].
+    /// Config file path [default: ~/.config/doe/config.toml].
     #[arg(short = 'c', long = "config", value_name = "FILE")]
     config: Option<PathBuf>,
 
@@ -171,12 +171,7 @@ fn resolve_and_check_types(
     cli_include_paths: &[PathBuf],
     config_path: Option<&Path>,
 ) -> anyhow::Result<Vec<doe::AvailableType>> {
-    let cfg_path = config_path
-        .map(Path::to_owned)
-        .or_else(Config::default_path)
-        .unwrap_or_else(|| PathBuf::from(".doe_config.yaml"));
-
-    let config = Config::load(&cfg_path).unwrap_or_default();
+    let config = Config::load_or_default(config_path).unwrap_or_default();
     let include_paths = resolve_include_paths(cli_include_paths, &config);
 
     discover_types(&include_paths).map_err(|duplicates| {
