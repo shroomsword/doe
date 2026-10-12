@@ -91,6 +91,7 @@ impl Compiler {
     /// Returns an error if the schema cannot be found, read, or compiled.
     pub fn load(&mut self, name_or_path: &str, relative_to: Option<&Path>) -> Result<()> {
         let path = self.resolve_path(name_or_path, relative_to)?;
+        log::debug!("loading schema {name_or_path} from {}", path.display());
         let schema = load_yaml(&path)?;
         self.process_schema(&schema)
     }

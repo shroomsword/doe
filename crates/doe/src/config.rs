@@ -96,8 +96,10 @@ impl Config {
     /// [`DoeError::Toml`] if it cannot be parsed.
     pub fn load(path: &Path) -> Result<Self> {
         if !path.exists() {
+            log::debug!("no config file at {}; using defaults", path.display());
             return Ok(Config::default());
         }
+        log::debug!("reading config file {}", path.display());
         let text = std::fs::read_to_string(path).map_err(|e| DoeError::Io {
             path: path.to_owned(),
             source: e,
