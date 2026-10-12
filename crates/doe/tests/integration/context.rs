@@ -4,7 +4,7 @@ use doe::parser::context::*;
 #[test]
 fn new_context_is_empty() {
     let ctx = ParseContext::new();
-    assert!(ctx.current_fields().is_empty());
+    assert_eq!(ctx.current_fields(), []);
     assert!(ctx.lookup("x").is_none());
 }
 

@@ -634,7 +634,7 @@ fn repeat_eos_empty_input() {
         &[],
     );
     if let Value::Array(items) = get_field(&v, "items") {
-        assert!(items.is_empty());
+        assert_eq!(items.as_slice(), []);
     } else {
         panic!("expected Array");
     }
@@ -683,7 +683,7 @@ fn repeat_expr_zero_count() {
         &data,
     );
     if let Value::Array(items) = get_field(&v, "items") {
-        assert!(items.is_empty());
+        assert_eq!(items.as_slice(), []);
     } else {
         panic!("expected Array");
     }
