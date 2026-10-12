@@ -36,6 +36,11 @@ impl ParseContext {
         }
     }
 
+    /// The number of scopes entered, including the root scope.
+    pub fn depth(&self) -> usize {
+        self.value_frames.len()
+    }
+
     /// Push a new scope (entering a sub-type).
     pub fn push_scope(&mut self) {
         self.eval_ctx.push_frame();
