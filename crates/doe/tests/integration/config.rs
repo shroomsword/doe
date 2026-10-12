@@ -258,3 +258,67 @@ fn duplicate_type_error_display_contains_key_info() {
     // Should explain the shadowing mechanism
     assert!(msg.contains("higher-priority"));
 }
+
+// ── Default path, tilde expansion, load errors ────────────────────────────
+
+#[test]
+fn default_path_is_under_home_doe_config() {
+    if let Some(path) = Config::default_path() {
+        assert!(path.ends_with(".doe/config/config.yaml"), "{path:?}");
+        assert!(path.is_absolute());
+    }
+}
+
+#[test]
+fn load_directory_instead_of_file_is_io_error() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let err = Config::load(dir.path()).unwrap_err();
+    assert!(matches!(err, doe::DoeError::Io { .. }), "{err:?}");
+}
+
+#[test]
+fn expand_tilde_alone_is_home() {
+    if let Some(home) = dirs::home_dir() {
+        assert_eq!(expand_tilde(std::path::Path::new("~")), home);
+        assert_eq!(
+            expand_tilde(std::path::Path::new("~/a/b")),
+            home.join("a/b")
+        );
+    }
+}
+
+#[test]
+fn expand_tilde_leaves_other_paths_alone() {
+    for p in ["~user/x", "a/~", "/abs", "rel"] {
+        assert_eq!(
+            expand_tilde(std::path::Path::new(p)),
+            PathBuf::from(p),
+            "{p}"
+        );
+    }
+}
+
+#[test]
+fn available_type_orders_by_id() {
+    let make = |id: &str| AvailableType {
+        id: id.to_owned(),
+        doc: None,
+        source: PathBuf::from(format!("{id}.yaml")),
+    };
+    let mut types = [make("zeta"), make("alpha"), make("mid")];
+    types.sort();
+    let ids: Vec<_> = types.iter().map(|t| t.id.as_str()).collect();
+    assert_eq!(ids, ["alpha", "mid", "zeta"]);
+}
+
+#[test]
+fn discover_types_reports_id_doc_and_source() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let file = dir.path().join("thing.yaml");
+    std::fs::write(&file, "id: thing\ndoc: A thing\nseq: []\n").unwrap();
+    let found = discover_types(&[dir.path().to_owned()]).unwrap();
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].id, "thing");
+    assert_eq!(found[0].doc.as_deref(), Some("A thing"));
+    assert_eq!(found[0].source, file);
+}

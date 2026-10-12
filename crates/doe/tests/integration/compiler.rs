@@ -807,3 +807,260 @@ fn same_schema_loaded_twice_via_import_is_idempotent() {
     compiler.process_schema(&schema).unwrap();
     assert!(compiler.registry.contains("shared"));
 }
+
+// ── Every primitive type name ─────────────────────────────────────────────
+
+fn field_kind(type_name: &str) -> FieldKind {
+    let reg = compile(&format!("id: t\nseq:\n  - id: x\n    type: {type_name}\n"));
+    reg.get("t").unwrap().fields[0].kind.clone()
+}
+
+#[test]
+fn every_integer_type_name_compiles_to_its_width_and_endian() {
+    let cases = [
+        ("u16be", IntWidth::W16, EndianOverride::Big, false),
+        ("u32be", IntWidth::W32, EndianOverride::Big, false),
+        ("u64be", IntWidth::W64, EndianOverride::Big, false),
+        ("i16", IntWidth::W16, EndianOverride::Inherit, true),
+        ("i64", IntWidth::W64, EndianOverride::Inherit, true),
+        ("i16le", IntWidth::W16, EndianOverride::Little, true),
+        ("i32le", IntWidth::W32, EndianOverride::Little, true),
+        ("i64le", IntWidth::W64, EndianOverride::Little, true),
+        ("i32be", IntWidth::W32, EndianOverride::Big, true),
+        ("i64be", IntWidth::W64, EndianOverride::Big, true),
+    ];
+    for (name, width, endian, signed) in cases {
+        match field_kind(name) {
+            FieldKind::UInt {
+                width: w,
+                endian: e,
+            } if !signed => {
+                assert_eq!((w, e), (width, endian), "{name}");
+            }
+            FieldKind::SInt {
+                width: w,
+                endian: e,
+            } if signed => {
+                assert_eq!((w, e), (width, endian), "{name}");
+            }
+            other => panic!("{name} compiled to {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn int_widths_report_their_size_in_bytes() {
+    assert_eq!(IntWidth::W8.bytes(), 1);
+    assert_eq!(IntWidth::W16.bytes(), 2);
+    assert_eq!(IntWidth::W32.bytes(), 4);
+    assert_eq!(IntWidth::W64.bytes(), 8);
+    assert_eq!(FloatWidth::F32.bytes(), 4);
+    assert_eq!(FloatWidth::F64.bytes(), 8);
+}
+
+// ── Field validation ──────────────────────────────────────────────────────
+
+#[test]
+fn empty_contents_is_an_error() {
+    for contents in ["[]", "\"\""] {
+        let err = compile_err(&format!(
+            "id: t\nseq:\n  - id: magic\n    contents: {contents}\n"
+        ));
+        assert!(
+            matches!(&err, DoeError::FieldError { message, .. } if message.contains("empty")),
+            "{contents}: {err:?}"
+        );
+    }
+}
+
+#[test]
+fn size_expression_may_use_operators_and_parent_references() {
+    compile(indoc! {r#"
+        id: t
+        seq:
+          - id: len
+            type: u8
+          - id: data
+            type: bytes
+            size: "-(len) + len * 2 + 1 && !0"
+    "#});
+    compile(indoc! {r#"
+        id: t
+        seq:
+          - id: len
+            type: u8
+          - id: data
+            type: bytes
+            size: "_parent.len + 1"
+    "#});
+}
+
+#[test]
+fn size_expression_with_forward_reference_inside_operators_is_an_error() {
+    for size in ["-later", "1 + later", "len + later"] {
+        let err = compile_err(&format!(
+            "id: t\nseq:\n  - id: len\n    type: u8\n  - id: data\n    type: bytes\n    size: \"{size}\"\n  - id: later\n    type: u8\n"
+        ));
+        assert!(
+            matches!(&err, DoeError::FieldError { field, .. } if field == "later"),
+            "{size}: {err:?}"
+        );
+    }
+}
+
+// ── Type references across nesting levels ─────────────────────────────────
+
+#[test]
+fn nested_type_can_reference_a_sibling_and_an_outer_type() {
+    let reg = compile(indoc! {r"
+        id: outer
+        seq:
+          - id: a
+            type: first
+        types:
+          first:
+            seq:
+              - id: s
+                type: second
+              - id: o
+                type: outer_leaf
+          second:
+            seq:
+              - id: x
+                type: u8
+          outer_leaf:
+            seq:
+              - id: y
+                type: u8
+    "});
+    let first = reg.get("outer::first").unwrap();
+    assert!(matches!(
+        &first.fields[0].kind,
+        FieldKind::TypeRef { type_name } if type_name == "outer::second"
+    ));
+    assert!(matches!(
+        &first.fields[1].kind,
+        FieldKind::TypeRef { type_name } if type_name == "outer::outer_leaf"
+    ));
+}
+
+// ── Loading from disk: paths, imports, cycles ─────────────────────────────
+
+fn write(dir: &std::path::Path, name: &str, text: &str) -> std::path::PathBuf {
+    let path = dir.join(name);
+    std::fs::write(&path, text).unwrap();
+    path
+}
+
+#[test]
+fn compiler_loads_bare_name_from_include_path() {
+    let dir = tempfile::TempDir::new().unwrap();
+    write(dir.path(), "thing.yaml", "id: thing\nseq: []\n");
+    let mut compiler = Compiler::new(vec![dir.path().to_owned()]);
+    compiler.load("thing", None).unwrap();
+    assert!(compiler.registry.contains("thing"));
+}
+
+#[test]
+fn compiler_accepts_explicit_yaml_file_name_on_include_path() {
+    let dir = tempfile::TempDir::new().unwrap();
+    write(dir.path(), "thing.yaml", "id: thing\nseq: []\n");
+    let mut compiler = Compiler::new(vec![dir.path().to_owned()]);
+    compiler.load("thing.yaml", None).unwrap();
+    assert!(compiler.registry.contains("thing"));
+}
+
+#[test]
+fn missing_bare_name_lists_searched_paths() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let mut compiler = Compiler::new(vec![dir.path().to_owned()]);
+    let err = compiler.load("nope", None).unwrap_err();
+    assert!(
+        matches!(&err, DoeError::SchemaNotFound { name, searched }
+            if name == "nope" && searched == &[dir.path().join("nope.yaml")]),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn relative_path_is_resolved_against_the_importing_file() {
+    let dir = tempfile::TempDir::new().unwrap();
+    write(dir.path(), "dep.yaml", "id: dep\nseq: []\n");
+    let mut compiler = Compiler::new(vec![]);
+    compiler.load("./dep.yaml", Some(dir.path())).unwrap();
+    assert!(compiler.registry.contains("dep"));
+}
+
+#[test]
+fn missing_relative_path_reports_the_candidate() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let mut compiler = Compiler::new(vec![]);
+    let err = compiler.load("../gone.yaml", Some(dir.path())).unwrap_err();
+    assert!(
+        matches!(&err, DoeError::SchemaNotFound { searched, .. } if searched.len() == 1),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn imports_are_loaded_before_the_importing_schema() {
+    let dir = tempfile::TempDir::new().unwrap();
+    write(
+        dir.path(),
+        "dep.yaml",
+        "id: dep\nseq:\n  - id: v\n    type: u8\n",
+    );
+    write(
+        dir.path(),
+        "main.yaml",
+        "id: main\nimports: [./dep.yaml]\nseq:\n  - id: d\n    type: dep\n",
+    );
+    let mut compiler = Compiler::new(vec![]);
+    compiler.load("./main.yaml", Some(dir.path())).unwrap();
+    assert!(compiler.registry.contains("dep"));
+    assert!(compiler.registry.contains("main"));
+}
+
+#[test]
+fn import_cycles_are_detected() {
+    let dir = tempfile::TempDir::new().unwrap();
+    write(
+        dir.path(),
+        "a.yaml",
+        "id: a\nimports: [./b.yaml]\nseq: []\n",
+    );
+    write(
+        dir.path(),
+        "b.yaml",
+        "id: b\nimports: [./a.yaml]\nseq: []\n",
+    );
+    let mut compiler = Compiler::new(vec![]);
+    let err = compiler.load("./a.yaml", Some(dir.path())).unwrap_err();
+    assert!(
+        matches!(&err, DoeError::ImportCycle { cycle } if cycle.first() == cycle.last()),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn load_yaml_reads_and_records_the_source_path() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = write(dir.path(), "s.yaml", "id: s\nseq: []\n");
+    let schema = load_yaml(&path).unwrap();
+    assert_eq!(schema.id, "s");
+    assert_eq!(schema.source_path.as_deref(), Some(path.as_path()));
+}
+
+#[test]
+fn load_yaml_reports_io_and_yaml_errors() {
+    let dir = tempfile::TempDir::new().unwrap();
+    assert!(matches!(
+        load_yaml(&dir.path().join("missing.yaml")).unwrap_err(),
+        DoeError::Io { .. }
+    ));
+    let bad = write(dir.path(), "bad.yaml", "id: [unterminated\n");
+    assert!(matches!(
+        load_yaml(&bad).unwrap_err(),
+        DoeError::Yaml { .. }
+    ));
+}

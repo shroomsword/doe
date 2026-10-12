@@ -252,3 +252,10 @@ fn realistic_output_structure() {
     assert!(out.contains(r#"type  "IHDR""#));
     assert!(out.contains("[1]  png::chunk"));
 }
+
+#[test]
+fn render_uses_default_indent() {
+    let v = struct_val("t", vec![("x", Value::UInt(1))]);
+    assert_eq!(DEFAULT_INDENT, "  ");
+    assert_eq!(render(&v), render_with_indent(&v, DEFAULT_INDENT));
+}

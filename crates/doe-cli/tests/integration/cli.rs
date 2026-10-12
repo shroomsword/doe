@@ -192,3 +192,50 @@ fn closed_stdout_exits_successfully_without_panicking() {
     assert!(output.status.success(), "status: {:?}", output.status);
     assert!(output.stderr.is_empty(), "stderr: {:?}", output.stderr);
 }
+
+#[test]
+fn help_reports_include_paths_without_types() {
+    let dir = TempDir::new().unwrap();
+    doe()
+        .args(["-c", NO_CONFIG, "-I"])
+        .arg(dir.path())
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Available types: none found on include paths",
+        ));
+}
+
+#[test]
+fn help_lists_types_that_have_no_doc() {
+    let dir = TempDir::new().unwrap();
+    std::fs::write(dir.path().join("plain.yaml"), "id: plain\nseq: []\n").unwrap();
+    doe()
+        .args(["-c", NO_CONFIG, "-I"])
+        .arg(dir.path())
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\n  plain\n"));
+}
+
+#[test]
+fn invalid_expression_in_schema_fails_instead_of_being_truncated() {
+    let dir = TempDir::new().unwrap();
+    let schema = dir.path().join("bad.yaml");
+    std::fs::write(
+        &schema,
+        "id: bad\nseq:\n  - id: n\n    type: u8\n  - id: data\n    type: bytes\n    size: \"n = 1\"\n",
+    )
+    .unwrap();
+    let binary = dir.path().join("bad.bin");
+    std::fs::write(&binary, [1, 2, 3]).unwrap();
+    doe()
+        .args(["-c", NO_CONFIG])
+        .arg(&binary)
+        .arg(&schema)
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("unexpected token"));
+}
