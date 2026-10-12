@@ -1290,3 +1290,114 @@ fn field_errors_name_the_field_and_type() {
         "{err:?}"
     );
 }
+
+// ── Resource limits (regressions for hangs and overflows found by fuzzing) ─
+
+fn assert_field_error(err: &DoeError, needle: &str) {
+    assert!(
+        matches!(err, DoeError::FieldError { message, .. } if message.contains(needle)),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn self_referencing_type_is_an_error_not_a_stack_overflow() {
+    let yaml = "id: t\nseq:\n  - id: x\n    type: t\n";
+    assert_field_error(&parse_err(yaml, "t", &[1, 2, 3]), "nested more than");
+}
+
+#[test]
+fn mutually_recursive_types_are_an_error_not_a_stack_overflow() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: a
+            type: u
+        types:
+          u:
+            seq:
+              - id: b
+                type: t
+    "};
+    assert_field_error(&parse_err(yaml, "t", &[1, 2, 3]), "nested more than");
+}
+
+#[test]
+fn nesting_up_to_the_limit_still_parses() {
+    use std::fmt::Write;
+
+    // A chain of types, each holding the next, ending in a leaf byte.
+    let depth = MAX_TYPE_DEPTH - 1;
+    let mut yaml = String::from("id: t0\nseq:\n  - id: next\n    type: t1\ntypes:\n");
+    for i in 1..depth {
+        write!(
+            yaml,
+            "  t{i}:\n    seq:\n      - id: next\n        type: t{}\n",
+            i + 1
+        )
+        .unwrap();
+    }
+    write!(
+        yaml,
+        "  t{depth}:\n    seq:\n      - id: leaf\n        type: u8\n"
+    )
+    .unwrap();
+    let (engine, _) = engine_from_yaml(&yaml);
+    let mut cursor = Cursor::new(&[9]);
+    assert!(engine.parse_type("t0", &mut cursor).is_ok());
+}
+
+#[test]
+fn repeat_eos_of_an_empty_type_is_an_error_not_an_endless_loop() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: x
+            type: empty
+            repeat: eos
+        types:
+          empty:
+            seq: []
+    "};
+    assert_field_error(&parse_err(yaml, "t", &[1, 2, 3]), "consumed no bytes");
+}
+
+#[test]
+fn repeat_until_of_an_empty_type_is_an_error() {
+    let yaml = indoc! {r#"
+        id: t
+        seq:
+          - id: x
+            type: empty
+            repeat: until
+            repeat-until: "0"
+        types:
+          empty:
+            seq: []
+    "#};
+    assert_field_error(&parse_err(yaml, "t", &[1, 2, 3]), "consumed no bytes");
+}
+
+#[test]
+fn repeat_expr_of_zero_size_bytes_is_an_error() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: x
+            type: bytes
+            size: 0
+            repeat: expr
+            repeat-expr: 1000000000
+    "};
+    assert_field_error(&parse_err(yaml, "t", &[1]), "consumed no bytes");
+}
+
+#[test]
+fn repeat_eos_over_one_byte_elements_still_works() {
+    let yaml = "id: t\nseq:\n  - id: x\n    type: u8\n    repeat: eos\n";
+    let v = parse(yaml, "t", &[1, 2, 3]);
+    let Value::Array(items) = get_field(&v, "x") else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 3);
+}

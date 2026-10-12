@@ -19,6 +19,12 @@ use crate::value::Value;
 // Engine
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// The deepest nesting of types that [`Engine`] parses.
+///
+/// A type may refer to itself, directly or through other types; without a
+/// limit such a schema would recurse until the stack overflowed.
+pub const MAX_TYPE_DEPTH: usize = 128;
+
 /// Walks a compiled [`TypeRegistry`] over a byte buffer to produce a [`Value`] tree.
 #[derive(Debug)]
 pub struct Engine<'reg> {
@@ -96,7 +102,7 @@ impl<'reg> Engine<'reg> {
             RepeatMode::Eos => {
                 let mut items = Vec::new();
                 while !cursor.is_eof() {
-                    let v = self.parse_field_once(field, parent_ty, cursor, ctx)?;
+                    let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
                     items.push(v);
                 }
                 Ok(Value::Array(items))
@@ -120,7 +126,7 @@ impl<'reg> Engine<'reg> {
                 // than the remaining input can hold.
                 let mut items = Vec::with_capacity(count.min(cursor.remaining()));
                 for _ in 0..count {
-                    let v = self.parse_field_once(field, parent_ty, cursor, ctx)?;
+                    let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
                     items.push(v);
                 }
                 Ok(Value::Array(items))
@@ -128,7 +134,7 @@ impl<'reg> Engine<'reg> {
             RepeatMode::Until(until_expr) => {
                 let mut items = Vec::new();
                 loop {
-                    let v = self.parse_field_once(field, parent_ty, cursor, ctx)?;
+                    let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
                     // Bind the most recently parsed value to `_` so the
                     // until-expression can reference it, matching the convention
                     // used by KaitaiStruct.
@@ -148,6 +154,30 @@ impl<'reg> Engine<'reg> {
                 Ok(Value::Array(items))
             }
         }
+    }
+
+    /// Parse one element of a repeated field, requiring it to consume input.
+    ///
+    /// An element that consumes nothing (an empty type, a zero-size `bytes`)
+    /// would repeat forever under `eos` or `until` and, with a large count,
+    /// effectively forever under `repeat-expr`, so it is an error.
+    fn parse_repeated_element(
+        &self,
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
+        let before = cursor.absolute_pos();
+        let value = self.parse_field_once(field, parent_ty, cursor, ctx)?;
+        if cursor.absolute_pos() == before {
+            return Err(DoeError::FieldError {
+                field: field.id.clone(),
+                context: parent_ty.name.clone(),
+                message: "repeated element consumed no bytes".to_owned(),
+            });
+        }
+        Ok(value)
     }
 
     /// Parse a single (non-repeated) instance of a field.
@@ -206,6 +236,13 @@ impl<'reg> Engine<'reg> {
             FieldKind::Str { size, encoding } => Self::read_str(size, *encoding, cursor, ctx),
             FieldKind::Bits { bit_size } => Self::read_bits(*bit_size, cursor),
             FieldKind::TypeRef { type_name } => {
+                if ctx.depth() >= MAX_TYPE_DEPTH {
+                    return Err(DoeError::FieldError {
+                        field: type_name.clone(),
+                        context: parent_ty.name.clone(),
+                        message: format!("types are nested more than {MAX_TYPE_DEPTH} levels deep"),
+                    });
+                }
                 let sub_ty = self
                     .registry
                     .get(type_name)
