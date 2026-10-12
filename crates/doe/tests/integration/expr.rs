@@ -458,3 +458,55 @@ fn shift_amount_uses_low_six_bits() {
     assert_eq!(eval("8 >> 67"), 1);
     assert_eq!(eval("1 << -63"), 2);
 }
+
+// ── Resource limits (regressions for stack overflows found by fuzzing) ────
+
+#[test]
+fn deeply_nested_parentheses_are_rejected_not_a_stack_overflow() {
+    let text = format!("{}1{}", "(".repeat(100_000), ")".repeat(100_000));
+    assert!(parse(&text).is_err());
+    let text = format!(
+        "{}1{}",
+        "(".repeat(MAX_EXPR_DEPTH + 1),
+        ")".repeat(MAX_EXPR_DEPTH + 1)
+    );
+    assert!(matches!(parse(&text), Err(doe::DoeError::ExprParse { .. })));
+}
+
+#[test]
+fn long_unary_chains_are_rejected() {
+    assert!(parse(&format!("{}1", "-".repeat(100_000))).is_err());
+    assert!(parse(&format!("{}1", "!".repeat(MAX_EXPR_DEPTH + 1))).is_err());
+}
+
+#[test]
+fn nesting_up_to_the_limit_is_accepted() {
+    let n = MAX_EXPR_DEPTH;
+    let text = format!("{}7{}", "(".repeat(n), ")".repeat(n));
+    assert_eq!(eval(&text), 7);
+    // An even number of negations cancels out.
+    assert_eq!(eval(&format!("{}1", "-".repeat(n))), 1);
+}
+
+#[test]
+fn very_long_expressions_are_rejected_not_a_stack_overflow() {
+    let text = format!("1{}", "+1".repeat(100_000));
+    assert!(parse(&text).is_err());
+    let at_limit = format!("1{}", "+1".repeat((MAX_EXPR_LEN - 1) / 2));
+    assert!(at_limit.len() <= MAX_EXPR_LEN);
+    assert_eq!(
+        eval(&at_limit),
+        i64::try_from((MAX_EXPR_LEN - 1) / 2 + 1).unwrap()
+    );
+    assert!(parse(&format!("{at_limit}+1+1")).is_err());
+}
+
+#[test]
+fn depth_resets_between_sibling_groups() {
+    let group = format!(
+        "{}1{}",
+        "(".repeat(MAX_EXPR_DEPTH),
+        ")".repeat(MAX_EXPR_DEPTH)
+    );
+    assert_eq!(eval(&format!("{group} + {group}")), 2);
+}
