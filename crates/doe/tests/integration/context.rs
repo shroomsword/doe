@@ -133,3 +133,11 @@ fn multiple_nested_scopes() {
 
     assert!(ctx.lookup("a").is_some());
 }
+
+#[test]
+fn default_matches_new() {
+    let mut a = ParseContext::default();
+    a.bind("x", Value::UInt(1));
+    assert_eq!(a.lookup("x"), Some(&Value::UInt(1)));
+    assert_eq!(a.current_fields().len(), 1);
+}

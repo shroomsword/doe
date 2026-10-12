@@ -1074,3 +1074,219 @@ fn override_ignores_type_default() {
     assert_eq!(u16_with("be", "u16le"), Value::UInt(0x0201));
     assert_eq!(u16_with("le", "u16be"), Value::UInt(0x0102));
 }
+
+// ── Every integer width and byte order ────────────────────────────────────
+
+fn one_field(type_name: &str, data: &[u8]) -> Value {
+    let yaml = format!("id: t\nseq:\n  - id: x\n    type: {type_name}\n");
+    get_field(&parse(&yaml, "t", data), "x").clone()
+}
+
+#[test]
+fn unsigned_widths_and_byte_orders() {
+    assert_eq!(one_field("u16be", &[1, 2]), Value::UInt(0x0102));
+    assert_eq!(one_field("u16le", &[1, 2]), Value::UInt(0x0201));
+    assert_eq!(one_field("u32be", &[1, 2, 3, 4]), Value::UInt(0x0102_0304));
+    assert_eq!(one_field("u32le", &[1, 2, 3, 4]), Value::UInt(0x0403_0201));
+    assert_eq!(
+        one_field("u64be", &[1, 2, 3, 4, 5, 6, 7, 8]),
+        Value::UInt(0x0102_0304_0506_0708)
+    );
+    assert_eq!(
+        one_field("u64le", &[1, 2, 3, 4, 5, 6, 7, 8]),
+        Value::UInt(0x0807_0605_0403_0201)
+    );
+}
+
+#[test]
+fn signed_widths_and_byte_orders() {
+    assert_eq!(one_field("i8", &[0xff]), Value::SInt(-1));
+    assert_eq!(one_field("i16le", &[0xfe, 0xff]), Value::SInt(-2));
+    assert_eq!(one_field("i16be", &[0xff, 0xfe]), Value::SInt(-2));
+    assert_eq!(
+        one_field("i32le", &[0xfd, 0xff, 0xff, 0xff]),
+        Value::SInt(-3)
+    );
+    assert_eq!(
+        one_field("i32be", &[0xff, 0xff, 0xff, 0xfd]),
+        Value::SInt(-3)
+    );
+    assert_eq!(one_field("i64le", &(-4i64).to_le_bytes()), Value::SInt(-4));
+    assert_eq!(one_field("i64be", &(-4i64).to_be_bytes()), Value::SInt(-4));
+}
+
+#[test]
+fn signed_types_inherit_meta_endian() {
+    for (endian, bytes) in [("be", [0xff, 0xfe]), ("le", [0xfe, 0xff])] {
+        let yaml = format!("id: t\nmeta:\n  endian: {endian}\nseq:\n  - id: x\n    type: i16\n");
+        assert_eq!(get_field(&parse(&yaml, "t", &bytes), "x"), &Value::SInt(-2));
+    }
+}
+
+#[test]
+fn floats_follow_meta_endian() {
+    let single_be = 1.5f32.to_be_bytes();
+    let double_le = (-2.5f64).to_le_bytes();
+    let yaml = "id: t\nmeta:\n  endian: be\nseq:\n  - id: x\n    type: f32\n";
+    assert_eq!(
+        get_field(&parse(yaml, "t", &single_be), "x"),
+        &Value::Float(1.5)
+    );
+    let yaml = "id: t\nmeta:\n  endian: le\nseq:\n  - id: x\n    type: f64\n";
+    assert_eq!(
+        get_field(&parse(yaml, "t", &double_le), "x"),
+        &Value::Float(-2.5)
+    );
+}
+
+// ── Bits, repeats and sizes: edge cases ───────────────────────────────────
+
+#[test]
+fn bits_wider_than_a_u64_are_masked_to_64_bits() {
+    let yaml = "id: t\nseq:\n  - id: x\n    type: bits\n    bit_size: 64\n";
+    assert_eq!(
+        get_field(&parse(yaml, "t", &[0xff; 8]), "x"),
+        &Value::UInt(u64::MAX)
+    );
+}
+
+#[test]
+fn negative_repeat_count_is_an_error() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: n
+            type: i8
+          - id: items
+            type: u8
+            repeat: expr
+            repeat-expr: n
+    "};
+    let err = parse_err(yaml, "t", &[0xff, 1, 2]);
+    assert!(
+        matches!(&err, DoeError::FieldError { message, .. } if message.contains("negative")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn negative_size_is_an_error() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: n
+            type: i8
+          - id: data
+            type: bytes
+            size: n
+    "};
+    let err = parse_err(yaml, "t", &[0xff, 1, 2]);
+    assert!(
+        matches!(&err, DoeError::Schema(m) if m.contains("negative")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn huge_repeat_count_does_not_preallocate_or_panic() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: n
+            type: u64
+          - id: items
+            type: u8
+            repeat: expr
+            repeat-expr: n
+    "};
+    let mut data = i64::MAX.to_le_bytes().to_vec();
+    data.extend_from_slice(&[1, 2, 3]);
+    assert!(matches!(parse_err(yaml, "t", &data), DoeError::Schema(_)));
+}
+
+#[test]
+fn huge_byte_size_is_a_buffer_error_not_a_panic() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: n
+            type: u64
+          - id: data
+            type: bytes
+            size: n
+    "};
+    let mut data = i64::MAX.to_le_bytes().to_vec();
+    data.push(0);
+    assert!(matches!(parse_err(yaml, "t", &data), DoeError::Schema(_)));
+}
+
+#[test]
+fn repeat_until_over_non_integer_values_stops_at_end_of_input() {
+    let yaml = indoc! {r#"
+        id: t
+        seq:
+          - id: names
+            type: strz
+            repeat: until
+            repeat-until: "0"
+    "#};
+    let v = parse(yaml, "t", b"ab\0cd\0");
+    let Value::Array(items) = get_field(&v, "names") else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 2);
+}
+
+#[test]
+fn missing_nested_type_in_registry_is_unknown_type_error() {
+    use doe::schema::ir::{
+        CompiledField, CompiledType, Endian, FieldKind, RepeatMode, TypeRegistry,
+    };
+    let mut reg = TypeRegistry::new();
+    reg.insert(
+        "t".into(),
+        CompiledType {
+            name: "t".into(),
+            doc: None,
+            endian: Endian::Little,
+            fields: vec![CompiledField {
+                id: "child".into(),
+                doc: None,
+                kind: FieldKind::TypeRef {
+                    type_name: "missing".into(),
+                },
+                repeat: RepeatMode::Once,
+                if_expr: None,
+                enum_ref: None,
+            }],
+            enums: std::collections::HashMap::new(),
+        },
+    );
+    let engine = Engine::new(&reg);
+    let mut cursor = Cursor::new(&[]);
+    let err = engine.parse_type("t", &mut cursor).unwrap_err();
+    assert!(
+        matches!(err, DoeError::UnknownType { ref type_name, .. } if type_name == "missing"),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn field_errors_name_the_field_and_type() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: n
+            type: u8
+          - id: items
+            type: u8
+            repeat: expr
+            repeat-expr: no_such_field
+    "};
+    let err = parse_err(yaml, "t", &[1, 2]);
+    assert!(
+        matches!(&err, DoeError::FieldError { field, context, .. }
+            if field == "items" && context == "t"),
+        "{err:?}"
+    );
+}

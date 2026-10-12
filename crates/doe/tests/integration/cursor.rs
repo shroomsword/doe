@@ -317,3 +317,46 @@ fn f64_overrun() {
     let mut c = cur(&[0u8; 7]);
     assert!(c.read_f64_be().is_err());
 }
+
+// ── Remaining signed reads ────────────────────────────────────────────────
+
+#[test]
+fn read_i16_be_negative() {
+    let mut c = cur(&[0xff, 0xfe]);
+    assert_eq!(c.read_i16_be().unwrap(), -2);
+}
+
+#[test]
+fn read_i32_le_negative() {
+    let data = (-5i32).to_le_bytes();
+    let mut c = cur(&data);
+    assert_eq!(c.read_i32_le().unwrap(), -5);
+}
+
+#[test]
+fn read_i64_be_negative() {
+    let data = i64::MIN.to_be_bytes();
+    let mut c = cur(&data);
+    assert_eq!(c.read_i64_be().unwrap(), i64::MIN);
+}
+
+#[test]
+fn read_past_end_of_window_is_error_for_every_width() {
+    assert!(cur(&[0]).read_i16_be().is_err());
+    assert!(cur(&[0; 3]).read_i32_le().is_err());
+    assert!(cur(&[0; 7]).read_i64_be().is_err());
+}
+
+#[test]
+fn read_bytes_with_huge_length_is_error_not_overflow() {
+    let mut c = cur(&[1, 2, 3]);
+    c.read_u8().unwrap();
+    assert!(c.read_bytes(usize::MAX).is_err());
+    assert_eq!(c.pos(), 1);
+}
+
+#[test]
+fn sub_cursor_with_huge_window_is_error_not_overflow() {
+    let c = cur(&[1, 2, 3]);
+    assert!(c.sub(1, usize::MAX).is_err());
+}
