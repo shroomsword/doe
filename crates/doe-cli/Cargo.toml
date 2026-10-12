@@ -13,7 +13,7 @@ name = "doe"
 path = "src/main.rs"
 
 [dependencies]
-doe = { path = "../doe" }
+doe = { version = "0.1.0", path = "../doe" }
 anyhow = { workspace = true, features = ["std"] }
 anstream = { workspace = true, features = ["auto", "wincon"] }
 anstyle = { workspace = true, features = ["std"] }
