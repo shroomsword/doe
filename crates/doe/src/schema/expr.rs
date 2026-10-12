@@ -129,6 +129,8 @@ impl fmt::Display for BinaryOp {
 enum Token {
     Int(i64),
     Ident(String),
+    /// A character that is not part of the expression language.
+    Unknown(char),
     // Punctuation
     Plus,
     Minus,
@@ -310,8 +312,8 @@ impl<'a> Lexer<'a> {
                     self.advance();
                     Token::EqEq
                 } else {
-                    Token::Eof
-                } // lone `=` is not valid
+                    Token::Unknown('=') // lone `=` is not valid
+                }
             }
             Some(b'!') => {
                 self.advance();
@@ -342,10 +344,9 @@ impl<'a> Lexer<'a> {
             }
             Some(c) => {
                 self.advance();
-                // Return Eof for unrecognised characters so the parser can
-                // produce a meaningful error rather than looping.
-                let _ = c;
-                Token::Eof
+                // Surface unrecognised characters as a token the parser
+                // rejects, rather than silently ending the expression.
+                Token::Unknown(char::from(c))
             }
         }
     }
