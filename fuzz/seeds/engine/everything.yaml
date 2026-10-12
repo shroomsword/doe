@@ -1,0 +1,67 @@
+id: everything
+meta:
+  endian: le
+enums:
+  kind_t:
+    "0": zero
+    "0x10": sixteen
+    "255": max
+seq:
+  - id: kind
+    type: u8
+    enum: kind_t
+  - id: count
+    type: u16
+  - id: flags
+    type: bits
+    bit_size: 5
+  - id: items
+    type: item
+    repeat: expr
+    repeat-expr: count % 8
+  - id: len
+    type: u8
+  - id: blob
+    type: bytes
+    size: len
+  - id: name
+    type: str
+    size: len % 4
+    encoding: ascii
+  - id: label
+    type: strz
+    encoding: utf8
+  - id: legacy
+    type: str
+    size: 2
+    encoding: latin1
+  - id: signed
+    type: i32be
+  - id: wide
+    type: u64
+  - id: ratio
+    type: f32
+  - id: precise
+    type: f64
+  - id: extra
+    type: u8
+    if: kind == 16 || len > 3
+  - id: until_zero
+    type: u8
+    repeat: until
+    repeat-until: _ == 0
+  - id: rest
+    type: u16
+    repeat: eos
+types:
+  item:
+    seq:
+      - id: a
+        type: u8
+      - id: b
+        type: i16be
+      - id: inner_len
+        type: u8
+      - id: inner
+        type: bytes
+        size: inner_len
