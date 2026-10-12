@@ -8,7 +8,7 @@ use tempfile::NamedTempFile;
 fn load_nonexistent_returns_default() {
     let p = PathBuf::from("/nonexistent/path/config.toml");
     let cfg = Config::load(&p).unwrap();
-    assert!(cfg.include_paths.is_empty());
+    assert_eq!(cfg.include_paths, [] as [std::path::PathBuf; 0]);
 }
 
 #[test]
@@ -16,7 +16,7 @@ fn load_empty_file_returns_default() {
     let mut f = NamedTempFile::new().unwrap();
     write!(f, "").unwrap();
     let cfg = Config::load(f.path()).unwrap();
-    assert!(cfg.include_paths.is_empty());
+    assert_eq!(cfg.include_paths, [] as [std::path::PathBuf; 0]);
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn empty_cli_uses_only_config_paths() {
 #[test]
 fn both_empty_gives_empty_list() {
     let resolved = resolve_include_paths(&[], &Config::default());
-    assert!(resolved.is_empty());
+    assert_eq!(resolved, [] as [std::path::PathBuf; 0]);
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn expand_tilde_expands_home() {
 fn discover_types_empty_dir() {
     let dir = tempfile::TempDir::new().unwrap();
     let types = discover_types(&[dir.path().to_owned()]).unwrap();
-    assert!(types.is_empty());
+    assert_eq!(types, [] as [doe::AvailableType; 0]);
 }
 
 #[test]
@@ -234,7 +234,7 @@ fn discover_types_accepts_yml_extension() {
 #[test]
 fn discover_types_nonexistent_dir_skipped() {
     let types = discover_types(&[PathBuf::from("/nonexistent/path")]).unwrap();
-    assert!(types.is_empty());
+    assert_eq!(types, [] as [doe::AvailableType; 0]);
 }
 
 #[test]
@@ -281,11 +281,9 @@ fn load_or_default_without_a_path_uses_defaults_or_the_default_file() {
     // The default location may or may not exist on the machine running the
     // tests; either way a missing file is not an error.
     if Config::default_path().is_none_or(|p| !p.exists()) {
-        assert!(
-            Config::load_or_default(None)
-                .unwrap()
-                .include_paths
-                .is_empty()
+        assert_eq!(
+            Config::load_or_default(None).unwrap().include_paths,
+            [] as [std::path::PathBuf; 0]
         );
     }
 }
