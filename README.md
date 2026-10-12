@@ -10,7 +10,37 @@ each time.
 ## Installation
 
 ```sh
-cargo install --path .
+cargo install --path crates/doe-cli
+```
+
+### Shell completions
+
+`doe completions <SHELL>` prints a completion script to stdout for `bash`,
+`zsh`, `fish`, `powershell` or `elvish`. Install it for your shell:
+
+```sh
+# bash
+doe completions bash > ~/.local/share/bash-completion/completions/doe
+
+# zsh (any directory on $fpath, then restart the shell or run compinit)
+doe completions zsh > ~/.zfunc/_doe
+
+# fish
+doe completions fish > ~/.config/fish/completions/doe.fish
+
+# PowerShell: add this line to your $PROFILE
+doe completions powershell | Out-String | Invoke-Expression
+
+# elvish: add this line to ~/.config/elvish/rc.elv
+eval (doe completions elvish | slurp)
+```
+
+### Man page
+
+The man page is generated from the same definition:
+
+```sh
+doe man > ~/.local/share/man/man1/doe.1
 ```
 
 ## Quick start
@@ -230,25 +260,78 @@ doe header.bin elf.yaml --pretty
 ## CLI reference
 
 ```text
-Usage: doe [OPTIONS] <FILE> <TYPE_OR_SCHEMA>
+doe — binary file parser
+
+Usage: doe [OPTIONS] [FILE] [TYPE_OR_SCHEMA]
+       doe <COMMAND>
+
+Commands:
+  completions  Print a shell completion script to stdout
+  help         Print this message or the help of the given subcommand(s)
 
 Arguments:
-  <FILE>            Binary file to parse
-  <TYPE_OR_SCHEMA>  Type name (e.g. png) or path to a YAML schema file
+  [FILE]            Binary file to parse
+  [TYPE_OR_SCHEMA]  Type name (e.g. `png`) or path to a YAML schema file
 
 Options:
   -I, --include-path <DIR>  Add a directory to the schema search path (repeatable)
   -c, --config <FILE>       Config file path [default: ~/.config/doe/config.toml]
-      --json                Emit compact JSON
-      --pretty              Emit pretty-printed JSON
+      --json                Emit compact JSON output
+      --pretty              Emit pretty-printed JSON output
       --indent <STR>        Indentation string for text output [default: "  "]
-  -h, --help                Print help
+  -h, --help                Print help, including available types from the include paths
+      --color <WHEN>        When to use color on stderr [default: auto] [possible values: auto, always, never]
+      --log-level <LEVEL>   Verbosity of the log file [default: debug] [possible values: off, error, warn, info, debug, trace]
+      --log-file <FILE>     Write the log file here [default: the XDG state directory]
+  -v, --verbose...          Increase logging verbosity
+  -q, --quiet...            Decrease logging verbosity
   -V, --version             Print version
 ```
 
-`TYPE_OR_SCHEMA` is treated as a file path when it begins with `.`, `/`, or
-`~`, or ends with `.yaml`/`.yml`. Otherwise it is a bare type name resolved
-through the configured include paths.
+`FILE` is the binary to parse. `TYPE_OR_SCHEMA` is treated as a schema path if
+it starts with `.`, `/` or `~`, or ends with `.yaml`/`.yml`. Otherwise it is a
+bare type name resolved through the configured include paths.
+
+Results go to stdout; everything else (errors, warnings, progress) goes to
+stderr. Global flags (`--color`, `-v`, `-q`, `--log-level`, `--log-file`) go
+after a subcommand, as in `doe completions bash --color never`.
+
+### Color
+
+Color is used on stderr only: errors in red, warnings in yellow. `--color`
+takes `auto` (the default: only when stderr is a terminal and `NO_COLOR` is
+not set), `always` or `never`.
+
+### Verbosity
+
+`-v` and `-q` are repeatable and control what appears on stderr:
+
+| Flags | stderr shows |
+|-------|--------------|
+| `-qq` | Nothing; the exit code is the only signal |
+| `-q` | Errors only |
+| (default) | Errors and warnings |
+| `-v` | Also informational messages |
+| `-vv` | Also debug messages |
+| `-vvv` | Also trace messages |
+
+### Log file
+
+Independently of stderr, `doe` appends to a log file at
+`$XDG_STATE_HOME/doe/doe.log` (`~/.local/state/doe/doe.log` when the variable
+is unset; the local data directory on Windows). Each line is a timestamp, the
+level, the module and the message. The level defaults to `debug`; set it with
+`--log-level` or `log.level` in the config file, with the flag winning.
+`--log-file` chooses another file. If the file cannot be opened, `doe` prints a
+warning and carries on.
+
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success (a closed stdout, as in `doe ... \| head`, is also success) |
+| 1 | Failure: unreadable or invalid input, schema or config |
+| 2 | Usage error: invalid arguments |
 
 ## Configuration
 
