@@ -1,0 +1,11 @@
+id: magic
+seq:
+  - id: signature
+    contents: [0x89, 0x50, 0x4e, 0x47]
+  - id: tag
+    contents: "OK"
+  - id: size
+    type: u32be
+  - id: payload
+    type: bytes
+    size: size

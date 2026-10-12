@@ -356,6 +356,34 @@ level = "debug"
 > **Upgrading:** earlier versions read `~/.doe/config/config.yaml`. That file
 > is no longer read; move its settings into the TOML file above.
 
+## Fuzzing
+
+Everything that parses external input has a [`cargo-fuzz`](https://github.com/rust-fuzz/cargo-fuzz)
+target in `fuzz/`, which is not part of the workspace:
+
+| Target | Input | What it exercises |
+|--------|-------|-------------------|
+| `cursor` | bytes plus a list of operations | every `Cursor` read, seek, peek and sub-window |
+| `expr` | text | expression parsing and evaluation |
+| `engine` | bytes | the parse engine over two fixed schemas that use every field kind |
+| `schema` | text | YAML deserialization, schema compilation, then parsing with each compiled type |
+
+Fuzzing needs a nightly toolchain, `cargo-fuzz` and a C++ compiler (for
+libFuzzer). The stable toolchain is not affected.
+
+```sh
+rustup toolchain install nightly --profile minimal
+cargo install cargo-fuzz
+mkdir -p fuzz/corpus/expr
+cargo +nightly fuzz run expr fuzz/corpus/expr fuzz/seeds/expr -- -max_total_time=300
+```
+
+The first corpus directory receives the inputs the fuzzer discovers
+(`fuzz/corpus/<target>`, git-ignored and created beforehand); the committed
+seeds in `fuzz/seeds/<target>` are only read. A crash is written to
+`fuzz/artifacts/<target>`: commit it as a regression test under
+`crates/*/tests/` before fixing it.
+
 ## Using as a library
 
 Add `doe` to `Cargo.toml`:
