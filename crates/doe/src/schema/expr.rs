@@ -360,7 +360,19 @@ struct Parser<'a> {
     lexer: Lexer<'a>,
     current: Token,
     src: &'a str,
+    depth: usize,
 }
+
+/// The longest expression, in bytes, that [`parse`] accepts.
+///
+/// Evaluation and dropping an expression recurse once per tree level, and a
+/// chain such as `1+1+1+…` is as deep as it is long, so an unbounded input
+/// could overflow the stack.
+pub const MAX_EXPR_LEN: usize = 1024;
+
+/// The deepest nesting of parentheses and unary operators that [`parse`]
+/// accepts. The parser recurses once per level.
+pub const MAX_EXPR_DEPTH: usize = 64;
 
 impl<'a> Parser<'a> {
     fn new(src: &'a str) -> Self {
@@ -370,7 +382,19 @@ impl<'a> Parser<'a> {
             lexer,
             current,
             src,
+            depth: 0,
         }
+    }
+
+    /// Enter one level of nesting, failing past [`MAX_EXPR_DEPTH`].
+    fn descend(&mut self) -> Result<()> {
+        self.depth += 1;
+        if self.depth > MAX_EXPR_DEPTH {
+            return Err(self.err(&format!(
+                "expression is nested more than {MAX_EXPR_DEPTH} levels deep"
+            )));
+        }
+        Ok(())
     }
 
     fn bump(&mut self) -> Token {
@@ -508,12 +532,16 @@ impl<'a> Parser<'a> {
         match self.current.clone() {
             Token::Minus => {
                 self.bump();
+                self.descend()?;
                 let e = self.parse_unary()?;
+                self.depth -= 1;
                 Ok(Expr::Unary(UnaryOp::Neg, Box::new(e)))
             }
             Token::Bang => {
                 self.bump();
+                self.descend()?;
                 let e = self.parse_unary()?;
+                self.depth -= 1;
                 Ok(Expr::Unary(UnaryOp::Not, Box::new(e)))
             }
             _ => self.parse_primary(),
@@ -542,7 +570,9 @@ impl<'a> Parser<'a> {
             }
             Token::LParen => {
                 self.bump();
+                self.descend()?;
                 let e = self.parse_expr()?;
+                self.depth -= 1;
                 if self.current != Token::RParen {
                     return Err(self.err("expected ')'"));
                 }
@@ -558,8 +588,16 @@ impl<'a> Parser<'a> {
 ///
 /// # Errors
 ///
-/// Returns [`DoeError::ExprParse`] on a syntax error.
+/// Returns [`DoeError::ExprParse`] on a syntax error, if `src` is longer than
+/// [`MAX_EXPR_LEN`] bytes, or if it nests more than [`MAX_EXPR_DEPTH`] levels
+/// of parentheses or unary operators.
 pub fn parse(src: &str) -> Result<Expr> {
+    if src.len() > MAX_EXPR_LEN {
+        return Err(DoeError::ExprParse {
+            expr: format!("{}…", src.chars().take(40).collect::<String>()),
+            message: format!("expression is longer than {MAX_EXPR_LEN} bytes"),
+        });
+    }
     let mut p = Parser::new(src);
     let e = p.parse_expr()?;
     if p.current != Token::Eof {
