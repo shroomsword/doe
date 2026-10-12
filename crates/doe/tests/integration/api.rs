@@ -171,3 +171,12 @@ fn parse_file_missing_binary_is_error() {
     );
     assert!(result.is_err());
 }
+
+#[test]
+fn backslash_and_platform_absolute_paths_are_schema_paths() {
+    assert!(is_schema_path(r"\\server\share\types\elf"));
+    assert!(is_schema_path(r"\types\elf"));
+    // An absolute path in the platform's own syntax, such as `C:\...` on Windows.
+    let absolute = std::env::temp_dir().join("elf");
+    assert!(is_schema_path(&absolute.to_string_lossy()));
+}

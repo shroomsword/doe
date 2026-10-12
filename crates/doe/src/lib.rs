@@ -159,8 +159,9 @@ pub fn parse_file(
 /// Returns `true` if `s` looks like a file-system path to a schema rather
 /// than a bare type name.
 ///
-/// The heuristic checks for a leading `.`, `/`, or `~` (relative, absolute,
-/// or home-relative paths), or a `.yaml`/`.yml` extension.  Bare names such
+/// The heuristic checks for a leading `.`, `/`, `\`, or `~` (relative,
+/// absolute, or home-relative paths), a platform-absolute path such as
+/// `C:\types\elf` on Windows, or a `.yaml`/`.yml` extension.  Bare names such
 /// as `"png"` or `"my_format"` return `false` and are resolved through the
 /// configured include paths instead.
 ///
@@ -178,7 +179,7 @@ pub fn parse_file(
 /// assert!(!is_schema_path("my_format"));
 /// ```
 pub fn is_schema_path(s: &str) -> bool {
-    s.starts_with('.') || s.starts_with('/') || s.starts_with('~') || has_schema_extension(s)
+    s.starts_with(['.', '/', '\\', '~']) || Path::new(s).is_absolute() || has_schema_extension(s)
 }
 
 /// Returns `true` if `s` ends in `.yaml` or `.yml`, ignoring ASCII case.
