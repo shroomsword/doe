@@ -419,6 +419,9 @@ fn log_level_flag_overrides_the_config_file() {
     assert!(std::fs::read_to_string(log).unwrap().contains("DEBUG"));
 }
 
+// Windows has no XDG state directory: the log goes to the local data folder, which an environment variable cannot
+// redirect, so this is checked on the platforms that follow XDG.
+#[cfg(not(windows))]
 #[test]
 fn default_log_file_lives_in_the_xdg_state_directory() {
     let state = TempDir::new().unwrap();
