@@ -6,7 +6,7 @@ use tempfile::NamedTempFile;
 
 #[test]
 fn load_nonexistent_returns_default() {
-    let p = PathBuf::from("/nonexistent/path/config.yaml");
+    let p = PathBuf::from("/nonexistent/path/config.toml");
     let cfg = Config::load(&p).unwrap();
     assert!(cfg.include_paths.is_empty());
 }
@@ -14,7 +14,7 @@ fn load_nonexistent_returns_default() {
 #[test]
 fn load_empty_file_returns_default() {
     let mut f = NamedTempFile::new().unwrap();
-    write!(f, "{{}}").unwrap();
+    write!(f, "").unwrap();
     let cfg = Config::load(f.path()).unwrap();
     assert!(cfg.include_paths.is_empty());
 }
@@ -22,19 +22,24 @@ fn load_empty_file_returns_default() {
 #[test]
 fn load_with_include_paths() {
     let mut f = NamedTempFile::new().unwrap();
-    writeln!(f, "include_paths:").unwrap();
-    writeln!(f, "  - /usr/share/doe/types").unwrap();
-    writeln!(f, "  - ~/.doe/types").unwrap();
+    writeln!(
+        f,
+        "include_paths = [\"/usr/share/doe/types\", \"~/.doe/types\"]"
+    )
+    .unwrap();
     let cfg = Config::load(f.path()).unwrap();
     assert_eq!(cfg.include_paths.len(), 2);
     assert_eq!(cfg.include_paths[0], PathBuf::from("/usr/share/doe/types"));
 }
 
 #[test]
-fn load_invalid_yaml_is_error() {
+fn load_unknown_key_is_error() {
     let mut f = NamedTempFile::new().unwrap();
-    write!(f, "unknown_key: true").unwrap();
-    assert!(Config::load(f.path()).is_err());
+    write!(f, "unknown_key = true").unwrap();
+    assert!(matches!(
+        Config::load(f.path()).unwrap_err(),
+        doe::DoeError::Toml { .. }
+    ));
 }
 
 #[test]
@@ -42,6 +47,7 @@ fn cli_paths_come_before_config_paths() {
     let cli = vec![PathBuf::from("/cli/path")];
     let cfg = Config {
         include_paths: vec![PathBuf::from("/config/path")],
+        ..Config::default()
     };
     let resolved = resolve_include_paths(&cli, &cfg);
     assert_eq!(resolved[0], PathBuf::from("/cli/path"));
@@ -52,6 +58,7 @@ fn cli_paths_come_before_config_paths() {
 fn empty_cli_uses_only_config_paths() {
     let cfg = Config {
         include_paths: vec![PathBuf::from("/config/path")],
+        ..Config::default()
     };
     let resolved = resolve_include_paths(&[], &cfg);
     assert_eq!(resolved.len(), 1);
@@ -77,7 +84,7 @@ fn expand_tilde_relative_path_unchanged() {
 
 #[test]
 fn expand_tilde_expands_home() {
-    if dirs::home_dir().is_none() {
+    if etcetera::home_dir().is_err() {
         return;
     }
     let p = PathBuf::from("~/foo/bar");
@@ -262,11 +269,88 @@ fn duplicate_type_error_display_contains_key_info() {
 // ── Default path, tilde expansion, load errors ────────────────────────────
 
 #[test]
-fn default_path_is_under_home_doe_config() {
+fn default_path_is_doe_config_toml_in_the_xdg_config_dir() {
     if let Some(path) = Config::default_path() {
-        assert!(path.ends_with(".doe/config/config.yaml"), "{path:?}");
+        assert!(path.ends_with("doe/config.toml"), "{path:?}");
         assert!(path.is_absolute());
     }
+}
+
+#[test]
+fn load_or_default_without_a_path_uses_defaults_or_the_default_file() {
+    // The default location may or may not exist on the machine running the
+    // tests; either way a missing file is not an error.
+    if Config::default_path().is_none_or(|p| !p.exists()) {
+        assert!(
+            Config::load_or_default(None)
+                .unwrap()
+                .include_paths
+                .is_empty()
+        );
+    }
+}
+
+#[test]
+fn load_or_default_prefers_the_explicit_path() {
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "include_paths = [\"/explicit\"]").unwrap();
+    let cfg = Config::load_or_default(Some(f.path())).unwrap();
+    assert_eq!(cfg.include_paths, [PathBuf::from("/explicit")]);
+}
+
+#[test]
+fn log_level_is_read_from_the_log_table() {
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "[log]\nlevel = \"trace\"").unwrap();
+    let cfg = Config::load(f.path()).unwrap();
+    assert_eq!(cfg.log.level, Some(LogLevel::Trace));
+}
+
+#[test]
+fn every_log_level_name_parses() {
+    for (name, level) in [
+        ("off", LogLevel::Off),
+        ("error", LogLevel::Error),
+        ("warn", LogLevel::Warn),
+        ("info", LogLevel::Info),
+        ("debug", LogLevel::Debug),
+        ("trace", LogLevel::Trace),
+    ] {
+        let mut f = NamedTempFile::new().unwrap();
+        writeln!(f, "[log]\nlevel = \"{name}\"").unwrap();
+        assert_eq!(Config::load(f.path()).unwrap().log.level, Some(level));
+    }
+}
+
+#[test]
+fn invalid_log_level_and_unknown_log_key_are_errors() {
+    for text in ["[log]\nlevel = \"loud\"", "[log]\nfile = \"x\""] {
+        let mut f = NamedTempFile::new().unwrap();
+        writeln!(f, "{text}").unwrap();
+        assert!(Config::load(f.path()).is_err(), "{text}");
+    }
+}
+
+#[test]
+fn parse_error_names_the_file_and_the_line() {
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "include_paths = [\n  \"ok\",\n  oops\n]").unwrap();
+    let message = Config::load(f.path()).unwrap_err().to_string();
+    assert!(
+        message.contains(&f.path().display().to_string()),
+        "{message}"
+    );
+    assert!(message.contains("line 3"), "{message}");
+}
+
+#[test]
+fn an_old_yaml_config_is_not_valid_toml() {
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "include_paths:\n  - /usr/share/doe/types").unwrap();
+    assert!(matches!(
+        Config::load(f.path()).unwrap_err(),
+        doe::DoeError::Toml { .. }
+    ));
 }
 
 #[test]
@@ -278,7 +362,7 @@ fn load_directory_instead_of_file_is_io_error() {
 
 #[test]
 fn expand_tilde_alone_is_home() {
-    if let Some(home) = dirs::home_dir() {
+    if let Ok(home) = etcetera::home_dir() {
         assert_eq!(expand_tilde(std::path::Path::new("~")), home);
         assert_eq!(
             expand_tilde(std::path::Path::new("~/a/b")),

@@ -13,7 +13,8 @@ serde = { workspace = true, features = ["std", "derive"] }
 serde_yaml.workspace = true
 serde_json = { workspace = true, features = ["std"] }
 thiserror.workspace = true
-dirs.workspace = true
+etcetera.workspace = true
+toml = { workspace = true, features = ["std", "parse", "serde"] }
 indexmap = { workspace = true, features = ["std", "serde"] }
 
 [dev-dependencies]

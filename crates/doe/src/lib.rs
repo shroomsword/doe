@@ -70,7 +70,7 @@ pub enum OutputFormat {
 ///   path, in priority order.  These take precedence over any paths in the
 ///   config file.
 /// * `config_path` — override the config file location.  Pass `None` to use
-///   the default (`~/.doe/config/config.yaml`).  A missing file is silently
+///   the default (`$XDG_CONFIG_HOME/doe/config.toml`).  A missing file is silently
 ///   treated as an empty config.
 /// * `format` — the desired output representation.
 ///
@@ -115,12 +115,7 @@ pub fn parse_file(
 
     // ── Config ────────────────────────────────────────────────────────────────
 
-    let cfg_path = config_path
-        .map(Path::to_owned)
-        .or_else(Config::default_path)
-        .unwrap_or_else(|| PathBuf::from(".doe_config.yaml"));
-
-    let config = Config::load(&cfg_path)?;
+    let config = Config::load_or_default(config_path)?;
     let all_include_paths = resolve_include_paths(include_paths, &config);
 
     // ── Schema ────────────────────────────────────────────────────────────────

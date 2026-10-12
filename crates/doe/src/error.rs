@@ -47,6 +47,18 @@ pub enum DoeError {
         source: serde_yaml::Error,
     },
 
+    // ── TOML ─────────────────────────────────────────────────────────────────
+    /// A configuration file exists but is not valid TOML or has unknown or
+    /// mistyped keys. The message includes the line and column.
+    #[error("invalid configuration in {path}: {source}")]
+    Toml {
+        /// The configuration file that triggered the error.
+        path: PathBuf,
+        /// The underlying TOML error.
+        #[source]
+        source: toml::de::Error,
+    },
+
     // ── Schema resolution ────────────────────────────────────────────────────
     /// A bare type name (e.g. `"png"`) could not be found on any include path.
     #[error("schema not found: '{name}' (searched: {searched:?})")]
