@@ -359,3 +359,102 @@ fn pop_below_root_is_safe() {
     c.pop_frame(); // should not panic
     c.pop_frame();
 }
+
+// ── Operators and display ─────────────────────────────────────────────────
+
+#[test]
+fn binary_op_display_matches_source_syntax() {
+    let cases = [
+        (BinaryOp::Add, "+"),
+        (BinaryOp::Sub, "-"),
+        (BinaryOp::Mul, "*"),
+        (BinaryOp::Div, "/"),
+        (BinaryOp::Rem, "%"),
+        (BinaryOp::Shl, "<<"),
+        (BinaryOp::Shr, ">>"),
+        (BinaryOp::BitAnd, "&"),
+        (BinaryOp::BitOr, "|"),
+        (BinaryOp::BitXor, "^"),
+        (BinaryOp::Eq, "=="),
+        (BinaryOp::Ne, "!="),
+        (BinaryOp::Lt, "<"),
+        (BinaryOp::Gt, ">"),
+        (BinaryOp::Le, "<="),
+        (BinaryOp::Ge, ">="),
+        (BinaryOp::And, "&&"),
+        (BinaryOp::Or, "||"),
+    ];
+    for (op, text) in cases {
+        assert_eq!(op.to_string(), text);
+    }
+}
+
+#[test]
+fn parser_produces_unary_nodes() {
+    assert!(matches!(parse("-x").unwrap(), Expr::Unary(UnaryOp::Neg, _)));
+    assert!(matches!(parse("!x").unwrap(), Expr::Unary(UnaryOp::Not, _)));
+}
+
+#[test]
+fn unary_ops_evaluate() {
+    let c = ctx();
+    let neg = Expr::Unary(UnaryOp::Neg, Box::new(Expr::Int(5)));
+    let not_zero = Expr::Unary(UnaryOp::Not, Box::new(Expr::Int(0)));
+    let not_one = Expr::Unary(UnaryOp::Not, Box::new(Expr::Int(1)));
+    assert_eq!(doe::schema::expr::eval(&neg, &c, "-5").unwrap(), -5);
+    assert_eq!(doe::schema::expr::eval(&not_zero, &c, "!0").unwrap(), 1);
+    assert_eq!(doe::schema::expr::eval(&not_one, &c, "!1").unwrap(), 0);
+}
+
+#[test]
+fn bool_literal_evaluates_to_zero_or_one() {
+    let c = ctx();
+    assert_eq!(
+        doe::schema::expr::eval(&Expr::Bool(true), &c, "true").unwrap(),
+        1
+    );
+    assert_eq!(
+        doe::schema::expr::eval(&Expr::Bool(false), &c, "false").unwrap(),
+        0
+    );
+}
+
+#[test]
+fn trailing_tokens_after_expression_are_an_error() {
+    assert!(matches!(
+        parse("1 2").unwrap_err(),
+        doe::DoeError::ExprParse { .. }
+    ));
+    assert!(parse_err("1 )"));
+}
+
+#[test]
+fn lone_equals_and_unknown_characters_are_errors() {
+    assert!(parse_err("1 = 1"));
+    assert!(parse_err("1 @ 2"));
+    assert!(parse_err("$"));
+}
+
+#[test]
+fn eval_context_default_is_empty_root_scope() {
+    let c = EvalContext::default();
+    assert!(eval_str("x", &c).is_err());
+    assert_eq!(eval_str("1 + 1", &c).unwrap(), 2);
+}
+
+#[test]
+fn i64_min_arithmetic_wraps_instead_of_panicking() {
+    let mut c = ctx();
+    c.bind("m", i64::MIN);
+    assert_eq!(eval_str("-m", &c).unwrap(), i64::MIN);
+    assert_eq!(eval_str("m / -1", &c).unwrap(), i64::MIN);
+    assert_eq!(eval_str("m % -1", &c).unwrap(), 0);
+}
+
+#[test]
+fn shift_amount_uses_low_six_bits() {
+    assert_eq!(eval("1 << 64"), 1);
+    assert_eq!(eval("1 << 65"), 2);
+    assert_eq!(eval("8 >> 67"), 1);
+    assert_eq!(eval("1 << -63"), 2);
+}
