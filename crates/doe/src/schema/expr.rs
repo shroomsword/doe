@@ -677,9 +677,12 @@ impl EvalContext {
             rest = tail;
         }
 
-        let name = rest
-            .first()
-            .ok_or_else(|| eval_err("field path ends at _parent with no field name"))?;
+        if rest.is_empty() {
+            return Err(eval_err("field path ends at _parent with no field name"));
+        }
+        // A path into a parsed sub-type (`header.section_count`) is bound under
+        // its dotted name.
+        let name = rest.join(".");
         self.frames
             .get(frame_idx)
             .and_then(|frame| frame.get(name.as_str()))

@@ -1436,3 +1436,151 @@ fn sub_type_field_uses_a_top_level_enum() {
         }
     );
 }
+
+// ── References to fields of a parsed sub-type ─────────────────────────────
+
+fn array_len(v: &Value, field: &str) -> usize {
+    let Value::Array(items) = get_field(v, field) else {
+        panic!("{field} is not an array");
+    };
+    items.len()
+}
+
+#[test]
+fn repeat_count_can_come_from_a_field_of_a_sub_type() {
+    // The README's sub-types example.
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: header
+            type: header_t
+          - id: sections
+            type: section_t
+            repeat: expr
+            repeat-expr: header.section_count
+        types:
+          header_t:
+            seq:
+              - id: bitness
+                type: u8
+              - id: section_count
+                type: u16le
+          section_t:
+            seq:
+              - id: size
+                type: u8
+    "};
+    let v = parse(yaml, "t", &[2, 3, 0, 10, 20, 30]);
+    assert_eq!(array_len(&v, "sections"), 3);
+}
+
+#[test]
+fn size_can_come_from_a_field_of_a_sub_type() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: header
+            type: header_t
+          - id: body
+            type: bytes
+            size: header.length - 1
+        types:
+          header_t:
+            seq:
+              - id: length
+                type: u8
+    "};
+    let v = parse(yaml, "t", &[4, 0xaa, 0xbb, 0xcc]);
+    assert_eq!(get_field(&v, "body"), &Value::Bytes(vec![0xaa, 0xbb, 0xcc]));
+}
+
+#[test]
+fn references_can_go_through_several_levels_of_sub_types() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: outer
+            type: outer_t
+          - id: items
+            type: u8
+            repeat: expr
+            repeat-expr: outer.inner.count
+        types:
+          outer_t:
+            seq:
+              - id: inner
+                type: inner_t
+          inner_t:
+            seq:
+              - id: count
+                type: u8
+    "};
+    let v = parse(yaml, "t", &[2, 7, 8]);
+    assert_eq!(array_len(&v, "items"), 2);
+}
+
+#[test]
+fn enum_fields_of_a_sub_type_compare_by_value() {
+    let yaml = indoc! {r#"
+        id: t
+        seq:
+          - id: header
+            type: header_t
+          - id: extra
+            type: u8
+            if: header.kind == 2
+        types:
+          header_t:
+            seq:
+              - id: kind
+                type: u8
+                enum: kind_t
+            enums:
+              kind_t:
+                "2": big
+    "#};
+    assert!(!get_field(&parse(yaml, "t", &[2, 9]), "extra").is_absent());
+    assert!(get_field(&parse(yaml, "t", &[1, 9]), "extra").is_absent());
+}
+
+#[test]
+fn a_sub_type_can_read_a_field_of_its_parents_sub_type() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: header
+            type: header_t
+          - id: body
+            type: body_t
+        types:
+          header_t:
+            seq:
+              - id: count
+                type: u8
+          body_t:
+            seq:
+              - id: items
+                type: u8
+                repeat: expr
+                repeat-expr: _parent.header.count
+    "};
+    let v = parse(yaml, "t", &[2, 5, 6]);
+    let Value::Struct { fields, .. } = get_field(&v, "body") else {
+        panic!("expected a struct");
+    };
+    assert!(matches!(&fields[0].1, Value::Array(items) if items.len() == 2));
+}
+
+#[test]
+fn unknown_or_non_numeric_sub_type_fields_are_errors() {
+    for reference in ["header.nope", "header.name", "header"] {
+        let yaml = format!(
+            "id: t\nseq:\n  - id: header\n    type: header_t\n  - id: body\n    type: bytes\n    size: {reference}\ntypes:\n  header_t:\n    seq:\n      - id: name\n        type: bytes\n        size: 1\n"
+        );
+        let err = parse_err(&yaml, "t", &[1, 2, 3]);
+        assert!(
+            matches!(&err, DoeError::ExprEval { message, .. } if message.contains("unknown field")),
+            "{reference}: {err:?}"
+        );
+    }
+}

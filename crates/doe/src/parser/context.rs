@@ -59,15 +59,28 @@ impl ParseContext {
     /// If the value has a numeric representation, it is also bound in the
     /// expression evaluator so size/repeat/if expressions can reference it.
     pub fn bind(&mut self, id: &str, value: Value) {
-        // Register numeric value for expression evaluation
-        if let Some(n) = value.as_int() {
-            self.eval_ctx.bind(id, n);
-        }
+        self.bind_numeric(id, &value);
         if self.value_frames.is_empty() {
             self.value_frames.push(Vec::new());
         }
         if let Some(frame) = self.value_frames.last_mut() {
             frame.push((id.to_owned(), value));
+        }
+    }
+
+    /// Register the numeric parts of `value` for expression evaluation.
+    ///
+    /// An integer is bound under `name`. The integer fields of a struct are
+    /// bound under dotted names (`name.field`, `name.inner.field`, ...), so
+    /// expressions can read `header.section_count`. Arrays, strings and bytes
+    /// have no numeric value and are not bound.
+    fn bind_numeric(&mut self, name: &str, value: &Value) {
+        if let Some(n) = value.as_int() {
+            self.eval_ctx.bind(name, n);
+        } else if let Value::Struct { fields, .. } = value {
+            for (field, inner) in fields {
+                self.bind_numeric(&format!("{name}.{field}"), inner);
+            }
         }
     }
 

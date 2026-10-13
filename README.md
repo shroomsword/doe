@@ -114,7 +114,9 @@ seq:
 `size:`, `repeat-expr:`, `repeat-until:`, and `if:` accept a small expression language. Earlier
 fields in the same sequence are referenced by name; fields in the parent type
 via `_parent.field_name`. Within a `repeat-until:` expression, `_` refers to
-the most recently parsed value.
+the most recently parsed value. A field that holds a sub-type exposes its
+integer fields (including enum fields) as `field.name`, to any depth;
+strings, bytes and arrays have no numeric value and cannot be referenced.
 
 ```yaml
 # size from an earlier field
@@ -149,6 +151,14 @@ the most recently parsed value.
 - id: value
   type: bytes
   size: _parent.header_length - 4
+
+# field of an earlier sub-type field (any depth: outer.inner.count)
+- id: header
+  type: header_t
+- id: entries
+  type: record_t
+  repeat: expr
+  repeat-expr: header.record_count
 ```
 
 Supported operators: `+` `-` `*` `/` `%` `&` `|` `^` `<<` `>>` `==` `!=`
