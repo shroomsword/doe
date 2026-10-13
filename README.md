@@ -57,6 +57,23 @@ doe dump.bin --json > dump.json
 doe packet.bin --pretty -I ~/.doe/types
 ```
 
+## Type library
+
+Ready-made type definitions live in [`types/`](https://github.com/shroomsword/doe/tree/main/types). Point `doe` at the
+directory with `-I` (or list it under `include_paths` in the config file) and
+use a type by name:
+
+```sh
+doe -I types /bin/ls elf
+doe -I types --json libc.so.6 elf | jq '.program_headers[].p_type.name'
+```
+
+| Type | Describes |
+|------|-----------|
+| `elf` | ELF64 little-endian files: the header, the program header table and the section header table. Contents are skipped. See the comments in [`types/elf.yaml`](https://github.com/shroomsword/doe/blob/main/types/elf.yaml) for its limits. |
+
+Running `doe --help` with `-I types` lists the available types.
+
 ## Schema format
 
 A schema is a YAML file that describes the layout of a binary file.
