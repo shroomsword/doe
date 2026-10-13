@@ -44,7 +44,7 @@ pub enum DoeError {
         path: PathBuf,
         /// The underlying YAML error.
         #[source]
-        source: serde_yaml::Error,
+        source: Box<serde_saphyr::Error>,
     },
 
     // ── TOML ─────────────────────────────────────────────────────────────────

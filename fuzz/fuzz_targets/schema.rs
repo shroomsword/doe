@@ -11,7 +11,7 @@ use doe::schema::raw::RawSchema;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|text: &str| {
-    let Ok(schema) = serde_yaml::from_str::<RawSchema>(text) else {
+    let Ok(schema) = RawSchema::from_yaml_str(text) else {
         return;
     };
     let Ok(registry) = compile_schema(&schema) else {

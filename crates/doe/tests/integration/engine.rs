@@ -10,7 +10,7 @@ use indoc::indoc;
 fn engine_from_yaml(yaml: &str) -> (Engine<'static>, &'static TypeRegistry) {
     // Leak the registry so the engine can borrow it with 'static lifetime
     // in tests.  This is only acceptable in test code.
-    let schema: doe::schema::raw::RawSchema = serde_yaml::from_str(yaml).unwrap();
+    let schema = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
     let reg = Box::leak(Box::new(compile_schema(&schema).unwrap()));
     let engine = Engine::new(reg);
     (engine, reg)

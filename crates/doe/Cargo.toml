@@ -10,7 +10,7 @@ authors.workspace = true
 
 [dependencies]
 serde = { workspace = true, features = ["std", "derive"] }
-serde_yaml.workspace = true
+serde-saphyr = { workspace = true, features = ["deserialize"] }
 serde_json = { workspace = true, features = ["std"] }
 thiserror = { workspace = true, features = ["std"] }
 etcetera.workspace = true

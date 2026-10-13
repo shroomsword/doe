@@ -3,7 +3,7 @@ use doe::schema::raw::*;
 use indoc::indoc;
 
 fn parse(yaml: &str) -> RawSchema {
-    serde_yaml::from_str(yaml).expect("YAML parse failed")
+    RawSchema::from_yaml_str(yaml).expect("YAML parse failed")
 }
 
 // ── Basic round-trip ─────────────────────────────────────────────────────
@@ -451,7 +451,7 @@ fn missing_id_fails() {
           - id: value
             type: u32
     "};
-    let result: Result<RawSchema, _> = serde_yaml::from_str(yaml);
+    let result: Result<RawSchema, _> = RawSchema::from_yaml_str(yaml);
     assert!(result.is_err());
 }
 
@@ -462,7 +462,7 @@ fn unknown_field_fails() {
         unknown_key: true
         seq: []
     "};
-    let result: Result<RawSchema, _> = serde_yaml::from_str(yaml);
+    let result: Result<RawSchema, _> = RawSchema::from_yaml_str(yaml);
     assert!(
         result.is_err(),
         "deny_unknown_fields should reject unknown_key"
@@ -476,7 +476,7 @@ fn field_without_id_fails() {
         seq:
           - type: u32
     "};
-    let result: Result<RawSchema, _> = serde_yaml::from_str(yaml);
+    let result: Result<RawSchema, _> = RawSchema::from_yaml_str(yaml);
     assert!(result.is_err(), "field missing id should fail");
 }
 
@@ -486,4 +486,43 @@ fn field_without_id_fails() {
 fn string_or_int_as_str() {
     assert_eq!(StringOrInt::Int(42).as_str().as_ref(), "42");
     assert_eq!(StringOrInt::Str("foo".into()).as_str().as_ref(), "foo");
+}
+
+// ── YAML parser settings ──────────────────────────────────────────────────
+
+#[test]
+fn yaml_1_1_boolean_words_stay_strings_in_ids_and_expressions() {
+    for word in ["y", "n", "yes", "no", "on", "off"] {
+        let schema = RawSchema::from_yaml_str(&format!(
+            "id: t\nseq:\n  - id: {word}\n    type: u8\n  - id: data\n    type: bytes\n    size: {word}\n"
+        ))
+        .unwrap();
+        assert_eq!(schema.seq[0].id, word);
+        assert_eq!(schema.seq[1].size.as_ref().unwrap().as_str(), word);
+    }
+}
+
+#[test]
+fn duplicate_mapping_keys_are_an_error() {
+    let err = RawSchema::from_yaml_str("id: a\nid: b\nseq: []\n").unwrap_err();
+    assert!(err.to_string().contains("duplicate"), "{err}");
+}
+
+#[test]
+fn syntax_errors_name_the_line_and_column() {
+    let err = RawSchema::from_yaml_str("id: t\nseq:\n  - id: [unterminated\n").unwrap_err();
+    let message = err.to_string();
+    assert!(message.contains("line 3"), "{message}");
+}
+
+#[test]
+fn hexadecimal_integers_and_quoted_hex_keys_parse() {
+    let schema = RawSchema::from_yaml_str(
+        "id: t\nseq:\n  - id: m\n    contents: [0x89, 0x50]\nenums:\n  e:\n    \"0x10\": sixteen\n",
+    )
+    .unwrap();
+    assert!(matches!(
+        schema.seq[0].contents,
+        Some(RawContents::Bytes(ref b)) if b == &[0x89, 0x50]
+    ));
 }

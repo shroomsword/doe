@@ -295,7 +295,7 @@ pub fn discover_types(
                     return None;
                 }
                 let text = std::fs::read_to_string(&path).ok()?;
-                let header: SchemaHeader = serde_yaml::from_str(&text).ok()?;
+                let header: SchemaHeader = crate::schema::raw::parse_yaml(&text).ok()?;
                 Some((path, header))
             })
             .collect();
