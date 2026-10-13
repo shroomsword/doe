@@ -273,6 +273,11 @@ impl Compiler {
 
         let repeat = compile_repeat(raw, ctx)?;
         let if_expr = raw.if_expr.as_deref().map(expr::parse).transpose()?;
+        let pos = raw
+            .pos
+            .as_ref()
+            .map(|p| expr::parse(&p.as_str()))
+            .transpose()?;
 
         // Validate enum reference if present
         if let Some(enum_name) = &raw.enum_ref
@@ -290,6 +295,7 @@ impl Compiler {
             kind,
             repeat,
             if_expr,
+            pos,
             enum_ref: raw.enum_ref.clone(),
         })
     }

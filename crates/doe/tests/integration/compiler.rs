@@ -1232,3 +1232,18 @@ fn nested_field_references_to_earlier_fields_compile() {
                 type: u8
     "});
 }
+
+#[test]
+fn compile_pos_expr() {
+    let reg =
+        compile("id: t\nseq:\n  - id: a\n    type: u8\n    pos: 4\n  - id: b\n    type: u8\n");
+    let ty = reg.get("t").unwrap();
+    assert!(ty.fields[0].pos.is_some());
+    assert!(ty.fields[1].pos.is_none());
+}
+
+#[test]
+fn compile_rejects_a_malformed_pos_expr() {
+    let err = compile_err("id: t\nseq:\n  - id: a\n    type: u8\n    pos: \"1 +\"\n");
+    assert!(matches!(err, DoeError::ExprParse { .. }), "{err:?}");
+}

@@ -25,7 +25,17 @@ pub struct ParseContext {
     pub eval_ctx: EvalContext,
     /// Stack of frames; each frame is a vec of (`field_id`, Value).
     value_frames: Vec<Vec<(String, Value)>>,
+    /// Bytes read so far by fields placed with `pos:`.
+    reread_bytes: usize,
 }
+
+/// A `pos:` field may read this many times the size of the input in total,
+/// plus [`REREAD_FLOOR`]: enough for any table of records, but not for
+/// re-reading a large region once per element of a long array.
+pub const REREAD_FACTOR: usize = 16;
+
+/// The least number of bytes the `pos:` budget allows, for tiny inputs.
+pub const REREAD_FLOOR: usize = 1 << 20;
 
 impl ParseContext {
     /// Create a context with a single, empty root scope.
@@ -33,7 +43,30 @@ impl ParseContext {
         ParseContext {
             eval_ctx: EvalContext::new(),
             value_frames: vec![Vec::new()],
+            reread_bytes: 0,
         }
+    }
+
+    /// Account for `n` bytes read by a `pos:` field in a window of
+    /// `window_len` bytes.
+    ///
+    /// Because `pos:` can send many elements to the same region, the total is
+    /// bounded; see [`REREAD_FACTOR`].
+    ///
+    /// # Errors
+    ///
+    /// Returns a message if the budget is spent.
+    pub fn charge_reread(&mut self, n: usize, window_len: usize) -> Result<(), String> {
+        self.reread_bytes = self.reread_bytes.saturating_add(n);
+        let budget = window_len
+            .saturating_mul(REREAD_FACTOR)
+            .saturating_add(REREAD_FLOOR);
+        if self.reread_bytes > budget {
+            return Err(format!(
+                "fields placed with pos read more than {budget} bytes in total"
+            ));
+        }
+        Ok(())
     }
 
     /// The number of scopes entered, including the root scope.
