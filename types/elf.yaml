@@ -1,0 +1,222 @@
+# ELF (Executable and Linkable Format), 64-bit little-endian: executables,
+# shared objects, relocatable objects and core files for x86-64, AArch64,
+# RISC-V and other 64-bit little-endian targets.
+#
+#   doe -I types /bin/ls elf
+#
+# Decoded: the ELF header, the program header table and the section header
+# table. Segment and section contents are skipped as raw bytes (`contents`
+# and `object_file_contents`), because doe cannot seek yet (#29).
+#
+# Limits, all of which match what linkers produce:
+#   * 32-bit and big-endian files are rejected by the magic check.
+#   * The program header table directly follows the ELF header
+#     (e_phoff == 64) and entries are 56 bytes (e_phentsize is not consulted).
+#   * The section header table is the last thing in the file and entries are
+#     64 bytes (e_shentsize is not consulted).
+#   * Section names are not resolved: sh_name is an offset into the section
+#     name string table.
+id: elf
+doc: "ELF64 little-endian executable, shared object, relocatable object or core file"
+meta:
+  endian: le
+seq:
+  - id: header
+    type: elf_header
+
+  # Program header table. Assumes the usual layout: it directly follows the
+  # ELF header (e_phoff == 64) and each entry is 56 bytes.
+  - id: before_program_headers
+    type: bytes
+    size: header.e_phoff - 64
+    if: header.e_phnum > 0
+  - id: program_headers
+    type: program_header
+    repeat: expr
+    repeat-expr: header.e_phnum
+
+  # Everything between the program headers and the section header table:
+  # segment and section contents, not decoded here.
+  - id: contents
+    type: bytes
+    size: header.e_shoff - 64 - (header.e_phnum * 56)
+    if: header.e_shoff != 0 && header.e_phnum > 0
+
+  # Section header table. Assumes 64-byte entries and that the table is the
+  # last thing in the file (the usual layout). Relocatable objects have no
+  # program headers, so their contents run from the ELF header to the table.
+  - id: object_file_contents
+    type: bytes
+    size: header.e_shoff - 64
+    if: header.e_shoff != 0 && header.e_phnum == 0
+  - id: section_headers
+    type: section_header
+    repeat: expr
+    repeat-expr: header.e_shnum
+    if: header.e_shoff != 0
+
+types:
+  elf_header:
+    doc: "The 64-byte Elf64_Ehdr"
+    seq:
+      - id: magic
+        contents: [0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01]
+        doc: "The ELF magic, then EI_CLASS 2 (64-bit) and EI_DATA 1 (little-endian); other files are rejected"
+      - id: ident_version
+        type: u8
+      - id: os_abi
+        type: u8
+        enum: os_abi_t
+      - id: abi_version
+        type: u8
+      - id: ident_padding
+        type: bytes
+        size: 7
+      - id: e_type
+        type: u16
+        enum: type_t
+      - id: e_machine
+        type: u16
+        enum: machine_t
+      - id: e_version
+        type: u32
+      - id: e_entry
+        type: u64
+      - id: e_phoff
+        type: u64
+      - id: e_shoff
+        type: u64
+      - id: e_flags
+        type: u32
+      - id: e_ehsize
+        type: u16
+      - id: e_phentsize
+        type: u16
+      - id: e_phnum
+        type: u16
+      - id: e_shentsize
+        type: u16
+      - id: e_shnum
+        type: u16
+      - id: e_shstrndx
+        type: u16
+
+  program_header:
+    doc: "One Elf64_Phdr, 56 bytes"
+    seq:
+      - id: p_type
+        type: u32
+        enum: segment_type_t
+      - id: p_flags
+        type: u32
+        doc: "Bit mask: 1 execute, 2 write, 4 read"
+      - id: p_offset
+        type: u64
+      - id: p_vaddr
+        type: u64
+      - id: p_paddr
+        type: u64
+      - id: p_filesz
+        type: u64
+      - id: p_memsz
+        type: u64
+      - id: p_align
+        type: u64
+
+  section_header:
+    doc: "One Elf64_Shdr, 64 bytes"
+    seq:
+      - id: sh_name
+        type: u32
+        doc: "Offset into the section name string table"
+      - id: sh_type
+        type: u32
+        enum: section_type_t
+      - id: sh_flags
+        type: u64
+        doc: "Bit mask: 1 write, 2 alloc, 4 exec, 0x10 merge, 0x20 strings, 0x40 info link"
+      - id: sh_addr
+        type: u64
+      - id: sh_offset
+        type: u64
+      - id: sh_size
+        type: u64
+      - id: sh_link
+        type: u32
+      - id: sh_info
+        type: u32
+      - id: sh_addralign
+        type: u64
+      - id: sh_entsize
+        type: u64
+
+enums:
+  os_abi_t:
+    "0": system_v
+    "1": hp_ux
+    "2": netbsd
+    "3": gnu_linux
+    "6": solaris
+    "9": freebsd
+    "12": openbsd
+    "97": arm
+    "255": standalone
+  type_t:
+    "0": none
+    "1": relocatable
+    "2": executable
+    "3": shared_object
+    "4": core
+  machine_t:
+    "0": none
+    "2": sparc
+    "3": x86
+    "8": mips
+    "20": powerpc
+    "21": powerpc64
+    "22": s390
+    "40": arm
+    "42": superh
+    "50": ia_64
+    "62": x86_64
+    "183": aarch64
+    "243": risc_v
+    "247": bpf
+    "258": loongarch
+  segment_type_t:
+    "0x0": "null"
+    "0x1": load
+    "0x2": dynamic
+    "0x3": interp
+    "0x4": note
+    "0x5": shlib
+    "0x6": phdr
+    "0x7": tls
+    "0x6474e550": gnu_eh_frame
+    "0x6474e551": gnu_stack
+    "0x6474e552": gnu_relro
+    "0x6474e553": gnu_property
+  section_type_t:
+    "0x0": "null"
+    "0x1": progbits
+    "0x2": symtab
+    "0x3": strtab
+    "0x4": rela
+    "0x5": hash
+    "0x6": dynamic
+    "0x7": note
+    "0x8": nobits
+    "0x9": rel
+    "0xa": shlib
+    "0xb": dynsym
+    "0xe": init_array
+    "0xf": fini_array
+    "0x10": preinit_array
+    "0x11": group
+    "0x12": symtab_shndx
+    "0x13": relr
+    "0x6ffffff5": gnu_attributes
+    "0x6ffffff6": gnu_hash
+    "0x6ffffffd": gnu_verdef
+    "0x6ffffffe": gnu_verneed
+    "0x6fffffff": gnu_versym

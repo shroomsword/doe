@@ -13,6 +13,7 @@ mod compiler;
 mod config;
 mod context;
 mod cursor;
+mod elf;
 mod engine;
 mod expr;
 mod ir;
