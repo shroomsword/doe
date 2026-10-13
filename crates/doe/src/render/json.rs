@@ -9,6 +9,7 @@
 //! | SInt(n)       | number                                                  |
 //! | Float(f)      | number (NaN/Inf become null)                            |
 //! | Bytes(b)      | `{"$type":"bytes","hex":"deadbeef","len":4}`            |
+//! | Blob          | `{"$type":"bytes","hex":"de…","len":1048576,"offset":64,"truncated":true}` (`hex` is the first bytes only) |
 //! | Str(s)        | string                                                  |
 //! | Enum{v,name}  | `{"$type":"enum","value":1,"name":"data"}` or just the |
 //! |               | value if name is null                                   |
@@ -53,6 +54,19 @@ pub fn to_json(value: &Value) -> JValue {
                 "$type": "bytes",
                 "hex": hex_encode(b),
                 "len": b.len(),
+            })
+        }
+        Value::Blob {
+            offset,
+            len,
+            preview,
+        } => {
+            json!({
+                "$type": "bytes",
+                "hex": hex_encode(preview),
+                "len": len,
+                "offset": offset,
+                "truncated": true,
             })
         }
         Value::Str(s) => JValue::String(s.clone()),

@@ -1765,3 +1765,118 @@ fn rereading_a_large_region_for_every_element_is_bounded() {
         "{err:?}"
     );
 }
+
+// ── Large byte sequences ─────────────────────────────────────────────────
+
+fn blob_schema() -> &'static str {
+    indoc! {"
+        id: t
+        seq:
+          - id: len
+            type: u32le
+          - id: body
+            type: bytes
+            size: len
+          - id: after
+            type: u8
+    "}
+}
+
+fn blob_input(len: usize) -> Vec<u8> {
+    let mut data = u32::try_from(len).unwrap().to_le_bytes().to_vec();
+    data.extend((0..len).map(|i| u8::try_from(i % 251).unwrap()));
+    data.push(0x5a);
+    data
+}
+
+#[test]
+fn bytes_up_to_the_limit_are_kept() {
+    let v = parse(blob_schema(), "t", &blob_input(MAX_INLINE_BYTES));
+    assert!(matches!(get_field(&v, "body"), Value::Bytes(b) if b.len() == MAX_INLINE_BYTES));
+    assert_eq!(get_field(&v, "after").as_int(), Some(0x5a));
+}
+
+#[test]
+fn longer_bytes_keep_a_position_a_length_and_a_preview() {
+    let data = blob_input(MAX_INLINE_BYTES + 1);
+    let v = parse(blob_schema(), "t", &data);
+    let Value::Blob {
+        offset,
+        len,
+        preview,
+    } = get_field(&v, "body")
+    else {
+        panic!("expected a blob, got {:?}", get_field(&v, "body"));
+    };
+    assert_eq!(*offset, 4);
+    assert_eq!(*len, u64::try_from(MAX_INLINE_BYTES + 1).unwrap());
+    assert_eq!(preview.as_slice(), &data[4..4 + BLOB_PREVIEW_LEN]);
+    // Parsing carries on after the whole sequence.
+    assert_eq!(get_field(&v, "after").as_int(), Some(0x5a));
+    assert_eq!(get_field(&v, "body").byte_len(), Some(MAX_INLINE_BYTES + 1));
+}
+
+#[test]
+fn a_blob_prints_briefly() {
+    let v = parse(blob_schema(), "t", &blob_input(1_000_000));
+    assert_eq!(
+        format!("{}", get_field(&v, "body")),
+        "<1000000 bytes at 0x4>"
+    );
+    let json = doe::render::json::to_json(get_field(&v, "body"));
+    assert_eq!(json["len"], 1_000_000);
+    assert_eq!(json["offset"], 4);
+    assert_eq!(json["truncated"], true);
+    assert_eq!(json["hex"].as_str().unwrap().len(), BLOB_PREVIEW_LEN * 2);
+}
+
+#[test]
+fn bytes_longer_than_the_input_are_an_error_without_allocating_them() {
+    for size in [100_000u64, 1 << 33, 1 << 62] {
+        let yaml = format!("id: t\nseq:\n  - id: b\n    type: bytes\n    size: {size}\n");
+        for data in [vec![0u8; 10], vec![0u8; 5000]] {
+            let err = parse_err(&yaml, "t", &data);
+            assert!(
+                matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
+                "{size}: {err:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn fixed_size_strings_are_bounded() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: s
+            type: str
+            size: 20000000
+    "};
+    let err = parse_err(yaml, "t", &[0u8; 10]);
+    assert!(
+        matches!(&err, DoeError::Schema(m) if m.contains("longer than the limit")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn a_huge_repeat_count_does_not_reserve_memory_for_it() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: n
+            type: u32le
+          - id: items
+            type: u8
+            repeat: expr
+            repeat-expr: n
+    "};
+    let mut data = 0x7fff_ffffu32.to_le_bytes().to_vec();
+    data.extend(vec![1u8; 3_000_000]);
+    let err = parse_err(yaml, "t", &data);
+    assert!(
+        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
+        "{err:?}"
+    );
+}

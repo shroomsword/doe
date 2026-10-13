@@ -54,6 +54,7 @@ fn write_value(out: &mut String, value: &Value, depth: usize, indent: &str, labe
         | Value::SInt(_)
         | Value::Float(_)
         | Value::Bytes(_)
+        | Value::Blob { .. }
         | Value::Str(_)
         | Value::Enum { .. }
         | Value::Absent => {
