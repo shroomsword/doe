@@ -1,7 +1,7 @@
 //! Raw schema types: a direct serde mirror of the YAML format.
 //!
 //! These structs are deliberately free of any validation or business logic —
-//! they exist only to let `serde_yaml` deserialise a schema file into a Rust
+//! they exist only to let `serde-saphyr` deserialise a schema file into a Rust
 //! value.  The [`crate::schema::compiler`] module then transforms them into
 //! the validated, resolved [`crate::schema::ir`] representation.
 //!
@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use indexmap::IndexMap;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 // ── Top-level schema ─────────────────────────────────────────────────────────
@@ -59,6 +60,32 @@ pub struct RawSchema {
     /// knows where this schema was resolved from.
     #[serde(skip)]
     pub source_path: Option<PathBuf>,
+}
+
+impl RawSchema {
+    /// Parse a schema from YAML text.
+    ///
+    /// Unknown keys are rejected, duplicate mapping keys are an error, and only
+    /// `true` and `false` are booleans, so field ids such as `y`, `n` or `on`
+    /// stay strings. The parser enforces limits on document size and alias
+    /// expansion, so untrusted input cannot exhaust memory.
+    ///
+    /// # Errors
+    ///
+    /// Returns the parser's error, which names the line and column, if the text
+    /// is not valid YAML or does not match the schema format.
+    pub fn from_yaml_str(text: &str) -> Result<Self, serde_saphyr::Error> {
+        parse_yaml(text)
+    }
+}
+
+/// Deserialize YAML with the settings every `doe` YAML file uses.
+pub(crate) fn parse_yaml<T: DeserializeOwned>(text: &str) -> Result<T, serde_saphyr::Error> {
+    let mut options = serde_saphyr::Options::default();
+    // YAML 1.1 reads `y`, `n`, `yes`, `no`, `on` and `off` as booleans, which
+    // would break field ids and expressions such as `size: n`.
+    options.strict_booleans = true;
+    serde_saphyr::from_str_with_options(text, options)
 }
 
 // ── Meta ─────────────────────────────────────────────────────────────────────

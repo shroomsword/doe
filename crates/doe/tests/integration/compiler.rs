@@ -6,12 +6,12 @@ use doe::schema::raw::RawSchema;
 use indoc::indoc;
 
 fn compile(yaml: &str) -> TypeRegistry {
-    let schema: RawSchema = serde_yaml::from_str(yaml).expect("YAML parse");
+    let schema: RawSchema = RawSchema::from_yaml_str(yaml).expect("YAML parse");
     compile_schema(&schema).expect("compile")
 }
 
 fn compile_err(yaml: &str) -> DoeError {
-    let schema: RawSchema = serde_yaml::from_str(yaml).expect("YAML parse");
+    let schema: RawSchema = RawSchema::from_yaml_str(yaml).expect("YAML parse");
     compile_schema(&schema).expect_err("expected compile error")
 }
 
@@ -750,7 +750,7 @@ fn duplicate_top_level_id_from_different_files_is_error() {
     // Two separately loaded in-memory schemas with the same id but
     // different source_path values should be rejected.
     use std::path::PathBuf;
-    let mut schema_a: RawSchema = serde_yaml::from_str(indoc! {r"
+    let mut schema_a: RawSchema = RawSchema::from_yaml_str(indoc! {r"
         id: my_type
         seq:
           - id: x
@@ -759,7 +759,7 @@ fn duplicate_top_level_id_from_different_files_is_error() {
     .unwrap();
     schema_a.source_path = Some(PathBuf::from("/types/a.yaml"));
 
-    let mut schema_b: RawSchema = serde_yaml::from_str(indoc! {r"
+    let mut schema_b: RawSchema = RawSchema::from_yaml_str(indoc! {r"
         id: my_type
         seq:
           - id: y
@@ -792,7 +792,7 @@ fn same_schema_loaded_twice_via_import_is_idempotent() {
     // The same schema id from the same source is not a duplicate —
     // this happens when a schema is reachable via multiple import paths.
     use std::path::PathBuf;
-    let mut schema: RawSchema = serde_yaml::from_str(indoc! {r"
+    let mut schema: RawSchema = RawSchema::from_yaml_str(indoc! {r"
         id: shared
         seq:
           - id: val

@@ -18,7 +18,7 @@ const MAGIC_SCHEMA: &str = include_str!("../seeds/engine/magic.yaml");
 
 fn registry(source: &'static str, cell: &'static OnceLock<TypeRegistry>) -> &'static TypeRegistry {
     cell.get_or_init(|| {
-        let schema: RawSchema = serde_yaml::from_str(source).expect("fuzz schema is valid YAML");
+        let schema: RawSchema = RawSchema::from_yaml_str(source).expect("fuzz schema is valid YAML");
         compile_schema(&schema).expect("fuzz schema compiles")
     })
 }

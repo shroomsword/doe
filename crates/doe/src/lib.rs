@@ -205,9 +205,9 @@ pub fn load_schema_file(path: &Path) -> Result<schema::raw::RawSchema> {
         source: e,
     })?;
     let mut s: schema::raw::RawSchema =
-        serde_yaml::from_str(&text).map_err(|e| DoeError::Yaml {
+        schema::raw::RawSchema::from_yaml_str(&text).map_err(|e| DoeError::Yaml {
             path: path.to_owned(),
-            source: e,
+            source: Box::new(e),
         })?;
     s.source_path = Some(path.to_owned());
     Ok(s)

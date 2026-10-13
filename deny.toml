@@ -9,7 +9,6 @@ yanked = "deny"
 ignore = [
     # Each entry needs an ID, a reason, and a GitHub issue that tracks removing it:
     # { id = "RUSTSEC-0000-0000", reason = "#123: not reachable from our usage; upgrade pending" },
-    { id = "RUSTSEC-2024-0449", reason = "#10: unsafe-libyaml is only reached through serde_yaml, which is to be replaced" },
 ]
 
 [licenses]
