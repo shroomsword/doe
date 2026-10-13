@@ -1191,3 +1191,44 @@ fn sibling_types_do_not_see_each_others_enums() {
     "#});
     assert!(matches!(err, DoeError::UnknownEnum { .. }), "{err:?}");
 }
+
+#[test]
+fn nested_field_references_must_name_an_earlier_field() {
+    // `header` is defined after `body`, so even a dotted path through it is a forward reference.
+    let err = compile_err(indoc! {r"
+        id: t
+        seq:
+          - id: body
+            type: bytes
+            size: header.length
+          - id: header
+            type: h
+        types:
+          h:
+            seq:
+              - id: length
+                type: u8
+    "});
+    assert!(
+        matches!(&err, DoeError::FieldError { field, .. } if field == "header"),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn nested_field_references_to_earlier_fields_compile() {
+    compile(indoc! {r"
+        id: t
+        seq:
+          - id: header
+            type: h
+          - id: body
+            type: bytes
+            size: header.length
+        types:
+          h:
+            seq:
+              - id: length
+                type: u8
+    "});
+}
