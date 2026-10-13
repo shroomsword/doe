@@ -191,9 +191,9 @@ fn program_headers_are_decoded_in_order() {
 }
 
 #[test]
-fn section_contents_are_skipped_and_section_headers_decoded() {
+fn section_headers_are_read_from_e_shoff() {
     let v = decode(&executable()).unwrap();
-    assert_eq!(v["contents"]["len"], 100);
+    assert!(v.get("contents").is_none());
     let sections = v["section_headers"].as_array().unwrap();
     assert_eq!(sections.len(), 3);
     assert_eq!(name_of(&sections[0]["sh_type"]), "null");
@@ -232,8 +232,8 @@ fn relocatable_object_without_program_headers_is_decoded() {
     let v = decode(&bytes).unwrap();
     assert_eq!(name_of(&v["header"]["e_type"]), "relocatable");
     assert_eq!(name_of(&v["header"]["e_machine"]), "aarch64");
-    assert_eq!(v["program_headers"].as_array().unwrap().len(), 0);
-    assert_eq!(v["object_file_contents"]["len"], 40);
+    // The field is skipped (e_phoff is 0), not an empty array.
+    assert!(v["program_headers"].is_null());
     assert_eq!(v["section_headers"].as_array().unwrap().len(), 2);
 }
 
@@ -316,10 +316,75 @@ fn empty_and_truncated_files_are_buffer_errors() {
 }
 
 #[test]
-fn inconsistent_offsets_are_errors_not_panics() {
-    // e_shoff points inside the program header table, so the skipped region
-    // would have negative size.
+fn tables_are_found_wherever_the_header_points() {
+    // Section headers in the middle of the file, with bytes after them, and
+    // program headers after those: nothing assumes the usual layout.
     let mut bytes = executable();
-    bytes[40..48].copy_from_slice(&70u64.to_le_bytes());
-    assert!(decode(&bytes).is_err());
+    let sh_start = 64 + 3 * 56 + 100;
+    let table = bytes[sh_start..].to_vec();
+    bytes.truncate(sh_start);
+    bytes.extend_from_slice(&[0xee; 16]);
+    let new_shoff = 64 + 3 * 56 + 100 + 16;
+    bytes.extend_from_slice(&table);
+    bytes[40..48].copy_from_slice(&u64::try_from(new_shoff).unwrap().to_le_bytes());
+    let v = decode(&bytes).unwrap();
+    assert_eq!(v["section_headers"].as_array().unwrap().len(), 3);
+    assert_eq!(name_of(&v["section_headers"][1]["sh_type"]), "progbits");
+    assert_eq!(v["program_headers"].as_array().unwrap().len(), 3);
+}
+
+#[test]
+fn larger_entry_sizes_are_honored() {
+    let mut bytes = elf64(
+        2,
+        62,
+        &[],
+        &[],
+        &[
+            Section {
+                name: 0,
+                kind: 0,
+                flags: 0,
+                offset: 0,
+                size: 0,
+            },
+            Section {
+                name: 1,
+                kind: 1,
+                flags: 6,
+                offset: 64,
+                size: 40,
+            },
+        ],
+    );
+    // Stretch each 64-byte entry to 72 bytes.
+    let table = bytes.split_off(64);
+    for entry in table.chunks(64) {
+        bytes.extend_from_slice(entry);
+        bytes.extend_from_slice(&[0xaa; 8]);
+    }
+    bytes[58..60].copy_from_slice(&72u16.to_le_bytes());
+    let v = decode(&bytes).unwrap();
+    let sections = v["section_headers"].as_array().unwrap();
+    assert_eq!(sections.len(), 2);
+    assert_eq!(name_of(&sections[1]["sh_type"]), "progbits");
+    assert_eq!(sections[1]["sh_size"], 40);
+}
+
+#[test]
+fn table_offsets_outside_the_file_are_errors_not_panics() {
+    for (at, value) in [
+        (32, 70_000u64),
+        (40, 70_000),
+        (40, u64::MAX),
+        (32, u64::MAX),
+    ] {
+        let mut bytes = executable();
+        bytes[at..at + 8].copy_from_slice(&value.to_le_bytes());
+        let err = decode(&bytes).unwrap_err();
+        assert!(
+            matches!(err, DoeError::FieldError { .. }),
+            "{at} {value}: {err:?}"
+        );
+    }
 }

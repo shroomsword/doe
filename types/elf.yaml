@@ -5,15 +5,14 @@
 #   doe -I types /bin/ls elf
 #
 # Decoded: the ELF header, the program header table and the section header
-# table. Segment and section contents are skipped as raw bytes (`contents`
-# and `object_file_contents`), because doe cannot seek yet (#29).
+# table, each read where the header says it is (e_phoff, e_shoff). Segment
+# and section contents are not decoded.
 #
-# Limits, all of which match what linkers produce:
+# Limits:
 #   * 32-bit and big-endian files are rejected by the magic check.
-#   * The program header table directly follows the ELF header
-#     (e_phoff == 64) and entries are 56 bytes (e_phentsize is not consulted).
-#   * The section header table is the last thing in the file and entries are
-#     64 bytes (e_shentsize is not consulted).
+#   * Entries are decoded as the 56-byte (program) and 64-byte (section)
+#     structures. A larger e_phentsize or e_shentsize is honored: the extra
+#     bytes of each entry are skipped. A smaller one is not supported.
 #   * Section names are not resolved: sh_name is an offset into the section
 #     name string table.
 id: elf
@@ -23,34 +22,15 @@ meta:
 seq:
   - id: header
     type: elf_header
-
-  # Program header table. Assumes the usual layout: it directly follows the
-  # ELF header (e_phoff == 64) and each entry is 56 bytes.
-  - id: before_program_headers
-    type: bytes
-    size: header.e_phoff - 64
-    if: header.e_phnum > 0
   - id: program_headers
     type: program_header
+    pos: header.e_phoff
     repeat: expr
     repeat-expr: header.e_phnum
-
-  # Everything between the program headers and the section header table:
-  # segment and section contents, not decoded here.
-  - id: contents
-    type: bytes
-    size: header.e_shoff - 64 - (header.e_phnum * 56)
-    if: header.e_shoff != 0 && header.e_phnum > 0
-
-  # Section header table. Assumes 64-byte entries and that the table is the
-  # last thing in the file (the usual layout). Relocatable objects have no
-  # program headers, so their contents run from the ELF header to the table.
-  - id: object_file_contents
-    type: bytes
-    size: header.e_shoff - 64
-    if: header.e_shoff != 0 && header.e_phnum == 0
+    if: header.e_phoff != 0
   - id: section_headers
     type: section_header
+    pos: header.e_shoff
     repeat: expr
     repeat-expr: header.e_shnum
     if: header.e_shoff != 0
@@ -122,6 +102,10 @@ types:
         type: u64
       - id: p_align
         type: u64
+      - id: p_entry_padding
+        type: bytes
+        size: _parent.header.e_phentsize - 56
+        if: _parent.header.e_phentsize > 56
 
   section_header:
     doc: "One Elf64_Shdr, 64 bytes"
@@ -149,6 +133,10 @@ types:
         type: u64
       - id: sh_entsize
         type: u64
+      - id: sh_entry_padding
+        type: bytes
+        size: _parent.header.e_shentsize - 64
+        if: _parent.header.e_shentsize > 64
 
 enums:
   os_abi_t:

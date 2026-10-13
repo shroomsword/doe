@@ -1,0 +1,35 @@
+id: seek
+meta:
+  endian: le
+seq:
+  - id: table_offset
+    type: u16
+  - id: table_count
+    type: u8
+  - id: blob_offset
+    type: u8
+  - id: blob_len
+    type: u8
+  - id: table
+    type: entry
+    pos: table_offset
+    repeat: expr
+    repeat-expr: table_count
+  - id: blob
+    type: bytes
+    size: blob_len
+    pos: blob_offset
+    if: blob_len > 0
+  - id: after
+    type: u8
+types:
+  entry:
+    seq:
+      - id: key
+        type: u16
+      - id: where
+        type: u8
+      - id: pointed
+        type: bytes
+        size: 4
+        pos: where

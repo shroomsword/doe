@@ -166,6 +166,12 @@ pub struct RawField {
     #[serde(rename = "if", default)]
     pub if_expr: Option<String>,
 
+    /// Byte offset to read the field at, from the start of the file (or of the
+    /// enclosing sized window). May be a literal or an expression over earlier
+    /// fields. The position is restored once the field has been read.
+    #[serde(default)]
+    pub pos: Option<StringOrInt>,
+
     /// Name of an enum defined in the nearest enclosing `enums:` block.
     #[serde(rename = "enum", default)]
     pub enum_ref: Option<String>,

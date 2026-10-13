@@ -96,7 +96,42 @@ impl<'reg> Engine<'reg> {
             }
         }
 
-        // Dispatch on repeat mode
+        let Some(pos_expr) = &field.pos else {
+            return self.parse_repeats(field, parent_ty, cursor, ctx);
+        };
+
+        // `pos:` reads the whole field (every repeat) somewhere else, then
+        // puts the cursor back where the sequence left off.
+        let target = expr::eval(pos_expr, &ctx.eval_ctx, "<pos>")
+            .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
+        let target = usize::try_from(target).map_err(|_| DoeError::FieldError {
+            field: field.id.clone(),
+            context: parent_ty.name.clone(),
+            message: format!("pos evaluated to an invalid offset: {target}"),
+        })?;
+        let resume = cursor.pos();
+        cursor
+            .seek(target)
+            .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
+        let value = self.parse_repeats(field, parent_ty, cursor, ctx)?;
+        ctx.charge_reread(cursor.pos().saturating_sub(target), cursor.len())
+            .map_err(|message| DoeError::FieldError {
+                field: field.id.clone(),
+                context: parent_ty.name.clone(),
+                message,
+            })?;
+        cursor.seek(resume)?;
+        Ok(value)
+    }
+
+    /// Dispatch on the field's repeat mode.
+    fn parse_repeats(
+        &self,
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
         match &field.repeat {
             RepeatMode::Once => self.parse_field_once(field, parent_ty, cursor, ctx),
             RepeatMode::Eos => {
