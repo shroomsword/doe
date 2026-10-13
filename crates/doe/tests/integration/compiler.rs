@@ -1064,3 +1064,130 @@ fn load_yaml_reports_io_and_yaml_errors() {
         DoeError::Yaml { .. }
     ));
 }
+
+// ── Enum scope ────────────────────────────────────────────────────────────
+
+fn lookup_in(reg: &TypeRegistry, ty: &str, enum_name: &str, value: u64) -> Option<String> {
+    reg.get(ty)
+        .unwrap()
+        .enums
+        .get(enum_name)
+        .and_then(|e| e.lookup(value))
+        .map(str::to_owned)
+}
+
+#[test]
+fn top_level_enum_is_visible_in_sub_types() {
+    let reg = compile(indoc! {r#"
+        id: t
+        seq:
+          - id: inner
+            type: child
+        types:
+          child:
+            seq:
+              - id: kind
+                type: u8
+                enum: kind_t
+        enums:
+          kind_t:
+            "1": data
+    "#});
+    assert_eq!(
+        lookup_in(&reg, "t::child", "kind_t", 1).as_deref(),
+        Some("data")
+    );
+}
+
+#[test]
+fn top_level_enum_is_visible_in_deeply_nested_types() {
+    let reg = compile(indoc! {r#"
+        id: t
+        seq: []
+        types:
+          a:
+            seq: []
+            types:
+              b:
+                seq:
+                  - id: kind
+                    type: u8
+                    enum: kind_t
+        enums:
+          kind_t:
+            "7": seven
+    "#});
+    assert_eq!(
+        lookup_in(&reg, "t::a::b", "kind_t", 7).as_deref(),
+        Some("seven")
+    );
+}
+
+#[test]
+fn inner_enum_shadows_an_enclosing_enum_of_the_same_name() {
+    let reg = compile(indoc! {r#"
+        id: t
+        seq:
+          - id: x
+            type: u8
+            enum: e
+        types:
+          child:
+            seq:
+              - id: y
+                type: u8
+                enum: e
+            enums:
+              e:
+                "1": inner
+        enums:
+          e:
+            "1": outer
+            "2": outer_only
+    "#});
+    assert_eq!(lookup_in(&reg, "t", "e", 1).as_deref(), Some("outer"));
+    assert_eq!(
+        lookup_in(&reg, "t::child", "e", 1).as_deref(),
+        Some("inner")
+    );
+    // The shadowing enum replaces the outer one entirely, it is not merged with it.
+    assert_eq!(lookup_in(&reg, "t::child", "e", 2), None);
+}
+
+#[test]
+fn enclosing_type_does_not_see_enums_of_its_sub_types() {
+    let err = compile_err(indoc! {r#"
+        id: t
+        seq:
+          - id: x
+            type: u8
+            enum: only_in_child
+        types:
+          child:
+            seq: []
+            enums:
+              only_in_child:
+                "1": a
+    "#});
+    assert!(matches!(err, DoeError::UnknownEnum { .. }), "{err:?}");
+}
+
+#[test]
+fn sibling_types_do_not_see_each_others_enums() {
+    let err = compile_err(indoc! {r#"
+        id: t
+        seq: []
+        types:
+          a:
+            seq: []
+            enums:
+              from_a:
+                "1": a
+          b:
+            seq:
+              - id: x
+                type: u8
+                enum: from_a
+    "#});
+    assert!(matches!(err, DoeError::UnknownEnum { .. }), "{err:?}");
+}

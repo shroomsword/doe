@@ -1401,3 +1401,38 @@ fn repeat_eos_over_one_byte_elements_still_works() {
     };
     assert_eq!(items.len(), 3);
 }
+
+// ── Enum scope at parse time ──────────────────────────────────────────────
+
+#[test]
+fn sub_type_field_uses_a_top_level_enum() {
+    // The README's sub-types example: the enum is declared on the schema and
+    // used by a field of a sub-type.
+    let yaml = indoc! {r#"
+        id: t
+        seq:
+          - id: header
+            type: header_t
+        types:
+          header_t:
+            seq:
+              - id: bitness
+                type: u8
+                enum: bits_t
+        enums:
+          bits_t:
+            "1": b32
+            "2": b64
+    "#};
+    let v = parse(yaml, "t", &[2]);
+    let Value::Struct { fields, .. } = get_field(&v, "header") else {
+        panic!("expected a struct");
+    };
+    assert_eq!(
+        fields[0].1,
+        Value::Enum {
+            value: 2,
+            name: Some("b64".into())
+        }
+    );
+}
