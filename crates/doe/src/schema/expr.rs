@@ -128,6 +128,8 @@ impl fmt::Display for BinaryOp {
 #[derive(Debug, Clone, PartialEq)]
 enum Token {
     Int(i64),
+    /// An integer literal that is empty (`0x`) or does not fit in an `i64`.
+    BadInt(String),
     Ident(String),
     /// A character that is not part of the expression language.
     Unknown(char),
@@ -192,7 +194,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn read_int(&mut self) -> i64 {
+    fn read_int(&mut self) -> Token {
         let start = self.pos;
         // Hex literal
         if self.peek() == Some(b'0') && matches!(self.peek2(), Some(b'x' | b'X')) {
@@ -202,12 +204,18 @@ impl<'a> Lexer<'a> {
                 self.advance();
             }
             let hex = self.slice_str(start.saturating_add(2), self.pos);
-            return i64::from_str_radix(hex, 16).unwrap_or(0);
+            return i64::from_str_radix(hex, 16).map_or_else(|_| self.bad_int(start), Token::Int);
         }
         while matches!(self.peek(), Some(b'0'..=b'9')) {
             self.advance();
         }
-        self.slice_str(start, self.pos).parse().unwrap_or(0)
+        self.slice_str(start, self.pos)
+            .parse()
+            .map_or_else(|_| self.bad_int(start), Token::Int)
+    }
+
+    fn bad_int(&self, start: usize) -> Token {
+        Token::BadInt(self.slice_str(start, self.pos).to_owned())
     }
 
     fn read_ident(&mut self) -> String {
@@ -233,7 +241,7 @@ impl<'a> Lexer<'a> {
         self.skip_ws();
         match self.peek() {
             None => Token::Eof,
-            Some(b'0'..=b'9') => Token::Int(self.read_int()),
+            Some(b'0'..=b'9') => self.read_int(),
             Some(b'a'..=b'z' | b'A'..=b'Z' | b'_') => {
                 let id = self.read_ident();
                 match id.as_str() {
@@ -579,6 +587,10 @@ impl<'a> Parser<'a> {
                 self.bump();
                 Ok(e)
             }
+            Token::BadInt(text) => Err(self.err(&format!(
+                "integer literal {text} is not a number between 0 and {}",
+                i64::MAX
+            ))),
             _ => Err(self.err(&format!("unexpected token {:?}", self.current))),
         }
     }

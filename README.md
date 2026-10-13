@@ -179,7 +179,7 @@ strings, bytes and arrays have no numeric value and cannot be referenced.
 ```
 
 Supported operators: `+` `-` `*` `/` `%` `&` `|` `^` `<<` `>>` `==` `!=`
-`<` `>` `<=` `>=` `&&` `||` `!`. Integer literals may be decimal or `0x`-prefixed hex.
+`<` `>` `<=` `>=` `&&` `||` `!`. Integer literals may be decimal or `0x`-prefixed hex and must fit in a signed 64-bit integer; a larger one is a schema error.
 
 ### Sub-types
 
