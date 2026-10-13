@@ -526,3 +526,13 @@ fn hexadecimal_integers_and_quoted_hex_keys_parse() {
         Some(RawContents::Bytes(ref b)) if b == &[0x89, 0x50]
     ));
 }
+
+#[test]
+fn field_with_pos_expression_or_literal() {
+    let s = RawSchema::from_yaml_str(
+        "id: t\nseq:\n  - id: a\n    type: u8\n    pos: header.off\n  - id: b\n    type: u8\n    pos: 16\n",
+    )
+    .unwrap();
+    assert_eq!(s.seq[0].pos.as_ref().unwrap().as_str(), "header.off");
+    assert_eq!(s.seq[1].pos.as_ref().unwrap().as_str(), "16");
+}

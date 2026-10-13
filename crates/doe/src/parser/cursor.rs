@@ -73,6 +73,16 @@ impl<'buf> Cursor<'buf> {
         self.pos
     }
 
+    /// Size of this cursor's window in bytes.
+    pub fn len(&self) -> usize {
+        self.buf.len()
+    }
+
+    /// Returns `true` if this cursor's window is empty.
+    pub fn is_empty(&self) -> bool {
+        self.buf.is_empty()
+    }
+
     /// Number of bytes remaining in this cursor's window.
     pub fn remaining(&self) -> usize {
         self.buf.len().saturating_sub(self.pos)

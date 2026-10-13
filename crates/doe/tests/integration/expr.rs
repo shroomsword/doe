@@ -1,3 +1,4 @@
+use doe::DoeError;
 use doe::schema::expr::*;
 
 fn ctx() -> EvalContext {
@@ -509,4 +510,29 @@ fn depth_resets_between_sibling_groups() {
         ")".repeat(MAX_EXPR_DEPTH)
     );
     assert_eq!(eval(&format!("{group} + {group}")), 2);
+}
+
+#[test]
+fn integer_literals_that_do_not_fit_are_parse_errors() {
+    for src in [
+        "0x8000000000000000",
+        "0xffffffffffffffff",
+        "9223372036854775808",
+        "99999999999999999999",
+        "0x",
+        "1 + 0x",
+        "x == 99999999999999999999",
+    ] {
+        let err = parse(src).unwrap_err();
+        assert!(
+            matches!(&err, DoeError::ExprParse { message, .. } if message.contains("integer literal")),
+            "{src}: {err:?}"
+        );
+    }
+}
+
+#[test]
+fn the_largest_integer_literals_still_parse() {
+    assert_eq!(eval("9223372036854775807"), i64::MAX);
+    assert_eq!(eval("0x7fffffffffffffff"), i64::MAX);
 }

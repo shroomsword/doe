@@ -1257,6 +1257,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
                 },
                 repeat: RepeatMode::Once,
                 if_expr: None,
+                pos: None,
                 enum_ref: None,
             }],
             enums: std::collections::HashMap::new(),
@@ -1583,4 +1584,184 @@ fn unknown_or_non_numeric_sub_type_fields_are_errors() {
             "{reference}: {err:?}"
         );
     }
+}
+
+// ── pos ──────────────────────────────────────────────────────────────────
+
+#[test]
+fn pos_reads_at_the_offset_and_restores_the_position() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: offset
+            type: u8
+          - id: far
+            type: u8
+            pos: offset
+          - id: next
+            type: u8
+    "};
+    let v = parse(yaml, "t", &[4, 0xaa, 0xbb, 0xcc, 0xdd]);
+    assert_eq!(get_field(&v, "far").as_int(), Some(0xdd));
+    // `next` continues right after `offset`, not after `far`.
+    assert_eq!(get_field(&v, "next").as_int(), Some(0xaa));
+}
+
+#[test]
+fn pos_accepts_a_literal_and_applies_to_every_repeat() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: items
+            type: u8
+            pos: 2
+            repeat: expr
+            repeat-expr: 3
+          - id: first
+            type: u8
+    "};
+    let v = parse(yaml, "t", &[9, 8, 1, 2, 3]);
+    let Value::Array(items) = get_field(&v, "items") else {
+        panic!("expected array");
+    };
+    assert_eq!(items.len(), 3);
+    assert_eq!(get_field(&v, "first").as_int(), Some(9));
+}
+
+#[test]
+fn pos_is_skipped_with_a_false_if_guard() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: flag
+            type: u8
+          - id: far
+            type: u8
+            pos: 1000
+            if: flag
+    "};
+    let v = parse(yaml, "t", &[0]);
+    assert!(matches!(get_field(&v, "far"), Value::Absent));
+}
+
+#[test]
+fn pos_inside_a_sub_type_is_relative_to_the_file() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: skip
+            type: u8
+          - id: inner
+            type: rec
+        types:
+          rec:
+            seq:
+              - id: a
+                type: u8
+              - id: b
+                type: u8
+                pos: 0
+    "};
+    let v = parse(yaml, "t", &[7, 8]);
+    let inner = get_field(&v, "inner");
+    assert_eq!(get_field(inner, "a").as_int(), Some(8));
+    assert_eq!(get_field(inner, "b").as_int(), Some(7));
+}
+
+#[test]
+fn pos_past_the_end_is_a_field_error() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: far
+            type: u8
+            pos: 5
+    "};
+    for data in [&[1u8, 2][..], &[]] {
+        let err = parse_err(yaml, "t", data);
+        assert!(
+            matches!(&err, DoeError::FieldError { field, .. } if field == "far"),
+            "{err:?}"
+        );
+    }
+}
+
+#[test]
+fn pos_to_exactly_the_end_fails_only_when_reading() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: far
+            type: u8
+            pos: 2
+    "};
+    let err = parse_err(yaml, "t", &[1, 2]);
+    assert!(
+        matches!(&err, DoeError::Schema(m) if m.contains("buffer overrun")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn negative_or_huge_pos_is_a_field_error() {
+    for pos in ["0 - 1", "0x7fffffffffffffff", "offset - 5"] {
+        let yaml = format!(
+            "id: t\nseq:\n  - id: offset\n    type: u8\n  - id: far\n    type: u8\n    pos: \"{pos}\"\n"
+        );
+        let err = parse_err(&yaml, "t", &[1, 2, 3]);
+        assert!(
+            matches!(&err, DoeError::FieldError { field, .. } if field == "far"),
+            "{pos}: {err:?}"
+        );
+    }
+}
+
+#[test]
+fn repeated_elements_that_only_reread_make_no_progress() {
+    // The `pos:` read is undone, so an element made only of it consumes
+    // nothing and the repeat guard still applies.
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: items
+            type: rec
+            repeat: expr
+            repeat-expr: 1000000
+        types:
+          rec:
+            seq:
+              - id: a
+                type: u8
+                pos: 0
+    "};
+    let err = parse_err(yaml, "t", &[1, 2, 3]);
+    assert!(
+        matches!(&err, DoeError::FieldError { message, .. } if message.contains("no bytes")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn rereading_a_large_region_for_every_element_is_bounded() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: items
+            type: rec
+            repeat: eos
+        types:
+          rec:
+            seq:
+              - id: tick
+                type: u8
+              - id: whole
+                type: bytes
+                size: 2048
+                pos: 0
+    "};
+    let err = parse_err(yaml, "t", &[0u8; 2048]);
+    assert!(
+        matches!(&err, DoeError::FieldError { message, .. } if message.contains("in total")),
+        "{err:?}"
+    );
 }

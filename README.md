@@ -70,7 +70,7 @@ doe -I types --json libc.so.6 elf | jq '.program_headers[].p_type.name'
 
 | Type | Describes |
 |------|-----------|
-| `elf` | ELF64 little-endian files: the header, the program header table and the section header table. Contents are skipped. See the comments in [`types/elf.yaml`](https://github.com/shroomsword/doe/blob/main/types/elf.yaml) for its limits. |
+| `elf` | ELF64 little-endian files: the header, the program header table and the section header table, each found through the header. Contents are not decoded. See the comments in [`types/elf.yaml`](https://github.com/shroomsword/doe/blob/main/types/elf.yaml) for its limits. |
 
 Running `doe --help` with `-I types` lists the available types.
 
@@ -122,6 +122,7 @@ seq:
 | `repeat: expr` + `repeat-expr:` | Repeat a computed number of times |
 | `repeat: until` + `repeat-until:` | Repeat until an expression is true; `_` is the last parsed value |
 | `if:` | Skip the field when the expression is false |
+| `pos:` | Read the field at this byte offset instead of the current position; see [Seeking](#seeking) |
 | `enum:` | Map the parsed integer to a named variant |
 | `contents:` | Assert fixed bytes (magic numbers, file signatures) |
 | `doc:` | Human-readable description (shown in verbose output) |
@@ -179,7 +180,34 @@ strings, bytes and arrays have no numeric value and cannot be referenced.
 ```
 
 Supported operators: `+` `-` `*` `/` `%` `&` `|` `^` `<<` `>>` `==` `!=`
-`<` `>` `<=` `>=` `&&` `||` `!`. Integer literals may be decimal or `0x`-prefixed hex.
+`<` `>` `<=` `>=` `&&` `||` `!`. Integer literals may be decimal or `0x`-prefixed hex and must fit in a signed 64-bit integer; a larger one is a schema error.
+
+### Seeking
+
+`pos:` reads a field somewhere other than where the previous field ended. It
+takes a literal or an expression, like `size:`, and is an offset in bytes from
+the start of the file. Once the field has been read (all of its repeats, if it
+has `repeat:`), parsing carries on from where it was before, so `pos:` fields
+do not move the position of the fields around them.
+
+```yaml
+seq:
+  - id: header
+    type: header_t        # holds table_offset and table_count
+  - id: table
+    type: entry_t
+    pos: header.table_offset
+    repeat: expr
+    repeat-expr: header.table_count
+  - id: trailer           # read right after the header, not after the table
+    type: u32
+```
+
+Fields appear in the output in schema order, not file order. A `pos:` that is
+negative or past the end of the file is an error, and so is a repeated element
+made up only of `pos:` fields, since it consumes no input. To stop a crafted
+file from making every element re-read a large region, `pos:` fields may read
+16 times the size of the file in total, plus 1 MiB.
 
 ### Sub-types
 

@@ -89,6 +89,8 @@ pub struct CompiledField {
     pub repeat: RepeatMode,
     /// Compiled `if:` predicate, if present.
     pub if_expr: Option<Expr>,
+    /// Compiled `pos:` expression, if present: where to read the field.
+    pub pos: Option<Expr>,
     /// Name of the enum to apply, if present.
     pub enum_ref: Option<String>,
 }
