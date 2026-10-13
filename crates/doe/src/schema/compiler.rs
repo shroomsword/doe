@@ -151,6 +151,7 @@ impl Compiler {
             &schema.seq,
             &schema.types,
             &schema.enums,
+            &HashMap::new(),
             endian,
         )?;
 
@@ -195,16 +196,23 @@ impl Compiler {
 
     /// Compile one type (the root or an inline sub-type) and insert it into
     /// the registry.  Recursively compiles nested `types:` declarations.
+    ///
+    /// Enums are lexically scoped: a type sees the enums declared by every
+    /// type that encloses it, and an enum declared on the type itself shadows
+    /// an enclosing one of the same name. Sibling and nested types' enums are
+    /// not visible.
     fn compile_type_decl(
         &mut self,
         fqn: &str, // fully-qualified name for this type
         seq: &[RawField],
         types: &IndexMap<String, RawTypeDecl>,
         enums: &IndexMap<String, HashMap<String, String>>,
+        outer_enums: &HashMap<String, CompiledEnum>,
         endian: Endian,
     ) -> Result<()> {
-        // Compile enums for this type
-        let compiled_enums = compile_enums(enums, fqn)?;
+        // Enums visible in this type: the enclosing ones, then its own.
+        let mut compiled_enums = outer_enums.clone();
+        compiled_enums.extend(compile_enums(enums, fqn)?);
 
         // Compile each field
         let mut fields = Vec::with_capacity(seq.len());
@@ -226,7 +234,7 @@ impl Compiler {
             doc: None, // doc not propagated here; add if needed
             endian,
             fields,
-            enums: compiled_enums,
+            enums: compiled_enums.clone(),
         };
         self.registry.insert(fqn.to_owned(), ct);
 
@@ -235,7 +243,14 @@ impl Compiler {
             let child_fqn = format!("{fqn}::{name}");
             // Nested types inherit endian from parent unless they override it
             // (RawTypeDecl has no meta; endian is purely inherited)
-            self.compile_type_decl(&child_fqn, &decl.seq, &decl.types, &decl.enums, endian)?;
+            self.compile_type_decl(
+                &child_fqn,
+                &decl.seq,
+                &decl.types,
+                &decl.enums,
+                &compiled_enums,
+                endian,
+            )?;
         }
 
         Ok(())

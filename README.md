@@ -189,6 +189,11 @@ enums:
     "2": b64
 ```
 
+Enums are lexically scoped: an `enums:` block is visible in the type that
+declares it and in every type nested inside it. A nested type can declare an
+enum with the same name to replace the outer one for its own fields. An enum
+declared in a sub-type is not visible in its parent or its siblings.
+
 ### Imports
 
 A schema may import other schemas by bare name (resolved through include paths)
