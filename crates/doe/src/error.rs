@@ -26,7 +26,7 @@ use thiserror::Error;
 pub enum DoeError {
     // ── I/O ──────────────────────────────────────────────────────────────────
     /// A file could not be opened or read.
-    #[error("could not read file {path}: {source}")]
+    #[error("could not read file {path}")]
     Io {
         /// The path that was being accessed.
         path: PathBuf,
@@ -38,7 +38,7 @@ pub enum DoeError {
     // ── YAML ─────────────────────────────────────────────────────────────────
     /// A YAML file exists but could not be parsed or does not match the
     /// expected schema structure.
-    #[error("YAML parse error in {path}: {source}")]
+    #[error("YAML parse error in {path}")]
     Yaml {
         /// The schema file that triggered the error.
         path: PathBuf,
@@ -50,7 +50,7 @@ pub enum DoeError {
     // ── TOML ─────────────────────────────────────────────────────────────────
     /// A configuration file exists but is not valid TOML or has unknown or
     /// mistyped keys. The message includes the line and column.
-    #[error("invalid configuration in {path}: {source}")]
+    #[error("invalid configuration in {path}")]
     Toml {
         /// The configuration file that triggered the error.
         path: PathBuf,
