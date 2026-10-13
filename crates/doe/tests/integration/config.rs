@@ -333,12 +333,15 @@ fn invalid_log_level_and_unknown_log_key_are_errors() {
 fn parse_error_names_the_file_and_the_line() {
     let mut f = NamedTempFile::new().unwrap();
     writeln!(f, "include_paths = [\n  \"ok\",\n  oops\n]").unwrap();
-    let message = Config::load(f.path()).unwrap_err().to_string();
+    let err = Config::load(f.path()).unwrap_err();
+    // The error names the file; its source, which callers print as the cause, names the line.
+    let message = err.to_string();
     assert!(
         message.contains(&f.path().display().to_string()),
         "{message}"
     );
-    assert!(message.contains("line 3"), "{message}");
+    let cause = std::error::Error::source(&err).unwrap().to_string();
+    assert!(cause.contains("line 3"), "{cause}");
 }
 
 #[test]

@@ -180,3 +180,29 @@ fn backslash_and_platform_absolute_paths_are_schema_paths() {
     let absolute = std::env::temp_dir().join("elf");
     assert!(is_schema_path(&absolute.to_string_lossy()));
 }
+
+#[test]
+fn file_errors_keep_the_detail_in_their_source_not_in_the_message() {
+    use std::error::Error;
+
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("bad.yaml");
+    std::fs::write(&path, "id: t\nseq: [unterminated\n").unwrap();
+    let err = load_schema_file(&path).unwrap_err();
+    assert!(matches!(err, doe::DoeError::Yaml { .. }), "{err:?}");
+    assert_eq!(
+        err.to_string(),
+        format!("YAML parse error in {}", path.display())
+    );
+    assert!(err.source().unwrap().to_string().contains("line 2"));
+
+    let missing = load_schema_file(&dir.path().join("none.yaml")).unwrap_err();
+    assert_eq!(
+        missing.to_string(),
+        format!(
+            "could not read file {}",
+            dir.path().join("none.yaml").display()
+        )
+    );
+    assert!(missing.source().is_some());
+}
