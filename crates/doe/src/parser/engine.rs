@@ -7,7 +7,7 @@
 
 use crate::error::{DoeError, Result};
 use crate::parser::context::ParseContext;
-use crate::parser::cursor::Cursor;
+use crate::parser::cursor::{Cursor, MAX_TERMINATED_LEN};
 use crate::schema::expr;
 use crate::schema::ir::{
     CompiledField, CompiledType, Encoding, Endian, EndianOverride, FieldKind, FloatWidth, IntWidth,
@@ -24,6 +24,20 @@ use crate::value::Value;
 /// A type may refer to itself, directly or through other types; without a
 /// limit such a schema would recurse until the stack overflowed.
 pub const MAX_TYPE_DEPTH: usize = 128;
+
+/// The longest `bytes` field whose contents are kept in the result.
+///
+/// A longer one is read as a [`Value::Blob`]: its position, length and first
+/// [`BLOB_PREVIEW_LEN`] bytes, so that parsing does not hold, and the output
+/// does not print, a sequence as large as the input.
+pub const MAX_INLINE_BYTES: usize = 64 * 1024;
+
+/// How many leading bytes of a long `bytes` field a [`Value::Blob`] keeps.
+pub const BLOB_PREVIEW_LEN: usize = 256;
+
+/// The most elements reserved up front for a repeated field. The count comes
+/// from the input and can be far larger than the input.
+const MAX_RESERVED_ELEMENTS: usize = 1024;
 
 /// Walks a compiled [`TypeRegistry`] over a byte buffer to produce a [`Value`] tree.
 #[derive(Debug)]
@@ -158,8 +172,10 @@ impl<'reg> Engine<'reg> {
                     message: format!("repeat count too large: {n}"),
                 })?;
                 // Each element consumes at least one byte, so never reserve more
-                // than the remaining input can hold.
-                let mut items = Vec::with_capacity(count.min(cursor.remaining()));
+                // than the remaining input can hold, and never a size that a
+                // large input and a large count could make unreasonable.
+                let mut items =
+                    Vec::with_capacity(count.min(cursor.remaining()).min(MAX_RESERVED_ELEMENTS));
                 for _ in 0..count {
                     let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
                     items.push(v);
@@ -265,8 +281,7 @@ impl<'reg> Engine<'reg> {
             FieldKind::Float { width } => Self::read_float(*width, parent_ty.endian, cursor),
             FieldKind::Bytes { size } => {
                 let n = eval_size(size, &ctx.eval_ctx)?;
-                let bytes = cursor.read_bytes(n)?.to_vec();
-                Ok(Value::Bytes(bytes))
+                Self::read_blob(n, cursor)
             }
             FieldKind::Str { size, encoding } => Self::read_str(size, *encoding, cursor, ctx),
             FieldKind::Bits { bit_size } => Self::read_bits(*bit_size, cursor),
@@ -341,6 +356,23 @@ impl<'reg> Engine<'reg> {
         Ok(Value::Float(v))
     }
 
+    /// Read `n` bytes. A sequence longer than [`MAX_INLINE_BYTES`] is not read
+    /// into memory: the result keeps where it is, its length and its first
+    /// [`BLOB_PREVIEW_LEN`] bytes.
+    fn read_blob(n: usize, cursor: &mut Cursor<'_>) -> Result<Value> {
+        if n <= MAX_INLINE_BYTES {
+            return Ok(Value::Bytes(cursor.read_bytes(n)?.into_owned()));
+        }
+        let offset = cursor.absolute_pos();
+        let preview = cursor.peek_bytes(BLOB_PREVIEW_LEN)?.into_owned();
+        cursor.skip(n)?;
+        Ok(Value::Blob {
+            offset: u64::try_from(offset).unwrap_or(u64::MAX),
+            len: u64::try_from(n).unwrap_or(u64::MAX),
+            preview,
+        })
+    }
+
     fn read_str(
         size: &StrSize,
         encoding: Encoding,
@@ -348,10 +380,15 @@ impl<'reg> Engine<'reg> {
         ctx: &ParseContext,
     ) -> Result<Value> {
         let bytes: Vec<u8> = match size {
-            StrSize::Terminator(term) => cursor.read_until(*term)?.to_vec(),
+            StrSize::Terminator(term) => cursor.read_until(*term)?.into_owned(),
             StrSize::Fixed(sz) => {
                 let n = eval_size(sz, &ctx.eval_ctx)?;
-                cursor.read_bytes(n)?.to_vec()
+                if n > MAX_TERMINATED_LEN {
+                    return Err(DoeError::Schema(format!(
+                        "string of {n} bytes is longer than the limit of {MAX_TERMINATED_LEN} bytes"
+                    )));
+                }
+                cursor.read_bytes(n)?.into_owned()
             }
         };
         let s = decode_string(&bytes, encoding)?;
@@ -365,7 +402,7 @@ impl<'reg> Engine<'reg> {
         let byte_count = bit_size.div_ceil(8);
         let bytes = cursor.read_bytes(usize::from(byte_count))?;
         let mut v: u64 = 0;
-        for &b in bytes {
+        for &b in bytes.iter() {
             v = (v << 8) | u64::from(b);
         }
         // If not a multiple of 8, shift down to drop the padding bits

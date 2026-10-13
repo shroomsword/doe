@@ -602,3 +602,100 @@ fn library_debug_messages_reach_stderr_at_double_v() {
         ))
         .stderr(predicate::str::contains("debug: no config file at"));
 }
+
+// ── Reading the input ─────────────────────────────────────────────────────
+
+/// A schema that reads a word at the start of a file, skips a gigabyte and
+/// reads the last word, for a file of `GIGS` GiB.
+const GIGS: u64 = 6;
+
+fn sparse_fixture(dir: &Path) -> (PathBuf, PathBuf) {
+    let size = GIGS << 30;
+    let schema = dir.join("sparse.yaml");
+    std::fs::write(
+        &schema,
+        format!(
+            "id: sparse\nseq:\n  - id: head\n    type: u32le\n  - id: hole\n    type: bytes\n    size: 1000000000\n  - id: next\n    type: u32le\n  - id: last\n    type: u32le\n    pos: {}\n",
+            size - 4
+        ),
+    )
+    .unwrap();
+    let binary = dir.join("sparse.bin");
+    let file = std::fs::File::create(&binary).unwrap();
+    file.set_len(size).unwrap();
+    let mut file = file;
+    std::io::Write::write_all(&mut file, &0x1111_1111u32.to_le_bytes()).unwrap();
+    std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(1_000_000_004)).unwrap();
+    std::io::Write::write_all(&mut file, &0x2222_2222u32.to_le_bytes()).unwrap();
+    std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(size - 4)).unwrap();
+    std::io::Write::write_all(&mut file, &0x3333_3333u32.to_le_bytes()).unwrap();
+    (schema, binary)
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_file_much_larger_than_the_address_space_limit_is_parsed() {
+    let dir = TempDir::new().unwrap();
+    let (schema, binary) = sparse_fixture(dir.path());
+    let doe_path = doe().get_program().to_owned();
+    // 2 GiB of address space is far less than the 6 GiB file, so reading it
+    // whole could not succeed.
+    let output = std::process::Command::new("sh")
+        .args(["-c", "ulimit -v 2000000 && exec \"$@\""])
+        .arg("sh")
+        .arg(doe_path)
+        .arg(&binary)
+        .arg(&schema)
+        .args(["--json", "--config", NO_CONFIG])
+        .env("XDG_STATE_HOME", sandbox().join("state"))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["head"], 0x1111_1111);
+    assert_eq!(json["hole"]["len"], 1_000_000_000);
+    assert_eq!(json["hole"]["truncated"], true);
+    assert_eq!(json["next"], 0x2222_2222);
+    assert_eq!(json["last"], 0x3333_3333);
+}
+
+#[test]
+fn a_large_bytes_field_is_summarized() {
+    let dir = TempDir::new().unwrap();
+    let schema = dir.path().join("big.yaml");
+    std::fs::write(
+        &schema,
+        "id: big\nseq:\n  - id: body\n    type: bytes\n    size: 100000\n  - id: tail\n    type: u8\n",
+    )
+    .unwrap();
+    let binary = dir.path().join("big.bin");
+    std::fs::write(&binary, vec![0xabu8; 100_001]).unwrap();
+    doe()
+        .arg(&binary)
+        .arg(&schema)
+        .args(["--config", NO_CONFIG])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("body  <100000 bytes at 0x0>"))
+        .stdout(predicate::str::contains("tail  171"));
+}
+
+#[cfg(unix)]
+#[test]
+fn input_that_cannot_seek_is_read_in_full() {
+    let dir = TempDir::new().unwrap();
+    let (schema, _) = simple_fixture(dir.path());
+    doe()
+        .arg("/dev/stdin")
+        .arg(&schema)
+        .args(["--config", NO_CONFIG])
+        .write_stdin([0x07, 0x34, 0x12])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("a  7"))
+        .stdout(predicate::str::contains("b  4660"));
+}

@@ -296,6 +296,23 @@ doe file.bin schema.yaml --indent "    "   # four spaces
 doe file.bin schema.yaml --indent $'\t'    # tab
 ```
 
+### Large byte sequences
+
+A `bytes` field longer than 64 KiB is not held in memory or printed in full.
+The text output shows its length and where it starts, and the JSON output adds
+the first 256 bytes:
+
+```text
+body  <1048576 bytes at 0x40>
+```
+
+```json
+{ "$type": "bytes", "hex": "89504e47…", "len": 1048576, "offset": 64, "truncated": true }
+```
+
+Shorter fields are unchanged. A `str` with a `size:` or a terminator longer
+than 16 MiB is an error.
+
 ### JSON
 
 `--json` emits compact JSON; `--pretty` emits formatted JSON.
@@ -419,6 +436,14 @@ level = "debug"
 
 > **Upgrading:** earlier versions read `~/.doe/config/config.yaml`. That file
 > is no longer read; move its settings into the TOML file above.
+
+## Memory use
+
+`doe` reads a regular file as the schema asks for it, through a 64 KiB cache,
+instead of loading it, so parsing a few structures in a file of many gigabytes
+takes a few megabytes. What the result holds is what grows: every parsed field
+and every `bytes` field up to 64 KiB (see above). Input that cannot seek, such
+as a pipe or `/dev/stdin`, is read into memory in full.
 
 ## Fuzzing
 

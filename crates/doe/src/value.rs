@@ -39,6 +39,17 @@ pub enum Value {
     Float(f64),
     /// A raw byte sequence.
     Bytes(Vec<u8>),
+    /// A byte sequence too long to keep, as read by `bytes` with a `size:`
+    /// above [`MAX_INLINE_BYTES`](crate::parser::engine::MAX_INLINE_BYTES).
+    Blob {
+        /// Offset of the first byte from the start of the input.
+        offset: u64,
+        /// Length in bytes.
+        len: u64,
+        /// The first bytes (at most
+        /// [`BLOB_PREVIEW_LEN`](crate::parser::engine::BLOB_PREVIEW_LEN)).
+        preview: Vec<u8>,
+    },
     /// A decoded string.
     Str(String),
     /// An integer with an optional symbolic name from an enum.
@@ -78,6 +89,7 @@ impl Value {
     pub fn byte_len(&self) -> Option<usize> {
         match self {
             Value::Bytes(b) => Some(b.len()),
+            Value::Blob { len, .. } => usize::try_from(*len).ok(),
             Value::Str(s) => Some(s.len()),
             _ => None,
         }
@@ -104,7 +116,7 @@ impl Value {
             Value::UInt(_) => "uint",
             Value::SInt(_) => "sint",
             Value::Float(_) => "float",
-            Value::Bytes(_) => "bytes",
+            Value::Bytes(_) | Value::Blob { .. } => "bytes",
             Value::Str(_) => "str",
             Value::Enum { .. } => "enum",
             Value::Struct { .. } => "struct",
@@ -122,6 +134,7 @@ impl Value {
 /// | `SInt(-1)` | `-1` |
 /// | `Float(2.75)` | `2.75` |
 /// | `Bytes` | `<8 bytes>` |
+/// | `Blob` | `<1048576 bytes at 0x40>` |
 /// | `Str("hi")` | `"hi"` |
 /// | `Enum { value: 1, name: Some("data") }` | `data (1)` |
 /// | `Enum { value: 99, name: None }` | `99` |
@@ -135,6 +148,7 @@ impl fmt::Display for Value {
             Value::SInt(n) => write!(f, "{n}"),
             Value::Float(v) => write!(f, "{v}"),
             Value::Bytes(b) => write!(f, "<{} bytes>", b.len()),
+            Value::Blob { offset, len, .. } => write!(f, "<{len} bytes at {offset:#x}>"),
             Value::Str(s) => write!(f, "{s:?}"),
             Value::Enum {
                 value,

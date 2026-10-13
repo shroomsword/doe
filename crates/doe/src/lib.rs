@@ -134,14 +134,27 @@ pub fn parse_file(
 
     // ── Parse ─────────────────────────────────────────────────────────────────
 
-    let binary_data = std::fs::read(binary_file).map_err(|e| DoeError::Io {
+    let io_error = |source| DoeError::Io {
         path: binary_file.to_owned(),
-        source: e,
-    })?;
-
+        source,
+    };
+    let mut file = std::fs::File::open(binary_file).map_err(io_error)?;
     let engine = Engine::new(&compiler.registry);
-    let mut cursor = Cursor::new(&binary_data);
-    let value = engine.parse_type(&type_name, &mut cursor)?;
+    let value = if file.metadata().map_err(io_error)?.is_file() {
+        // A regular file is read as the schema asks for it, so its size does
+        // not decide how much memory the parse needs.
+        let mut cursor = Cursor::from_file(file, binary_file)?;
+        engine.parse_type(&type_name, &mut cursor)?
+    } else {
+        // A pipe or a device cannot seek back, so it is read in full.
+        log::debug!(
+            "{} is not a regular file; reading it into memory",
+            binary_file.display()
+        );
+        let mut data = Vec::new();
+        std::io::Read::read_to_end(&mut file, &mut data).map_err(io_error)?;
+        engine.parse_type(&type_name, &mut Cursor::new(&data))?
+    };
 
     // ── Render ────────────────────────────────────────────────────────────────
 
