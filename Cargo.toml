@@ -19,7 +19,7 @@ clap = { version = "4", default-features = false }
 serde = { version = "1", default-features = false }
 serde_yaml = "0.9"
 serde_json = { version = "1", default-features = false }
-thiserror = "1"
+thiserror = { version = "2", default-features = false }
 etcetera = "0.11"
 toml = { version = "1", default-features = false }
 humantime = "2"
