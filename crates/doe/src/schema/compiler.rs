@@ -309,99 +309,11 @@ impl Compiler {
     ) -> Result<FieldKind> {
         let context = format!("{}.{}", ctx.parent_fqn, raw.id);
 
+        if let Some(kind) = numeric_type(type_name) {
+            return Ok(kind);
+        }
+
         match type_name {
-            // ── Unsigned integers ────────────────────────────────────────
-            "u8" => Ok(FieldKind::UInt {
-                width: IntWidth::W8,
-                endian: EndianOverride::Inherit,
-            }),
-            "u16" => Ok(FieldKind::UInt {
-                width: IntWidth::W16,
-                endian: EndianOverride::Inherit,
-            }),
-            "u32" => Ok(FieldKind::UInt {
-                width: IntWidth::W32,
-                endian: EndianOverride::Inherit,
-            }),
-            "u64" => Ok(FieldKind::UInt {
-                width: IntWidth::W64,
-                endian: EndianOverride::Inherit,
-            }),
-            "u16le" => Ok(FieldKind::UInt {
-                width: IntWidth::W16,
-                endian: EndianOverride::Little,
-            }),
-            "u32le" => Ok(FieldKind::UInt {
-                width: IntWidth::W32,
-                endian: EndianOverride::Little,
-            }),
-            "u64le" => Ok(FieldKind::UInt {
-                width: IntWidth::W64,
-                endian: EndianOverride::Little,
-            }),
-            "u16be" => Ok(FieldKind::UInt {
-                width: IntWidth::W16,
-                endian: EndianOverride::Big,
-            }),
-            "u32be" => Ok(FieldKind::UInt {
-                width: IntWidth::W32,
-                endian: EndianOverride::Big,
-            }),
-            "u64be" => Ok(FieldKind::UInt {
-                width: IntWidth::W64,
-                endian: EndianOverride::Big,
-            }),
-
-            // ── Signed integers ──────────────────────────────────────────
-            "i8" => Ok(FieldKind::SInt {
-                width: IntWidth::W8,
-                endian: EndianOverride::Inherit,
-            }),
-            "i16" => Ok(FieldKind::SInt {
-                width: IntWidth::W16,
-                endian: EndianOverride::Inherit,
-            }),
-            "i32" => Ok(FieldKind::SInt {
-                width: IntWidth::W32,
-                endian: EndianOverride::Inherit,
-            }),
-            "i64" => Ok(FieldKind::SInt {
-                width: IntWidth::W64,
-                endian: EndianOverride::Inherit,
-            }),
-            "i16le" => Ok(FieldKind::SInt {
-                width: IntWidth::W16,
-                endian: EndianOverride::Little,
-            }),
-            "i32le" => Ok(FieldKind::SInt {
-                width: IntWidth::W32,
-                endian: EndianOverride::Little,
-            }),
-            "i64le" => Ok(FieldKind::SInt {
-                width: IntWidth::W64,
-                endian: EndianOverride::Little,
-            }),
-            "i16be" => Ok(FieldKind::SInt {
-                width: IntWidth::W16,
-                endian: EndianOverride::Big,
-            }),
-            "i32be" => Ok(FieldKind::SInt {
-                width: IntWidth::W32,
-                endian: EndianOverride::Big,
-            }),
-            "i64be" => Ok(FieldKind::SInt {
-                width: IntWidth::W64,
-                endian: EndianOverride::Big,
-            }),
-
-            // ── Floats ───────────────────────────────────────────────────
-            "f32" => Ok(FieldKind::Float {
-                width: FloatWidth::F32,
-            }),
-            "f64" => Ok(FieldKind::Float {
-                width: FloatWidth::F64,
-            }),
-
             // ── Bytes ────────────────────────────────────────────────────
             "bytes" => {
                 let size = compile_size(raw, ctx)?;
@@ -445,10 +357,19 @@ impl Compiler {
                 let fqn = self.resolve_type_ref(other, ctx.parent_fqn);
                 match fqn {
                     Some(name) => Ok(FieldKind::TypeRef { type_name: name }),
-                    None => Err(DoeError::UnknownType {
-                        type_name: other.to_owned(),
-                        context,
-                    }),
+                    None => Err(old_numeric_name(other).map_or_else(
+                        || DoeError::UnknownType {
+                            type_name: other.to_owned(),
+                            context: context.clone(),
+                        },
+                        |renamed| DoeError::FieldError {
+                            field: raw.id.clone(),
+                            context: ctx.parent_fqn.to_owned(),
+                            message: format!(
+                                "type '{other}' was renamed '{renamed}': numeric types are named by their size in bytes (u1, u2, u4, u8, s1, s2, s4, s8, f4, f8), as in Kaitai Struct"
+                            ),
+                        },
+                    )),
                 }
             }
         }
@@ -665,6 +586,72 @@ fn parse_enum_key(s: &str) -> Option<u64> {
     } else {
         s.parse::<u64>().ok()
     }
+}
+
+/// The numeric type a Kaitai-style name stands for: `u1`, `u2`, `u4`, `u8`,
+/// `s1`..`s8` (integers) or `f4`, `f8` (floats), with an optional `le` or `be`.
+fn numeric_type(name: &str) -> Option<FieldKind> {
+    let mut chars = name.chars();
+    let family = chars.next()?;
+    let bytes = chars.next()?.to_digit(10)?;
+    let endian = match chars.as_str() {
+        "" => EndianOverride::Inherit,
+        "le" => EndianOverride::Little,
+        "be" => EndianOverride::Big,
+        _ => return None,
+    };
+    match (family, bytes) {
+        ('u' | 's', 1 | 2 | 4 | 8) => {
+            let width = match bytes {
+                1 => IntWidth::W8,
+                2 => IntWidth::W16,
+                4 => IntWidth::W32,
+                _ => IntWidth::W64,
+            };
+            Some(if family == 'u' {
+                FieldKind::UInt { width, endian }
+            } else {
+                FieldKind::SInt { width, endian }
+            })
+        }
+        ('f', 4) => Some(FieldKind::Float {
+            width: FloatWidth::F32,
+            endian,
+        }),
+        ('f', 8) => Some(FieldKind::Float {
+            width: FloatWidth::F64,
+            endian,
+        }),
+        _ => None,
+    }
+}
+
+/// The new name of a numeric type spelled the way doe used to spell it, such
+/// as `u16le` (now `u2le`), `i32` (now `s4`) or `f64` (now `f8`).
+fn old_numeric_name(name: &str) -> Option<String> {
+    let family = name.chars().next()?;
+    let rest = name.get(1..)?;
+    let digits_end = rest
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(rest.len());
+    let (bits, suffix) = rest.split_at(digits_end);
+    if !matches!(suffix, "" | "le" | "be") {
+        return None;
+    }
+    let bytes = match bits {
+        "8" => 1,
+        "16" => 2,
+        "32" => 4,
+        "64" => 8,
+        _ => return None,
+    };
+    let family = match family {
+        'u' => 'u',
+        'i' => 's',
+        'f' => 'f',
+        _ => return None,
+    };
+    Some(format!("{family}{bytes}{suffix}"))
 }
 
 /// Check that a dynamic size/repeat-count expression only references field

@@ -5,7 +5,7 @@ seq:
   - id: tag
     contents: "OK"
   - id: size
-    type: u32be
+    type: u4be
   - id: payload
     type: bytes
     size: size

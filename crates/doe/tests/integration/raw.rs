@@ -14,13 +14,13 @@ fn minimal_schema_round_trip() {
         id: simple
         seq:
           - id: value
-            type: u32
+            type: u4
     "};
     let s = parse(yaml);
     assert_eq!(s.id, "simple");
     assert_eq!(s.seq.len(), 1);
     assert_eq!(s.seq[0].id, "value");
-    assert_eq!(s.seq[0].type_ref.as_deref(), Some("u32"));
+    assert_eq!(s.seq[0].type_ref.as_deref(), Some("u4"));
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn field_with_size_expression() {
         id: var_buf
         seq:
           - id: length
-            type: u32
+            type: u4
           - id: data
             type: bytes
             size: length
@@ -114,7 +114,7 @@ fn field_with_repeat_eos() {
         id: list
         seq:
           - id: items
-            type: u8
+            type: u1
             repeat: eos
     "};
     let s = parse(yaml);
@@ -127,9 +127,9 @@ fn field_with_repeat_expr() {
         id: counted
         seq:
           - id: count
-            type: u16
+            type: u2
           - id: items
-            type: u8
+            type: u1
             repeat: expr
             repeat-expr: count
     "};
@@ -145,7 +145,7 @@ fn field_with_repeat_until() {
         id: terminated
         seq:
           - id: items
-            type: u8
+            type: u1
             repeat: until
             repeat-until: _ == 0
     "};
@@ -161,9 +161,9 @@ fn field_with_if_expression() {
         id: conditional
         seq:
           - id: flags
-            type: u8
+            type: u1
           - id: extra
-            type: u32
+            type: u4
             if: flags > 0
     "};
     let s = parse(yaml);
@@ -176,7 +176,7 @@ fn field_with_enum_ref() {
         id: tagged
         seq:
           - id: kind
-            type: u8
+            type: u1
             enum: record_type
         enums:
           record_type:
@@ -231,9 +231,9 @@ fn inline_type_declaration() {
           header:
             seq:
               - id: magic
-                type: u32
+                type: u4
               - id: version
-                type: u16
+                type: u2
     "};
     let s = parse(yaml);
     assert!(s.types.contains_key("header"));
@@ -258,7 +258,7 @@ fn nested_type_declaration() {
               inner_type:
                 seq:
                   - id: value
-                    type: u32
+                    type: u4
     "};
     let s = parse(yaml);
     let outer = &s.types["outer_type"];
@@ -278,7 +278,7 @@ fn type_with_local_enum() {
           record_t:
             seq:
               - id: kind
-                type: u8
+                type: u1
                 enum: kind_t
             enums:
               kind_t:
@@ -353,7 +353,7 @@ fn png_like_schema() {
           chunk:
             seq:
               - id: length
-                type: u32be
+                type: u4be
               - id: type
                 type: str
                 size: 4
@@ -362,7 +362,7 @@ fn png_like_schema() {
                 type: bytes
                 size: length
               - id: crc
-                type: u32be
+                type: u4be
     "#};
     let s = parse(yaml);
     assert_eq!(s.id, "png");
@@ -376,7 +376,7 @@ fn png_like_schema() {
     // chunk sub-type
     let chunk = &s.types["chunk"];
     assert_eq!(chunk.seq.len(), 4);
-    assert_eq!(chunk.seq[0].type_ref.as_deref(), Some("u32be"));
+    assert_eq!(chunk.seq[0].type_ref.as_deref(), Some("u4be"));
     assert_eq!(chunk.seq[2].type_ref.as_deref(), Some("bytes"));
     // body size references the length field
     assert!(matches!(&chunk.seq[2].size, Some(StringOrInt::Str(e)) if e == "length"));
@@ -398,25 +398,25 @@ fn elf_like_schema() {
               - id: magic
                 contents: [0x7f, 0x45, 0x4c, 0x46]
               - id: bitness
-                type: u8
+                type: u1
                 enum: bits_t
               - id: endian
-                type: u8
+                type: u1
                 enum: endian_t
               - id: ei_version
-                type: u8
+                type: u1
               - id: abi
-                type: u8
+                type: u1
               - id: pad
                 type: bytes
                 size: 8
               - id: e_type
-                type: u16le
+                type: u2le
                 enum: obj_type_t
               - id: machine
-                type: u16le
+                type: u2le
               - id: version
-                type: u32le
+                type: u4le
             enums:
               bits_t:
                 "1": b32
@@ -449,7 +449,7 @@ fn missing_id_fails() {
     let yaml = indoc! {r"
         seq:
           - id: value
-            type: u32
+            type: u4
     "};
     let result: Result<RawSchema, _> = RawSchema::from_yaml_str(yaml);
     assert!(result.is_err());
@@ -474,7 +474,7 @@ fn field_without_id_fails() {
     let yaml = indoc! {r"
         id: bad
         seq:
-          - type: u32
+          - type: u4
     "};
     let result: Result<RawSchema, _> = RawSchema::from_yaml_str(yaml);
     assert!(result.is_err(), "field missing id should fail");
@@ -494,7 +494,7 @@ fn string_or_int_as_str() {
 fn yaml_1_1_boolean_words_stay_strings_in_ids_and_expressions() {
     for word in ["y", "n", "yes", "no", "on", "off"] {
         let schema = RawSchema::from_yaml_str(&format!(
-            "id: t\nseq:\n  - id: {word}\n    type: u8\n  - id: data\n    type: bytes\n    size: {word}\n"
+            "id: t\nseq:\n  - id: {word}\n    type: u1\n  - id: data\n    type: bytes\n    size: {word}\n"
         ))
         .unwrap();
         assert_eq!(schema.seq[0].id, word);
@@ -530,7 +530,7 @@ fn hexadecimal_integers_and_quoted_hex_keys_parse() {
 #[test]
 fn field_with_pos_expression_or_literal() {
     let s = RawSchema::from_yaml_str(
-        "id: t\nseq:\n  - id: a\n    type: u8\n    pos: header.off\n  - id: b\n    type: u8\n    pos: 16\n",
+        "id: t\nseq:\n  - id: a\n    type: u1\n    pos: header.off\n  - id: b\n    type: u1\n    pos: 16\n",
     )
     .unwrap();
     assert_eq!(s.seq[0].pos.as_ref().unwrap().as_str(), "header.off");

@@ -40,7 +40,7 @@ fn load_schema_file_ok() {
     use std::io::Write;
     use tempfile::NamedTempFile;
     let mut f = NamedTempFile::new().unwrap();
-    writeln!(f, "id: t\nseq:\n  - id: x\n    type: u8").unwrap();
+    writeln!(f, "id: t\nseq:\n  - id: x\n    type: u1").unwrap();
     let s = load_schema_file(f.path()).unwrap();
     assert_eq!(s.id, "t");
     assert!(s.source_path.is_some());
@@ -70,7 +70,7 @@ fn parse_file_text_output() {
     let mut schema_f = NamedTempFile::new().unwrap();
     writeln!(
         schema_f,
-        "id: simple\nseq:\n  - id: a\n    type: u8\n  - id: b\n    type: u16le"
+        "id: simple\nseq:\n  - id: a\n    type: u1\n  - id: b\n    type: u2le"
     )
     .unwrap();
 
@@ -101,7 +101,7 @@ fn parse_file_json_output() {
     let mut schema_f = NamedTempFile::new().unwrap();
     writeln!(
         schema_f,
-        "id: pair\nseq:\n  - id: x\n    type: u8\n  - id: y\n    type: u8"
+        "id: pair\nseq:\n  - id: x\n    type: u1\n  - id: y\n    type: u1"
     )
     .unwrap();
 
@@ -131,7 +131,7 @@ fn parse_file_via_include_path() {
     let dir = TempDir::new().unwrap();
     std::fs::write(
         dir.path().join("mytype.yaml"),
-        "id: mytype\nseq:\n  - id: val\n    type: u32le\n",
+        "id: mytype\nseq:\n  - id: val\n    type: u4le\n",
     )
     .unwrap();
 
@@ -158,7 +158,7 @@ fn parse_file_missing_binary_is_error() {
     use tempfile::NamedTempFile;
 
     let mut schema_f = NamedTempFile::new().unwrap();
-    writeln!(schema_f, "id: t\nseq:\n  - id: x\n    type: u8").unwrap();
+    writeln!(schema_f, "id: t\nseq:\n  - id: x\n    type: u1").unwrap();
 
     let result = parse_file(
         Path::new("/nonexistent/file.bin"),

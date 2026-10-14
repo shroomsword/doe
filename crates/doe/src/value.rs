@@ -31,9 +31,9 @@ use std::fmt;
 /// expressions.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
-    /// An unsigned integer (u8 / u16 / u32 / u64, bits).
+    /// An unsigned integer (u1 / u2 / u4 / u8, bits).
     UInt(u64),
-    /// A signed integer (i8 / i16 / i32 / i64).
+    /// A signed integer (s1 / s2 / s4 / s8).
     SInt(i64),
     /// An IEEE 754 floating-point value.
     Float(f64),

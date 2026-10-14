@@ -43,65 +43,65 @@ types:
         contents: [0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01]
         doc: "The ELF magic, then EI_CLASS 2 (64-bit) and EI_DATA 1 (little-endian); other files are rejected"
       - id: ident_version
-        type: u8
+        type: u1
       - id: os_abi
-        type: u8
+        type: u1
         enum: os_abi_t
       - id: abi_version
-        type: u8
+        type: u1
       - id: ident_padding
         type: bytes
         size: 7
       - id: e_type
-        type: u16
+        type: u2
         enum: type_t
       - id: e_machine
-        type: u16
+        type: u2
         enum: machine_t
       - id: e_version
-        type: u32
+        type: u4
       - id: e_entry
-        type: u64
+        type: u8
       - id: e_phoff
-        type: u64
+        type: u8
       - id: e_shoff
-        type: u64
+        type: u8
       - id: e_flags
-        type: u32
+        type: u4
       - id: e_ehsize
-        type: u16
+        type: u2
       - id: e_phentsize
-        type: u16
+        type: u2
       - id: e_phnum
-        type: u16
+        type: u2
       - id: e_shentsize
-        type: u16
+        type: u2
       - id: e_shnum
-        type: u16
+        type: u2
       - id: e_shstrndx
-        type: u16
+        type: u2
 
   program_header:
     doc: "One Elf64_Phdr, 56 bytes"
     seq:
       - id: p_type
-        type: u32
+        type: u4
         enum: segment_type_t
       - id: p_flags
-        type: u32
+        type: u4
         doc: "Bit mask: 1 execute, 2 write, 4 read"
       - id: p_offset
-        type: u64
+        type: u8
       - id: p_vaddr
-        type: u64
+        type: u8
       - id: p_paddr
-        type: u64
+        type: u8
       - id: p_filesz
-        type: u64
+        type: u8
       - id: p_memsz
-        type: u64
+        type: u8
       - id: p_align
-        type: u64
+        type: u8
       - id: p_entry_padding
         type: bytes
         size: _parent.header.e_phentsize - 56
@@ -111,28 +111,28 @@ types:
     doc: "One Elf64_Shdr, 64 bytes"
     seq:
       - id: sh_name
-        type: u32
+        type: u4
         doc: "Offset into the section name string table"
       - id: sh_type
-        type: u32
+        type: u4
         enum: section_type_t
       - id: sh_flags
-        type: u64
+        type: u8
         doc: "Bit mask: 1 write, 2 alloc, 4 exec, 0x10 merge, 0x20 strings, 0x40 info link"
       - id: sh_addr
-        type: u64
+        type: u8
       - id: sh_offset
-        type: u64
+        type: u8
       - id: sh_size
-        type: u64
+        type: u8
       - id: sh_link
-        type: u32
+        type: u4
       - id: sh_info
-        type: u32
+        type: u4
       - id: sh_addralign
-        type: u64
+        type: u8
       - id: sh_entsize
-        type: u64
+        type: u8
       - id: sh_entry_padding
         type: bytes
         size: _parent.header.e_shentsize - 64

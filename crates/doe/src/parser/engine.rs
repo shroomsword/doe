@@ -273,7 +273,10 @@ impl<'reg> Engine<'reg> {
                 let e = resolve_endian(*endian, parent_ty.endian);
                 Self::read_sint(*width, e, cursor)
             }
-            FieldKind::Float { width } => Self::read_float(*width, parent_ty.endian, cursor),
+            FieldKind::Float { width, endian } => {
+                let e = resolve_endian(*endian, parent_ty.endian);
+                Self::read_float(*width, e, cursor)
+            }
             FieldKind::Bytes { size } => {
                 let n = eval_size(size, &ctx.eval_ctx)?;
                 Self::read_blob(n, cursor)

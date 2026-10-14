@@ -48,7 +48,7 @@ fn parse_u8() {
         id: t
         seq:
           - id: x
-            type: u8
+            type: u1
     "},
         "t",
         &[0x42],
@@ -63,7 +63,7 @@ fn parse_u16_le() {
         id: t
         seq:
           - id: x
-            type: u16le
+            type: u2le
     "},
         "t",
         &[0x34, 0x12],
@@ -78,7 +78,7 @@ fn parse_u16_be() {
         id: t
         seq:
           - id: x
-            type: u16be
+            type: u2be
     "},
         "t",
         &[0x12, 0x34],
@@ -93,7 +93,7 @@ fn parse_u32_le() {
         id: t
         seq:
           - id: x
-            type: u32le
+            type: u4le
     "},
         "t",
         &[0x78, 0x56, 0x34, 0x12],
@@ -108,7 +108,7 @@ fn parse_u32_be() {
         id: t
         seq:
           - id: x
-            type: u32be
+            type: u4be
     "},
         "t",
         &[0x12, 0x34, 0x56, 0x78],
@@ -124,7 +124,7 @@ fn parse_u64_le() {
         id: t
         seq:
           - id: x
-            type: u64le
+            type: u8le
     "},
         "t",
         &n.to_le_bytes(),
@@ -142,7 +142,7 @@ fn parse_u8_inherits_meta_endian() {
           endian: be
         seq:
           - id: x
-            type: u8
+            type: u1
     "},
         "t",
         &[0xff],
@@ -159,7 +159,7 @@ fn parse_u16_inherits_be_meta() {
           endian: be
         seq:
           - id: x
-            type: u16
+            type: u2
     "},
         "t",
         &[0x01, 0x00],
@@ -176,7 +176,7 @@ fn parse_i8_positive() {
         id: t
         seq:
           - id: x
-            type: i8
+            type: s1
     "},
         "t",
         &[0x7f],
@@ -191,7 +191,7 @@ fn parse_i8_negative() {
         id: t
         seq:
           - id: x
-            type: i8
+            type: s1
     "},
         "t",
         &[0xff],
@@ -206,7 +206,7 @@ fn parse_i32_le_negative() {
         id: t
         seq:
           - id: x
-            type: i32le
+            type: s4le
     "},
         "t",
         &(-100i32).to_le_bytes(),
@@ -221,7 +221,7 @@ fn parse_i64_be_min() {
         id: t
         seq:
           - id: x
-            type: i64be
+            type: s8be
     "},
         "t",
         &i64::MIN.to_be_bytes(),
@@ -239,7 +239,7 @@ fn parse_f32_le() {
         id: t
         seq:
           - id: x
-            type: f32
+            type: f4
     "},
         "t",
         &f.to_le_bytes(),
@@ -261,7 +261,7 @@ fn parse_f64_be() {
           endian: be
         seq:
           - id: x
-            type: f64
+            type: f8
     "},
         "t",
         &f.to_be_bytes(),
@@ -303,7 +303,7 @@ fn parse_bytes_dynamic_size() {
         id: t
         seq:
           - id: length
-            type: u8
+            type: u1
           - id: buf
             type: bytes
             size: length
@@ -321,7 +321,7 @@ fn parse_bytes_zero_length() {
         id: t
         seq:
           - id: len
-            type: u8
+            type: u1
           - id: buf
             type: bytes
             size: len
@@ -513,7 +513,7 @@ fn parse_enum_known_variant() {
         id: t
         seq:
           - id: kind
-            type: u8
+            type: u1
             enum: kind_t
         enums:
           kind_t:
@@ -540,7 +540,7 @@ fn parse_enum_unknown_variant() {
         id: t
         seq:
           - id: kind
-            type: u8
+            type: u1
             enum: kind_t
         enums:
           kind_t:
@@ -567,9 +567,9 @@ fn conditional_field_present() {
         id: t
         seq:
           - id: flags
-            type: u8
+            type: u1
           - id: extra
-            type: u32le
+            type: u4le
             if: flags > 0
     "},
         "t",
@@ -585,9 +585,9 @@ fn conditional_field_absent() {
         id: t
         seq:
           - id: flags
-            type: u8
+            type: u1
           - id: extra
-            type: u32le
+            type: u4le
             if: flags > 0
     "},
         "t",
@@ -605,7 +605,7 @@ fn repeat_eos() {
         id: t
         seq:
           - id: items
-            type: u8
+            type: u1
             repeat: eos
     "},
         "t",
@@ -627,7 +627,7 @@ fn repeat_eos_empty_input() {
         id: t
         seq:
           - id: items
-            type: u8
+            type: u1
             repeat: eos
     "},
         "t",
@@ -648,9 +648,9 @@ fn repeat_expr_count() {
         id: t
         seq:
           - id: count
-            type: u8
+            type: u1
           - id: items
-            type: u8
+            type: u1
             repeat: expr
             repeat-expr: count
     "},
@@ -673,9 +673,9 @@ fn repeat_expr_zero_count() {
         id: t
         seq:
           - id: count
-            type: u8
+            type: u1
           - id: items
-            type: u8
+            type: u1
             repeat: expr
             repeat-expr: count
     "},
@@ -699,7 +699,7 @@ fn repeat_until_null_terminator() {
         id: t
         seq:
           - id: chars
-            type: u8
+            type: u1
             repeat: until
             repeat-until: _ == 0
     "},
@@ -728,7 +728,7 @@ fn repeat_until_sentinel_value() {
         id: t
         seq:
           - id: values
-            type: u16le
+            type: u2le
             repeat: until
             repeat-until: _ == 0xFFFF
     "},
@@ -754,7 +754,7 @@ fn repeat_until_expression_with_bitwise() {
         id: t
         seq:
           - id: bytes
-            type: u8
+            type: u1
             repeat: until
             repeat-until: _ & 0x80
     "},
@@ -778,7 +778,7 @@ fn repeat_until_stops_at_eof_if_condition_never_met() {
         id: t
         seq:
           - id: items
-            type: u8
+            type: u1
             repeat: until
             repeat-until: _ == 0
     "},
@@ -807,9 +807,9 @@ fn parse_subtype() {
           point_t:
             seq:
               - id: x
-                type: u16le
+                type: u2le
               - id: y
-                type: u16le
+                type: u2le
     "},
         "outer",
         &data,
@@ -827,7 +827,7 @@ fn parse_repeated_subtype() {
         id: outer
         seq:
           - id: count
-            type: u8
+            type: u1
           - id: points
             type: point_t
             repeat: expr
@@ -836,9 +836,9 @@ fn parse_repeated_subtype() {
           point_t:
             seq:
               - id: x
-                type: u16le
+                type: u2le
               - id: y
-                type: u16le
+                type: u2le
     "},
         "outer",
         &[2, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00],
@@ -861,11 +861,11 @@ fn parse_multiple_fields_sequential() {
         id: t
         seq:
           - id: a
-            type: u8
+            type: u1
           - id: b
-            type: u16le
+            type: u2le
           - id: c
-            type: u32le
+            type: u4le
     "},
         "t",
         &[0x01, 0x03, 0x00, 0x07, 0x00, 0x00, 0x00],
@@ -901,30 +901,30 @@ fn parse_tga_like_header() {
           endian: le
         seq:
           - id: id_length
-            type: u8
+            type: u1
           - id: colormap_type
-            type: u8
+            type: u1
           - id: image_type
-            type: u8
+            type: u1
             enum: image_type_t
           - id: colormap_first_entry
-            type: u16
+            type: u2
           - id: colormap_length
-            type: u16
+            type: u2
           - id: colormap_entry_size
-            type: u8
+            type: u1
           - id: x_origin
-            type: u16
+            type: u2
           - id: y_origin
-            type: u16
+            type: u2
           - id: width
-            type: u16
+            type: u2
           - id: height
-            type: u16
+            type: u2
           - id: pixel_depth
-            type: u8
+            type: u1
           - id: image_descriptor
-            type: u8
+            type: u1
         enums:
           image_type_t:
             "0": no_image
@@ -964,7 +964,7 @@ fn parse_length_prefixed_strings() {
         id: string_list
         seq:
           - id: count
-            type: u8
+            type: u1
           - id: strings
             type: lp_string
             repeat: expr
@@ -973,7 +973,7 @@ fn parse_length_prefixed_strings() {
           lp_string:
             seq:
               - id: length
-                type: u8
+                type: u1
               - id: value
                 type: str
                 size: length
@@ -1011,7 +1011,7 @@ fn buffer_underrun_is_error() {
         id: t
         seq:
           - id: x
-            type: u32le
+            type: u4le
     "},
         "t",
         &[0x01, 0x02],
@@ -1065,14 +1065,14 @@ fn u16_with(meta_endian: &str, field_type: &str) -> Value {
 
 #[test]
 fn inherit_uses_type_default() {
-    assert_eq!(u16_with("be", "u16"), Value::UInt(0x0102));
-    assert_eq!(u16_with("le", "u16"), Value::UInt(0x0201));
+    assert_eq!(u16_with("be", "u2"), Value::UInt(0x0102));
+    assert_eq!(u16_with("le", "u2"), Value::UInt(0x0201));
 }
 
 #[test]
 fn override_ignores_type_default() {
-    assert_eq!(u16_with("be", "u16le"), Value::UInt(0x0201));
-    assert_eq!(u16_with("le", "u16be"), Value::UInt(0x0102));
+    assert_eq!(u16_with("be", "u2le"), Value::UInt(0x0201));
+    assert_eq!(u16_with("le", "u2be"), Value::UInt(0x0102));
 }
 
 // ── Every integer width and byte order ────────────────────────────────────
@@ -1084,41 +1084,41 @@ fn one_field(type_name: &str, data: &[u8]) -> Value {
 
 #[test]
 fn unsigned_widths_and_byte_orders() {
-    assert_eq!(one_field("u16be", &[1, 2]), Value::UInt(0x0102));
-    assert_eq!(one_field("u16le", &[1, 2]), Value::UInt(0x0201));
-    assert_eq!(one_field("u32be", &[1, 2, 3, 4]), Value::UInt(0x0102_0304));
-    assert_eq!(one_field("u32le", &[1, 2, 3, 4]), Value::UInt(0x0403_0201));
+    assert_eq!(one_field("u2be", &[1, 2]), Value::UInt(0x0102));
+    assert_eq!(one_field("u2le", &[1, 2]), Value::UInt(0x0201));
+    assert_eq!(one_field("u4be", &[1, 2, 3, 4]), Value::UInt(0x0102_0304));
+    assert_eq!(one_field("u4le", &[1, 2, 3, 4]), Value::UInt(0x0403_0201));
     assert_eq!(
-        one_field("u64be", &[1, 2, 3, 4, 5, 6, 7, 8]),
+        one_field("u8be", &[1, 2, 3, 4, 5, 6, 7, 8]),
         Value::UInt(0x0102_0304_0506_0708)
     );
     assert_eq!(
-        one_field("u64le", &[1, 2, 3, 4, 5, 6, 7, 8]),
+        one_field("u8le", &[1, 2, 3, 4, 5, 6, 7, 8]),
         Value::UInt(0x0807_0605_0403_0201)
     );
 }
 
 #[test]
 fn signed_widths_and_byte_orders() {
-    assert_eq!(one_field("i8", &[0xff]), Value::SInt(-1));
-    assert_eq!(one_field("i16le", &[0xfe, 0xff]), Value::SInt(-2));
-    assert_eq!(one_field("i16be", &[0xff, 0xfe]), Value::SInt(-2));
+    assert_eq!(one_field("s1", &[0xff]), Value::SInt(-1));
+    assert_eq!(one_field("s2le", &[0xfe, 0xff]), Value::SInt(-2));
+    assert_eq!(one_field("s2be", &[0xff, 0xfe]), Value::SInt(-2));
     assert_eq!(
-        one_field("i32le", &[0xfd, 0xff, 0xff, 0xff]),
+        one_field("s4le", &[0xfd, 0xff, 0xff, 0xff]),
         Value::SInt(-3)
     );
     assert_eq!(
-        one_field("i32be", &[0xff, 0xff, 0xff, 0xfd]),
+        one_field("s4be", &[0xff, 0xff, 0xff, 0xfd]),
         Value::SInt(-3)
     );
-    assert_eq!(one_field("i64le", &(-4i64).to_le_bytes()), Value::SInt(-4));
-    assert_eq!(one_field("i64be", &(-4i64).to_be_bytes()), Value::SInt(-4));
+    assert_eq!(one_field("s8le", &(-4i64).to_le_bytes()), Value::SInt(-4));
+    assert_eq!(one_field("s8be", &(-4i64).to_be_bytes()), Value::SInt(-4));
 }
 
 #[test]
 fn signed_types_inherit_meta_endian() {
     for (endian, bytes) in [("be", [0xff, 0xfe]), ("le", [0xfe, 0xff])] {
-        let yaml = format!("id: t\nmeta:\n  endian: {endian}\nseq:\n  - id: x\n    type: i16\n");
+        let yaml = format!("id: t\nmeta:\n  endian: {endian}\nseq:\n  - id: x\n    type: s2\n");
         assert_eq!(get_field(&parse(&yaml, "t", &bytes), "x"), &Value::SInt(-2));
     }
 }
@@ -1127,12 +1127,12 @@ fn signed_types_inherit_meta_endian() {
 fn floats_follow_meta_endian() {
     let single_be = 1.5f32.to_be_bytes();
     let double_le = (-2.5f64).to_le_bytes();
-    let yaml = "id: t\nmeta:\n  endian: be\nseq:\n  - id: x\n    type: f32\n";
+    let yaml = "id: t\nmeta:\n  endian: be\nseq:\n  - id: x\n    type: f4\n";
     assert_eq!(
         get_field(&parse(yaml, "t", &single_be), "x"),
         &Value::Float(1.5)
     );
-    let yaml = "id: t\nmeta:\n  endian: le\nseq:\n  - id: x\n    type: f64\n";
+    let yaml = "id: t\nmeta:\n  endian: le\nseq:\n  - id: x\n    type: f8\n";
     assert_eq!(
         get_field(&parse(yaml, "t", &double_le), "x"),
         &Value::Float(-2.5)
@@ -1156,9 +1156,9 @@ fn negative_repeat_count_is_an_error() {
         id: t
         seq:
           - id: n
-            type: i8
+            type: s1
           - id: items
-            type: u8
+            type: u1
             repeat: expr
             repeat-expr: n
     "};
@@ -1175,7 +1175,7 @@ fn negative_size_is_an_error() {
         id: t
         seq:
           - id: n
-            type: i8
+            type: s1
           - id: data
             type: bytes
             size: n
@@ -1193,9 +1193,9 @@ fn huge_repeat_count_does_not_preallocate_or_panic() {
         id: t
         seq:
           - id: n
-            type: u64
-          - id: items
             type: u8
+          - id: items
+            type: u1
             repeat: expr
             repeat-expr: n
     "};
@@ -1210,7 +1210,7 @@ fn huge_byte_size_is_a_buffer_error_not_a_panic() {
         id: t
         seq:
           - id: n
-            type: u64
+            type: u8
           - id: data
             type: bytes
             size: n
@@ -1278,9 +1278,9 @@ fn field_errors_name_the_field_and_type() {
         id: t
         seq:
           - id: n
-            type: u8
+            type: u1
           - id: items
-            type: u8
+            type: u1
             repeat: expr
             repeat-expr: no_such_field
     "};
@@ -1340,7 +1340,7 @@ fn nesting_up_to_the_limit_still_parses() {
     }
     write!(
         yaml,
-        "  t{depth}:\n    seq:\n      - id: leaf\n        type: u8\n"
+        "  t{depth}:\n    seq:\n      - id: leaf\n        type: u1\n"
     )
     .unwrap();
     let (engine, _) = engine_from_yaml(&yaml);
@@ -1395,7 +1395,7 @@ fn repeat_expr_of_zero_size_bytes_is_an_error() {
 
 #[test]
 fn repeat_eos_over_one_byte_elements_still_works() {
-    let yaml = "id: t\nseq:\n  - id: x\n    type: u8\n    repeat: eos\n";
+    let yaml = "id: t\nseq:\n  - id: x\n    type: u1\n    repeat: eos\n";
     let v = parse(yaml, "t", &[1, 2, 3]);
     let Value::Array(items) = get_field(&v, "x") else {
         panic!("expected an array");
@@ -1418,7 +1418,7 @@ fn sub_type_field_uses_a_top_level_enum() {
           header_t:
             seq:
               - id: bitness
-                type: u8
+                type: u1
                 enum: bits_t
         enums:
           bits_t:
@@ -1463,13 +1463,13 @@ fn repeat_count_can_come_from_a_field_of_a_sub_type() {
           header_t:
             seq:
               - id: bitness
-                type: u8
+                type: u1
               - id: section_count
-                type: u16le
+                type: u2le
           section_t:
             seq:
               - id: size
-                type: u8
+                type: u1
     "};
     let v = parse(yaml, "t", &[2, 3, 0, 10, 20, 30]);
     assert_eq!(array_len(&v, "sections"), 3);
@@ -1489,7 +1489,7 @@ fn size_can_come_from_a_field_of_a_sub_type() {
           header_t:
             seq:
               - id: length
-                type: u8
+                type: u1
     "};
     let v = parse(yaml, "t", &[4, 0xaa, 0xbb, 0xcc]);
     assert_eq!(get_field(&v, "body"), &Value::Bytes(vec![0xaa, 0xbb, 0xcc]));
@@ -1503,7 +1503,7 @@ fn references_can_go_through_several_levels_of_sub_types() {
           - id: outer
             type: outer_t
           - id: items
-            type: u8
+            type: u1
             repeat: expr
             repeat-expr: outer.inner.count
         types:
@@ -1514,7 +1514,7 @@ fn references_can_go_through_several_levels_of_sub_types() {
           inner_t:
             seq:
               - id: count
-                type: u8
+                type: u1
     "};
     let v = parse(yaml, "t", &[2, 7, 8]);
     assert_eq!(array_len(&v, "items"), 2);
@@ -1528,13 +1528,13 @@ fn enum_fields_of_a_sub_type_compare_by_value() {
           - id: header
             type: header_t
           - id: extra
-            type: u8
+            type: u1
             if: header.kind == 2
         types:
           header_t:
             seq:
               - id: kind
-                type: u8
+                type: u1
                 enum: kind_t
             enums:
               kind_t:
@@ -1557,11 +1557,11 @@ fn a_sub_type_can_read_a_field_of_its_parents_sub_type() {
           header_t:
             seq:
               - id: count
-                type: u8
+                type: u1
           body_t:
             seq:
               - id: items
-                type: u8
+                type: u1
                 repeat: expr
                 repeat-expr: _parent.header.count
     "};
@@ -1598,12 +1598,12 @@ fn pos_reads_at_the_offset_and_restores_the_position() {
         id: t
         seq:
           - id: offset
-            type: u8
+            type: u1
           - id: far
-            type: u8
+            type: u1
             pos: offset
           - id: next
-            type: u8
+            type: u1
     "};
     let v = parse(yaml, "t", &[4, 0xaa, 0xbb, 0xcc, 0xdd]);
     assert_eq!(get_field(&v, "far").as_int(), Some(0xdd));
@@ -1617,12 +1617,12 @@ fn pos_accepts_a_literal_and_applies_to_every_repeat() {
         id: t
         seq:
           - id: items
-            type: u8
+            type: u1
             pos: 2
             repeat: expr
             repeat-expr: 3
           - id: first
-            type: u8
+            type: u1
     "};
     let v = parse(yaml, "t", &[9, 8, 1, 2, 3]);
     let Value::Array(items) = get_field(&v, "items") else {
@@ -1638,9 +1638,9 @@ fn pos_is_skipped_with_a_false_if_guard() {
         id: t
         seq:
           - id: flag
-            type: u8
+            type: u1
           - id: far
-            type: u8
+            type: u1
             pos: 1000
             if: flag
     "};
@@ -1654,16 +1654,16 @@ fn pos_inside_a_sub_type_is_relative_to_the_file() {
         id: t
         seq:
           - id: skip
-            type: u8
+            type: u1
           - id: inner
             type: rec
         types:
           rec:
             seq:
               - id: a
-                type: u8
+                type: u1
               - id: b
-                type: u8
+                type: u1
                 pos: 0
     "};
     let v = parse(yaml, "t", &[7, 8]);
@@ -1678,7 +1678,7 @@ fn pos_past_the_end_is_a_field_error() {
         id: t
         seq:
           - id: far
-            type: u8
+            type: u1
             pos: 5
     "};
     for data in [&[1u8, 2][..], &[]] {
@@ -1696,7 +1696,7 @@ fn pos_to_exactly_the_end_fails_only_when_reading() {
         id: t
         seq:
           - id: far
-            type: u8
+            type: u1
             pos: 2
     "};
     let err = parse_err(yaml, "t", &[1, 2]);
@@ -1710,7 +1710,7 @@ fn pos_to_exactly_the_end_fails_only_when_reading() {
 fn negative_or_huge_pos_is_a_field_error() {
     for pos in ["0 - 1", "0x7fffffffffffffff", "offset - 5"] {
         let yaml = format!(
-            "id: t\nseq:\n  - id: offset\n    type: u8\n  - id: far\n    type: u8\n    pos: \"{pos}\"\n"
+            "id: t\nseq:\n  - id: offset\n    type: u1\n  - id: far\n    type: u1\n    pos: \"{pos}\"\n"
         );
         let err = parse_err(&yaml, "t", &[1, 2, 3]);
         assert!(
@@ -1735,7 +1735,7 @@ fn repeated_elements_that_only_reread_make_no_progress() {
           rec:
             seq:
               - id: a
-                type: u8
+                type: u1
                 pos: 0
     "};
     let err = parse_err(yaml, "t", &[1, 2, 3]);
@@ -1757,7 +1757,7 @@ fn rereading_a_large_region_for_every_element_is_bounded() {
           rec:
             seq:
               - id: tick
-                type: u8
+                type: u1
               - id: whole
                 type: bytes
                 size: 2048
@@ -1777,12 +1777,12 @@ fn blob_schema() -> &'static str {
         id: t
         seq:
           - id: len
-            type: u32le
+            type: u4le
           - id: body
             type: bytes
             size: len
           - id: after
-            type: u8
+            type: u1
     "}
 }
 
@@ -1870,9 +1870,9 @@ fn a_huge_repeat_count_does_not_reserve_memory_for_it() {
         id: t
         seq:
           - id: n
-            type: u32le
+            type: u4le
           - id: items
-            type: u8
+            type: u1
             repeat: expr
             repeat-expr: n
     "};
@@ -1897,10 +1897,10 @@ fn if_can_compare_a_parsed_string() {
             size: 3
             encoding: ascii
           - id: abc_only
-            type: u8
+            type: u1
             if: tag == 'abc'
           - id: long_tag
-            type: u8
+            type: u1
             if: tag.length > 3
     "};
     let v = parse(yaml, "t", b"abc\x07");
@@ -1932,11 +1932,11 @@ fn a_repeat_count_can_come_from_the_size_of_an_array() {
         id: t
         seq:
           - id: first
-            type: u8
+            type: u1
             repeat: expr
             repeat-expr: 3
           - id: second
-            type: u8
+            type: u1
             repeat: expr
             repeat-expr: first.size
     "};
@@ -1953,12 +1953,12 @@ fn u64_values_above_i64_max_compare_exactly() {
         id: t
         seq:
           - id: big
-            type: u64le
+            type: u8le
           - id: marker
-            type: u8
+            type: u1
             if: big > 9223372036854775807
           - id: exact
-            type: u8
+            type: u1
             if: big == 0xffffffffffffffff
     "};
     let v = parse(yaml, "t", &[0xff; 10]);
@@ -1972,7 +1972,7 @@ fn a_size_can_be_chosen_with_a_conditional() {
         id: t
         seq:
           - id: wide
-            type: u8
+            type: u1
           - id: body
             type: bytes
             size: 'wide != 0 ? 4 : 2'
@@ -1993,9 +1993,9 @@ fn a_float_field_can_be_used_in_a_condition() {
         id: t
         seq:
           - id: ratio
-            type: f32
+            type: f4
           - id: tail
-            type: u8
+            type: u1
             if: ratio > 1
     "};
     let mut big = 1.5f32.to_le_bytes().to_vec();
@@ -2016,14 +2016,14 @@ fn repeat_until_can_test_a_field_of_a_struct_element() {
             repeat: until
             repeat-until: _.len == 0
           - id: after
-            type: u8
+            type: u1
         types:
           rec:
             seq:
               - id: len
-                type: u8
+                type: u1
               - id: pad
-                type: u8
+                type: u1
     "};
     let v = parse(yaml, "t", &[2, 0, 1, 0, 0, 0, 7]);
     let Value::Array(items) = get_field(&v, "records") else {
@@ -2059,7 +2059,7 @@ fn an_expression_of_the_wrong_type_is_an_error() {
         ("size: \"1.5\"", "bytes"),
         ("size: \"true\"", "bytes"),
         ("pos: \"[1]\"\n    size: 1", "bytes"),
-        ("repeat: expr\n    repeat-expr: \"'a'\"", "u8"),
+        ("repeat: expr\n    repeat-expr: \"'a'\"", "u1"),
     ];
     for (attrs, ty) in cases {
         let yaml = format!("id: t\nseq:\n  - id: f\n    type: {ty}\n    {attrs}\n");
@@ -2078,7 +2078,7 @@ fn an_if_expression_that_is_not_a_condition_is_an_error() {
         id: t
         seq:
           - id: f
-            type: u8
+            type: u1
             if: \"'text'\"
     "};
     let err = parse_err(yaml, "t", &[1]);
@@ -2086,4 +2086,44 @@ fn an_if_expression_that_is_not_a_condition_is_an_error() {
         matches!(&err, DoeError::FieldError { field, message, .. } if field == "f" && message.contains("expected a boolean")),
         "{err:?}"
     );
+}
+
+// ── Numeric type names ───────────────────────────────────────────────────
+
+#[test]
+fn floats_take_an_explicit_byte_order() {
+    let be = 1.5f32.to_be_bytes();
+    let le = 1.5f32.to_le_bytes();
+    assert_eq!(one_field("f4be", &be), Value::Float(1.5));
+    assert_eq!(one_field("f4le", &le), Value::Float(1.5));
+    assert_eq!(
+        one_field("f8be", &(-2.25f64).to_be_bytes()),
+        Value::Float(-2.25)
+    );
+    assert_eq!(
+        one_field("f8le", &(-2.25f64).to_le_bytes()),
+        Value::Float(-2.25)
+    );
+}
+
+#[test]
+fn floats_without_a_suffix_use_the_schema_byte_order() {
+    for (endian, bytes) in [("be", 0.75f64.to_be_bytes()), ("le", 0.75f64.to_le_bytes())] {
+        let yaml = format!("id: t\nmeta:\n  endian: {endian}\nseq:\n  - id: x\n    type: f8\n");
+        assert_eq!(
+            get_field(&parse(&yaml, "t", &bytes), "x"),
+            &Value::Float(0.75)
+        );
+    }
+}
+
+#[test]
+fn u1_is_a_byte_and_u8_is_sixty_four_bits() {
+    assert_eq!(one_field("u1", &[0xab]), Value::UInt(0xab));
+    assert_eq!(
+        one_field("u8le", &[1, 0, 0, 0, 0, 0, 0, 0x80]),
+        Value::UInt(0x8000_0000_0000_0001)
+    );
+    assert_eq!(one_field("s1", &[0xff]), Value::SInt(-1));
+    assert_eq!(one_field("s2be", &[0xff, 0xfe]), Value::SInt(-2));
 }
