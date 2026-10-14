@@ -21,6 +21,11 @@ fuzz_target!(|text: &str| {
     ctx.bind("raw", vec![1u8, 2, 3]);
     ctx.bind("list", vec![ExprValue::Int(4), ExprValue::Int(9)]);
     ctx.bind("big", "x".repeat(MAX_VALUE_LEN));
+    ctx.bind("omitted", ExprValue::Omitted { len: 1 << 30 });
+    let entry = |n: i128| ExprValue::Struct(vec![("n".to_owned(), ExprValue::Int(n))]);
+    ctx.bind("entries", ExprValue::Array(vec![entry(1), entry(2)]));
+    ctx.bind("header", entry(3));
+    ctx.set_io(4, 16, false);
     ctx.push_frame();
     ctx.bind("y", i128::MAX);
     drop(eval(&ast, &ctx, text));

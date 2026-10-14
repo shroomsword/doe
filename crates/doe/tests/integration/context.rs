@@ -58,7 +58,7 @@ fn bind_registers_strings_floats_and_arrays_of_them() {
 }
 
 #[test]
-fn bind_leaves_out_what_is_not_kept_in_memory() {
+fn bind_knows_only_the_size_of_what_is_not_kept_in_memory() {
     let mut ctx = ParseContext::new();
     ctx.bind(
         "blob",
@@ -68,20 +68,74 @@ fn bind_leaves_out_what_is_not_kept_in_memory() {
             preview: vec![],
         },
     );
-    ctx.bind("gone", Value::Absent);
-    ctx.bind(
-        "records",
-        Value::Array(vec![Value::Struct {
-            type_name: "r".into(),
-            fields: vec![],
-        }]),
-    );
-    for name in ["blob", "gone", "records"] {
-        assert!(
-            doe::schema::expr::eval_str(name, &ctx.eval_ctx).is_err(),
-            "{name}"
-        );
+    let eval = |text| doe::schema::expr::eval_str(text, &ctx.eval_ctx);
+    assert_eq!(eval("blob.size").unwrap(), ExprValue::Int(1 << 20));
+    assert_eq!(eval("blob.length").unwrap(), ExprValue::Int(1 << 20));
+    for text in ["blob[0]", "blob.first", "blob == blob", "blob + 1"] {
+        assert!(eval(text).is_err(), "{text}");
     }
+    let err = eval("blob[0]").unwrap_err().to_string();
+    assert!(err.contains("too large"), "{err}");
+}
+
+#[test]
+fn bind_leaves_out_absent_fields() {
+    let mut ctx = ParseContext::new();
+    ctx.bind("gone", Value::Absent);
+    assert!(doe::schema::expr::eval_str("gone", &ctx.eval_ctx).is_err());
+    let record = Value::Struct {
+        type_name: "r".into(),
+        fields: vec![("a".into(), Value::UInt(1)), ("b".into(), Value::Absent)],
+    };
+    ctx.bind("record", record);
+    assert_eq!(
+        doe::schema::expr::eval_str("record.a", &ctx.eval_ctx).unwrap(),
+        ExprValue::Int(1)
+    );
+    assert!(doe::schema::expr::eval_str("record.b", &ctx.eval_ctx).is_err());
+}
+
+#[test]
+fn bind_registers_sub_types_and_arrays_of_them() {
+    let mut ctx = ParseContext::new();
+    let entry = |offset: u64| Value::Struct {
+        type_name: "entry".into(),
+        fields: vec![
+            ("offset".into(), Value::UInt(offset)),
+            ("tag".into(), Value::Str("t".into())),
+        ],
+    };
+    ctx.bind(
+        "entries",
+        Value::Array(vec![entry(10), entry(20), entry(30)]),
+    );
+    ctx.bind("header", entry(7));
+    let eval = |text| doe::schema::expr::eval_str(text, &ctx.eval_ctx).unwrap();
+    assert_eq!(eval("entries.size"), ExprValue::Int(3));
+    assert_eq!(eval("entries[1].offset"), ExprValue::Int(20));
+    assert_eq!(eval("entries.last.offset"), ExprValue::Int(30));
+    assert_eq!(eval("entries.first.tag.length"), ExprValue::Int(1));
+    assert_eq!(
+        eval("header.offset + entries[0].offset"),
+        ExprValue::Int(17)
+    );
+    assert!(matches!(eval("header"), ExprValue::Struct(_)));
+}
+
+#[test]
+fn bind_summarizes_values_beyond_the_limit() {
+    use doe::parser::context::MAX_BOUND_VALUES;
+    let mut ctx = ParseContext::new();
+    let items = vec![Value::UInt(1); MAX_BOUND_VALUES + 1];
+    ctx.bind("big", Value::Array(items));
+    ctx.bind("small", Value::Array(vec![Value::UInt(1); 10]));
+    let eval = |text| doe::schema::expr::eval_str(text, &ctx.eval_ctx);
+    assert_eq!(
+        eval("big.size").unwrap(),
+        ExprValue::Int(i128::try_from(MAX_BOUND_VALUES + 1).unwrap())
+    );
+    assert!(eval("big[0]").is_err());
+    assert_eq!(eval("small[9]").unwrap(), ExprValue::Int(1));
 }
 
 #[test]

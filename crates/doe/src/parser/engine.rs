@@ -104,6 +104,7 @@ impl<'reg> Engine<'reg> {
     ) -> Result<Value> {
         // Evaluate `if:` guard
         if let Some(if_expr) = &field.if_expr {
+            ctx.set_io(cursor);
             let cond = expr::eval_bool(if_expr, &ctx.eval_ctx, "<if>")
                 .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
             if !cond {
@@ -117,6 +118,7 @@ impl<'reg> Engine<'reg> {
 
         // `pos:` reads the whole field (every repeat) somewhere else, then
         // puts the cursor back where the sequence left off.
+        ctx.set_io(cursor);
         let target = expr::eval_int(pos_expr, &ctx.eval_ctx, "<pos>")
             .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
         let target = usize::try_from(target).map_err(|_| DoeError::FieldError {
@@ -158,6 +160,7 @@ impl<'reg> Engine<'reg> {
                 Ok(Value::Array(items))
             }
             RepeatMode::Count(count_expr) => {
+                ctx.set_io(cursor);
                 let n = expr::eval_int(count_expr, &ctx.eval_ctx, "<repeat-expr>")
                     .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
                 if n < 0 {
@@ -191,6 +194,7 @@ impl<'reg> Engine<'reg> {
                     // until-expression can reference it, matching the convention
                     // used by KaitaiStruct.
                     ctx.bind_scratch("_", &v);
+                    ctx.set_io(cursor);
                     let done = expr::eval_bool(until_expr, &ctx.eval_ctx, "<repeat-until>")
                         .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
                     items.push(v);
@@ -279,7 +283,7 @@ impl<'reg> Engine<'reg> {
                 Self::read_float(*width, e, cursor)
             }
             FieldKind::Bytes { size } => {
-                let n = eval_size(size, &ctx.eval_ctx, cursor)?;
+                let n = eval_size(size, ctx, cursor)?;
                 Self::read_blob(n, cursor)
             }
             FieldKind::Str { size, encoding } => Self::read_str(size, *encoding, cursor, ctx),
@@ -312,10 +316,10 @@ impl<'reg> Engine<'reg> {
                     })?;
                 // The size is an expression of the fields around this one, so
                 // it is evaluated before the new scope exists.
-                let window = size
-                    .as_ref()
-                    .map(|size| eval_size(size, &ctx.eval_ctx, cursor))
-                    .transpose()?;
+                let window = match size {
+                    Some(size) => Some(eval_size(size, ctx, cursor)?),
+                    None => None,
+                };
                 ctx.push_scope();
                 let result = match window {
                     None => self.parse_compiled_type(sub_ty, cursor, ctx),
@@ -412,12 +416,12 @@ impl<'reg> Engine<'reg> {
         size: &StrSize,
         encoding: Encoding,
         cursor: &mut Cursor<'_>,
-        ctx: &ParseContext,
+        ctx: &mut ParseContext,
     ) -> Result<Value> {
         let bytes: Vec<u8> = match size {
             StrSize::Terminator(term) => cursor.read_until(*term)?.into_owned(),
             StrSize::Fixed(sz) => {
-                let n = eval_size(sz, &ctx.eval_ctx, cursor)?;
+                let n = eval_size(sz, ctx, cursor)?;
                 if n > MAX_TERMINATED_LEN {
                     return Err(DoeError::Schema(format!(
                         "string of {n} bytes is longer than the limit of {MAX_TERMINATED_LEN} bytes"
@@ -443,12 +447,13 @@ fn resolve_endian(field_override: EndianOverride, type_default: Endian) -> Endia
     }
 }
 
-fn eval_size(size: &SizeExpr, eval_ctx: &expr::EvalContext, cursor: &Cursor<'_>) -> Result<usize> {
+fn eval_size(size: &SizeExpr, ctx: &mut ParseContext, cursor: &Cursor<'_>) -> Result<usize> {
     match size {
         SizeExpr::Literal(n) => Ok(*n),
         SizeExpr::Eos => Ok(cursor.remaining()),
         SizeExpr::Dynamic(e) => {
-            let v = expr::eval_int(e, eval_ctx, "<size>")?;
+            ctx.set_io(cursor);
+            let v = expr::eval_int(e, &ctx.eval_ctx, "<size>")?;
             if v < 0 {
                 return Err(DoeError::Schema(format!(
                     "size expression evaluated to negative value: {v}"

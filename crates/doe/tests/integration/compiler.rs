@@ -1553,3 +1553,170 @@ fn fixed_size_types_do_not_take_a_size() {
         }
     }
 }
+
+// ── Enum members in expressions ───────────────────────────────────────────
+
+const ENUM_SCHEMA: &str = indoc! {"
+    id: t
+    seq:
+      - id: kind
+        type: u1
+        enum: kind_t
+      - id: extra
+        type: u1
+        if: kind == kind_t::data
+    enums:
+      kind_t:
+        1: data
+        0x10: control
+"};
+
+fn if_expr_of(schema: &str, field: usize) -> doe::schema::expr::Expr {
+    let reg = compile(schema);
+    reg.get("t").unwrap().fields[field].if_expr.clone().unwrap()
+}
+
+#[test]
+fn enum_members_are_replaced_by_their_values() {
+    use doe::schema::expr::{BinaryOp, Expr};
+    let ast = if_expr_of(ENUM_SCHEMA, 1);
+    let Expr::Binary(BinaryOp::Eq, _, rhs) = ast else {
+        panic!("expected a comparison, got {ast:?}");
+    };
+    assert_eq!(*rhs, Expr::Int(1));
+    let hex = ENUM_SCHEMA.replace("kind_t::data", "kind_t::control");
+    let Expr::Binary(_, _, rhs) = if_expr_of(&hex, 1) else {
+        panic!("expected a comparison");
+    };
+    assert_eq!(*rhs, Expr::Int(16));
+}
+
+#[test]
+fn enum_members_are_resolved_in_every_kind_of_expression() {
+    let schema = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: u1
+          - id: sized
+            type: bytes
+            size: 'a == k::one ? 4 : 2'
+          - id: counted
+            type: u1
+            repeat: expr
+            repeat-expr: 'k::two + [k::one, k::two].max'
+          - id: until
+            type: u1
+            repeat: until
+            repeat-until: _ == k::two
+          - id: placed
+            type: u1
+            pos: k::two * 2
+            if: '!(a == k::two)'
+        enums:
+          k:
+            1: one
+            2: two
+    "};
+    let reg = compile(schema);
+    let ty = reg.get("t").unwrap();
+    for field in &ty.fields[1..] {
+        let text = format!("{field:?}");
+        assert!(
+            !text.contains("Enum("),
+            "{} still has an enum member: {text}",
+            field.id
+        );
+    }
+}
+
+#[test]
+fn enum_members_see_the_enums_of_enclosing_types() {
+    let schema = indoc! {"
+        id: t
+        seq:
+          - id: inner
+            type: rec
+        types:
+          rec:
+            seq:
+              - id: a
+                type: u1
+              - id: b
+                type: u1
+                if: a == outer_t::yes
+              - id: c
+                type: u1
+                if: a == inner_t::yes
+            enums:
+              inner_t:
+                9: yes
+        enums:
+          outer_t:
+            4: yes
+    "};
+    let reg = compile(schema);
+    let rec = reg.get("t::rec").unwrap();
+    assert!(rec.fields[1].if_expr.is_some());
+    assert!(rec.fields[2].if_expr.is_some());
+}
+
+#[test]
+fn unknown_enums_and_members_are_schema_errors() {
+    let unknown_enum = ENUM_SCHEMA.replace("kind_t::data", "nope_t::data");
+    let err = compile_err(&unknown_enum);
+    assert!(
+        matches!(&err, DoeError::UnknownEnum { enum_name, .. } if enum_name == "nope_t"),
+        "{err:?}"
+    );
+    let unknown_member = ENUM_SCHEMA.replace("kind_t::data", "kind_t::nope");
+    let err = compile_err(&unknown_member);
+    assert!(err.to_string().contains("no member 'nope'"), "{err}");
+    let qualified = ENUM_SCHEMA.replace("kind_t::data", "t::kind_t::data");
+    let err = compile_err(&qualified);
+    assert!(err.to_string().contains("not supported"), "{err}");
+}
+
+#[test]
+fn an_enum_of_a_sibling_type_is_not_visible() {
+    let schema = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: left
+          - id: b
+            type: right
+        types:
+          left:
+            seq:
+              - id: x
+                type: u1
+                enum: e
+            enums:
+              e:
+                1: one
+          right:
+            seq:
+              - id: y
+                type: u1
+                if: y == e::one
+    "};
+    let err = compile_err(schema);
+    assert!(
+        matches!(
+            err,
+            DoeError::UnknownEnum { .. } | DoeError::FieldError { .. }
+        ),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn size_expressions_may_use_root_parent_and_io() {
+    for size in ["_io.size", "_io.size - _io.pos", "_root.n", "_parent.n"] {
+        let schema = format!(
+            "id: t\nseq:\n  - id: n\n    type: u1\n  - id: inner\n    type: rec\ntypes:\n  rec:\n    seq:\n      - id: x\n        type: bytes\n        size: '{size}'\n"
+        );
+        compile(&schema);
+    }
+}

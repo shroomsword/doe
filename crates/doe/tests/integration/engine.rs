@@ -1578,9 +1578,9 @@ fn a_sub_type_can_read_a_field_of_its_parents_sub_type() {
 #[test]
 fn unknown_or_non_integer_sub_type_fields_are_errors() {
     for (reference, expected) in [
-        ("header.nope", "unknown field"),
-        ("header", "unknown field"),
-        ("header.name", "expected an integer"),
+        ("header.nope", "no field 'nope'"),
+        ("header", "expected an integer, found a struct"),
+        ("header.name", "expected an integer, found a bytes"),
     ] {
         let yaml = format!(
             "id: t\nseq:\n  - id: header\n    type: header_t\n  - id: body\n    type: bytes\n    size: {reference}\ntypes:\n  header_t:\n    seq:\n      - id: name\n        type: bytes\n        size: 1\n"
@@ -2652,4 +2652,199 @@ fn the_pos_budget_is_measured_against_the_whole_input() {
         panic!("expected an array");
     };
     assert_eq!(items.len(), 512);
+}
+
+// ── Enum members, _root, _io and arrays of sub-types ─────────────────────
+
+#[test]
+fn an_if_can_test_an_enum_field_against_a_member() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+            enum: kind_t
+          - id: payload
+            type: u1
+            if: kind == kind_t::data
+          - id: control
+            type: u1
+            if: kind != kind_t::data
+        enums:
+          kind_t:
+            1: data
+            2: control
+    "};
+    let v = parse(yaml, "t", &[1, 9]);
+    assert_eq!(get_field(&v, "payload").as_int(), Some(9));
+    assert!(get_field(&v, "control").is_absent());
+    let v = parse(yaml, "t", &[2, 9]);
+    assert!(get_field(&v, "payload").is_absent());
+    assert_eq!(get_field(&v, "control").as_int(), Some(9));
+}
+
+#[test]
+fn _root_reaches_the_top_level_type_from_nested_ones() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: width
+            type: u1
+          - id: outer
+            type: outer_t
+        types:
+          outer_t:
+            seq:
+              - id: inner
+                type: inner_t
+          inner_t:
+            seq:
+              - id: cells
+                type: u1
+                repeat: expr
+                repeat-expr: _root.width
+    "};
+    let v = parse(yaml, "t", &[3, 1, 2, 3]);
+    let inner = get_field(get_field(&v, "outer"), "inner");
+    let Value::Array(cells) = get_field(inner, "cells") else {
+        panic!("expected an array");
+    };
+    assert_eq!(cells.len(), 3);
+}
+
+#[test]
+fn _io_describes_the_current_stream() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: head
+            type: u1
+          - id: at_start
+            type: u1
+            if: _io.pos == 1
+          - id: framed
+            type: frame
+            size: 4
+          - id: rest
+            type: u1
+            repeat: expr
+            repeat-expr: _io.size - _io.pos
+        types:
+          frame:
+            seq:
+              - id: values
+                type: u1
+                repeat: until
+                repeat-until: _io.eof
+    "};
+    let v = parse(yaml, "t", &[0, 0, 1, 2, 3, 4, 8, 9]);
+    assert_eq!(get_field(&v, "at_start").as_int(), Some(0));
+    let Value::Array(values) = get_field(get_field(&v, "framed"), "values") else {
+        panic!("expected an array");
+    };
+    // `_io.eof` is true at the end of the four-byte window, not the input.
+    assert_eq!(values.len(), 4);
+    let Value::Array(rest) = get_field(&v, "rest") else {
+        panic!("expected an array");
+    };
+    assert_eq!(rest.len(), 2);
+}
+
+#[test]
+fn _io_size_is_the_size_of_a_window() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: body
+            type: rec
+            size: 3
+        types:
+          rec:
+            seq:
+              - id: copy
+                type: bytes
+                size: _io.size
+    "};
+    let v = parse(yaml, "t", &[1, 2, 3, 4, 5]);
+    assert_eq!(get_field(get_field(&v, "body"), "copy").byte_len(), Some(3));
+}
+
+#[test]
+fn entries_of_an_array_of_sub_types_can_be_referenced() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: count
+            type: u1
+          - id: entries
+            type: entry
+            repeat: expr
+            repeat-expr: count
+          - id: first_len
+            type: bytes
+            size: entries[0].len
+          - id: last_len
+            type: bytes
+            size: entries.last.len
+          - id: total
+            type: u1
+            if: entries.size == 2
+        types:
+          entry:
+            seq:
+              - id: len
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[2, 1, 2, 0xaa, 0xbb, 0xcc, 7]);
+    assert_eq!(get_field(&v, "first_len").byte_len(), Some(1));
+    assert_eq!(get_field(&v, "last_len").byte_len(), Some(2));
+    assert_eq!(get_field(&v, "total").as_int(), Some(7));
+}
+
+#[test]
+fn the_size_of_a_long_bytes_field_can_be_used() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: len
+            type: u4
+          - id: blob
+            type: bytes
+            size: len
+          - id: tail
+            type: u1
+            if: blob.size > 1000
+    "};
+    let mut data = 70_000u32.to_le_bytes().to_vec();
+    data.extend(vec![0; 70_000]);
+    data.push(5);
+    let v = parse(yaml, "t", &data);
+    assert!(matches!(get_field(&v, "blob"), Value::Blob { .. }));
+    assert_eq!(get_field(&v, "tail").as_int(), Some(5));
+    // Anything but its size is not available.
+    let bad = yaml.replace("blob.size > 1000", "blob[0] == 0");
+    let err = parse_err(&bad, "t", &data);
+    assert!(err.to_string().contains("too large"), "{err}");
+}
+
+#[test]
+fn pos_can_come_from_an_entry_of_an_array() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: table
+            type: entry
+            repeat: expr
+            repeat-expr: 2
+          - id: second
+            type: u1
+            pos: table[1].offset
+        types:
+          entry:
+            seq:
+              - id: offset
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[6, 7, 0, 0, 0, 0, 0xee, 0xff]);
+    assert_eq!(get_field(&v, "second").as_int(), Some(0xff));
 }
