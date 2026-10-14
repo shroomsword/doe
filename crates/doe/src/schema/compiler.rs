@@ -24,12 +24,12 @@ use indexmap::IndexMap;
 use crate::error::{DoeError, Result};
 use crate::schema::expr;
 use crate::schema::ir::{
-    CompiledEnum, CompiledField, CompiledType, Encoding, Endian, EndianOverride, FieldKind,
-    FloatWidth, IntWidth, RepeatMode, SizeExpr, StrSize, TypeRegistry,
+    CompiledEnum, CompiledField, CompiledInstance, CompiledType, Encoding, Endian, EndianOverride,
+    FieldKind, FloatWidth, InstanceKind, IntWidth, RepeatMode, SizeExpr, StrSize, TypeRegistry,
 };
 use crate::schema::raw::{
-    RawContents, RawEncoding, RawEndian, RawField, RawRepeat, RawSchema, RawSwitch, RawType,
-    RawTypeDecl, StringOrInt,
+    RawContents, RawEncoding, RawEndian, RawField, RawInstance, RawRepeat, RawSchema, RawSwitch,
+    RawType, RawTypeDecl, StringOrInt,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -150,9 +150,12 @@ impl Compiler {
         let bit_endian = raw_endian_to_ir(schema.meta.bit_endian.unwrap_or(RawEndian::Be));
         self.compile_type_decl(
             &schema.id,
-            &schema.seq,
-            &schema.types,
-            &schema.enums,
+            TypeParts {
+                seq: &schema.seq,
+                types: &schema.types,
+                enums: &schema.enums,
+                instances: &schema.instances,
+            },
             &HashMap::new(),
             (endian, bit_endian),
         )?;
@@ -206,15 +209,28 @@ impl Compiler {
     fn compile_type_decl(
         &mut self,
         fqn: &str, // fully-qualified name for this type
-        seq: &[RawField],
-        types: &IndexMap<String, RawTypeDecl>,
-        enums: &IndexMap<String, HashMap<String, String>>,
+        parts: TypeParts<'_>,
         outer_enums: &HashMap<String, CompiledEnum>,
         (endian, bit_endian): (Endian, Endian),
     ) -> Result<()> {
+        let TypeParts {
+            seq,
+            types,
+            enums,
+            instances,
+        } = parts;
         // Enums visible in this type: the enclosing ones, then its own.
         let mut compiled_enums = outer_enums.clone();
         compiled_enums.extend(compile_enums(enums, fqn)?);
+
+        let instance_names: HashSet<String> = instances.keys().cloned().collect();
+        if let Some(clash) = seq.iter().find(|f| instance_names.contains(&f.id)) {
+            return Err(DoeError::FieldError {
+                field: clash.id.clone(),
+                context: fqn.to_owned(),
+                message: "is both a field of 'seq' and an instance".to_owned(),
+            });
+        }
 
         // Compile each field
         let mut fields = Vec::with_capacity(seq.len());
@@ -225,10 +241,23 @@ impl Compiler {
                 parent_fqn: fqn,
                 seen_ids: &seen_ids,
                 enums: &compiled_enums,
+                instances: &instance_names,
             };
             let compiled = self.compile_field(raw_field, &ctx)?;
             seen_ids.push(raw_field.id.clone());
             fields.push(compiled);
+        }
+
+        // Instances may use any field of the sequence and any other instance.
+        let mut compiled_instances = Vec::with_capacity(instances.len());
+        for (id, raw_instance) in instances {
+            let ctx = FieldCtx {
+                parent_fqn: fqn,
+                seen_ids: &seen_ids,
+                enums: &compiled_enums,
+                instances: &instance_names,
+            };
+            compiled_instances.push(self.compile_instance(id, raw_instance, &ctx)?);
         }
 
         let ct = CompiledType {
@@ -237,6 +266,7 @@ impl Compiler {
             endian,
             bit_endian,
             fields,
+            instances: compiled_instances,
             enums: compiled_enums.clone(),
         };
         self.registry.insert(fqn.to_owned(), ct);
@@ -248,15 +278,80 @@ impl Compiler {
             // (RawTypeDecl has no meta; both are purely inherited)
             self.compile_type_decl(
                 &child_fqn,
-                &decl.seq,
-                &decl.types,
-                &decl.enums,
+                TypeParts {
+                    seq: &decl.seq,
+                    types: &decl.types,
+                    enums: &decl.enums,
+                    instances: &decl.instances,
+                },
                 &compiled_enums,
                 (endian, bit_endian),
             )?;
         }
 
         Ok(())
+    }
+
+    /// Compile one entry of `instances`: a read like a `seq` field, or a `value`.
+    fn compile_instance(
+        &self,
+        id: &str,
+        raw: &RawInstance,
+        ctx: &FieldCtx<'_>,
+    ) -> Result<CompiledInstance> {
+        let bad = |message: String| DoeError::FieldError {
+            field: id.to_owned(),
+            context: ctx.parent_fqn.to_owned(),
+            message,
+        };
+        let Some(value) = &raw.value else {
+            let field = self
+                .compile_field(&raw.to_field(id), ctx)
+                .map_err(|e| match e {
+                    DoeError::FieldError { message, .. } if message.contains("neither") => {
+                        bad("an instance needs 'value', or 'type' or 'contents' to read".to_owned())
+                    }
+                    other => other,
+                })?;
+            return Ok(CompiledInstance {
+                id: id.to_owned(),
+                kind: InstanceKind::Read(Box::new(field)),
+            });
+        };
+        if raw.reads() {
+            return Err(bad(
+                "'value' cannot be combined with attributes that read data (type, contents, size, pos, repeat, ...)"
+                    .to_owned(),
+            ));
+        }
+        let expr = compile_expr(&value.0, ctx).map_err(|e| bad(format!("'value': {e}")))?;
+        validate_size_expr_refs(&value.0, ctx)?;
+        let if_expr = raw
+            .if_expr
+            .as_deref()
+            .map(|text| compile_expr(text, ctx))
+            .transpose()?;
+        if let Some(enum_name) = &raw.enum_ref
+            && !ctx.enums.contains_key(enum_name.as_str())
+        {
+            return Err(DoeError::UnknownEnum {
+                enum_name: enum_name.clone(),
+                context: format!("{}.{id}", ctx.parent_fqn),
+            });
+        }
+        let mut exprs = vec![&expr];
+        exprs.extend(if_expr.as_ref());
+        let uses_instances = instance_refs(&exprs, ctx.instances);
+        Ok(CompiledInstance {
+            id: id.to_owned(),
+            kind: InstanceKind::Value {
+                doc: raw.doc.clone(),
+                expr,
+                if_expr,
+                enum_ref: raw.enum_ref.clone(),
+                uses_instances,
+            },
+        })
     }
 
     fn compile_field(&self, raw: &RawField, ctx: &FieldCtx<'_>) -> Result<CompiledField> {
@@ -266,6 +361,10 @@ impl Compiler {
             match &raw.type_ref {
                 Some(RawType::Name(type_name)) => self.compile_type_ref(type_name, raw, ctx)?,
                 Some(RawType::Switch(switch)) => self.compile_switch(switch, raw, ctx)?,
+                // As in Kaitai Struct, a field with a size and no type is bytes.
+                None if raw.size.is_some() || raw.size_eos == Some(true) => {
+                    self.compile_type_ref("bytes", raw, ctx)?
+                }
                 None => {
                     return Err(DoeError::FieldError {
                         field: raw.id.clone(),
@@ -298,7 +397,7 @@ impl Compiler {
             });
         }
 
-        Ok(CompiledField {
+        let mut field = CompiledField {
             id: raw.id.clone(),
             doc: raw.doc.clone(),
             kind,
@@ -306,7 +405,10 @@ impl Compiler {
             if_expr,
             pos,
             enum_ref: raw.enum_ref.clone(),
-        })
+            uses_instances: Vec::new(),
+        };
+        field.uses_instances = instance_refs(&field_exprs(&field), ctx.instances);
+        Ok(field)
     }
 
     /// Compile a `type` that is chosen by a value.
@@ -526,6 +628,18 @@ struct FieldCtx<'a> {
     parent_fqn: &'a str,
     seen_ids: &'a [String],
     enums: &'a HashMap<String, CompiledEnum>,
+    /// The names of the type's instances, which any expression may use.
+    instances: &'a HashSet<String>,
+}
+
+/// The parts of a type declaration that are compiled together: the same for
+/// the top level of a schema and for a nested type.
+#[derive(Clone, Copy)]
+struct TypeParts<'a> {
+    seq: &'a [RawField],
+    types: &'a IndexMap<String, RawTypeDecl>,
+    enums: &'a IndexMap<String, HashMap<String, String>>,
+    instances: &'a IndexMap<String, RawInstance>,
 }
 
 /// Create an empty placeholder `CompiledType` used during name collection.
@@ -536,6 +650,7 @@ fn placeholder(fqn: &str) -> CompiledType {
         endian: Endian::Little,
         bit_endian: Endian::Big,
         fields: vec![],
+        instances: vec![],
         enums: HashMap::new(),
     }
 }
@@ -594,6 +709,93 @@ fn compile_size(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<SizeExpr> {
             Ok(SizeExpr::Dynamic(compile_expr(s, ctx)?))
         }
     }
+}
+
+/// Every expression a field evaluates.
+fn field_exprs(field: &CompiledField) -> Vec<&expr::Expr> {
+    fn size<'a>(size: &'a SizeExpr, out: &mut Vec<&'a expr::Expr>) {
+        if let SizeExpr::Dynamic(e) = size {
+            out.push(e);
+        }
+    }
+    fn kind<'a>(k: &'a FieldKind, out: &mut Vec<&'a expr::Expr>) {
+        match k {
+            FieldKind::Bytes { size: s }
+            | FieldKind::Str {
+                size: StrSize::Fixed(s),
+                ..
+            }
+            | FieldKind::TypeRef { size: Some(s), .. } => size(s, out),
+            FieldKind::Switch {
+                on,
+                size: window,
+                cases,
+                default,
+            } => {
+                out.push(on);
+                if let Some(window) = window {
+                    size(window, out);
+                }
+                for (key, case) in cases {
+                    out.push(key);
+                    kind(case, out);
+                }
+                if let Some(case) = default {
+                    kind(case, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    out.extend(field.if_expr.as_ref());
+    out.extend(field.pos.as_ref());
+    match &field.repeat {
+        RepeatMode::Count(e) | RepeatMode::Until(e) => out.push(e),
+        RepeatMode::Once | RepeatMode::Eos => {}
+    }
+    kind(&field.kind, &mut out);
+    out
+}
+
+/// The names in `names` that the expressions refer to (as the first part of a
+/// field path), in order of first use.
+fn instance_refs(exprs: &[&expr::Expr], names: &HashSet<String>) -> Vec<String> {
+    use expr::Expr;
+    let mut found: Vec<String> = Vec::new();
+    if names.is_empty() {
+        return found;
+    }
+    let mut stack: Vec<&Expr> = exprs.iter().rev().copied().collect();
+    while let Some(node) = stack.pop() {
+        match node {
+            Expr::Field(parts) => {
+                if let Some(first) = parts.first()
+                    && names.contains(first)
+                    && !found.contains(first)
+                {
+                    found.push(first.clone());
+                }
+            }
+            Expr::Array(items) => stack.extend(items.iter().rev()),
+            Expr::Member(inner, _) | Expr::Unary(_, inner) => stack.push(inner),
+            Expr::Call(recv, _, args) => {
+                stack.extend(args.iter().rev());
+                stack.push(recv);
+            }
+            Expr::Index(a, b) | Expr::Binary(_, a, b) => {
+                stack.push(b);
+                stack.push(a);
+            }
+            Expr::Ternary(a, b, c) => {
+                stack.push(c);
+                stack.push(b);
+                stack.push(a);
+            }
+            Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) | Expr::Enum(_) => {}
+        }
+    }
+    found
 }
 
 /// Parse an expression and replace its enum members (`kind_t::data`) with
@@ -885,7 +1087,7 @@ fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx<'_>, src: &str) -> Re
             let Some(name) = parts.first() else {
                 return Ok(());
             };
-            if !ctx.seen_ids.iter().any(|id| id == name) {
+            if !ctx.seen_ids.iter().any(|id| id == name) && !ctx.instances.contains(name) {
                 return Err(DoeError::FieldError {
                     field: name.clone(),
                     context: ctx.parent_fqn.to_owned(),

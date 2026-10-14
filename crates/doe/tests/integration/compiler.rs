@@ -1853,3 +1853,158 @@ fn a_switch_inside_a_repeat_and_with_an_enum_compiles() {
     let schema = SWITCH.replace("size: 4", "size: 4\n    repeat: eos\n    enum: kind_t");
     compile(&schema);
 }
+
+#[test]
+fn a_field_with_a_size_and_no_type_is_bytes() {
+    let reg = compile("id: t\nseq:\n  - id: a\n    size: 4\n  - id: b\n    size-eos: true\n");
+    let ty = reg.get("t").unwrap();
+    assert!(matches!(
+        ty.fields[0].kind,
+        FieldKind::Bytes {
+            size: SizeExpr::Literal(4)
+        }
+    ));
+    assert!(matches!(
+        ty.fields[1].kind,
+        FieldKind::Bytes {
+            size: SizeExpr::Eos
+        }
+    ));
+    let err = compile_err("id: t\nseq:\n  - id: a\n    doc: nothing\n");
+    assert!(err.to_string().contains("neither"), "{err}");
+}
+
+// ── instances ─────────────────────────────────────────────────────────────
+
+const WITH_INSTANCES: &str = indoc! {"
+    id: t
+    seq:
+      - id: n
+        type: u1
+      - id: body
+        type: bytes
+        size: total
+    instances:
+      table:
+        pos: n
+        type: u1
+        repeat: expr
+        repeat-expr: total
+      total:
+        value: n * 2
+        if: n > 0
+      later:
+        value: total + table.size
+"};
+
+#[test]
+fn instances_compile_to_reads_and_values_with_their_dependencies() {
+    use doe::schema::ir::InstanceKind;
+    let reg = compile(WITH_INSTANCES);
+    let ty = reg.get("t").unwrap();
+    // A `seq` field that uses an instance names it.
+    assert_eq!(ty.fields[1].uses_instances, ["total"]);
+    assert_eq!(ty.fields[0].uses_instances.len(), 0);
+    let ids: Vec<&str> = ty.instances.iter().map(|i| i.id.as_str()).collect();
+    assert_eq!(ids, ["table", "total", "later"]);
+    let InstanceKind::Read(table) = &ty.instances[0].kind else {
+        panic!("expected a read instance");
+    };
+    assert!(table.pos.is_some());
+    assert_eq!(table.uses_instances, ["total"]);
+    let InstanceKind::Value {
+        if_expr,
+        uses_instances,
+        ..
+    } = &ty.instances[1].kind
+    else {
+        panic!("expected a value instance");
+    };
+    assert!(if_expr.is_some());
+    assert_eq!(uses_instances.len(), 0);
+    let InstanceKind::Value { uses_instances, .. } = &ty.instances[2].kind else {
+        panic!("expected a value instance");
+    };
+    assert_eq!(*uses_instances, ["total", "table"]);
+}
+
+#[test]
+fn instances_of_nested_types_are_compiled_with_them() {
+    let reg = compile(indoc! {"
+        id: t
+        seq:
+          - id: x
+            type: rec
+        types:
+          rec:
+            seq:
+              - id: a
+                type: u1
+            instances:
+              twice:
+                value: a * 2
+    "});
+    assert_eq!(reg.get("t::rec").unwrap().instances.len(), 1);
+    assert!(reg.get("t").unwrap().instances.is_empty());
+}
+
+#[test]
+fn malformed_instances_are_schema_errors_that_name_the_instance() {
+    let cases = [
+        (
+            "same name as a field",
+            "id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n  a:\n    value: 1\n",
+            "both a field of 'seq' and an instance",
+        ),
+        (
+            "value with a type",
+            "id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n  x:\n    value: 1\n    type: u1\n",
+            "cannot be combined",
+        ),
+        (
+            "value with pos",
+            "id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n  x:\n    value: 1\n    pos: 0\n",
+            "cannot be combined",
+        ),
+        (
+            "nothing to read or compute",
+            "id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n  x:\n    doc: nothing\n",
+            "needs 'value'",
+        ),
+        (
+            "bad expression",
+            "id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n  x:\n    value: '1 +'\n",
+            "'value'",
+        ),
+        (
+            "unknown field",
+            "id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n  x:\n    value: nope + 1\n",
+            "nope",
+        ),
+        (
+            "unknown type",
+            "id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n  x:\n    type: nope_t\n",
+            "nope_t",
+        ),
+        (
+            "unknown enum",
+            "id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n  x:\n    value: 1\n    enum: nope_t\n",
+            "nope_t",
+        ),
+    ];
+    for (what, schema, expected) in cases {
+        let err = compile_err(schema);
+        assert!(err.to_string().contains(expected), "{what}: {err}");
+    }
+}
+
+#[test]
+fn a_seq_field_may_use_an_instance_that_comes_later_but_not_a_later_field() {
+    compile(
+        "id: t\nseq:\n  - id: b\n    type: bytes\n    size: n\ninstances:\n  n:\n    value: 3\n",
+    );
+    let err = compile_err(
+        "id: t\nseq:\n  - id: b\n    type: bytes\n    size: n\n  - id: n\n    type: u1\n",
+    );
+    assert!(err.to_string().contains('n'), "{err}");
+}

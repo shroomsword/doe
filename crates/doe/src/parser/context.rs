@@ -26,10 +26,37 @@ pub struct ParseContext {
     pub eval_ctx: EvalContext,
     /// Stack of frames; each frame is a vec of (`field_id`, Value).
     value_frames: Vec<Vec<(String, Value)>>,
+    /// Per scope, which instances are computed or being computed, and their
+    /// values until the end of the scope.
+    instance_frames: Vec<InstanceFrame>,
     /// Bytes read so far by fields placed with `pos:`.
     reread_bytes: usize,
     /// The size of the input being parsed, which the `pos:` budget scales with.
     input_len: usize,
+}
+
+/// Where an instance is in being computed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InstanceState {
+    InProgress,
+    Done,
+}
+
+/// What [`ParseContext::begin_instance`] found out about an instance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstanceStart {
+    /// It has not been computed: compute it now.
+    Compute,
+    /// It already has been.
+    Done,
+    /// It is being computed, so it depends on itself.
+    Cycle,
+}
+
+#[derive(Debug, Default)]
+struct InstanceFrame {
+    states: std::collections::HashMap<String, InstanceState>,
+    values: std::collections::HashMap<String, Value>,
 }
 
 /// The most values one binding copies into the expression context; a larger
@@ -50,6 +77,7 @@ impl ParseContext {
         ParseContext {
             eval_ctx: EvalContext::new(),
             value_frames: vec![Vec::new()],
+            instance_frames: vec![InstanceFrame::default()],
             reread_bytes: 0,
             input_len: 0,
         }
@@ -92,12 +120,14 @@ impl ParseContext {
     pub fn push_scope(&mut self) {
         self.eval_ctx.push_frame();
         self.value_frames.push(Vec::new());
+        self.instance_frames.push(InstanceFrame::default());
     }
 
     /// Pop the current scope (returning from a sub-type).
     /// Returns the fields accumulated in the scope.
     pub fn pop_scope(&mut self) -> Vec<(String, Value)> {
         self.eval_ctx.pop_frame();
+        self.instance_frames.pop();
         self.value_frames.pop().unwrap_or_default()
     }
 
@@ -128,6 +158,46 @@ impl ParseContext {
         if let Some(v) = to_expr_value(value, &mut budget) {
             self.eval_ctx.bind(name, v);
         }
+    }
+
+    /// Note that the instance `id` of the current type is about to be computed.
+    pub fn begin_instance(&mut self, id: &str) -> InstanceStart {
+        let Some(frame) = self.instance_frames.last_mut() else {
+            return InstanceStart::Compute;
+        };
+        match frame.states.get(id) {
+            Some(InstanceState::Done) => InstanceStart::Done,
+            Some(InstanceState::InProgress) => InstanceStart::Cycle,
+            None => {
+                frame
+                    .states
+                    .insert(id.to_owned(), InstanceState::InProgress);
+                InstanceStart::Compute
+            }
+        }
+    }
+
+    /// Record the value of the instance `id` of the current type, and make it
+    /// visible to expressions (without the `Instance` wrapper).
+    pub fn finish_instance(&mut self, id: &str, value: Value) {
+        let inner = match &value {
+            Value::Instance { value, .. } => value.as_ref(),
+            other => other,
+        };
+        let mut budget = MAX_BOUND_VALUES;
+        if let Some(v) = to_expr_value(inner, &mut budget) {
+            self.eval_ctx.bind(id, v);
+        }
+        if let Some(frame) = self.instance_frames.last_mut() {
+            frame.states.insert(id.to_owned(), InstanceState::Done);
+            frame.values.insert(id.to_owned(), value);
+        }
+    }
+
+    /// Take the value of the instance `id` of the current type, if it has
+    /// been computed.
+    pub fn take_instance(&mut self, id: &str) -> Option<Value> {
+        self.instance_frames.last_mut()?.values.remove(id)
     }
 
     /// Tell expressions where they are: the position, size and end of the
@@ -207,6 +277,7 @@ fn to_expr_value(value: &Value, budget: &mut usize) -> Option<ExprValue> {
                     .collect(),
             )
         }
+        Value::Instance { value, .. } => return to_expr_value(value, budget),
         Value::Absent => return None,
     })
 }

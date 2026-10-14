@@ -71,6 +71,9 @@ pub struct CompiledType {
     /// Ordered list of fields.
     pub fields: Vec<CompiledField>,
 
+    /// Values computed or read on demand, in schema order.
+    pub instances: Vec<CompiledInstance>,
+
     /// Enum definitions visible within this type (merged from imports +
     /// inline `enums:` blocks).
     pub enums: HashMap<String, CompiledEnum>,
@@ -97,6 +100,38 @@ pub struct CompiledField {
     pub pos: Option<Expr>,
     /// Name of the enum to apply, if present.
     pub enum_ref: Option<String>,
+    /// Instances of the same type that the field's expressions use, which are
+    /// computed before the field is.
+    pub uses_instances: Vec<String>,
+}
+
+/// A value of a type that is computed or read on demand (`instances:`).
+#[derive(Debug, Clone)]
+pub struct CompiledInstance {
+    /// The instance's name within its type.
+    pub id: String,
+    /// What it is.
+    pub kind: InstanceKind,
+}
+
+/// How an instance gets its value.
+#[derive(Debug, Clone)]
+pub enum InstanceKind {
+    /// Read like a `seq` field, usually at a `pos:`.
+    Read(Box<CompiledField>),
+    /// Computed from other fields (`value:`).
+    Value {
+        /// Human-readable description.
+        doc: Option<String>,
+        /// The expression.
+        expr: Expr,
+        /// Compiled `if:` predicate, if present.
+        if_expr: Option<Expr>,
+        /// Name of the enum to apply, if present.
+        enum_ref: Option<String>,
+        /// Instances of the same type that the expression uses.
+        uses_instances: Vec<String>,
+    },
 }
 
 /// The kind of data a field holds.

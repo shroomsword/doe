@@ -270,3 +270,28 @@ fn bool_prints_as_true_or_false() {
     assert!(out.contains("on  true"), "{out}");
     assert!(out.contains("off  false"), "{out}");
 }
+
+#[test]
+fn an_instance_shows_where_it_was_read_from() {
+    let instance = |value: Value, offset: Option<u64>| Value::Instance {
+        value: Box::new(value),
+        offset,
+    };
+    let v = struct_val(
+        "t",
+        vec![
+            ("a", Value::UInt(1)),
+            (
+                "table",
+                instance(Value::Array(vec![Value::UInt(2)]), Some(0x40)),
+            ),
+            ("total", instance(Value::UInt(9), None)),
+            ("gone", instance(Value::Absent, Some(1))),
+        ],
+    );
+    let out = render(&v);
+    assert!(out.contains("  table @0x40  [1 item]"), "{out}");
+    assert!(out.contains("    [0]  2"), "{out}");
+    assert!(out.contains("  total  9"), "{out}");
+    assert!(!out.contains("gone"), "{out}");
+}

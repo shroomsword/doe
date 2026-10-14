@@ -1251,6 +1251,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
             doc: None,
             endian: Endian::Little,
             bit_endian: Endian::Big,
+            instances: vec![],
             fields: vec![CompiledField {
                 id: "child".into(),
                 doc: None,
@@ -1261,6 +1262,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
                 repeat: RepeatMode::Once,
                 if_expr: None,
                 pos: None,
+                uses_instances: vec![],
                 enum_ref: None,
             }],
             enums: std::collections::HashMap::new(),
@@ -3173,4 +3175,392 @@ fn a_string_case_fills_the_window_or_stops_at_its_terminator() {
     let v = parse(yaml, "t", &[1, b'a', b'b', b'c', b'd', 9]);
     assert_eq!(get_field(&v, "body"), &Value::Str("abcd".into()));
     assert_eq!(get_field(&v, "after").as_int(), Some(9));
+}
+
+// ── instances ────────────────────────────────────────────────────────────
+
+fn instance_of<'a>(v: &'a Value, name: &str) -> (&'a Value, Option<u64>) {
+    match get_field(v, name) {
+        Value::Instance { value, offset } => (value.as_ref(), *offset),
+        other => panic!("'{name}' is not an instance: {other:?}"),
+    }
+}
+
+const TABLE: &str = indoc! {"
+    id: t
+    seq:
+      - id: count
+        type: u1
+      - id: table_off
+        type: u1
+    instances:
+      entries:
+        pos: table_off
+        type: entry
+        repeat: expr
+        repeat-expr: count
+    types:
+      entry:
+        seq:
+          - id: v
+            type: u1
+"};
+
+#[test]
+fn a_read_instance_is_read_at_its_pos_and_does_not_move_the_sequence() {
+    let v = parse(TABLE, "t", &[2, 4, 0, 0, 7, 8]);
+    let (entries, offset) = instance_of(&v, "entries");
+    let Value::Array(items) = entries else {
+        panic!("expected an array, got {entries:?}");
+    };
+    assert_eq!(items.len(), 2);
+    assert_eq!(get_field(&items[1], "v").as_int(), Some(8));
+    assert_eq!(offset, Some(4));
+}
+
+#[test]
+fn instances_follow_the_fields_of_seq_in_schema_order() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: u1
+        instances:
+          second:
+            value: a + 2
+          first:
+            value: a + 1
+    "};
+    let v = parse(yaml, "t", &[10]);
+    let Value::Struct { fields, .. } = &v else {
+        panic!("expected a struct");
+    };
+    let names: Vec<&str> = fields.iter().map(|(n, _)| n.as_str()).collect();
+    assert_eq!(names, ["a", "second", "first"]);
+    assert_eq!(instance_of(&v, "second").0, &Value::UInt(12));
+    assert_eq!(instance_of(&v, "first").0, &Value::UInt(11));
+    assert_eq!(
+        instance_of(&v, "first").1,
+        None,
+        "a computed value has no offset"
+    );
+}
+
+#[test]
+fn value_instances_can_be_literals() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: u1
+        instances:
+          n:
+            value: 4
+          flag:
+            value: true
+          ratio:
+            value: 1.5
+          name:
+            value: \"'abc'\"
+          neg:
+            value: a - 10
+    "};
+    let v = parse(yaml, "t", &[3]);
+    assert_eq!(instance_of(&v, "n").0, &Value::UInt(4));
+    assert_eq!(instance_of(&v, "flag").0, &Value::Bool(true));
+    assert_eq!(instance_of(&v, "ratio").0, &Value::Float(1.5));
+    assert_eq!(instance_of(&v, "name").0, &Value::Str("abc".into()));
+    assert_eq!(instance_of(&v, "neg").0, &Value::SInt(-7));
+}
+
+#[test]
+fn a_seq_field_can_use_an_instance_which_is_computed_first() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: words
+            type: u1
+          - id: body
+            type: bytes
+            size: bytes_len
+          - id: tail
+            type: u1
+            if: bytes_len > 2
+        instances:
+          bytes_len:
+            value: words * 2
+    "};
+    let v = parse(yaml, "t", &[2, 1, 2, 3, 4, 9]);
+    assert_eq!(get_field(&v, "body"), &Value::Bytes(vec![1, 2, 3, 4]));
+    assert_eq!(get_field(&v, "tail").as_int(), Some(9));
+    assert_eq!(instance_of(&v, "bytes_len").0, &Value::UInt(4));
+}
+
+#[test]
+fn instances_can_use_other_instances_in_any_order() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: u1
+        instances:
+          third:
+            value: second * 10
+          second:
+            value: first + 1
+          first:
+            value: a
+    "};
+    let v = parse(yaml, "t", &[4]);
+    assert_eq!(instance_of(&v, "third").0, &Value::UInt(50));
+    assert_eq!(instance_of(&v, "second").0, &Value::UInt(5));
+}
+
+#[test]
+fn instances_that_depend_on_each_other_are_an_error() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: u1
+        instances:
+          x:
+            value: y + 1
+          y:
+            value: x + 1
+    "};
+    let err = parse_err(yaml, "t", &[1]);
+    assert!(
+        matches!(&err, DoeError::FieldError { message, .. } if message.contains("depends on itself")),
+        "{err:?}"
+    );
+    let own = yaml.replace("value: y + 1", "value: x + 1");
+    let err = parse_err(&own, "t", &[1]);
+    assert!(
+        err.to_string().contains('x') || err.to_string().contains("itself"),
+        "{err}"
+    );
+}
+
+#[test]
+fn a_failing_instance_aborts_the_parse_and_names_itself() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: u1
+        instances:
+          far:
+            pos: 100
+            type: u1
+          bad:
+            value: 1 / a
+    "};
+    let err = parse_err(yaml, "t", &[0]);
+    assert!(
+        matches!(&err, DoeError::FieldError { field, .. } if field == "far")
+            || err.to_string().contains("far"),
+        "{err:?}"
+    );
+    let err = parse_err(&yaml.replace("pos: 100", "pos: 0"), "t", &[0]);
+    assert!(err.to_string().contains("bad"), "{err}");
+}
+
+#[test]
+fn an_instance_without_pos_is_read_where_the_sequence_ended() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: u1
+        instances:
+          next:
+            type: u1
+          again:
+            type: u1
+    "};
+    let v = parse(yaml, "t", &[1, 2, 3]);
+    // Each is read from the end of the sequence, not one after the other.
+    assert_eq!(instance_of(&v, "next"), (&Value::UInt(2), Some(1)));
+    assert_eq!(instance_of(&v, "again"), (&Value::UInt(2), Some(1)));
+}
+
+#[test]
+fn instances_support_if_enum_repeat_size_and_contents() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: flag
+            type: u1
+        instances:
+          maybe:
+            pos: 1
+            type: u1
+            if: flag != 0
+          kind:
+            pos: 1
+            type: u1
+            enum: kind_t
+          raw:
+            pos: 1
+            size: 2
+          magic:
+            pos: 1
+            contents: [1, 2]
+          items:
+            pos: 1
+            type: u1
+            repeat: expr
+            repeat-expr: 3
+          computed_kind:
+            value: flag + 1
+            enum: kind_t
+          skipped:
+            value: 1
+            if: flag == 0
+        enums:
+          kind_t:
+            1: one
+            2: two
+    "};
+    let v = parse(yaml, "t", &[1, 1, 2, 3]);
+    assert_eq!(instance_of(&v, "maybe").0, &Value::UInt(1));
+    assert!(matches!(instance_of(&v, "kind").0, Value::Enum { name: Some(n), .. } if n == "one"));
+    assert_eq!(instance_of(&v, "raw").0, &Value::Bytes(vec![1, 2]));
+    assert_eq!(instance_of(&v, "magic").0, &Value::Bytes(vec![1, 2]));
+    let Value::Array(items) = instance_of(&v, "items").0 else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 3);
+    assert!(
+        matches!(instance_of(&v, "computed_kind").0, Value::Enum { name: Some(n), .. } if n == "two")
+    );
+    assert!(get_field(&v, "skipped").is_absent());
+    let v = parse(yaml, "t", &[0, 1, 2, 3]);
+    assert!(get_field(&v, "maybe").is_absent());
+}
+
+#[test]
+fn instances_work_inside_sub_types_and_windows() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: body
+            type: rec
+            size: 4
+          - id: after
+            type: u1
+        types:
+          rec:
+            seq:
+              - id: n
+                type: u1
+            instances:
+              doubled:
+                value: n * 2
+              last:
+                pos: _io.size - 1
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[3, 0, 0, 9, 7]);
+    let body = get_field(&v, "body");
+    assert_eq!(instance_of(body, "doubled").0, &Value::UInt(6));
+    // `pos` is relative to the window: its last byte, not the input's.
+    assert_eq!(instance_of(body, "last"), (&Value::UInt(9), Some(3)));
+    assert_eq!(get_field(&v, "after").as_int(), Some(7));
+}
+
+#[test]
+fn every_element_of_a_repeated_type_has_its_own_instances() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: items
+            type: item
+            repeat: expr
+            repeat-expr: 2
+        types:
+          item:
+            seq:
+              - id: n
+                type: u1
+            instances:
+              twice:
+                value: n * 2
+    "};
+    let v = parse(yaml, "t", &[3, 5]);
+    let Value::Array(items) = get_field(&v, "items") else {
+        panic!("expected an array");
+    };
+    assert_eq!(instance_of(&items[0], "twice").0, &Value::UInt(6));
+    assert_eq!(instance_of(&items[1], "twice").0, &Value::UInt(10));
+}
+
+#[test]
+fn bit_position_is_kept_when_an_instance_is_read() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: b4
+          - id: b
+            type: b4
+        instances:
+          whole:
+            pos: 0
+            type: u1
+    "};
+    let v = parse(yaml, "t", &[0xab]);
+    assert_eq!(get_field(&v, "a"), &Value::UInt(0xa));
+    assert_eq!(get_field(&v, "b"), &Value::UInt(0xb));
+    assert_eq!(instance_of(&v, "whole").0, &Value::UInt(0xab));
+}
+
+#[test]
+fn an_instance_can_be_turned_off_in_the_output_but_seq_still_gets_it() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: words
+            type: u1
+          - id: body
+            type: bytes
+            size: n
+        instances:
+          n:
+            value: words * 2
+          unused:
+            value: 5
+    "};
+    let (engine, reg) = engine_from_yaml(yaml);
+    let _ = reg;
+    let engine = engine.with_instances(false);
+    let mut cursor = Cursor::new(&[1, 8, 9]);
+    let v = engine.parse_type("t", &mut cursor).unwrap();
+    let Value::Struct { fields, .. } = &v else {
+        panic!("expected a struct");
+    };
+    let names: Vec<&str> = fields.iter().map(|(n, _)| n.as_str()).collect();
+    assert_eq!(names, ["words", "body"]);
+    assert_eq!(get_field(&v, "body"), &Value::Bytes(vec![8, 9]));
+}
+
+#[test]
+fn an_instance_is_visible_to_expressions_after_it_is_computed() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: u1
+        instances:
+          big:
+            value: a > 5
+          names:
+            value: '[a.to_s, \"x\"]'
+          second_len:
+            value: names[0].length + names.size
+    "};
+    let v = parse(yaml, "t", &[7]);
+    assert_eq!(instance_of(&v, "big").0, &Value::Bool(true));
+    assert_eq!(instance_of(&v, "second_len").0, &Value::UInt(3));
 }

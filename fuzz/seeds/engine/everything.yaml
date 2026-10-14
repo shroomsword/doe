@@ -73,6 +73,16 @@ seq:
   - id: rest
     type: u2
     repeat: eos
+instances:
+  doubled:
+    value: len * 2
+  first_byte:
+    pos: 0
+    type: u1
+  after_len:
+    pos: doubled % 8
+    type: u2
+    if: len > 3
 types:
   item:
     seq:

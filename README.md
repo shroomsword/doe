@@ -428,6 +428,51 @@ default, a field with a size is read as bytes and one without is absent, as in
 Kaitai Struct. Quote keys and expressions that YAML would read as something
 else (`'"RIFF"'`, `'kind > 0 ? 1 : 2'`).
 
+### Instances
+
+`instances:` names values that are computed or read on demand, on a type or on
+the schema itself:
+
+```yaml
+seq:
+  - id: header
+    type: header_t
+  - id: body
+    type: bytes
+    size: payload_len            # uses an instance, which is computed first
+instances:
+  payload_len:                   # a computed value
+    value: header.words * 4
+  table:                         # read elsewhere, like a field with `pos:`
+    pos: header.table_offset
+    type: entry
+    repeat: expr
+    repeat-expr: header.table_count
+  first_entry:
+    value: table[0]
+```
+
+An instance either reads, with the attributes of a `seq` field (`type`,
+`size`, `repeat`, `if`, `enum`, `contents`, ...) and `pos:` for where (without
+it, where the sequence ended), or computes, with `value:` (an expression or a
+literal such as `4` or `true`, and optionally `if:` and `enum:`). Reading one
+does not move the position of the sequence.
+
+A `seq` field or another instance that uses an instance in a `size`, `if`,
+`pos`, `repeat`, `switch-on` or `value` expression gets it computed first, in
+dependency order; two that depend on each other are an error. Every instance
+is also computed after the sequence, in schema order, and appears in the output
+after the fields of `seq`: in text as `name @0x40` for one that was read (no
+offset for a computed value), and in JSON inline, with the offsets of the ones
+that were read in a `$offsets` object next to them. Any error aborts the parse.
+`--no-instances` leaves them out of the output (those that fields use are still
+computed), and so does `ParseOptions { instances: false }` with
+`parse_file_with`. A name cannot be both a field and an instance. The
+instances of an enclosing type are not visible from a sub-type while the
+enclosing type is still being parsed (`_parent.name` is unknown there).
+
+A field with a `size` and no `type` is `bytes`, as in Kaitai Struct.
+
 ### Imports
 
 A schema may import other schemas by bare name (resolved through include paths)
@@ -538,6 +583,7 @@ Options:
   -c, --config <FILE>       Config file path [default: ~/.config/doe/config.toml]
       --json                Emit compact JSON output
       --pretty              Emit pretty-printed JSON output
+      --no-instances        Leave out the values a schema's `instances` compute or read elsewhere
       --indent <STR>        Indentation string for text output [default: "  "]
   -h, --help                Print help, including available types from the include paths
       --color <WHEN>        When to use color on stderr [default: auto] [possible values: auto, always, never]

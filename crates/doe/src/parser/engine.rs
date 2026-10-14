@@ -6,12 +6,13 @@
 //! accumulated parse context, and building a `Value::Struct`.
 
 use crate::error::{DoeError, Result};
-use crate::parser::context::ParseContext;
+use crate::parser::context::{InstanceStart, ParseContext};
 use crate::parser::cursor::{BitOrder, Cursor, MAX_TERMINATED_LEN};
 use crate::schema::expr;
+use crate::schema::expr::ExprValue;
 use crate::schema::ir::{
-    CompiledField, CompiledType, Encoding, Endian, EndianOverride, FieldKind, FloatWidth, IntWidth,
-    RepeatMode, SizeExpr, StrSize, TypeRegistry,
+    CompiledField, CompiledInstance, CompiledType, Encoding, Endian, EndianOverride, FieldKind,
+    FloatWidth, InstanceKind, IntWidth, RepeatMode, SizeExpr, StrSize, TypeRegistry,
 };
 use crate::value::Value;
 
@@ -43,12 +44,25 @@ const MAX_RESERVED_ELEMENTS: usize = 1024;
 #[derive(Debug)]
 pub struct Engine<'reg> {
     registry: &'reg TypeRegistry,
+    /// Whether the instances of a type are part of the result.
+    instances: bool,
 }
 
 impl<'reg> Engine<'reg> {
     /// Create an engine that resolves type names against `registry`.
     pub fn new(registry: &'reg TypeRegistry) -> Self {
-        Engine { registry }
+        Engine {
+            registry,
+            instances: true,
+        }
+    }
+
+    /// Choose whether the instances of a type are part of the result (the
+    /// default). Those that the fields of `seq` use are computed either way.
+    #[must_use]
+    pub fn with_instances(mut self, instances: bool) -> Self {
+        self.instances = instances;
+        self
     }
 
     /// Parse `type_name` from the beginning of `cursor`, returning a
@@ -89,6 +103,19 @@ impl<'reg> Engine<'reg> {
             fields.push((field.id.clone(), value));
         }
 
+        // Instances come after the sequence, in schema order. Some may have
+        // been computed already, because a field used them.
+        for instance in &ty.instances {
+            self.ensure_instance(ty, instance, cursor, ctx)?;
+        }
+        for instance in &ty.instances {
+            if let Some(value) = ctx.take_instance(&instance.id)
+                && self.instances
+            {
+                fields.push((instance.id.clone(), value));
+            }
+        }
+
         Ok(Value::Struct {
             type_name: ty.name.clone(),
             fields,
@@ -102,6 +129,11 @@ impl<'reg> Engine<'reg> {
         cursor: &mut Cursor<'_>,
         ctx: &mut ParseContext,
     ) -> Result<Value> {
+        // Compute the instances the field's expressions use.
+        for name in &field.uses_instances {
+            self.ensure_named_instance(parent_ty, name, cursor, ctx)?;
+        }
+
         // Evaluate `if:` guard
         if let Some(if_expr) = &field.if_expr {
             ctx.set_io(cursor);
@@ -240,24 +272,7 @@ impl<'reg> Engine<'reg> {
         ctx: &mut ParseContext,
     ) -> Result<Value> {
         let raw = self.read_kind(&field.kind, parent_ty, cursor, ctx)?;
-
-        // Apply enum mapping if present
-        if let Some(enum_name) = &field.enum_ref
-            && let Some(n) = raw.as_int()
-        {
-            let discriminant = n.cast_unsigned();
-            let variant = parent_ty
-                .enums
-                .get(enum_name.as_str())
-                .and_then(|e| e.lookup(discriminant))
-                .map(str::to_owned);
-            return Ok(Value::Enum {
-                value: discriminant,
-                name: variant,
-            });
-        }
-
-        Ok(raw)
+        Ok(apply_enum(raw, field.enum_ref.as_deref(), parent_ty))
     }
 
     // ── FieldKind dispatch ────────────────────────────────────────────────────
@@ -391,6 +406,114 @@ impl<'reg> Engine<'reg> {
             (FloatWidth::F64, Endian::Big) => cursor.read_f64_be()?,
         };
         Ok(Value::Float(v))
+    }
+
+    /// Compute the instance of `ty` called `name`, unless it already is.
+    fn ensure_named_instance(
+        &self,
+        ty: &CompiledType,
+        name: &str,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<()> {
+        match ty.instances.iter().find(|instance| instance.id == name) {
+            Some(instance) => self.ensure_instance(ty, instance, cursor, ctx),
+            None => Ok(()),
+        }
+    }
+
+    /// Compute `instance` of `ty` once, leaving the position of `cursor` as it
+    /// was and recording the value in the context.
+    fn ensure_instance(
+        &self,
+        ty: &CompiledType,
+        instance: &CompiledInstance,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<()> {
+        match ctx.begin_instance(&instance.id) {
+            InstanceStart::Done => return Ok(()),
+            InstanceStart::Cycle => {
+                return Err(DoeError::FieldError {
+                    field: instance.id.clone(),
+                    context: ty.name.clone(),
+                    message: "the instance depends on itself, directly or through other instances"
+                        .to_owned(),
+                });
+            }
+            InstanceStart::Compute => {}
+        }
+        let mark = cursor.mark();
+        let computed = self.compute_instance(ty, instance, cursor, ctx);
+        cursor.reset(mark);
+        let (value, offset) = computed?;
+        ctx.finish_instance(
+            &instance.id,
+            Value::Instance {
+                value: Box::new(value),
+                offset,
+            },
+        );
+        Ok(())
+    }
+
+    /// The value of an instance and, if it was read, where from.
+    fn compute_instance(
+        &self,
+        ty: &CompiledType,
+        instance: &CompiledInstance,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<(Value, Option<u64>)> {
+        let id = &instance.id;
+        match &instance.kind {
+            InstanceKind::Read(field) => {
+                let start = cursor.absolute_pos();
+                let value = self.parse_field(field, ty, cursor, ctx)?;
+                if value.is_absent() {
+                    return Ok((value, None));
+                }
+                // `pos:` moved the cursor and put it back; where it went is
+                // the expression's value again.
+                let at = match &field.pos {
+                    Some(pos) => {
+                        ctx.set_io(cursor);
+                        let target = expr::eval_int(pos, &ctx.eval_ctx, "<pos>")
+                            .map_err(|e| annotate(&e, id, &ty.name))?;
+                        let base = cursor.absolute_pos().saturating_sub(cursor.pos());
+                        usize::try_from(target).map_or(start, |t| base.saturating_add(t))
+                    }
+                    None => start,
+                };
+                Ok((value, Some(u64::try_from(at).unwrap_or(u64::MAX))))
+            }
+            InstanceKind::Value {
+                expr: value_expr,
+                if_expr,
+                enum_ref,
+                uses_instances,
+                ..
+            } => {
+                for name in uses_instances {
+                    self.ensure_named_instance(ty, name, cursor, ctx)?;
+                }
+                ctx.set_io(cursor);
+                if let Some(cond) = if_expr
+                    && !expr::eval_bool(cond, &ctx.eval_ctx, "<if>")
+                        .map_err(|e| annotate(&e, id, &ty.name))?
+                {
+                    return Ok((Value::Absent, None));
+                }
+                let computed = expr::eval(value_expr, &ctx.eval_ctx, "<value>")
+                    .map_err(|e| annotate(&e, id, &ty.name))?;
+                let value = to_value(&computed).map_err(|message| DoeError::FieldError {
+                    field: id.clone(),
+                    context: ty.name.clone(),
+                    message,
+                })?;
+                Ok((apply_enum(value, enum_ref.as_deref(), ty), None))
+            }
+        }
     }
 
     /// Read a field whose type is chosen by a value: the first case whose key
@@ -538,6 +661,58 @@ fn decode_string(bytes: &[u8], encoding: Encoding) -> Result<String> {
             Ok(bytes.iter().map(|&b| char::from(b)).collect())
         }
     }
+}
+
+/// Name an integer value after the member of `enum_name` it matches.
+fn apply_enum(value: Value, enum_name: Option<&str>, ty: &CompiledType) -> Value {
+    let (Some(enum_name), Some(n)) = (enum_name, value.as_int()) else {
+        return value;
+    };
+    let discriminant = n.cast_unsigned();
+    let name = ty
+        .enums
+        .get(enum_name)
+        .and_then(|e| e.lookup(discriminant))
+        .map(str::to_owned);
+    Value::Enum {
+        value: discriminant,
+        name,
+    }
+}
+
+/// The parsed value an expression result stands for, for an instance.
+fn to_value(computed: &ExprValue) -> std::result::Result<Value, String> {
+    Ok(match computed {
+        ExprValue::Int(n) => {
+            if let Ok(n) = u64::try_from(*n) {
+                Value::UInt(n)
+            } else if let Ok(n) = i64::try_from(*n) {
+                Value::SInt(n)
+            } else {
+                return Err(format!("the value {n} does not fit in 64 bits"));
+            }
+        }
+        ExprValue::Float(x) => Value::Float(*x),
+        ExprValue::Bool(b) => Value::Bool(*b),
+        ExprValue::Str(s) => Value::Str(s.clone()),
+        ExprValue::Bytes(b) => Value::Bytes(b.clone()),
+        ExprValue::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(to_value)
+                .collect::<std::result::Result<_, _>>()?,
+        ),
+        ExprValue::Struct(fields) => Value::Struct {
+            type_name: "<value>".to_owned(),
+            fields: fields
+                .iter()
+                .map(|(name, v)| to_value(v).map(|v| (name.clone(), v)))
+                .collect::<std::result::Result<_, _>>()?,
+        },
+        ExprValue::Omitted { .. } => {
+            return Err("the value is too large to use in an expression".to_owned());
+        }
+    })
 }
 
 fn annotate(e: &DoeError, field: &str, type_name: &str) -> DoeError {

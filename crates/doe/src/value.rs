@@ -72,6 +72,15 @@ pub enum Value {
     Array(Vec<Value>),
     /// A field whose `if:` expression evaluated to false.
     Absent,
+    /// An entry of `instances`, computed or read on demand. It appears only
+    /// as a field of a struct, after the fields of `seq`.
+    Instance {
+        /// The value.
+        value: Box<Value>,
+        /// Where it was read from, in bytes from the start of the input;
+        /// `None` for a computed value.
+        offset: Option<u64>,
+    },
 }
 
 impl Value {
@@ -83,6 +92,7 @@ impl Value {
             Value::UInt(n) => Some(n.cast_signed()),
             Value::SInt(n) => Some(*n),
             Value::Enum { value, .. } => Some(value.cast_signed()),
+            Value::Instance { value, .. } => value.as_int(),
             _ => None,
         }
     }
@@ -92,6 +102,7 @@ impl Value {
         match self {
             Value::Bytes(b) => Some(b.len()),
             Value::Blob { len, .. } => usize::try_from(*len).ok(),
+            Value::Instance { value, .. } => value.byte_len(),
             Value::Str(s) => Some(s.len()),
             _ => None,
         }
@@ -104,13 +115,18 @@ impl Value {
             Value::SInt(n) => *n != 0,
             Value::Enum { value, .. } => *value != 0,
             Value::Bool(b) => *b,
+            Value::Instance { value, .. } => value.is_truthy(),
             _ => false,
         }
     }
 
     /// Convenience: does this value represent the "no data" sentinel?
     pub fn is_absent(&self) -> bool {
-        matches!(self, Value::Absent)
+        match self {
+            Value::Absent => true,
+            Value::Instance { value, .. } => value.is_absent(),
+            _ => false,
+        }
     }
 
     /// Returns the type name as a short string, useful for error messages.
@@ -126,6 +142,7 @@ impl Value {
             Value::Struct { .. } => "struct",
             Value::Array(_) => "array",
             Value::Absent => "absent",
+            Value::Instance { value, .. } => value.type_name(),
         }
     }
 }
@@ -164,6 +181,7 @@ impl fmt::Display for Value {
             Value::Struct { type_name, .. } => write!(f, "<{type_name}>"),
             Value::Array(items) => write!(f, "[{} items]", items.len()),
             Value::Absent => write!(f, "<absent>"),
+            Value::Instance { value, .. } => write!(f, "{value}"),
         }
     }
 }

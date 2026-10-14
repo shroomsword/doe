@@ -109,6 +109,43 @@ pub fn parse_file(
     config_path: Option<&Path>,
     format: OutputFormat,
 ) -> Result<String> {
+    parse_file_with(
+        binary_file,
+        type_or_schema,
+        include_paths,
+        config_path,
+        format,
+        &ParseOptions::default(),
+    )
+}
+
+/// What [`parse_file_with`] does beyond [`parse_file`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParseOptions {
+    /// Whether the `instances` of a type are part of the output (the
+    /// default). Those that its `seq` fields use are computed either way.
+    pub instances: bool,
+}
+
+impl Default for ParseOptions {
+    fn default() -> Self {
+        ParseOptions { instances: true }
+    }
+}
+
+/// Like [`parse_file`], with options.
+///
+/// # Errors
+///
+/// Returns the same errors as [`parse_file`].
+pub fn parse_file_with(
+    binary_file: &Path,
+    type_or_schema: &str,
+    include_paths: &[PathBuf],
+    config_path: Option<&Path>,
+    format: OutputFormat,
+    options: &ParseOptions,
+) -> Result<String> {
     use config::{Config, resolve_include_paths};
     use parser::{cursor::Cursor, engine::Engine};
     use schema::compiler::Compiler;
@@ -139,7 +176,7 @@ pub fn parse_file(
         source,
     };
     let mut file = std::fs::File::open(binary_file).map_err(io_error)?;
-    let engine = Engine::new(&compiler.registry);
+    let engine = Engine::new(&compiler.registry).with_instances(options.instances);
     let value = if file.metadata().map_err(io_error)?.is_file() {
         // A regular file is read as the schema asks for it, so its size does
         // not decide how much memory the parse needs.

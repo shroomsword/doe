@@ -14,6 +14,7 @@ fn registry_insert_and_get() {
         doc: None,
         endian: Endian::Little,
         bit_endian: Endian::Big,
+        instances: vec![],
         fields: vec![],
         enums: HashMap::new(),
     };
@@ -184,6 +185,7 @@ fn compiled_field_no_repeat_no_if() {
         repeat: RepeatMode::Once,
         if_expr: None,
         pos: None,
+        uses_instances: vec![],
         enum_ref: None,
     };
     assert_eq!(f.id, "magic");
@@ -208,6 +210,7 @@ fn compiled_field_with_if_and_enum() {
         repeat: RepeatMode::Once,
         if_expr: Some(cond),
         pos: None,
+        uses_instances: vec![],
         enum_ref: Some("record_type".into()),
     };
     assert!(f.if_expr.is_some());
@@ -229,6 +232,7 @@ fn compiled_type_with_multiple_fields() {
             repeat: RepeatMode::Once,
             if_expr: None,
             pos: None,
+            uses_instances: vec![],
             enum_ref: None,
         },
         CompiledField {
@@ -240,6 +244,7 @@ fn compiled_type_with_multiple_fields() {
             repeat: RepeatMode::Once,
             if_expr: None,
             pos: None,
+            uses_instances: vec![],
             enum_ref: None,
         },
     ];
@@ -248,6 +253,7 @@ fn compiled_type_with_multiple_fields() {
         doc: Some("A data chunk".into()),
         endian: Endian::Big,
         bit_endian: Endian::Big,
+        instances: vec![],
         fields,
         enums: HashMap::new(),
     };

@@ -57,12 +57,15 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
     };
 
     log::info!("parsing {} as {type_or_schema}", file.display());
-    let output = doe::parse_file(
+    let output = doe::parse_file_with(
         file,
         type_or_schema,
         &cli.include_paths,
         cli.config.as_deref(),
         format,
+        &doe::ParseOptions {
+            instances: !cli.no_instances,
+        },
     )
     .with_context(|| format!("could not parse {} as {type_or_schema}", file.display()))?;
 

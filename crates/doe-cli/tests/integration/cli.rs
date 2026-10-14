@@ -699,3 +699,75 @@ fn input_that_cannot_seek_is_read_in_full() {
         .stdout(predicate::str::contains("a  7"))
         .stdout(predicate::str::contains("b  4660"));
 }
+
+// ── instances ─────────────────────────────────────────────────────────────
+
+fn instances_fixture(dir: &Path) -> (PathBuf, PathBuf) {
+    let schema = dir.join("tbl.yaml");
+    std::fs::write(
+        &schema,
+        "id: tbl\nseq:\n  - id: count\n    type: u1\n  - id: table_off\n    type: u1\n  - id: body\n    type: bytes\n    size: body_len\ninstances:\n  body_len:\n    value: count * 2\n  entries:\n    pos: table_off\n    type: u1\n    repeat: expr\n    repeat-expr: count\n  total:\n    value: entries[0] + entries[1]\n",
+    )
+    .unwrap();
+    let binary = dir.join("tbl.bin");
+    std::fs::write(&binary, [2, 8, 0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 5, 6]).unwrap();
+    (schema, binary)
+}
+
+#[test]
+fn instances_are_printed_after_the_fields_with_their_offsets() {
+    let dir = TempDir::new().unwrap();
+    let (schema, binary) = instances_fixture(dir.path());
+    let output = doe()
+        .arg(&binary)
+        .arg(&schema)
+        .args(["--config", NO_CONFIG])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(output).unwrap();
+    let lines: Vec<&str> = text.lines().map(str::trim).collect();
+    let at = |prefix: &str| lines.iter().position(|l| l.starts_with(prefix)).unwrap();
+    assert!(at("count") < at("body"));
+    assert!(at("body") < at("body_len"));
+    assert!(at("body_len") < at("entries @0x8"));
+    assert!(at("entries @0x8") < at("total"));
+    assert!(text.contains("total  11"), "{text}");
+}
+
+#[test]
+fn json_output_has_instances_inline_and_their_offsets() {
+    let dir = TempDir::new().unwrap();
+    let (schema, binary) = instances_fixture(dir.path());
+    let output = doe()
+        .arg(&binary)
+        .arg(&schema)
+        .args(["--json", "--config", NO_CONFIG])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(json["total"], 11);
+    assert_eq!(json["entries"], serde_json::json!([5, 6]));
+    assert_eq!(json["$offsets"], serde_json::json!({"entries": 8}));
+}
+
+#[test]
+fn no_instances_leaves_them_out_but_fields_still_get_what_they_use() {
+    let dir = TempDir::new().unwrap();
+    let (schema, binary) = instances_fixture(dir.path());
+    doe()
+        .arg(&binary)
+        .arg(&schema)
+        .args(["--no-instances", "--config", NO_CONFIG])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("body  <4 bytes>"))
+        .stdout(predicate::str::contains("body_len").not())
+        .stdout(predicate::str::contains("entries").not())
+        .stdout(predicate::str::contains("total").not());
+}

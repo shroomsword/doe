@@ -52,6 +52,10 @@ pub struct RawSchema {
     #[serde(default)]
     pub types: IndexMap<String, RawTypeDecl>,
 
+    /// Values computed or read on demand, keyed by name.
+    #[serde(default)]
+    pub instances: IndexMap<String, RawInstance>,
+
     /// Enum definitions, keyed by name.
     #[serde(default)]
     pub enums: IndexMap<String, RawEnum>,
@@ -192,6 +196,161 @@ pub struct RawField {
     pub doc: Option<String>,
 }
 
+/// One entry of an `instances` mapping: the attributes of a `seq` field (the id
+/// is the mapping key) or a `value` expression.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawInstance {
+    /// Type name: a primitive name, a locally defined type, or an imported type;
+    /// or a `switch-on` mapping that chooses one by a value.
+    /// Required unless `contents` is set.
+    #[serde(rename = "type")]
+    pub type_ref: Option<RawType>,
+
+    /// Fixed literal contents.  If present, the parser reads exactly this many
+    /// bytes and asserts they match.  `type_ref` is ignored when set.
+    #[serde(default)]
+    pub contents: Option<RawContents>,
+
+    /// Byte count expression.  Required for `bytes` and `str` types.
+    /// May be a literal integer or an expression string referencing earlier fields.
+    #[serde(default)]
+    pub size: Option<StringOrInt>,
+
+    /// For `bytes`, `str` and user types: the size is whatever is left of the
+    /// enclosing window or the input.
+    #[serde(rename = "size-eos", default)]
+    pub size_eos: Option<bool>,
+
+    /// For `str`: the byte value that terminates the string (default `0x00` for `strz`).
+    #[serde(default)]
+    pub terminator: Option<u8>,
+
+    /// For `str`: character encoding.  Defaults to `utf8`.
+    #[serde(default)]
+    pub encoding: Option<RawEncoding>,
+
+    /// For `bits`: how many bits to consume.
+    #[serde(default)]
+    pub bit_size: Option<u8>,
+
+    /// Repetition mode.
+    #[serde(default)]
+    pub repeat: Option<RawRepeat>,
+
+    /// Expression that evaluates to the repeat count when `repeat: expr`.
+    #[serde(rename = "repeat-expr", default)]
+    pub repeat_expr: Option<String>,
+
+    /// Expression evaluated after each iteration when `repeat: until`.
+    /// The most recently parsed value is bound to `_` within the expression.
+    /// Iteration stops when the expression evaluates to a non-zero (truthy) value.
+    #[serde(rename = "repeat-until", default)]
+    pub repeat_until: Option<String>,
+
+    /// Expression that evaluates to a bool.  Field is skipped when false.
+    #[serde(rename = "if", default)]
+    pub if_expr: Option<String>,
+
+    /// Byte offset to read the field at, from the start of the file (or of the
+    /// enclosing sized window). May be a literal or an expression over earlier
+    /// fields. The position is restored once the field has been read.
+    #[serde(default)]
+    pub pos: Option<StringOrInt>,
+
+    /// Name of an enum defined in the nearest enclosing `enums:` block.
+    #[serde(rename = "enum", default)]
+    pub enum_ref: Option<String>,
+
+    /// Human-readable description.
+    #[serde(default)]
+    pub doc: Option<String>,
+
+    /// A value computed from other fields instead of read: an expression, or a
+    /// literal (`4`, `true`).
+    #[serde(default)]
+    pub value: Option<ExprText>,
+}
+
+impl RawInstance {
+    /// The instance as a `seq` field named `id`, ignoring `value`.
+    pub fn to_field(&self, id: &str) -> RawField {
+        RawField {
+            id: id.to_owned(),
+            type_ref: self.type_ref.clone(),
+            contents: self.contents.clone(),
+            size: self.size.clone(),
+            size_eos: self.size_eos,
+            terminator: self.terminator,
+            encoding: self.encoding,
+            bit_size: self.bit_size,
+            repeat: self.repeat,
+            repeat_expr: self.repeat_expr.clone(),
+            repeat_until: self.repeat_until.clone(),
+            if_expr: self.if_expr.clone(),
+            pos: self.pos.clone(),
+            enum_ref: self.enum_ref.clone(),
+            doc: self.doc.clone(),
+        }
+    }
+
+    /// Whether the instance has any attribute that reads data.
+    pub fn reads(&self) -> bool {
+        self.type_ref.is_some()
+            || self.contents.is_some()
+            || self.size.is_some()
+            || self.size_eos.is_some()
+            || self.terminator.is_some()
+            || self.encoding.is_some()
+            || self.bit_size.is_some()
+            || self.repeat.is_some()
+            || self.repeat_expr.is_some()
+            || self.repeat_until.is_some()
+            || self.pos.is_some()
+    }
+}
+
+/// Expression text written as a YAML scalar: a string, or a literal that
+/// stands for itself (`4`, `1.5`, `true`).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ExprText(pub String);
+
+impl<'de> Deserialize<'de> for ExprText {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct TextVisitor;
+
+        impl serde::de::Visitor<'_> for TextVisitor {
+            type Value = ExprText;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("an expression or a literal")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<ExprText, E> {
+                Ok(ExprText(v.to_owned()))
+            }
+
+            fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<ExprText, E> {
+                Ok(ExprText(v.to_string()))
+            }
+
+            fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<ExprText, E> {
+                Ok(ExprText(v.to_string()))
+            }
+
+            fn visit_f64<E: serde::de::Error>(self, v: f64) -> Result<ExprText, E> {
+                Ok(ExprText(format!("{v:?}")))
+            }
+
+            fn visit_bool<E: serde::de::Error>(self, v: bool) -> Result<ExprText, E> {
+                Ok(ExprText(v.to_string()))
+            }
+        }
+
+        deserializer.deserialize_any(TextVisitor)
+    }
+}
+
 /// The `type` of a field: a type name, or a choice between types.
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
@@ -321,6 +480,10 @@ pub struct RawTypeDecl {
     /// The type's fields, in order.
     #[serde(default)]
     pub seq: Vec<RawField>,
+
+    /// Values computed or read on demand, keyed by name.
+    #[serde(default)]
+    pub instances: IndexMap<String, RawInstance>,
 
     /// Types can nest types.
     #[serde(default)]
