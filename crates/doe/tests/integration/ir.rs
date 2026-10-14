@@ -13,6 +13,7 @@ fn registry_insert_and_get() {
         name: "foo".into(),
         doc: None,
         endian: Endian::Little,
+        bit_endian: Endian::Big,
         fields: vec![],
         enums: HashMap::new(),
     };
@@ -245,6 +246,7 @@ fn compiled_type_with_multiple_fields() {
         name: "chunk".into(),
         doc: Some("A data chunk".into()),
         endian: Endian::Big,
+        bit_endian: Endian::Big,
         fields,
         enums: HashMap::new(),
     };

@@ -109,7 +109,8 @@ seq:
 | `bytes` | Raw byte sequence; requires `size:` |
 | `str` | String; requires `size:` or `terminator:` |
 | `strz` | Null-terminated string |
-| `bits` | Bit field; requires `bit_size:` |
+| `b1`…`b64` | Bit field of that many bits (also with `le` and `be`); see [Bit fields](#bit-fields) |
+| `bits` | The same as `bN`, with the size in `bit_size:` |
 
 The numeric types are named by their size in bytes, as in Kaitai Struct.
 
@@ -117,6 +118,38 @@ The numeric types are named by their size in bytes, as in Kaitai Struct.
 > `f64`). Those names are now an error that names the replacement (`u2`, `s4`,
 > `f8`). `u8`, `u8le` and `u8be` are the exception: they used to be one byte and
 > are now eight, and they are not reported, so check them by hand.
+
+### Bit fields
+
+`b1`…`b64` read that many bits. Consecutive bit fields share bytes, and a field
+may span bytes:
+
+```yaml
+seq:
+  - id: version
+    type: b4        # the high nibble of the first byte
+  - id: header_len
+    type: b4        # the low nibble
+  - id: flags
+    type: b3
+  - id: fragment_offset
+    type: b13       # spans into the next byte
+  - id: ttl
+    type: u1        # not a bit field: starts on the next byte boundary
+```
+
+By default the first field takes the most significant bits of a byte. Set
+`meta.bit-endian: le` to take the least significant bits first, or write the
+order on one field (`b4le`, `b4be`); it is independent of `meta.endian`. A
+nested type inherits the setting. Any field that is not a bit field starts on a
+byte boundary and drops the unread bits of the byte before it, as does a bit
+field of the other order, `seek` and `pos:`. A `b1` is a boolean (`true` or
+`false` in the output, and in expressions); the wider ones are unsigned
+integers. As in Kaitai Struct, entering a sub-type does not start a new byte.
+
+> **Upgrading:** `bits` with `bit_size:` used to read whole bytes (two `bits: 4`
+> fields took two bytes). It is now the same as `bN`, so they share one byte.
+> `bit_size` must be from 1 to 64.
 
 ### Field attributes
 

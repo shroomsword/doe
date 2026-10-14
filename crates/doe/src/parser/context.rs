@@ -156,6 +156,7 @@ fn to_expr_value(value: &Value) -> Option<ExprValue> {
         Value::SInt(n) => Some(ExprValue::from(*n)),
         Value::Enum { value, .. } => Some(ExprValue::from(*value)),
         Value::Float(x) => Some(ExprValue::Float(*x)),
+        Value::Bool(b) => Some(ExprValue::Bool(*b)),
         Value::Str(s) => Some(ExprValue::Str(s.clone())),
         Value::Bytes(b) => Some(ExprValue::Bytes(b.clone())),
         Value::Array(items) => items

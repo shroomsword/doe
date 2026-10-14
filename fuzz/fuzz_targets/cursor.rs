@@ -4,7 +4,7 @@
 #![no_main]
 
 use arbitrary::Arbitrary;
-use doe::parser::cursor::Cursor;
+use doe::parser::cursor::{BitOrder, Cursor};
 use libfuzzer_sys::fuzz_target;
 
 #[derive(Arbitrary, Debug)]
@@ -12,6 +12,10 @@ enum Op {
     ReadBytes(usize),
     PeekBytes(usize),
     ReadUntil(u8),
+    ReadBits(u8, bool),
+    Mark,
+    Reset,
+    Skip(usize),
     Seek(usize),
     Sub(usize, usize),
     U8,
@@ -34,8 +38,28 @@ enum Op {
     F64Be,
 }
 
-fn apply(cursor: &mut Cursor<'_>, op: &Op) {
+fn apply(cursor: &mut Cursor<'_>, op: &Op, mark: &mut Option<doe::parser::cursor::Mark>) {
     match *op {
+        Op::ReadBits(bits, lsb) => {
+            let order = if lsb {
+                BitOrder::LeastSignificantFirst
+            } else {
+                BitOrder::MostSignificantFirst
+            };
+            let before = cursor.bit_position();
+            if let Ok(value) = cursor.read_bits(bits, order) {
+                assert!(u32::from(bits) == 64 || value < 1u64 << bits);
+                // Switching the bit order mid-byte also drops the unread bits.
+                assert!(cursor.bit_position() >= before + u64::from(bits));
+            }
+        }
+        Op::Mark => *mark = Some(cursor.mark()),
+        Op::Reset => {
+            if let Some(mark) = *mark {
+                cursor.reset(mark);
+            }
+        }
+        Op::Skip(n) => drop(cursor.skip(n)),
         Op::ReadBytes(n) => drop(cursor.read_bytes(n)),
         Op::PeekBytes(n) => drop(cursor.peek_bytes(n)),
         Op::ReadUntil(b) => drop(cursor.read_until(b)),
@@ -70,8 +94,9 @@ fn apply(cursor: &mut Cursor<'_>, op: &Op) {
 fuzz_target!(|input: (Vec<u8>, Vec<Op>)| {
     let (data, ops) = input;
     let mut cursor = Cursor::new(&data);
+    let mut mark = None;
     for op in &ops {
-        apply(&mut cursor, op);
+        apply(&mut cursor, op, &mut mark);
         // The position never leaves the window.
         assert!(cursor.pos() <= data.len());
         assert_eq!(cursor.remaining(), data.len() - cursor.pos());

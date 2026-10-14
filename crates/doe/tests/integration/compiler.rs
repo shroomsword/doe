@@ -275,7 +275,10 @@ fn compile_bits_field() {
             bit_size: 4
     "});
     let ty = reg.get("t").unwrap();
-    assert!(matches!(ty.fields[0].kind, FieldKind::Bits { bit_size: 4 }));
+    assert!(matches!(
+        ty.fields[0].kind,
+        FieldKind::Bits { bit_size: 4, .. }
+    ));
 }
 
 #[test]
@@ -1361,4 +1364,77 @@ fn a_user_type_may_use_an_old_primitive_name() {
         reg.get("t").unwrap().fields[0].kind,
         FieldKind::TypeRef { .. }
     ));
+}
+
+// ── Bit field type names ──────────────────────────────────────────────────
+
+#[test]
+fn bit_type_names_compile_to_bit_fields() {
+    for (suffix, endian) in [
+        ("", EndianOverride::Inherit),
+        ("le", EndianOverride::Little),
+        ("be", EndianOverride::Big),
+    ] {
+        for bits in [1u8, 3, 8, 12, 31, 32, 63, 64] {
+            let name = format!("b{bits}{suffix}");
+            assert!(
+                matches!(field_kind(&name), FieldKind::Bits { bit_size, endian: e } if bit_size == bits && e == endian),
+                "{name}"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_bits_type_is_a_bit_field_that_inherits_the_bit_order() {
+    let reg = compile("id: t\nseq:\n  - id: x\n    type: bits\n    bit_size: 5\n");
+    assert!(matches!(
+        reg.get("t").unwrap().fields[0].kind,
+        FieldKind::Bits {
+            bit_size: 5,
+            endian: EndianOverride::Inherit
+        }
+    ));
+}
+
+#[test]
+fn bit_sizes_outside_one_to_sixty_four_are_errors() {
+    for size in [0, 65, 200] {
+        let err = compile_err(&format!(
+            "id: t\nseq:\n  - id: x\n    type: bits\n    bit_size: {size}\n"
+        ));
+        assert!(
+            matches!(&err, DoeError::FieldError { message, .. } if message.contains("1 to 64 bits")),
+            "{size}: {err:?}"
+        );
+    }
+}
+
+#[test]
+fn other_b_names_are_unknown_types() {
+    for name in [
+        "b0", "b65", "b01", "b100", "b4x", "b4LE", "B4", "b", "bits4", "b4lele",
+    ] {
+        let err = compile_err(&format!("id: t\nseq:\n  - id: x\n    type: {name}\n"));
+        assert!(
+            matches!(&err, DoeError::UnknownType { type_name, .. } if type_name == name),
+            "{name}: {err:?}"
+        );
+    }
+}
+
+#[test]
+fn the_bit_order_defaults_to_big_and_nested_types_inherit_it() {
+    let reg = compile(
+        "id: t\nseq:\n  - id: a\n    type: u1\ntypes:\n  inner:\n    seq:\n      - id: b\n        type: u1\n",
+    );
+    assert_eq!(reg.get("t").unwrap().bit_endian, Endian::Big);
+    assert_eq!(reg.get("t::inner").unwrap().bit_endian, Endian::Big);
+    let reg = compile(
+        "id: t\nmeta:\n  bit-endian: le\nseq:\n  - id: a\n    type: u1\ntypes:\n  inner:\n    seq:\n      - id: b\n        type: u1\n",
+    );
+    assert_eq!(reg.get("t").unwrap().bit_endian, Endian::Little);
+    assert_eq!(reg.get("t::inner").unwrap().bit_endian, Endian::Little);
+    // The bit order does not change the byte order.
+    assert_eq!(reg.get("t").unwrap().endian, Endian::Little);
 }

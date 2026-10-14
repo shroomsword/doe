@@ -422,7 +422,7 @@ fn parse_str_utf8() {
 
 #[test]
 fn parse_bits_4() {
-    // 0xab = 0b10101011; top 4 bits = 0b1010 = 10
+    // 0xab = 0b1010_1011; top 4 bits = 0b1010 = 10
     let v = parse(
         indoc! {r"
         id: t
@@ -466,7 +466,8 @@ fn parse_bits_1() {
         "t",
         &[0x80],
     ); // top bit set
-    assert_eq!(get_field(&v, "flag"), &Value::UInt(1));
+    // A one-bit field is a boolean.
+    assert_eq!(get_field(&v, "flag"), &Value::Bool(true));
 }
 
 // ── Contents ─────────────────────────────────────────────────────────────
@@ -1249,6 +1250,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
             name: "t".into(),
             doc: None,
             endian: Endian::Little,
+            bit_endian: Endian::Big,
             fields: vec![CompiledField {
                 id: "child".into(),
                 doc: None,
@@ -2126,4 +2128,181 @@ fn u1_is_a_byte_and_u8_is_sixty_four_bits() {
     );
     assert_eq!(one_field("s1", &[0xff]), Value::SInt(-1));
     assert_eq!(one_field("s2be", &[0xff, 0xfe]), Value::SInt(-2));
+}
+
+// ── Bit fields ───────────────────────────────────────────────────────────
+
+fn nibbles_schema(extra_meta: &str, kinds: [&str; 2]) -> String {
+    format!(
+        "id: t\n{extra_meta}seq:\n  - id: hi\n    type: {}\n  - id: lo\n    type: {}\n  - id: next\n    type: u1\n",
+        kinds[0], kinds[1]
+    )
+}
+
+#[test]
+fn consecutive_bit_fields_share_a_byte() {
+    let v = parse(&nibbles_schema("", ["b4", "b4"]), "t", &[0xab, 0x07]);
+    assert_eq!(get_field(&v, "hi"), &Value::UInt(0xa));
+    assert_eq!(get_field(&v, "lo"), &Value::UInt(0xb));
+    assert_eq!(get_field(&v, "next"), &Value::UInt(7));
+}
+
+#[test]
+fn bit_endian_le_takes_the_low_bits_first() {
+    let schema = nibbles_schema("meta:\n  bit-endian: le\n", ["b4", "b4"]);
+    let v = parse(&schema, "t", &[0xab, 0x07]);
+    assert_eq!(get_field(&v, "hi"), &Value::UInt(0xb));
+    assert_eq!(get_field(&v, "lo"), &Value::UInt(0xa));
+}
+
+#[test]
+fn a_field_can_choose_its_own_bit_order() {
+    let v = parse(&nibbles_schema("", ["b4le", "b4le"]), "t", &[0xab, 0x07]);
+    assert_eq!(get_field(&v, "hi"), &Value::UInt(0xb));
+    assert_eq!(get_field(&v, "lo"), &Value::UInt(0xa));
+    let schema = nibbles_schema("meta:\n  bit-endian: le\n", ["b4be", "b4be"]);
+    let v = parse(&schema, "t", &[0xab, 0x07]);
+    assert_eq!(get_field(&v, "hi"), &Value::UInt(0xa));
+}
+
+#[test]
+fn bit_order_is_independent_of_byte_order() {
+    let schema = "id: t\nmeta:\n  endian: be\n  bit-endian: le\nseq:\n  - id: a\n    type: b4\n  - id: b\n    type: b4\n  - id: c\n    type: u2\n";
+    let v = parse(schema, "t", &[0xab, 0x01, 0x02]);
+    assert_eq!(get_field(&v, "a"), &Value::UInt(0xb));
+    assert_eq!(get_field(&v, "c"), &Value::UInt(0x0102));
+}
+
+#[test]
+fn a_one_bit_field_is_a_boolean() {
+    let schema = "id: t\nseq:\n  - id: on\n    type: b1\n  - id: off\n    type: b1\n  - id: rest\n    type: b6\n";
+    let v = parse(schema, "t", &[0b1000_0101]);
+    assert_eq!(get_field(&v, "on"), &Value::Bool(true));
+    assert_eq!(get_field(&v, "off"), &Value::Bool(false));
+    assert_eq!(get_field(&v, "rest"), &Value::UInt(0b00_0101));
+}
+
+#[test]
+fn a_boolean_bit_field_works_in_conditions() {
+    let schema = "id: t\nseq:\n  - id: flag\n    type: b1\n  - id: pad\n    type: b7\n  - id: extra\n    type: u1\n    if: flag\n  - id: exact\n    type: u1\n    if: flag == true\n";
+    let v = parse(schema, "t", &[0x80, 5, 6]);
+    assert_eq!(get_field(&v, "extra").as_int(), Some(5));
+    assert_eq!(get_field(&v, "exact").as_int(), Some(6));
+    let v = parse(schema, "t", &[0x00]);
+    assert!(get_field(&v, "extra").is_absent());
+}
+
+#[test]
+fn fields_of_many_widths_pack_and_span_bytes() {
+    let schema = "id: t\nseq:\n  - id: version\n    type: b4\n  - id: length\n    type: b12\n  - id: flags\n    type: b3\n  - id: offset\n    type: b13\n";
+    let v = parse(schema, "t", &[0x45, 0x67, 0xe1, 0x23]);
+    assert_eq!(get_field(&v, "version"), &Value::UInt(4));
+    assert_eq!(get_field(&v, "length"), &Value::UInt(0x567));
+    assert_eq!(get_field(&v, "flags"), &Value::UInt(0b111));
+    assert_eq!(get_field(&v, "offset"), &Value::UInt(0x0123));
+}
+
+#[test]
+fn the_bits_type_is_the_same_as_the_b_types() {
+    let schema = "id: t\nseq:\n  - id: a\n    type: bits\n    bit_size: 4\n  - id: b\n    type: bits\n    bit_size: 4\n";
+    let v = parse(schema, "t", &[0xab]);
+    assert_eq!(get_field(&v, "a"), &Value::UInt(0xa));
+    assert_eq!(get_field(&v, "b"), &Value::UInt(0xb));
+}
+
+#[test]
+fn bit_fields_end_at_the_byte_and_other_fields_start_on_the_next() {
+    let schema = "id: t\nseq:\n  - id: a\n    type: b3\n  - id: after\n    type: u1\n  - id: tail\n    type: u1\n";
+    let v = parse(schema, "t", &[0b1110_0000, 0x11, 0x22]);
+    assert_eq!(get_field(&v, "a"), &Value::UInt(0b111));
+    assert_eq!(get_field(&v, "after").as_int(), Some(0x11));
+    assert_eq!(get_field(&v, "tail").as_int(), Some(0x22));
+}
+
+#[test]
+fn repeated_bit_fields_make_progress_within_a_byte() {
+    let schema = "id: t\nseq:\n  - id: bits\n    type: b1\n    repeat: expr\n    repeat-expr: 8\n  - id: next\n    type: u1\n";
+    let v = parse(schema, "t", &[0b1010_0000, 9]);
+    let Value::Array(items) = get_field(&v, "bits") else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 8);
+    assert_eq!(items[0], Value::Bool(true));
+    assert_eq!(items[1], Value::Bool(false));
+    assert_eq!(items[2], Value::Bool(true));
+    assert_eq!(get_field(&v, "next").as_int(), Some(9));
+}
+
+#[test]
+fn repeat_eos_reads_every_bit() {
+    let schema = "id: t\nseq:\n  - id: bits\n    type: b1\n    repeat: eos\n";
+    let v = parse(schema, "t", &[0xff, 0x00]);
+    let Value::Array(items) = get_field(&v, "bits") else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 16);
+}
+
+#[test]
+fn repeat_until_a_bit_field() {
+    let schema = "id: t\nseq:\n  - id: bits\n    type: b1\n    repeat: until\n    repeat-until: _\n  - id: rest\n    type: b5\n";
+    let v = parse(schema, "t", &[0b0010_1010]);
+    let Value::Array(items) = get_field(&v, "bits") else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 3);
+    assert_eq!(get_field(&v, "rest"), &Value::UInt(0b01010));
+}
+
+#[test]
+fn an_element_that_consumes_nothing_is_still_an_error_for_bit_fields() {
+    // A zero-length byte field repeats without moving; bits do not change that.
+    let schema = "id: t\nseq:\n  - id: items\n    type: bytes\n    size: 0\n    repeat: expr\n    repeat-expr: 3\n";
+    let err = parse_err(schema, "t", &[1, 2, 3]);
+    assert!(matches!(&err, DoeError::FieldError { message, .. } if message.contains("no bytes")));
+}
+
+#[test]
+fn pos_restores_the_bit_position() {
+    let schema = "id: t\nseq:\n  - id: a\n    type: b4\n  - id: far\n    type: b4\n    pos: 2\n  - id: b\n    type: b4\n";
+    let v = parse(schema, "t", &[0xab, 0xcd, 0xef]);
+    assert_eq!(get_field(&v, "a"), &Value::UInt(0xa));
+    assert_eq!(get_field(&v, "far"), &Value::UInt(0xe));
+    // `b` carries on with the rest of the first byte.
+    assert_eq!(get_field(&v, "b"), &Value::UInt(0xb));
+}
+
+#[test]
+fn nested_types_inherit_the_bit_order_and_share_the_bits_of_the_byte() {
+    // As in Kaitai Struct, entering a type does not align to a byte: the
+    // unread half of the first byte goes to the first bit field inside.
+    let schema = "id: t\nmeta:\n  bit-endian: le\nseq:\n  - id: a\n    type: b4\n  - id: inner\n    type: rec\ntypes:\n  rec:\n    seq:\n      - id: x\n        type: b4\n      - id: y\n        type: b4\n";
+    let v = parse(schema, "t", &[0xab, 0xcd]);
+    assert_eq!(get_field(&v, "a"), &Value::UInt(0xb));
+    let inner = get_field(&v, "inner");
+    assert_eq!(get_field(inner, "x"), &Value::UInt(0xa));
+    assert_eq!(get_field(inner, "y"), &Value::UInt(0xd));
+}
+
+#[test]
+fn bit_fields_past_the_end_are_errors() {
+    let schema = "id: t\nseq:\n  - id: a\n    type: b12\n";
+    let err = parse_err(schema, "t", &[0xab]);
+    assert!(
+        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn a_bit_field_can_be_used_in_an_enum() {
+    let schema = "id: t\nseq:\n  - id: kind\n    type: b3\n    enum: kind_t\nenums:\n  kind_t:\n    \"5\": five\n";
+    let v = parse(schema, "t", &[0b1010_0000]);
+    assert_eq!(
+        get_field(&v, "kind"),
+        &Value::Enum {
+            value: 5,
+            name: Some("five".into())
+        }
+    );
 }

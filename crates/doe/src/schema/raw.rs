@@ -98,6 +98,11 @@ pub struct RawMeta {
     /// Individual fields may override this with explicit type names (e.g. `u32be`).
     #[serde(default)]
     pub endian: Option<RawEndian>,
+
+    /// Default bit order for bit fields (`b1`..`b64`): `be` takes the most
+    /// significant bits of a byte first (the default), `le` the least.
+    #[serde(rename = "bit-endian", default)]
+    pub bit_endian: Option<RawEndian>,
 }
 
 /// Byte order as written in a schema's `meta.endian` field.

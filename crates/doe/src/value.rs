@@ -37,6 +37,8 @@ pub enum Value {
     SInt(i64),
     /// An IEEE 754 floating-point value.
     Float(f64),
+    /// A boolean: a one-bit field (`b1`).
+    Bool(bool),
     /// A raw byte sequence.
     Bytes(Vec<u8>),
     /// A byte sequence too long to keep, as read by `bytes` with a `size:`
@@ -101,6 +103,7 @@ impl Value {
             Value::UInt(n) => *n != 0,
             Value::SInt(n) => *n != 0,
             Value::Enum { value, .. } => *value != 0,
+            Value::Bool(b) => *b,
             _ => false,
         }
     }
@@ -116,6 +119,7 @@ impl Value {
             Value::UInt(_) => "uint",
             Value::SInt(_) => "sint",
             Value::Float(_) => "float",
+            Value::Bool(_) => "bool",
             Value::Bytes(_) | Value::Blob { .. } => "bytes",
             Value::Str(_) => "str",
             Value::Enum { .. } => "enum",
@@ -133,6 +137,7 @@ impl Value {
 /// | `UInt(255)` | `255` |
 /// | `SInt(-1)` | `-1` |
 /// | `Float(2.75)` | `2.75` |
+/// | `Bool(true)` | `true` |
 /// | `Bytes` | `<8 bytes>` |
 /// | `Blob` | `<1048576 bytes at 0x40>` |
 /// | `Str("hi")` | `"hi"` |
@@ -147,6 +152,7 @@ impl fmt::Display for Value {
             Value::UInt(n) => write!(f, "{n}"),
             Value::SInt(n) => write!(f, "{n}"),
             Value::Float(v) => write!(f, "{v}"),
+            Value::Bool(b) => write!(f, "{b}"),
             Value::Bytes(b) => write!(f, "<{} bytes>", b.len()),
             Value::Blob { offset, len, .. } => write!(f, "<{len} bytes at {offset:#x}>"),
             Value::Str(s) => write!(f, "{s:?}"),

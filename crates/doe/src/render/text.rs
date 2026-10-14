@@ -53,6 +53,7 @@ fn write_value(out: &mut String, value: &Value, depth: usize, indent: &str, labe
         Value::UInt(_)
         | Value::SInt(_)
         | Value::Float(_)
+        | Value::Bool(_)
         | Value::Bytes(_)
         | Value::Blob { .. }
         | Value::Str(_)

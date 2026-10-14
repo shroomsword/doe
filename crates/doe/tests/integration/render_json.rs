@@ -254,3 +254,9 @@ fn realistic_json_structure() {
     assert_eq!(parsed["chunks"][0]["type"], "IHDR");
     assert_eq!(parsed["chunks"][0]["length"], 13u64);
 }
+
+#[test]
+fn bool_is_a_json_boolean() {
+    assert_eq!(j(&Value::Bool(true)), serde_json::json!(true));
+    assert_eq!(j(&Value::Bool(false)), serde_json::json!(false));
+}

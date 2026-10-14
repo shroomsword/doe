@@ -536,3 +536,12 @@ fn field_with_pos_expression_or_literal() {
     assert_eq!(s.seq[0].pos.as_ref().unwrap().as_str(), "header.off");
     assert_eq!(s.seq[1].pos.as_ref().unwrap().as_str(), "16");
 }
+
+#[test]
+fn meta_bit_endian_is_read_separately_from_endian() {
+    let s = RawSchema::from_yaml_str("id: t\nmeta:\n  endian: be\n  bit-endian: le\n").unwrap();
+    assert_eq!(s.meta.endian, Some(RawEndian::Be));
+    assert_eq!(s.meta.bit_endian, Some(RawEndian::Le));
+    let s = RawSchema::from_yaml_str("id: t\nmeta:\n  endian: be\n").unwrap();
+    assert_eq!(s.meta.bit_endian, None);
+}
