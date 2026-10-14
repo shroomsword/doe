@@ -395,6 +395,39 @@ declares it and in every type nested inside it. A nested type can declare an
 enum with the same name to replace the outer one for its own fields. An enum
 declared in a sub-type is not visible in its parent or its siblings.
 
+#### Choosing a type by a value
+
+When the layout of a field depends on a tag read earlier, `type:` can be a
+mapping:
+
+```yaml
+seq:
+  - id: kind
+    type: u1
+    enum: kind_t
+  - id: length
+    type: u2
+  - id: body
+    type:
+      switch-on: kind
+      cases:
+        kind_t::text: text_t       # a sub-type
+        2: u4le                    # a numeric type
+        '"RIFF"': riff_t           # a string key
+        _: bytes                   # the default
+    size: length
+```
+
+`switch-on` is an expression and each key in `cases` is one too (integers,
+enum members, strings in quotes, booleans); the first key equal to the
+selector wins and `_` is the default. A case's value is any type name. A
+`size` or `size-eos` on the field is a window around whichever type is chosen,
+as for a sized sub-type, and a `bytes` or `str` case fills it; without one, a
+`bytes` or `str` case needs its own `size`. If nothing matches and there is no
+default, a field with a size is read as bytes and one without is absent, as in
+Kaitai Struct. Quote keys and expressions that YAML would read as something
+else (`'"RIFF"'`, `'kind > 0 ? 1 : 2'`).
+
 ### Imports
 
 A schema may import other schemas by bare name (resolved through include paths)

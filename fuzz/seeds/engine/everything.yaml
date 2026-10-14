@@ -61,6 +61,15 @@ seq:
   - id: framed
     type: framed_t
     size: framed_len
+  - id: choice
+    type:
+      switch-on: kind
+      cases:
+        0: item
+        kind_t::sixteen: u2be
+        255: framed_t
+        _: bytes
+    size: framed_len
   - id: rest
     type: u2
     repeat: eos

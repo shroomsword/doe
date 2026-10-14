@@ -28,7 +28,8 @@ use crate::schema::ir::{
     FloatWidth, IntWidth, RepeatMode, SizeExpr, StrSize, TypeRegistry,
 };
 use crate::schema::raw::{
-    RawContents, RawEncoding, RawEndian, RawField, RawRepeat, RawSchema, RawTypeDecl, StringOrInt,
+    RawContents, RawEncoding, RawEndian, RawField, RawRepeat, RawSchema, RawSwitch, RawType,
+    RawTypeDecl, StringOrInt,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -262,15 +263,17 @@ impl Compiler {
         let kind = if let Some(contents) = &raw.contents {
             compile_contents(contents, &raw.id, ctx.parent_fqn)?
         } else {
-            let type_name = raw
-                .type_ref
-                .as_deref()
-                .ok_or_else(|| DoeError::FieldError {
-                    field: raw.id.clone(),
-                    context: ctx.parent_fqn.to_owned(),
-                    message: "field has neither 'type' nor 'contents'".to_owned(),
-                })?;
-            self.compile_type_ref(type_name, raw, ctx)?
+            match &raw.type_ref {
+                Some(RawType::Name(type_name)) => self.compile_type_ref(type_name, raw, ctx)?,
+                Some(RawType::Switch(switch)) => self.compile_switch(switch, raw, ctx)?,
+                None => {
+                    return Err(DoeError::FieldError {
+                        field: raw.id.clone(),
+                        context: ctx.parent_fqn.to_owned(),
+                        message: "field has neither 'type' nor 'contents'".to_owned(),
+                    });
+                }
+            }
         };
 
         let repeat = compile_repeat(raw, ctx)?;
@@ -303,6 +306,52 @@ impl Compiler {
             if_expr,
             pos,
             enum_ref: raw.enum_ref.clone(),
+        })
+    }
+
+    /// Compile a `type` that is chosen by a value.
+    fn compile_switch(
+        &self,
+        switch: &RawSwitch,
+        raw: &RawField,
+        ctx: &FieldCtx<'_>,
+    ) -> Result<FieldKind> {
+        let bad = |message: String| DoeError::FieldError {
+            field: raw.id.clone(),
+            context: ctx.parent_fqn.to_owned(),
+            message,
+        };
+        if switch.cases.is_empty() {
+            return Err(bad("'switch-on' needs at least one case".to_owned()));
+        }
+        let on =
+            compile_expr(&switch.switch_on, ctx).map_err(|e| bad(format!("'switch-on': {e}")))?;
+        validate_size_expr_refs(&switch.switch_on, ctx)?;
+        // A size is a window around whichever type is chosen, so the cases do
+        // not take it themselves, but `bytes` and `str` fill the window.
+        let size = compile_optional_size(raw, ctx)?;
+        let mut cases = Vec::new();
+        let mut default = None;
+        for (key, type_name) in &switch.cases {
+            let mut case_raw = raw.clone();
+            case_raw.size = None;
+            case_raw.size_eos =
+                Some(size.is_some() && matches!(type_name.as_str(), "bytes" | "str"));
+            case_raw.type_ref = Some(RawType::Name(type_name.clone()));
+            let kind = self.compile_type_ref(type_name, &case_raw, ctx)?;
+            if key == "_" {
+                default = Some(Box::new(kind));
+            } else {
+                let key_expr =
+                    compile_expr(key, ctx).map_err(|e| bad(format!("case '{key}': {e}")))?;
+                cases.push((key_expr, kind));
+            }
+        }
+        Ok(FieldKind::Switch {
+            on,
+            size,
+            cases,
+            default,
         })
     }
 
@@ -523,7 +572,10 @@ fn compile_size(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<SizeExpr> {
             context: ctx.parent_fqn.to_owned(),
             message: format!(
                 "'{}' type requires 'size'",
-                raw.type_ref.as_deref().unwrap_or("?")
+                raw.type_ref
+                    .as_ref()
+                    .and_then(RawType::as_name)
+                    .unwrap_or("?")
             ),
         }),
         Some(StringOrInt::Int(n)) => {

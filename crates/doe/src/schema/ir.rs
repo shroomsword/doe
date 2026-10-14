@@ -150,6 +150,19 @@ pub enum FieldKind {
         /// parent continues after the whole window.
         size: Option<SizeExpr>,
     },
+    /// A type chosen by the value of an expression (`switch-on` / `cases`).
+    Switch {
+        /// The selector.
+        on: Expr,
+        /// If set, a window of this many bytes around the chosen type; a case
+        /// that is `bytes` or `str` fills it.
+        size: Option<SizeExpr>,
+        /// The cases in the order they are tried: a key expression compared
+        /// with the selector, and the type to read when they are equal.
+        cases: Vec<(Expr, FieldKind)>,
+        /// The type to read when no case matches (the `_` case).
+        default: Option<Box<FieldKind>>,
+    },
     /// Fixed literal content — parser reads and asserts exact bytes.
     Contents(Vec<u8>),
 }
