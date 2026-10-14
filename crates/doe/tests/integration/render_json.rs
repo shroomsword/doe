@@ -260,3 +260,32 @@ fn bool_is_a_json_boolean() {
     assert_eq!(j(&Value::Bool(true)), serde_json::json!(true));
     assert_eq!(j(&Value::Bool(false)), serde_json::json!(false));
 }
+
+#[test]
+fn instances_are_inline_with_their_offsets_beside_them() {
+    let instance = |value: Value, offset: Option<u64>| Value::Instance {
+        value: Box::new(value),
+        offset,
+    };
+    let v = Value::Struct {
+        type_name: "t".into(),
+        fields: vec![
+            ("a".into(), Value::UInt(1)),
+            (
+                "table".into(),
+                instance(Value::Array(vec![Value::UInt(2)]), Some(64)),
+            ),
+            ("total".into(), instance(Value::UInt(9), None)),
+        ],
+    };
+    let json = j(&v);
+    assert_eq!(json["table"], serde_json::json!([2]));
+    assert_eq!(json["total"], 9);
+    assert_eq!(json["$offsets"], serde_json::json!({"table": 64}));
+    // A type without read instances has no `$offsets`.
+    let plain = Value::Struct {
+        type_name: "t".into(),
+        fields: vec![("total".into(), instance(Value::UInt(9), None))],
+    };
+    assert!(j(&plain).get("$offsets").is_none());
+}

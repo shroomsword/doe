@@ -609,3 +609,55 @@ fn a_switch_needs_switch_on_and_cases_and_nothing_else() {
         assert!(RawSchema::from_yaml_str(&yaml).is_err(), "{body}");
     }
 }
+
+#[test]
+fn instances_are_read_in_order_with_their_attributes() {
+    let s = RawSchema::from_yaml_str(indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: u1
+        instances:
+          table:
+            pos: a
+            type: entry
+            repeat: expr
+            repeat-expr: 2
+          total:
+            value: a * 2
+            doc: twice a
+          literal:
+            value: 4
+          flag:
+            value: true
+          ratio:
+            value: 1.5
+        types:
+          inner:
+            seq: []
+            instances:
+              n:
+                value: 1
+    "})
+    .unwrap();
+    let names: Vec<&str> = s.instances.keys().map(String::as_str).collect();
+    assert_eq!(names, ["table", "total", "literal", "flag", "ratio"]);
+    assert!(s.instances["table"].reads());
+    assert!(!s.instances["total"].reads());
+    assert_eq!(s.instances["total"].value.as_ref().unwrap().0, "a * 2");
+    assert_eq!(s.instances["literal"].value.as_ref().unwrap().0, "4");
+    assert_eq!(s.instances["flag"].value.as_ref().unwrap().0, "true");
+    assert_eq!(s.instances["ratio"].value.as_ref().unwrap().0, "1.5");
+    assert_eq!(s.types["inner"].instances.len(), 1);
+    let field = s.instances["table"].to_field("table");
+    assert_eq!(field.id, "table");
+    assert!(field.pos.is_some());
+}
+
+#[test]
+fn instances_reject_unknown_keys_and_an_id() {
+    for body in ["nope: 1", "id: x\n    value: 1"] {
+        let yaml = format!("id: t\ninstances:\n  x:\n    {body}\n");
+        assert!(RawSchema::from_yaml_str(&yaml).is_err(), "{body}");
+    }
+}

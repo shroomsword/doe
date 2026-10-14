@@ -222,3 +222,18 @@ fn bool_values() {
     assert_eq!(format!("{}", Value::Bool(true)), "true");
     assert_eq!(format!("{}", Value::Bool(false)), "false");
 }
+
+#[test]
+fn an_instance_acts_like_the_value_it_holds() {
+    let wrap = |value: Value| Value::Instance {
+        value: Box::new(value),
+        offset: Some(4),
+    };
+    assert_eq!(wrap(Value::UInt(7)).as_int(), Some(7));
+    assert_eq!(wrap(Value::Bytes(vec![1, 2])).byte_len(), Some(2));
+    assert!(wrap(Value::Bool(true)).is_truthy());
+    assert!(wrap(Value::Absent).is_absent());
+    assert!(!wrap(Value::UInt(1)).is_absent());
+    assert_eq!(wrap(Value::UInt(1)).type_name(), "uint");
+    assert_eq!(format!("{}", wrap(Value::UInt(7))), "7");
+}

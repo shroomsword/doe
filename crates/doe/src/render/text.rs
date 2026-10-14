@@ -76,9 +76,20 @@ fn write_value(out: &mut String, value: &Value, depth: usize, indent: &str, labe
                 if field_val.is_absent() {
                     continue;
                 }
-                write_value(out, field_val, depth + 1, indent, Some(field_id));
+                // An instance read from somewhere shows where.
+                let label = match field_val {
+                    Value::Instance {
+                        offset: Some(offset),
+                        ..
+                    } => format!("{field_id} @{offset:#x}"),
+                    _ => field_id.clone(),
+                };
+                write_value(out, field_val, depth + 1, indent, Some(&label));
             }
         }
+
+        // ── Instance ──────────────────────────────────────────────────────
+        Value::Instance { value, .. } => write_value(out, value, depth, indent, label),
 
         // ── Array ─────────────────────────────────────────────────────────
         Value::Array(items) => {

@@ -86,11 +86,24 @@ pub fn to_json(value: &Value) -> JValue {
         Value::Struct { type_name, fields } => {
             let mut map = serde_json::Map::new();
             map.insert("$type".into(), JValue::String(type_name.clone()));
+            // Where instances were read from; computed ones have no offset.
+            let mut offsets = serde_json::Map::new();
             for (k, v) in fields {
+                if let Value::Instance {
+                    offset: Some(offset),
+                    ..
+                } = v
+                {
+                    offsets.insert(k.clone(), JValue::from(*offset));
+                }
                 map.insert(k.clone(), to_json(v));
+            }
+            if !offsets.is_empty() {
+                map.insert("$offsets".into(), JValue::Object(offsets));
             }
             JValue::Object(map)
         }
+        Value::Instance { value, .. } => to_json(value),
         Value::Array(items) => JValue::Array(items.iter().map(to_json).collect()),
         Value::Absent => JValue::Null,
     }

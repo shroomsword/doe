@@ -239,3 +239,34 @@ fn sized_sub_types_work_over_a_file() {
     assert_eq!(v["body"]["rest"]["len"], 4);
     assert_eq!(v["after"], 0x7f);
 }
+
+#[test]
+fn parse_options_default_to_showing_instances() {
+    assert!(ParseOptions::default().instances);
+    let dir = tempfile::TempDir::new().unwrap();
+    let schema = dir.path().join("inst.yaml");
+    std::fs::write(
+        &schema,
+        "id: inst\nseq:\n  - id: a\n    type: u1\ninstances:\n  doubled:\n    value: a * 2\n",
+    )
+    .unwrap();
+    let data = dir.path().join("inst.bin");
+    std::fs::write(&data, [21]).unwrap();
+    let run = |options: &ParseOptions| {
+        parse_file_with(
+            &data,
+            schema.to_str().unwrap(),
+            &[],
+            Some(Path::new("/nonexistent/config.toml")),
+            OutputFormat::Json,
+            options,
+        )
+        .unwrap()
+    };
+    let with: serde_json::Value = serde_json::from_str(&run(&ParseOptions::default())).unwrap();
+    assert_eq!(with["doubled"], 42);
+    let without: serde_json::Value =
+        serde_json::from_str(&run(&ParseOptions { instances: false })).unwrap();
+    assert!(without.get("doubled").is_none());
+    assert_eq!(without["a"], 21);
+}

@@ -21,6 +21,10 @@ use clap_verbosity_flag::{Verbosity, WarnLevel};
     args_conflicts_with_subcommands = true,
     subcommand_negates_reqs = true
 )]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "each bool is a command-line flag; grouping them would only change how clap names them"
+)]
 pub(crate) struct Cli {
     /// Binary file to parse.
     #[arg(required_unless_present = "help")]
@@ -45,6 +49,10 @@ pub(crate) struct Cli {
     /// Emit pretty-printed JSON output.
     #[arg(long)]
     pub(crate) pretty: bool,
+
+    /// Leave out the values a schema's `instances` compute or read elsewhere.
+    #[arg(long)]
+    pub(crate) no_instances: bool,
 
     /// Indentation string for text output.
     #[arg(long, default_value = "  ", value_name = "STR")]
