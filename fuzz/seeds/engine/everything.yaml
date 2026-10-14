@@ -15,6 +15,12 @@ seq:
   - id: flags
     type: bits
     bit_size: 5
+  - id: low_bits
+    type: b3le
+  - id: wide_bits
+    type: b12
+  - id: one_bit
+    type: b1
   - id: items
     type: item
     repeat: expr

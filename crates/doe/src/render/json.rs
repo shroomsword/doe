@@ -45,6 +45,7 @@ pub fn to_json(value: &Value) -> JValue {
             JValue::Number((*n).into())
         }
         Value::SInt(n) => JValue::Number((*n).into()),
+        Value::Bool(b) => JValue::Bool(*b),
         Value::Float(f) => {
             // JSON does not support NaN or Infinity; map them to null
             serde_json::Number::from_f64(*f).map_or(JValue::Null, JValue::Number)

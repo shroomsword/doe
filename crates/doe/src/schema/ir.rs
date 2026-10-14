@@ -64,6 +64,10 @@ pub struct CompiledType {
     /// Default byte order for this type's fields.
     pub endian: Endian,
 
+    /// Default bit order for this type's bit fields: [`Endian::Big`] takes the
+    /// most significant bits of a byte first, [`Endian::Little`] the least.
+    pub bit_endian: Endian,
+
     /// Ordered list of fields.
     pub fields: Vec<CompiledField>,
 
@@ -131,10 +135,12 @@ pub enum FieldKind {
         /// Character encoding of the bytes.
         encoding: Encoding,
     },
-    /// Bit field.
+    /// Bit field of 1 to 64 bits; a single bit reads as a boolean.
     Bits {
         /// Number of bits to read.
         bit_size: u8,
+        /// Bit-order override for this field.
+        endian: EndianOverride,
     },
     /// A reference to another compiled type by its fully-qualified name.
     TypeRef {

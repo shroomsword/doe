@@ -259,3 +259,14 @@ fn render_uses_default_indent() {
     assert_eq!(DEFAULT_INDENT, "  ");
     assert_eq!(render(&v), render_with_indent(&v, DEFAULT_INDENT));
 }
+
+#[test]
+fn bool_prints_as_true_or_false() {
+    let v = struct_val(
+        "t",
+        vec![("on", Value::Bool(true)), ("off", Value::Bool(false))],
+    );
+    let out = render(&v);
+    assert!(out.contains("on  true"), "{out}");
+    assert!(out.contains("off  false"), "{out}");
+}

@@ -47,6 +47,34 @@ pub struct Cursor<'buf> {
     len: usize,
     /// Current read position relative to the start of the window.
     pos: usize,
+    /// The bits of the last byte read for a bit field that are still unread.
+    bit_buf: u8,
+    /// How many bits of `bit_buf` are unread; zero between byte-aligned reads.
+    bits_left: u8,
+    /// The order the unread bits are consumed in.
+    bit_order: BitOrder,
+}
+
+/// The order in which bit fields take bits from a byte.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BitOrder {
+    /// The first field takes the most significant bits (`b4`, `b4` over `0xAB`
+    /// read `0xA`, then `0xB`).
+    #[default]
+    MostSignificantFirst,
+    /// The first field takes the least significant bits (`b4le`, `b4le` over
+    /// `0xAB` read `0xB`, then `0xA`).
+    LeastSignificantFirst,
+}
+
+/// A saved position, including the unread bits of a partly read byte; see
+/// [`Cursor::mark`].
+#[derive(Debug, Clone, Copy)]
+pub struct Mark {
+    pos: usize,
+    bit_buf: u8,
+    bits_left: u8,
+    bit_order: BitOrder,
 }
 
 #[derive(Debug, Clone)]
@@ -120,6 +148,9 @@ impl<'buf> Cursor<'buf> {
             base: 0,
             len: buf.len(),
             pos: 0,
+            bit_buf: 0,
+            bits_left: 0,
+            bit_order: BitOrder::default(),
         }
     }
 
@@ -155,6 +186,9 @@ impl<'buf> Cursor<'buf> {
             base: 0,
             len,
             pos: 0,
+            bit_buf: 0,
+            bits_left: 0,
+            bit_order: BitOrder::default(),
         })
     }
 
@@ -180,6 +214,9 @@ impl<'buf> Cursor<'buf> {
             base: self.base.saturating_add(start),
             len,
             pos: 0,
+            bit_buf: 0,
+            bits_left: 0,
+            bit_order: BitOrder::default(),
         })
     }
 
@@ -212,10 +249,11 @@ impl<'buf> Cursor<'buf> {
 
     /// Returns `true` if the cursor is at the end of its window.
     pub fn is_eof(&self) -> bool {
-        self.pos >= self.len
+        self.bits_left == 0 && self.pos >= self.len
     }
 
-    /// Seek to an absolute position within this cursor's window.
+    /// Seek to an absolute position within this cursor's window. The unread
+    /// bits of a partly read byte are dropped.
     ///
     /// # Errors
     ///
@@ -228,7 +266,100 @@ impl<'buf> Cursor<'buf> {
             )));
         }
         self.pos = pos;
+        self.align();
         Ok(())
+    }
+
+    /// Save the position, including the unread bits of a partly read byte, to
+    /// return to with [`Cursor::reset`].
+    pub fn mark(&self) -> Mark {
+        Mark {
+            pos: self.pos,
+            bit_buf: self.bit_buf,
+            bits_left: self.bits_left,
+            bit_order: self.bit_order,
+        }
+    }
+
+    /// Return to a position saved with [`Cursor::mark`].
+    pub fn reset(&mut self, mark: Mark) {
+        self.pos = mark.pos;
+        self.bit_buf = mark.bit_buf;
+        self.bits_left = mark.bits_left;
+        self.bit_order = mark.bit_order;
+    }
+
+    /// The position in bits from the start of the root buffer, which moves
+    /// when a bit field is read even if no new byte is.
+    pub fn bit_position(&self) -> u64 {
+        u64::try_from(self.absolute_pos())
+            .unwrap_or(u64::MAX)
+            .saturating_mul(8)
+            .saturating_sub(u64::from(self.bits_left))
+    }
+
+    /// Drop the unread bits of a partly read byte, so that the next read
+    /// starts on a byte boundary.
+    fn align(&mut self) {
+        self.bit_buf = 0;
+        self.bits_left = 0;
+    }
+
+    // ── Bit reads ─────────────────────────────────────────────────────────────
+
+    /// Read a `bits`-bit unsigned integer, taking the bits in the given order.
+    ///
+    /// Consecutive bit fields share bytes; a field may span bytes. Every other
+    /// read, and a bit field of the other order, starts on a byte boundary,
+    /// dropping the unread bits.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `bits` is not from 1 to 64, or if the bytes it
+    /// needs are not there.
+    pub fn read_bits(&mut self, bits: u8, order: BitOrder) -> Result<u64> {
+        if !(1..=64).contains(&bits) {
+            return Err(DoeError::Schema(format!(
+                "a bit field has 1 to 64 bits, not {bits}"
+            )));
+        }
+        if self.bits_left > 0 && self.bit_order != order {
+            self.align();
+        }
+        let wanted = u32::from(bits);
+        let mut total = u32::from(self.bits_left);
+        let fresh_bytes = usize::try_from(wanted.saturating_sub(total).div_ceil(8)).unwrap_or(0);
+        let mut fresh = [0u8; 9];
+        let fresh = fresh.get_mut(..fresh_bytes).unwrap_or_default();
+        let end = self.end_of(fresh_bytes)?;
+        self.fill(self.pos, fresh)?;
+
+        let mut acc = u128::from(self.bit_buf);
+        let value;
+        match order {
+            BitOrder::MostSignificantFirst => {
+                for &byte in &*fresh {
+                    acc = (acc << 8) | u128::from(byte);
+                    total += 8;
+                }
+                let left = total - wanted;
+                value = acc >> left;
+                acc &= (1u128 << left) - 1;
+            }
+            BitOrder::LeastSignificantFirst => {
+                for &byte in &*fresh {
+                    acc |= u128::from(byte) << total;
+                    total += 8;
+                }
+                value = acc;
+                acc >>= wanted;
+            }
+        }
+        self.pos = end;
+        self.bits_left = u8::try_from(total - wanted).unwrap_or(0);
+        self.bit_buf = u8::try_from(acc & 0xff).unwrap_or(0);
+        self.bit_order = order;
+        Ok(u64::try_from(value & ((1u128 << wanted) - 1)).unwrap_or(0))
     }
 
     // ── Raw reads ─────────────────────────────────────────────────────────────
@@ -244,6 +375,7 @@ impl<'buf> Cursor<'buf> {
     /// Returns an error if fewer than `n` bytes remain, or if reading the file
     /// fails.
     pub fn read_bytes(&mut self, n: usize) -> Result<Cow<'buf, [u8]>> {
+        self.align();
         let bytes = self.peek_bytes(n)?;
         self.pos = self.pos.saturating_add(n);
         Ok(bytes)
@@ -279,6 +411,7 @@ impl<'buf> Cursor<'buf> {
     ///
     /// Returns an error if fewer than `n` bytes remain.
     pub fn skip(&mut self, n: usize) -> Result<()> {
+        self.align();
         self.pos = self.end_of(n)?;
         Ok(())
     }
@@ -293,6 +426,7 @@ impl<'buf> Cursor<'buf> {
     /// Returns an error if the result would be longer than
     /// [`MAX_TERMINATED_LEN`] bytes, or if reading the file fails.
     pub fn read_until(&mut self, terminator: u8) -> Result<Cow<'buf, [u8]>> {
+        self.align();
         match &self.source {
             Source::Memory(buf) => {
                 let buf: &'buf [u8] = buf;
@@ -332,6 +466,7 @@ impl<'buf> Cursor<'buf> {
 
     /// Read exactly `N` bytes as an array, advancing the cursor.
     fn read_array<const N: usize>(&mut self) -> Result<[u8; N]> {
+        self.align();
         let end = self.end_of(N)?;
         let mut array = [0; N];
         self.fill(self.pos, &mut array)?;

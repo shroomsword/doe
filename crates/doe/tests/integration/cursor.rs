@@ -543,7 +543,7 @@ mod file {
         let (_dir, mut file) = open(&data);
         let mut mem = Cursor::new(&data);
         for step in 0..4000 {
-            let op = next(7);
+            let op = next(9);
             let (f, m) = match op {
                 0 => {
                     let at = next(data.len() + 3);
@@ -568,9 +568,18 @@ mod file {
                     let m = mem.read_until(0).map(|b| u64::try_from(b.len()).unwrap());
                     (f, m)
                 }
-                _ => {
+                6 => {
                     let n = next(300);
                     (file.skip(n).map(|()| 0), mem.skip(n).map(|()| 0))
+                }
+                _ => {
+                    let bits = u8::try_from(next(66)).unwrap();
+                    let order = if next(2) == 0 {
+                        doe::parser::cursor::BitOrder::MostSignificantFirst
+                    } else {
+                        doe::parser::cursor::BitOrder::LeastSignificantFirst
+                    };
+                    (file.read_bits(bits, order), mem.read_bits(bits, order))
                 }
             };
             assert_eq!(f.is_ok(), m.is_ok(), "step {step} op {op}");
@@ -578,6 +587,181 @@ mod file {
                 assert_eq!(f, m, "step {step} op {op}");
             }
             assert_eq!(file.pos(), mem.pos(), "step {step} op {op}");
+            assert_eq!(
+                file.bit_position(),
+                mem.bit_position(),
+                "step {step} op {op}"
+            );
         }
+    }
+}
+
+// ── Bit fields ────────────────────────────────────────────────────────────
+
+mod bits {
+    use doe::parser::cursor::{BitOrder, Cursor};
+
+    use BitOrder::{LeastSignificantFirst as Lsb, MostSignificantFirst as Msb};
+
+    #[test]
+    fn most_significant_first_takes_the_high_bits_first() {
+        let mut c = Cursor::new(&[0xab]);
+        assert_eq!(c.read_bits(4, Msb).unwrap(), 0xa);
+        assert_eq!(c.read_bits(4, Msb).unwrap(), 0xb);
+        assert!(c.is_eof());
+    }
+
+    #[test]
+    fn least_significant_first_takes_the_low_bits_first() {
+        let mut c = Cursor::new(&[0xab]);
+        assert_eq!(c.read_bits(4, Lsb).unwrap(), 0xb);
+        assert_eq!(c.read_bits(4, Lsb).unwrap(), 0xa);
+        assert!(c.is_eof());
+    }
+
+    #[test]
+    fn single_bits_in_both_orders() {
+        let mut msb = Cursor::new(&[0b1010_0001]);
+        let mut lsb = Cursor::new(&[0b1010_0001]);
+        let m: Vec<u64> = (0..8).map(|_| msb.read_bits(1, Msb).unwrap()).collect();
+        let l: Vec<u64> = (0..8).map(|_| lsb.read_bits(1, Lsb).unwrap()).collect();
+        assert_eq!(m, [1, 0, 1, 0, 0, 0, 0, 1]);
+        assert_eq!(l, [1, 0, 0, 0, 0, 1, 0, 1]);
+    }
+
+    #[test]
+    fn fields_may_span_bytes() {
+        let mut c = Cursor::new(&[0x12, 0x34, 0x56]);
+        assert_eq!(c.read_bits(12, Msb).unwrap(), 0x123);
+        assert_eq!(c.read_bits(12, Msb).unwrap(), 0x456);
+        let mut c = Cursor::new(&[0x34, 0x12, 0x56]);
+        assert_eq!(c.read_bits(12, Lsb).unwrap(), 0x234);
+        assert_eq!(c.read_bits(12, Lsb).unwrap(), 0x561);
+    }
+
+    #[test]
+    fn fields_straddle_a_boundary_after_a_partial_byte() {
+        let mut c = Cursor::new(&[0b1100_0011, 0b1010_1010]);
+        assert_eq!(c.read_bits(3, Msb).unwrap(), 0b110);
+        assert_eq!(c.read_bits(7, Msb).unwrap(), 0b000_1110);
+        assert_eq!(c.read_bits(6, Msb).unwrap(), 0b10_1010);
+        assert!(c.is_eof());
+    }
+
+    #[test]
+    fn sixty_four_bit_fields() {
+        let data = [0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
+        assert_eq!(
+            Cursor::new(&data).read_bits(64, Msb).unwrap(),
+            0x0123_4567_89ab_cdef
+        );
+        assert_eq!(
+            Cursor::new(&data).read_bits(64, Lsb).unwrap(),
+            0xefcd_ab89_6745_2301
+        );
+        // Starting mid-byte, the last field still needs nine bytes in all.
+        let data = [0xff; 9];
+        let mut c = Cursor::new(&data);
+        assert_eq!(c.read_bits(4, Msb).unwrap(), 0xf);
+        assert_eq!(c.read_bits(64, Msb).unwrap(), u64::MAX);
+        assert_eq!(c.read_bits(4, Msb).unwrap(), 0xf);
+        assert!(c.is_eof());
+        let mut c = Cursor::new(&data);
+        assert_eq!(c.read_bits(4, Lsb).unwrap(), 0xf);
+        assert_eq!(c.read_bits(64, Lsb).unwrap(), u64::MAX);
+    }
+
+    #[test]
+    fn a_whole_byte_read_starts_on_the_next_byte() {
+        let mut c = Cursor::new(&[0xab, 0xcd, 0xef]);
+        assert_eq!(c.read_bits(3, Msb).unwrap(), 0b101);
+        assert_eq!(c.pos(), 1);
+        assert_eq!(c.read_u8().unwrap(), 0xcd);
+        assert_eq!(c.read_bits(1, Msb).unwrap(), 1);
+        assert_eq!(&*c.read_bytes(0).unwrap(), &[] as &[u8]);
+        assert!(c.is_eof());
+    }
+
+    #[test]
+    fn every_other_read_aligns() {
+        for step in 0..5 {
+            let mut c = Cursor::new(&[0xff, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0]);
+            c.read_bits(1, Msb).unwrap();
+            let next = match step {
+                0 => u64::from(c.read_u16_be().unwrap()),
+                1 => u64::from(c.read_bytes(1).unwrap()[0]),
+                2 => c.read_f32_le().map(|f| u64::from(f.to_bits())).unwrap(),
+                3 => c.read_until(0).unwrap().len() as u64,
+                _ => {
+                    c.skip(1).unwrap();
+                    c.pos() as u64
+                }
+            };
+            assert!(next > 0, "step {step}");
+            // Whichever read it was, the rest of the first byte was dropped.
+            assert_eq!(c.bit_position() % 8, 0, "step {step}");
+        }
+    }
+
+    #[test]
+    fn switching_the_bit_order_starts_on_the_next_byte() {
+        let mut c = Cursor::new(&[0xab, 0xcd]);
+        assert_eq!(c.read_bits(4, Msb).unwrap(), 0xa);
+        assert_eq!(c.read_bits(4, Lsb).unwrap(), 0xd);
+        assert_eq!(c.pos(), 2);
+    }
+
+    #[test]
+    fn seek_drops_the_unread_bits() {
+        let mut c = Cursor::new(&[0xab, 0xcd]);
+        c.read_bits(4, Msb).unwrap();
+        c.seek(1).unwrap();
+        assert_eq!(c.read_bits(4, Msb).unwrap(), 0xc);
+    }
+
+    #[test]
+    fn mark_and_reset_restore_the_bits_too() {
+        let mut c = Cursor::new(&[0xab, 0xcd]);
+        c.read_bits(4, Msb).unwrap();
+        let mark = c.mark();
+        assert_eq!(c.read_bits(4, Msb).unwrap(), 0xb);
+        assert_eq!(c.read_u8().unwrap(), 0xcd);
+        c.reset(mark);
+        assert_eq!(c.pos(), 1);
+        assert_eq!(c.read_bits(4, Msb).unwrap(), 0xb);
+        assert_eq!(c.read_bits(4, Msb).unwrap(), 0xc);
+    }
+
+    #[test]
+    fn position_and_eof_count_unread_bits() {
+        let mut c = Cursor::new(&[0xff]);
+        assert_eq!(c.bit_position(), 0);
+        c.read_bits(3, Msb).unwrap();
+        assert_eq!(c.bit_position(), 3);
+        assert_eq!(c.pos(), 1);
+        assert!(!c.is_eof(), "five bits remain");
+        c.read_bits(5, Msb).unwrap();
+        assert_eq!(c.bit_position(), 8);
+        assert!(c.is_eof());
+    }
+
+    #[test]
+    fn bad_sizes_and_short_input_are_errors_that_change_nothing() {
+        let mut c = Cursor::new(&[0xab]);
+        assert!(c.read_bits(0, Msb).is_err());
+        assert!(c.read_bits(65, Msb).is_err());
+        assert_eq!(c.read_bits(4, Msb).unwrap(), 0xa);
+        // Needs a second byte that is not there; the four unread bits stay.
+        assert!(c.read_bits(5, Msb).is_err());
+        assert_eq!(c.read_bits(4, Msb).unwrap(), 0xb);
+        assert!(c.read_bits(1, Msb).is_err());
+    }
+
+    #[test]
+    fn sub_cursors_start_on_a_byte_boundary() {
+        let mut c = Cursor::new(&[0xab, 0xcd, 0xef]);
+        c.read_bits(4, Msb).unwrap();
+        let mut sub = c.sub(1, 2).unwrap();
+        assert_eq!(sub.read_bits(8, Msb).unwrap(), 0xcd);
     }
 }

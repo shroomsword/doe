@@ -7,7 +7,7 @@
 
 use crate::error::{DoeError, Result};
 use crate::parser::context::ParseContext;
-use crate::parser::cursor::{Cursor, MAX_TERMINATED_LEN};
+use crate::parser::cursor::{BitOrder, Cursor, MAX_TERMINATED_LEN};
 use crate::schema::expr;
 use crate::schema::ir::{
     CompiledField, CompiledType, Encoding, Endian, EndianOverride, FieldKind, FloatWidth, IntWidth,
@@ -123,7 +123,7 @@ impl<'reg> Engine<'reg> {
             context: parent_ty.name.clone(),
             message: format!("pos evaluated to an invalid offset: {target}"),
         })?;
-        let resume = cursor.pos();
+        let resume = cursor.mark();
         cursor
             .seek(target)
             .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
@@ -134,7 +134,7 @@ impl<'reg> Engine<'reg> {
                 context: parent_ty.name.clone(),
                 message,
             })?;
-        cursor.seek(resume)?;
+        cursor.reset(resume);
         Ok(value)
     }
 
@@ -214,9 +214,9 @@ impl<'reg> Engine<'reg> {
         cursor: &mut Cursor<'_>,
         ctx: &mut ParseContext,
     ) -> Result<Value> {
-        let before = cursor.absolute_pos();
+        let before = cursor.bit_position();
         let value = self.parse_field_once(field, parent_ty, cursor, ctx)?;
-        if cursor.absolute_pos() == before {
+        if cursor.bit_position() == before {
             return Err(DoeError::FieldError {
                 field: field.id.clone(),
                 context: parent_ty.name.clone(),
@@ -282,7 +282,18 @@ impl<'reg> Engine<'reg> {
                 Self::read_blob(n, cursor)
             }
             FieldKind::Str { size, encoding } => Self::read_str(size, *encoding, cursor, ctx),
-            FieldKind::Bits { bit_size } => Self::read_bits(*bit_size, cursor),
+            FieldKind::Bits { bit_size, endian } => {
+                let order = match resolve_endian(*endian, parent_ty.bit_endian) {
+                    Endian::Big => BitOrder::MostSignificantFirst,
+                    Endian::Little => BitOrder::LeastSignificantFirst,
+                };
+                let bits = cursor.read_bits(*bit_size, order)?;
+                Ok(if *bit_size == 1 {
+                    Value::Bool(bits != 0)
+                } else {
+                    Value::UInt(bits)
+                })
+            }
             FieldKind::TypeRef { type_name } => {
                 if ctx.depth() >= MAX_TYPE_DEPTH {
                     return Err(DoeError::FieldError {
@@ -391,28 +402,6 @@ impl<'reg> Engine<'reg> {
         };
         let s = decode_string(&bytes, encoding)?;
         Ok(Value::Str(s))
-    }
-
-    fn read_bits(bit_size: u8, cursor: &mut Cursor<'_>) -> Result<Value> {
-        // Read the minimum number of bytes needed, then extract the bits.
-        // For the initial implementation we read whole bytes and mask.
-        // Sub-byte bit fields across byte boundaries are deferred.
-        let byte_count = bit_size.div_ceil(8);
-        let bytes = cursor.read_bytes(usize::from(byte_count))?;
-        let mut v: u64 = 0;
-        for &b in bytes.iter() {
-            v = (v << 8) | u64::from(b);
-        }
-        // If not a multiple of 8, shift down to drop the padding bits
-        let extra_bits = u32::from(byte_count) * 8 - u32::from(bit_size);
-        v >>= extra_bits;
-        // Mask to bit_size bits
-        let mask = if bit_size >= 64 {
-            u64::MAX
-        } else {
-            (1u64 << bit_size) - 1
-        };
-        Ok(Value::UInt(v & mask))
     }
 }
 

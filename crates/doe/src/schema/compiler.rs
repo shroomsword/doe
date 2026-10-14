@@ -146,13 +146,14 @@ impl Compiler {
 
         // Compile all types in this schema (pass 2)
         let endian = raw_endian_to_ir(schema.meta.endian.unwrap_or(RawEndian::Le));
+        let bit_endian = raw_endian_to_ir(schema.meta.bit_endian.unwrap_or(RawEndian::Be));
         self.compile_type_decl(
             &schema.id,
             &schema.seq,
             &schema.types,
             &schema.enums,
             &HashMap::new(),
-            endian,
+            (endian, bit_endian),
         )?;
 
         self.loading_stack.pop();
@@ -208,7 +209,7 @@ impl Compiler {
         types: &IndexMap<String, RawTypeDecl>,
         enums: &IndexMap<String, HashMap<String, String>>,
         outer_enums: &HashMap<String, CompiledEnum>,
-        endian: Endian,
+        (endian, bit_endian): (Endian, Endian),
     ) -> Result<()> {
         // Enums visible in this type: the enclosing ones, then its own.
         let mut compiled_enums = outer_enums.clone();
@@ -233,6 +234,7 @@ impl Compiler {
             name: fqn.to_owned(),
             doc: None, // doc not propagated here; add if needed
             endian,
+            bit_endian,
             fields,
             enums: compiled_enums.clone(),
         };
@@ -241,15 +243,15 @@ impl Compiler {
         // Recurse into nested types
         for (name, decl) in types {
             let child_fqn = format!("{fqn}::{name}");
-            // Nested types inherit endian from parent unless they override it
-            // (RawTypeDecl has no meta; endian is purely inherited)
+            // Nested types inherit the byte and bit order from the parent
+            // (RawTypeDecl has no meta; both are purely inherited)
             self.compile_type_decl(
                 &child_fqn,
                 &decl.seq,
                 &decl.types,
                 &decl.enums,
                 &compiled_enums,
-                endian,
+                (endian, bit_endian),
             )?;
         }
 
@@ -312,6 +314,9 @@ impl Compiler {
         if let Some(kind) = numeric_type(type_name) {
             return Ok(kind);
         }
+        if let Some((bit_size, endian)) = bit_type(type_name) {
+            return bit_field(bit_size, endian, raw, ctx);
+        }
 
         match type_name {
             // ── Bytes ────────────────────────────────────────────────────
@@ -348,7 +353,7 @@ impl Compiler {
                     context: ctx.parent_fqn.to_owned(),
                     message: "'bits' type requires 'bit_size'".to_owned(),
                 })?;
-                Ok(FieldKind::Bits { bit_size })
+                bit_field(bit_size, EndianOverride::Inherit, raw, ctx)
             }
 
             // ── User-defined type ────────────────────────────────────────
@@ -461,6 +466,7 @@ fn placeholder(fqn: &str) -> CompiledType {
         name: fqn.to_owned(),
         doc: None,
         endian: Endian::Little,
+        bit_endian: Endian::Big,
         fields: vec![],
         enums: HashMap::new(),
     }
@@ -624,6 +630,43 @@ fn numeric_type(name: &str) -> Option<FieldKind> {
         }),
         _ => None,
     }
+}
+
+/// The size and bit order of a bit-field type name: `b1`..`b64`, with an
+/// optional `le` or `be`.
+fn bit_type(name: &str) -> Option<(u8, EndianOverride)> {
+    let rest = name.strip_prefix('b')?;
+    let digits_end = rest
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(rest.len());
+    let (digits, suffix) = rest.split_at(digits_end);
+    if digits.starts_with('0') {
+        return None;
+    }
+    let endian = match suffix {
+        "" => EndianOverride::Inherit,
+        "le" => EndianOverride::Little,
+        "be" => EndianOverride::Big,
+        _ => return None,
+    };
+    let bits: u8 = digits.parse().ok()?;
+    (1..=64).contains(&bits).then_some((bits, endian))
+}
+
+fn bit_field(
+    bit_size: u8,
+    endian: EndianOverride,
+    raw: &RawField,
+    ctx: &FieldCtx<'_>,
+) -> Result<FieldKind> {
+    if !(1..=64).contains(&bit_size) {
+        return Err(DoeError::FieldError {
+            field: raw.id.clone(),
+            context: ctx.parent_fqn.to_owned(),
+            message: format!("a bit field has 1 to 64 bits, not {bit_size}"),
+        });
+    }
+    Ok(FieldKind::Bits { bit_size, endian })
 }
 
 /// The new name of a numeric type spelled the way doe used to spell it, such

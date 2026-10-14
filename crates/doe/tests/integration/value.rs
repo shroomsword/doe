@@ -212,3 +212,13 @@ fn clone_and_eq_struct() {
     };
     assert_eq!(v.clone(), v);
 }
+
+#[test]
+fn bool_values() {
+    assert_eq!(Value::Bool(true).as_int(), None);
+    assert!(Value::Bool(true).is_truthy());
+    assert!(!Value::Bool(false).is_truthy());
+    assert_eq!(Value::Bool(true).type_name(), "bool");
+    assert_eq!(format!("{}", Value::Bool(true)), "true");
+    assert_eq!(format!("{}", Value::Bool(false)), "false");
+}
