@@ -103,9 +103,9 @@ impl<'reg> Engine<'reg> {
     ) -> Result<Value> {
         // Evaluate `if:` guard
         if let Some(if_expr) = &field.if_expr {
-            let cond = expr::eval(if_expr, &ctx.eval_ctx, "<if>")
+            let cond = expr::eval_bool(if_expr, &ctx.eval_ctx, "<if>")
                 .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
-            if cond == 0 {
+            if !cond {
                 return Ok(Value::Absent);
             }
         }
@@ -116,7 +116,7 @@ impl<'reg> Engine<'reg> {
 
         // `pos:` reads the whole field (every repeat) somewhere else, then
         // puts the cursor back where the sequence left off.
-        let target = expr::eval(pos_expr, &ctx.eval_ctx, "<pos>")
+        let target = expr::eval_int(pos_expr, &ctx.eval_ctx, "<pos>")
             .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
         let target = usize::try_from(target).map_err(|_| DoeError::FieldError {
             field: field.id.clone(),
@@ -157,7 +157,7 @@ impl<'reg> Engine<'reg> {
                 Ok(Value::Array(items))
             }
             RepeatMode::Count(count_expr) => {
-                let n = expr::eval(count_expr, &ctx.eval_ctx, "<repeat-expr>")
+                let n = expr::eval_int(count_expr, &ctx.eval_ctx, "<repeat-expr>")
                     .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
                 if n < 0 {
                     return Err(DoeError::FieldError {
@@ -189,14 +189,9 @@ impl<'reg> Engine<'reg> {
                     // Bind the most recently parsed value to `_` so the
                     // until-expression can reference it, matching the convention
                     // used by KaitaiStruct.
-                    let done = if let Some(n) = v.as_int() {
-                        ctx.eval_ctx.bind("_", n);
-                        expr::eval(until_expr, &ctx.eval_ctx, "<repeat-until>")
-                            .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?
-                            != 0
-                    } else {
-                        false
-                    };
+                    ctx.bind_scratch("_", &v);
+                    let done = expr::eval_bool(until_expr, &ctx.eval_ctx, "<repeat-until>")
+                        .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
                     items.push(v);
                     if done || cursor.is_eof() {
                         break;
@@ -434,7 +429,7 @@ fn eval_size(size: &SizeExpr, eval_ctx: &expr::EvalContext) -> Result<usize> {
     match size {
         SizeExpr::Literal(n) => Ok(*n),
         SizeExpr::Dynamic(e) => {
-            let v = expr::eval(e, eval_ctx, "<size>")?;
+            let v = expr::eval_int(e, eval_ctx, "<size>")?;
             if v < 0 {
                 return Err(DoeError::Schema(format!(
                     "size expression evaluated to negative value: {v}"

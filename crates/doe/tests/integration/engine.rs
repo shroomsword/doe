@@ -1573,14 +1573,18 @@ fn a_sub_type_can_read_a_field_of_its_parents_sub_type() {
 }
 
 #[test]
-fn unknown_or_non_numeric_sub_type_fields_are_errors() {
-    for reference in ["header.nope", "header.name", "header"] {
+fn unknown_or_non_integer_sub_type_fields_are_errors() {
+    for (reference, expected) in [
+        ("header.nope", "unknown field"),
+        ("header", "unknown field"),
+        ("header.name", "expected an integer"),
+    ] {
         let yaml = format!(
             "id: t\nseq:\n  - id: header\n    type: header_t\n  - id: body\n    type: bytes\n    size: {reference}\ntypes:\n  header_t:\n    seq:\n      - id: name\n        type: bytes\n        size: 1\n"
         );
         let err = parse_err(&yaml, "t", &[1, 2, 3]);
         assert!(
-            matches!(&err, DoeError::ExprEval { message, .. } if message.contains("unknown field")),
+            matches!(&err, DoeError::ExprEval { message, .. } if message.contains(expected)),
             "{reference}: {err:?}"
         );
     }
@@ -1877,6 +1881,209 @@ fn a_huge_repeat_count_does_not_reserve_memory_for_it() {
     let err = parse_err(yaml, "t", &data);
     assert!(
         matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
+        "{err:?}"
+    );
+}
+
+// ── Typed expressions in schemas ─────────────────────────────────────────
+
+#[test]
+fn if_can_compare_a_parsed_string() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: tag
+            type: str
+            size: 3
+            encoding: ascii
+          - id: abc_only
+            type: u8
+            if: tag == 'abc'
+          - id: long_tag
+            type: u8
+            if: tag.length > 3
+    "};
+    let v = parse(yaml, "t", b"abc\x07");
+    assert_eq!(get_field(&v, "abc_only").as_int(), Some(7));
+    assert!(get_field(&v, "long_tag").is_absent());
+    let v = parse(yaml, "t", b"xyz\x07");
+    assert!(get_field(&v, "abc_only").is_absent());
+}
+
+#[test]
+fn a_size_can_come_from_the_length_of_a_parsed_value() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: raw
+            type: bytes
+            size: 2
+          - id: again
+            type: bytes
+            size: raw.size * 2
+    "};
+    let v = parse(yaml, "t", &[1, 2, 3, 4, 5, 6]);
+    assert_eq!(get_field(&v, "again").byte_len(), Some(4));
+}
+
+#[test]
+fn a_repeat_count_can_come_from_the_size_of_an_array() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: first
+            type: u8
+            repeat: expr
+            repeat-expr: 3
+          - id: second
+            type: u8
+            repeat: expr
+            repeat-expr: first.size
+    "};
+    let v = parse(yaml, "t", &[1, 2, 3, 9, 8, 7]);
+    let Value::Array(items) = get_field(&v, "second") else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 3);
+}
+
+#[test]
+fn u64_values_above_i64_max_compare_exactly() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: big
+            type: u64le
+          - id: marker
+            type: u8
+            if: big > 9223372036854775807
+          - id: exact
+            type: u8
+            if: big == 0xffffffffffffffff
+    "};
+    let v = parse(yaml, "t", &[0xff; 10]);
+    assert_eq!(get_field(&v, "marker").as_int(), Some(0xff));
+    assert_eq!(get_field(&v, "exact").as_int(), Some(0xff));
+}
+
+#[test]
+fn a_size_can_be_chosen_with_a_conditional() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: wide
+            type: u8
+          - id: body
+            type: bytes
+            size: 'wide != 0 ? 4 : 2'
+    "};
+    assert_eq!(
+        get_field(&parse(yaml, "t", &[1, 1, 2, 3, 4]), "body").byte_len(),
+        Some(4)
+    );
+    assert_eq!(
+        get_field(&parse(yaml, "t", &[0, 1, 2]), "body").byte_len(),
+        Some(2)
+    );
+}
+
+#[test]
+fn a_float_field_can_be_used_in_a_condition() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: ratio
+            type: f32
+          - id: tail
+            type: u8
+            if: ratio > 1
+    "};
+    let mut big = 1.5f32.to_le_bytes().to_vec();
+    big.push(9);
+    assert_eq!(get_field(&parse(yaml, "t", &big), "tail").as_int(), Some(9));
+    let mut small = 0.5f32.to_le_bytes().to_vec();
+    small.push(9);
+    assert!(get_field(&parse(yaml, "t", &small), "tail").is_absent());
+}
+
+#[test]
+fn repeat_until_can_test_a_field_of_a_struct_element() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: records
+            type: rec
+            repeat: until
+            repeat-until: _.len == 0
+          - id: after
+            type: u8
+        types:
+          rec:
+            seq:
+              - id: len
+                type: u8
+              - id: pad
+                type: u8
+    "};
+    let v = parse(yaml, "t", &[2, 0, 1, 0, 0, 0, 7]);
+    let Value::Array(items) = get_field(&v, "records") else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 3);
+    assert_eq!(get_field(&v, "after").as_int(), Some(7));
+}
+
+#[test]
+fn repeat_until_can_test_a_string_element() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: names
+            type: str
+            size: 1
+            encoding: ascii
+            repeat: until
+            repeat-until: _ == 'z'
+    "};
+    let v = parse(yaml, "t", b"abzc");
+    let Value::Array(items) = get_field(&v, "names") else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 3);
+}
+
+#[test]
+fn an_expression_of_the_wrong_type_is_an_error() {
+    let cases = [
+        ("size: \"'abc'\"", "bytes"),
+        ("size: \"1.5\"", "bytes"),
+        ("size: \"true\"", "bytes"),
+        ("pos: \"[1]\"\n    size: 1", "bytes"),
+        ("repeat: expr\n    repeat-expr: \"'a'\"", "u8"),
+    ];
+    for (attrs, ty) in cases {
+        let yaml = format!("id: t\nseq:\n  - id: f\n    type: {ty}\n    {attrs}\n");
+        let err = parse_err(&yaml, "t", &[1, 2, 3]);
+        assert!(
+            matches!(&err, DoeError::ExprEval { message, .. } if message.contains("expected an integer"))
+                || matches!(&err, DoeError::FieldError { field, message, .. } if field == "f" && message.contains("expected an integer")),
+            "{attrs}: {err:?}"
+        );
+    }
+}
+
+#[test]
+fn an_if_expression_that_is_not_a_condition_is_an_error() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: f
+            type: u8
+            if: \"'text'\"
+    "};
+    let err = parse_err(yaml, "t", &[1]);
+    assert!(
+        matches!(&err, DoeError::FieldError { field, message, .. } if field == "f" && message.contains("expected a boolean")),
         "{err:?}"
     );
 }

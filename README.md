@@ -129,12 +129,17 @@ seq:
 
 ### Expressions
 
-`size:`, `repeat-expr:`, `repeat-until:`, and `if:` accept a small expression language. Earlier
-fields in the same sequence are referenced by name; fields in the parent type
-via `_parent.field_name`. Within a `repeat-until:` expression, `_` refers to
-the most recently parsed value. A field that holds a sub-type exposes its
-integer fields (including enum fields) as `field.name`, to any depth;
-strings, bytes and arrays have no numeric value and cannot be referenced.
+`size:`, `repeat-expr:`, `repeat-until:`, `if:` and `pos:` accept an expression
+language. Earlier fields in the same sequence are referenced by name; fields in
+the parent type via `_parent.field_name`. Within a `repeat-until:` expression,
+`_` refers to the most recently parsed value (a field of a sub-type is
+`_.name`). A field that holds a sub-type exposes its fields as `field.name`, to
+any depth.
+
+Expressions are typed. A field's value is an integer, a float, a string, a byte
+sequence or an array of those (an array of sub-types, and a `bytes` field longer
+than 64 KiB, cannot be referenced). `size:`, `repeat-expr:` and `pos:` need an
+integer; `if:` needs a condition.
 
 ```yaml
 # size from an earlier field
@@ -179,8 +184,62 @@ strings, bytes and arrays have no numeric value and cannot be referenced.
   repeat-expr: header.record_count
 ```
 
-Supported operators: `+` `-` `*` `/` `%` `&` `|` `^` `<<` `>>` `==` `!=`
-`<` `>` `<=` `>=` `&&` `||` `!`. Integer literals may be decimal or `0x`-prefixed hex and must fit in a signed 64-bit integer; a larger one is a schema error.
+```yaml
+# a string compared with a literal
+- id: tag
+  type: str
+  size: 4
+  encoding: ascii
+- id: version
+  type: u8
+  if: tag == 'DATA'
+
+# a conditional value (quote it: YAML reads `: ` in a plain value as a mapping)
+- id: wide
+  type: u8
+- id: body
+  type: bytes
+  size: 'wide != 0 ? 8 : 4'
+
+# the length of an earlier field
+- id: name
+  type: str
+  size: 8
+  encoding: ascii
+- id: name_copy
+  type: bytes
+  size: name.length * 2
+```
+
+**Operators**, from lowest to highest precedence: `?:`, `||`, `&&`, the
+comparisons `==` `!=` `<` `>` `<=` `>=`, `|`, `^`, `&`, `<<` `>>`, `+` `-`,
+`*` `/` `%`, and the prefix operators `!` `-` `~`.
+
+**Literals:** integers (decimal or `0x` hex), floats (`1.5`), strings, `true`,
+`false` and arrays (`[1, 2, 3]`). A string is `'raw'`, with no escapes, or
+`"with escapes"`, which understands `\\ \" \' \n \r \t \0 \xNN \uNNNN`.
+
+**Integers** are exact over the whole `u64` and `i64` ranges (they are 128-bit
+internally); a literal that does not fit in 128 bits is a schema error, and
+arithmetic that overflows is an error rather than wrapping. `/` and `%` round
+towards negative infinity, as in Kaitai Struct, so `-7 / 2` is `-4` and `-7 % 3`
+is `2`. An integer and a float can be mixed (the result is a float). A shift
+amount must be from 0 to 126. `&&`, `||`, `!` and `?:` also take an integer as a
+condition, where non-zero is true.
+
+**Strings** can be compared (`==`, `<`, ...) and joined with `+`; a string or
+array built by an expression is limited to 1 MiB.
+
+**Members and methods:**
+
+| On | Member |
+|----|--------|
+| string | `.length`, `.size`, `.reverse`, `.to_i`, `.to_i(radix)`, `.substring(from, to)`, `.to_s` |
+| bytes | `.length`, `.size`, `[i]`, `.first`, `.last`, `.min`, `.max` |
+| array | `.length`, `.size`, `[i]`, `.first`, `.last`, `.min`, `.max` |
+| integer | `.to_s` |
+| float | `.to_i`, `.to_s` |
+| boolean | `.to_i`, `.to_s` |
 
 ### Seeking
 

@@ -1,5 +1,6 @@
 use doe::Value;
 use doe::parser::context::*;
+use doe::schema::expr::ExprValue;
 
 #[test]
 fn new_context_is_empty() {
@@ -21,7 +22,7 @@ fn bind_uint_registers_in_eval_ctx() {
     ctx.bind("n", Value::UInt(42));
     // Expression evaluator should see it
     let result = doe::schema::expr::eval_str("n + 1", &ctx.eval_ctx).unwrap();
-    assert_eq!(result, 43);
+    assert_eq!(result, ExprValue::Int(43));
 }
 
 #[test]
@@ -29,15 +30,92 @@ fn bind_sint_registers_in_eval_ctx() {
     let mut ctx = ParseContext::new();
     ctx.bind("offset", Value::SInt(-8));
     let result = doe::schema::expr::eval_str("offset + 10", &ctx.eval_ctx).unwrap();
-    assert_eq!(result, 2);
+    assert_eq!(result, ExprValue::Int(2));
 }
 
 #[test]
-fn bind_bytes_does_not_register_in_eval_ctx() {
+fn bind_bytes_registers_the_bytes() {
     let mut ctx = ParseContext::new();
     ctx.bind("data", Value::Bytes(vec![1, 2, 3]));
-    // Bytes have no numeric value, so eval should fail
-    assert!(doe::schema::expr::eval_str("data", &ctx.eval_ctx).is_err());
+    let eval = |text| doe::schema::expr::eval_str(text, &ctx.eval_ctx).unwrap();
+    assert_eq!(eval("data"), ExprValue::Bytes(vec![1, 2, 3]));
+    assert_eq!(eval("data.size"), ExprValue::Int(3));
+    assert_eq!(eval("data[1]"), ExprValue::Int(2));
+}
+
+#[test]
+fn bind_registers_strings_floats_and_arrays_of_them() {
+    let mut ctx = ParseContext::new();
+    ctx.bind("name", Value::Str("abc".into()));
+    ctx.bind("ratio", Value::Float(1.5));
+    ctx.bind("list", Value::Array(vec![Value::UInt(4), Value::UInt(9)]));
+    let eval = |text| doe::schema::expr::eval_str(text, &ctx.eval_ctx).unwrap();
+    assert_eq!(eval("name"), ExprValue::Str("abc".into()));
+    assert_eq!(eval("name.length"), ExprValue::Int(3));
+    assert_eq!(eval("ratio"), ExprValue::Float(1.5));
+    assert_eq!(eval("list.size"), ExprValue::Int(2));
+    assert_eq!(eval("list[1]"), ExprValue::Int(9));
+}
+
+#[test]
+fn bind_leaves_out_what_is_not_kept_in_memory() {
+    let mut ctx = ParseContext::new();
+    ctx.bind(
+        "blob",
+        Value::Blob {
+            offset: 0,
+            len: 1 << 20,
+            preview: vec![],
+        },
+    );
+    ctx.bind("gone", Value::Absent);
+    ctx.bind(
+        "records",
+        Value::Array(vec![Value::Struct {
+            type_name: "r".into(),
+            fields: vec![],
+        }]),
+    );
+    for name in ["blob", "gone", "records"] {
+        assert!(
+            doe::schema::expr::eval_str(name, &ctx.eval_ctx).is_err(),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn bind_u64_above_i64_max_is_exact() {
+    let mut ctx = ParseContext::new();
+    ctx.bind("big", Value::UInt(u64::MAX));
+    assert_eq!(
+        doe::schema::expr::eval_str("big", &ctx.eval_ctx).unwrap(),
+        ExprValue::Int(i128::from(u64::MAX))
+    );
+}
+
+#[test]
+fn bind_scratch_replaces_the_previous_value_and_its_fields() {
+    let mut ctx = ParseContext::new();
+    let first = Value::Struct {
+        type_name: "r".into(),
+        fields: vec![("a".into(), Value::UInt(1)), ("b".into(), Value::UInt(2))],
+    };
+    let second = Value::Struct {
+        type_name: "r".into(),
+        fields: vec![("a".into(), Value::UInt(3))],
+    };
+    ctx.bind_scratch("_", &first);
+    assert_eq!(
+        doe::schema::expr::eval_str("_.b", &ctx.eval_ctx).unwrap(),
+        ExprValue::Int(2)
+    );
+    ctx.bind_scratch("_", &second);
+    assert_eq!(
+        doe::schema::expr::eval_str("_.a", &ctx.eval_ctx).unwrap(),
+        ExprValue::Int(3)
+    );
+    assert!(doe::schema::expr::eval_str("_.b", &ctx.eval_ctx).is_err());
 }
 
 #[test]
@@ -51,7 +129,7 @@ fn bind_enum_registers_discriminant() {
         },
     );
     let result = doe::schema::expr::eval_str("kind", &ctx.eval_ctx).unwrap();
-    assert_eq!(result, 2);
+    assert_eq!(result, ExprValue::Int(2));
 }
 
 #[test]
@@ -96,7 +174,7 @@ fn parent_field_accessible_in_eval_after_push() {
 
     // _parent.count should be accessible through the eval context
     let result = doe::schema::expr::eval_str("_parent.count + offset", &ctx.eval_ctx);
-    assert_eq!(result.unwrap(), 10);
+    assert_eq!(result.unwrap(), ExprValue::Int(10));
 
     ctx.pop_scope();
 }

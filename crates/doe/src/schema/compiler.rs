@@ -681,7 +681,25 @@ fn validate_size_expr_refs(expr_str: &str, ctx: &FieldCtx<'_>) -> Result<()> {
 fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx<'_>, src: &str) -> Result<()> {
     use expr::Expr;
     match e {
-        Expr::Int(_) | Expr::Bool(_) => Ok(()),
+        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) => Ok(()),
+        Expr::Array(items) => items
+            .iter()
+            .try_for_each(|item| check_field_refs_in_expr(item, ctx, src)),
+        Expr::Member(recv, _) => check_field_refs_in_expr(recv, ctx, src),
+        Expr::Call(recv, _, args) => {
+            check_field_refs_in_expr(recv, ctx, src)?;
+            args.iter()
+                .try_for_each(|arg| check_field_refs_in_expr(arg, ctx, src))
+        }
+        Expr::Index(target, index) => {
+            check_field_refs_in_expr(target, ctx, src)?;
+            check_field_refs_in_expr(index, ctx, src)
+        }
+        Expr::Ternary(cond, then, otherwise) => {
+            check_field_refs_in_expr(cond, ctx, src)?;
+            check_field_refs_in_expr(then, ctx, src)?;
+            check_field_refs_in_expr(otherwise, ctx, src)
+        }
         Expr::Field(parts) => {
             // Skip _parent references — those are resolved at parse time
             if parts.first().map(String::as_str) == Some("_parent") {
