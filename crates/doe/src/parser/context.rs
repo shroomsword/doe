@@ -6,7 +6,7 @@
 //! a new scope; when it returns it pops it.  This is what gives `_parent`
 //! references their meaning.
 
-use crate::schema::expr::EvalContext;
+use crate::schema::expr::{EvalContext, ExprValue};
 use crate::value::Value;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -16,7 +16,7 @@ use crate::value::Value;
 /// Runtime parse context.
 ///
 /// Maintains two parallel stacks:
-/// - `eval_ctx`: numeric bindings for the expression evaluator.
+/// - `eval_ctx`: bindings for the expression evaluator.
 /// - `value_stack`: the actual `Value` objects (needed to look up struct
 ///   fields by name if we ever support more complex path expressions).
 #[derive(Debug)]
@@ -92,7 +92,7 @@ impl ParseContext {
     /// If the value has a numeric representation, it is also bound in the
     /// expression evaluator so size/repeat/if expressions can reference it.
     pub fn bind(&mut self, id: &str, value: Value) {
-        self.bind_numeric(id, &value);
+        self.bind_eval(id, &value);
         if self.value_frames.is_empty() {
             self.value_frames.push(Vec::new());
         }
@@ -101,20 +101,29 @@ impl ParseContext {
         }
     }
 
-    /// Register the numeric parts of `value` for expression evaluation.
+    /// Register `value` for expression evaluation.
     ///
-    /// An integer is bound under `name`. The integer fields of a struct are
-    /// bound under dotted names (`name.field`, `name.inner.field`, ...), so
-    /// expressions can read `header.section_count`. Arrays, strings and bytes
-    /// have no numeric value and are not bound.
-    fn bind_numeric(&mut self, name: &str, value: &Value) {
-        if let Some(n) = value.as_int() {
-            self.eval_ctx.bind(name, n);
+    /// Integers, floats, strings, byte sequences and arrays of those are bound
+    /// under `name`. The fields of a struct are bound under dotted names
+    /// (`name.field`, `name.inner.field`, ...), so expressions can read
+    /// `header.section_count`. Values that are not kept in memory (a
+    /// [`Value::Blob`]), absent fields, and arrays with a struct among their
+    /// items are not bound.
+    fn bind_eval(&mut self, name: &str, value: &Value) {
+        if let Some(v) = to_expr_value(value) {
+            self.eval_ctx.bind(name, v);
         } else if let Value::Struct { fields, .. } = value {
             for (field, inner) in fields {
-                self.bind_numeric(&format!("{name}.{field}"), inner);
+                self.bind_eval(&format!("{name}.{field}"), inner);
             }
         }
+    }
+
+    /// Bind a value that exists only while one expression is evaluated, such
+    /// as `_` in `repeat-until`, replacing whatever `name` was bound to.
+    pub fn bind_scratch(&mut self, name: &str, value: &Value) {
+        self.eval_ctx.unbind_prefix(name);
+        self.bind_eval(name, value);
     }
 
     /// Look up the most recently bound value for `id` in the current scope.
@@ -137,5 +146,23 @@ impl ParseContext {
 impl Default for ParseContext {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// The expression value of `value`, if it has one.
+fn to_expr_value(value: &Value) -> Option<ExprValue> {
+    match value {
+        Value::UInt(n) => Some(ExprValue::from(*n)),
+        Value::SInt(n) => Some(ExprValue::from(*n)),
+        Value::Enum { value, .. } => Some(ExprValue::from(*value)),
+        Value::Float(x) => Some(ExprValue::Float(*x)),
+        Value::Str(s) => Some(ExprValue::Str(s.clone())),
+        Value::Bytes(b) => Some(ExprValue::Bytes(b.clone())),
+        Value::Array(items) => items
+            .iter()
+            .map(to_expr_value)
+            .collect::<Option<Vec<_>>>()
+            .map(ExprValue::Array),
+        Value::Blob { .. } | Value::Struct { .. } | Value::Absent => None,
     }
 }

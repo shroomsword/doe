@@ -4,7 +4,7 @@
 
 #![no_main]
 
-use doe::schema::expr::{EvalContext, eval, parse};
+use doe::schema::expr::{EvalContext, ExprValue, MAX_VALUE_LEN, eval, parse};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|text: &str| {
@@ -12,12 +12,17 @@ fuzz_target!(|text: &str| {
         return;
     };
     let mut ctx = EvalContext::new();
-    ctx.bind("a", i64::MIN);
+    ctx.bind("a", i128::MIN);
     ctx.bind("b", -1);
     ctx.bind("c", 0);
     ctx.bind("x", 7);
+    ctx.bind("f", 2.5);
+    ctx.bind("s", "héllo");
+    ctx.bind("raw", vec![1u8, 2, 3]);
+    ctx.bind("list", vec![ExprValue::Int(4), ExprValue::Int(9)]);
+    ctx.bind("big", "x".repeat(MAX_VALUE_LEN));
     ctx.push_frame();
-    ctx.bind("y", i64::MAX);
+    ctx.bind("y", i128::MAX);
     drop(eval(&ast, &ctx, text));
     ctx.pop_frame();
     drop(eval(&ast, &ctx, text));

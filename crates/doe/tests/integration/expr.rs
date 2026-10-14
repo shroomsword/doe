@@ -5,8 +5,18 @@ fn ctx() -> EvalContext {
     EvalContext::new()
 }
 
+/// An integer or boolean result as an `i64`, which is what most of these
+/// tests compare with.
+fn as_i64(v: ExprValue) -> i64 {
+    match v {
+        ExprValue::Int(n) => i64::try_from(n).unwrap(),
+        ExprValue::Bool(b) => i64::from(b),
+        other => panic!("expected an integer, got {other:?}"),
+    }
+}
+
 fn eval(s: &str) -> i64 {
-    eval_str(s, &ctx()).expect(s)
+    as_i64(eval_str(s, &ctx()).expect(s))
 }
 
 fn eval_with(bindings: &[(&str, i64)], s: &str) -> i64 {
@@ -14,7 +24,7 @@ fn eval_with(bindings: &[(&str, i64)], s: &str) -> i64 {
     for (k, v) in bindings {
         c.bind(k, *v);
     }
-    eval_str(s, &c).expect(s)
+    as_i64(eval_str(s, &c).expect(s))
 }
 
 fn parse_err(s: &str) -> bool {
@@ -202,7 +212,7 @@ fn logical_and_short_circuits() {
     let ast = parse("0 && missing").unwrap();
     assert_eq!(
         doe::schema::expr::eval(&ast, &c, "0 && missing").unwrap(),
-        0
+        ExprValue::Bool(false)
     );
 }
 
@@ -212,7 +222,7 @@ fn logical_or_short_circuits() {
     let ast = parse("1 || missing").unwrap();
     assert_eq!(
         doe::schema::expr::eval(&ast, &c, "1 || missing").unwrap(),
-        1
+        ExprValue::Bool(true)
     );
 }
 
@@ -250,7 +260,7 @@ fn parent_field_ref() {
     let ast = parse("_parent.outer_count").unwrap();
     assert_eq!(
         doe::schema::expr::eval(&ast, &c, "_parent.outer_count").unwrap(),
-        7
+        ExprValue::Int(7)
     );
 }
 
@@ -260,7 +270,10 @@ fn parent_field_in_arithmetic() {
     c.bind("base", 100);
     c.push_frame();
     c.bind("offset", 5);
-    assert_eq!(eval_str("_parent.base + offset", &c).unwrap(), 105);
+    assert_eq!(
+        eval_str("_parent.base + offset", &c).unwrap(),
+        ExprValue::Int(105)
+    );
 }
 
 #[test]
@@ -332,7 +345,7 @@ fn nested_conditional() {
 fn bind_and_lookup_current_frame() {
     let mut c = ctx();
     c.bind("x", 42);
-    assert_eq!(eval_str("x", &c).ok(), Some(42));
+    assert_eq!(eval_str("x", &c).ok(), Some(ExprValue::Int(42)));
 }
 
 #[test]
@@ -341,7 +354,7 @@ fn push_frame_shadows_outer() {
     c.bind("x", 1);
     c.push_frame();
     c.bind("x", 2);
-    assert_eq!(eval_str("x", &c).ok(), Some(2));
+    assert_eq!(eval_str("x", &c).ok(), Some(ExprValue::Int(2)));
 }
 
 #[test]
@@ -351,7 +364,7 @@ fn pop_frame_restores_outer() {
     c.push_frame();
     c.bind("x", 2);
     c.pop_frame();
-    assert_eq!(eval_str("x", &c).ok(), Some(1));
+    assert_eq!(eval_str("x", &c).ok(), Some(ExprValue::Int(1)));
 }
 
 #[test]
@@ -402,22 +415,32 @@ fn unary_ops_evaluate() {
     let neg = Expr::Unary(UnaryOp::Neg, Box::new(Expr::Int(5)));
     let not_zero = Expr::Unary(UnaryOp::Not, Box::new(Expr::Int(0)));
     let not_one = Expr::Unary(UnaryOp::Not, Box::new(Expr::Int(1)));
-    assert_eq!(doe::schema::expr::eval(&neg, &c, "-5").unwrap(), -5);
-    assert_eq!(doe::schema::expr::eval(&not_zero, &c, "!0").unwrap(), 1);
-    assert_eq!(doe::schema::expr::eval(&not_one, &c, "!1").unwrap(), 0);
+    assert_eq!(
+        doe::schema::expr::eval(&neg, &c, "-5").unwrap(),
+        ExprValue::Int(-5)
+    );
+    assert_eq!(
+        doe::schema::expr::eval(&not_zero, &c, "!0").unwrap(),
+        ExprValue::Bool(true)
+    );
+    assert_eq!(
+        doe::schema::expr::eval(&not_one, &c, "!1").unwrap(),
+        ExprValue::Bool(false)
+    );
 }
 
 #[test]
-fn bool_literal_evaluates_to_zero_or_one() {
+fn bool_literals_evaluate_to_booleans() {
     let c = ctx();
     assert_eq!(
         doe::schema::expr::eval(&Expr::Bool(true), &c, "true").unwrap(),
-        1
+        ExprValue::Bool(true)
     );
     assert_eq!(
         doe::schema::expr::eval(&Expr::Bool(false), &c, "false").unwrap(),
-        0
+        ExprValue::Bool(false)
     );
+    assert_eq!(parse("true").unwrap(), Expr::Bool(true));
 }
 
 #[test]
@@ -440,27 +463,32 @@ fn lone_equals_and_unknown_characters_are_errors() {
 fn eval_context_default_is_empty_root_scope() {
     let c = EvalContext::default();
     assert!(eval_str("x", &c).is_err());
-    assert_eq!(eval_str("1 + 1", &c).unwrap(), 2);
+    assert_eq!(eval_str("1 + 1", &c).unwrap(), ExprValue::Int(2));
 }
 
 #[test]
-fn i64_min_arithmetic_wraps_instead_of_panicking() {
+fn i64_min_arithmetic_is_exact() {
     let mut c = ctx();
     c.bind("m", i64::MIN);
-    assert_eq!(eval_str("-m", &c).unwrap(), i64::MIN);
-    assert_eq!(eval_str("m / -1", &c).unwrap(), i64::MIN);
-    assert_eq!(eval_str("m % -1", &c).unwrap(), 0);
+    let max_plus_one = ExprValue::Int(i128::from(i64::MAX) + 1);
+    assert_eq!(eval_str("-m", &c).unwrap(), max_plus_one);
+    assert_eq!(eval_str("m / -1", &c).unwrap(), max_plus_one);
+    assert_eq!(eval_str("m % -1", &c).unwrap(), ExprValue::Int(0));
 }
 
 #[test]
-fn shift_amount_uses_low_six_bits() {
-    assert_eq!(eval("1 << 64"), 1);
-    assert_eq!(eval("1 << 65"), 2);
-    assert_eq!(eval("8 >> 67"), 1);
-    assert_eq!(eval("1 << -63"), 2);
+fn shifts_are_exact_and_out_of_range_amounts_are_errors() {
+    assert_eq!(eval("1 << 40"), 1 << 40);
+    assert_eq!(eval("1024 >> 3"), 128);
+    assert_eq!(eval("-8 >> 1"), -4);
+    assert_eq!(
+        eval_str("1 << 100", &ctx()).unwrap(),
+        ExprValue::Int(1 << 100)
+    );
+    for src in ["1 << 127", "1 << 128", "1 << -1", "1 >> -1", "1 >> 200"] {
+        assert!(eval_err(src), "{src}");
+    }
 }
-
-// ── Resource limits (regressions for stack overflows found by fuzzing) ────
 
 #[test]
 fn deeply_nested_parentheses_are_rejected_not_a_stack_overflow() {
@@ -515,24 +543,428 @@ fn depth_resets_between_sibling_groups() {
 #[test]
 fn integer_literals_that_do_not_fit_are_parse_errors() {
     for src in [
-        "0x8000000000000000",
-        "0xffffffffffffffff",
-        "9223372036854775808",
-        "99999999999999999999",
+        "0x80000000000000000000000000000000",
+        "170141183460469231731687303715884105728",
+        "99999999999999999999999999999999999999999",
         "0x",
         "1 + 0x",
-        "x == 99999999999999999999",
+        "x == 99999999999999999999999999999999999999999",
     ] {
         let err = parse(src).unwrap_err();
         assert!(
-            matches!(&err, DoeError::ExprParse { message, .. } if message.contains("integer literal")),
+            matches!(&err, DoeError::ExprParse { message, .. } if message.contains("does not fit")),
             "{src}: {err:?}"
         );
     }
 }
 
 #[test]
-fn the_largest_integer_literals_still_parse() {
-    assert_eq!(eval("9223372036854775807"), i64::MAX);
-    assert_eq!(eval("0x7fffffffffffffff"), i64::MAX);
+fn integer_literals_hold_every_u64_and_up_to_i128_max() {
+    let int = |src| eval_str(src, &ctx()).unwrap();
+    assert_eq!(
+        int("0xffffffffffffffff"),
+        ExprValue::Int(i128::from(u64::MAX))
+    );
+    assert_eq!(
+        int("18446744073709551615"),
+        ExprValue::Int(i128::from(u64::MAX))
+    );
+    assert_eq!(int("9223372036854775808"), ExprValue::Int(1 << 63));
+    assert_eq!(
+        int("0x7fffffffffffffffffffffffffffffff"),
+        ExprValue::Int(i128::MAX)
+    );
+}
+
+// ── Typed values ─────────────────────────────────────────────────────────
+
+fn value(src: &str) -> ExprValue {
+    eval_str(src, &ctx()).expect(src)
+}
+
+fn text(s: &str) -> ExprValue {
+    ExprValue::Str(s.to_owned())
+}
+
+#[test]
+fn float_literals_and_arithmetic() {
+    assert_eq!(value("1.5"), ExprValue::Float(1.5));
+    assert_eq!(value("1.5 + 1"), ExprValue::Float(2.5));
+    assert_eq!(value("3 * 0.5"), ExprValue::Float(1.5));
+    assert_eq!(value("1 / 4.0"), ExprValue::Float(0.25));
+    assert_eq!(value("-2.5"), ExprValue::Float(-2.5));
+    assert_eq!(value("1.5 < 2"), ExprValue::Bool(true));
+    assert_eq!(value("2 == 2.0"), ExprValue::Bool(true));
+    // A dot without a digit after it is a member access, not a fraction.
+    assert_eq!(value("10.to_s"), text("10"));
+}
+
+#[test]
+fn float_errors() {
+    assert!(eval_err("1.5 % 2"));
+    assert!(eval_err("1.5 & 1"));
+    assert!(eval_err("1.5 << 1"));
+}
+
+#[test]
+fn nan_compares_false_except_not_equal() {
+    let mut c = ctx();
+    c.bind("nan", f64::NAN);
+    let b = |src| eval_str(src, &c).unwrap();
+    assert_eq!(b("nan == nan"), ExprValue::Bool(false));
+    assert_eq!(b("nan != nan"), ExprValue::Bool(true));
+    assert_eq!(b("nan < 1"), ExprValue::Bool(false));
+    assert_eq!(b("nan >= 1"), ExprValue::Bool(false));
+}
+
+#[test]
+fn string_literals_and_escapes() {
+    assert_eq!(value("'abc'"), text("abc"));
+    assert_eq!(value("\"abc\""), text("abc"));
+    assert_eq!(value("'a\\nb'"), text("a\\nb"));
+    assert_eq!(value("\"a\\nb\""), text("a\nb"));
+    assert_eq!(value("\"\\t\\r\\0\\\\\\\"\\'\""), text("\t\r\0\\\"'"));
+    assert_eq!(value("\"\\x41\\u00e9\""), text("A\u{e9}"));
+    assert_eq!(value("'héllo'"), text("héllo"));
+    assert_eq!(value("''"), text(""));
+}
+
+#[test]
+fn bad_string_literals_are_parse_errors() {
+    for src in [
+        "'abc",
+        "\"abc",
+        "\"abc\\",
+        "\"\\q\"",
+        "\"\\x4\"",
+        "\"\\ud800\"",
+        "\"\\u12\"",
+    ] {
+        assert!(parse_err(src), "{src}");
+    }
+}
+
+#[test]
+fn strings_concatenate_and_compare() {
+    assert_eq!(value("'ab' + 'cd'"), text("abcd"));
+    assert_eq!(value("'ab' == 'ab'"), ExprValue::Bool(true));
+    assert_eq!(value("'ab' != 'ab'"), ExprValue::Bool(false));
+    assert_eq!(value("'ab' < 'b'"), ExprValue::Bool(true));
+    assert_eq!(value("'b' >= 'ab'"), ExprValue::Bool(true));
+    assert!(eval_err("'a' - 'b'"));
+    assert!(eval_err("'a' + 1"));
+    assert!(eval_err("'a' == 1"));
+}
+
+#[test]
+fn string_concatenation_is_bounded() {
+    // `s + s` doubles a string, so without a limit a short expression over a
+    // large field could ask for as much memory as it likes.
+    let mut c = ctx();
+    c.bind("big", "x".repeat(MAX_VALUE_LEN));
+    assert!(eval_str("big + 'y'", &c).is_err());
+    assert!(eval_str("big + big", &c).is_err());
+    assert!(eval_str("big + ''", &c).is_ok());
+    c.bind("half", "x".repeat(MAX_VALUE_LEN / 2));
+    assert!(eval_str("half + half", &c).is_ok());
+    assert!(eval_str("half + half + 'y'", &c).is_err());
+}
+
+#[test]
+fn booleans() {
+    assert_eq!(value("true"), ExprValue::Bool(true));
+    assert_eq!(value("true && false"), ExprValue::Bool(false));
+    assert_eq!(value("true || false"), ExprValue::Bool(true));
+    assert_eq!(value("!true"), ExprValue::Bool(false));
+    assert_eq!(value("true == true"), ExprValue::Bool(true));
+    assert_eq!(value("true != false"), ExprValue::Bool(true));
+    // Integers are conditions too: non-zero is true.
+    assert_eq!(value("3 && 4"), ExprValue::Bool(true));
+    assert_eq!(value("0 || 0"), ExprValue::Bool(false));
+    assert!(eval_err("true + 1"));
+    assert!(eval_err("true == 1"));
+    assert!(eval_err("'a' && true"));
+    assert!(eval_err("!'a'"));
+}
+
+#[test]
+fn logical_operators_evaluate_the_right_side_only_when_needed() {
+    assert_eq!(value("true || missing"), ExprValue::Bool(true));
+    assert_eq!(value("false && missing"), ExprValue::Bool(false));
+    assert!(eval_err("true && missing"));
+    assert!(eval_err("false || missing"));
+    assert_eq!(value("false && (1 / 0 == 0)"), ExprValue::Bool(false));
+}
+
+#[test]
+fn ternary() {
+    assert_eq!(value("true ? 1 : 2"), ExprValue::Int(1));
+    assert_eq!(value("false ? 1 : 2"), ExprValue::Int(2));
+    assert_eq!(value("1 < 2 ? 'yes' : 'no'"), text("yes"));
+    assert_eq!(value("0 ? 1 : 2"), ExprValue::Int(2));
+    // Right associative, and only the chosen branch is evaluated.
+    assert_eq!(value("false ? 1 : false ? 2 : 3"), ExprValue::Int(3));
+    assert_eq!(value("true ? 1 : missing"), ExprValue::Int(1));
+    assert_eq!(value("false ? missing : 2"), ExprValue::Int(2));
+    assert_eq!(value("(true ? 1 : 2) + 10"), ExprValue::Int(11));
+    assert!(eval_err("'a' ? 1 : 2"));
+    assert!(parse_err("true ? 1"));
+    assert!(parse_err("true ? 1 :"));
+    assert!(parse_err("? 1 : 2"));
+}
+
+#[test]
+fn division_and_remainder_round_towards_negative_infinity() {
+    for (src, expected) in [
+        ("7 / 2", 3),
+        ("-7 / 2", -4),
+        ("7 / -2", -4),
+        ("-7 / -2", 3),
+        ("6 / -2", -3),
+        ("7 % 3", 1),
+        ("-7 % 3", 2),
+        ("7 % -3", -2),
+        ("-7 % -3", -1),
+        ("-6 % 3", 0),
+    ] {
+        assert_eq!(value(src), ExprValue::Int(expected), "{src}");
+    }
+}
+
+#[test]
+fn integer_overflow_is_an_error() {
+    let mut c = ctx();
+    c.bind("max", i128::MAX);
+    c.bind("min", i128::MIN);
+    for src in [
+        "max + 1",
+        "min - 1",
+        "max * 2",
+        "-min",
+        "min / -1",
+        "min % -1",
+        "1 << 126 << 1",
+    ] {
+        assert!(eval_str(src, &c).is_err(), "{src}");
+    }
+    assert_eq!(
+        eval_str("max - 1 + 1", &c).unwrap(),
+        ExprValue::Int(i128::MAX)
+    );
+}
+
+#[test]
+fn bitwise_complement() {
+    assert_eq!(value("~0"), ExprValue::Int(-1));
+    assert_eq!(value("~5 & 0xff"), ExprValue::Int(250));
+    assert!(eval_err("~1.5"));
+    assert!(eval_err("~'a'"));
+}
+
+#[test]
+fn array_literals_and_indexing() {
+    assert_eq!(
+        value("[1, 'a', true]"),
+        ExprValue::Array(vec![ExprValue::Int(1), text("a"), ExprValue::Bool(true)])
+    );
+    assert_eq!(value("[]"), ExprValue::Array(vec![]));
+    assert_eq!(value("[10, 20, 30][1]"), ExprValue::Int(20));
+    assert_eq!(value("[[1, 2], [3]][0][1]"), ExprValue::Int(2));
+    assert_eq!(value("[1, 2, 3].size"), ExprValue::Int(3));
+    assert!(eval_err("[1, 2][2]"));
+    assert!(eval_err("[1, 2][-1]"));
+    assert!(eval_err("[1, 2]['a']"));
+    assert!(eval_err("5[0]"));
+    assert!(parse_err("[1, 2"));
+    assert!(parse_err("[1 2]"));
+    assert!(parse_err("[1, 2][0"));
+}
+
+#[test]
+fn array_members() {
+    assert_eq!(value("[3, 9, 1].first"), ExprValue::Int(3));
+    assert_eq!(value("[3, 9, 1].last"), ExprValue::Int(1));
+    assert_eq!(value("[3, 9, 1].min"), ExprValue::Int(1));
+    assert_eq!(value("[3, 9, 1].max"), ExprValue::Int(9));
+    assert_eq!(value("['b', 'a'].min"), text("a"));
+    assert_eq!(value("[1, 2, 3].length"), ExprValue::Int(3));
+    for src in ["[].first", "[].last", "[].min", "[].max", "[1, 'a'].max"] {
+        assert!(eval_err(src), "{src}");
+    }
+}
+
+#[test]
+fn string_members_and_methods() {
+    assert_eq!(value("'héllo'.length"), ExprValue::Int(5));
+    assert_eq!(value("'abc'.size"), ExprValue::Int(3));
+    assert_eq!(value("'abc'.reverse"), text("cba"));
+    assert_eq!(value("'abcdef'.substring(1, 4)"), text("bcd"));
+    assert_eq!(value("'abc'.substring(0, 0)"), text(""));
+    assert_eq!(value("'héllo'.substring(1, 3)"), text("él"));
+    assert_eq!(value("'123'.to_i"), ExprValue::Int(123));
+    assert_eq!(value("'-123'.to_i"), ExprValue::Int(-123));
+    assert_eq!(value("'ff'.to_i(16)"), ExprValue::Int(255));
+    assert_eq!(value("'101'.to_i(2)"), ExprValue::Int(5));
+    assert_eq!(value("'abc'.to_s"), text("abc"));
+    for src in [
+        "'abc'.substring(2, 1)",
+        "'abc'.substring(0, 4)",
+        "'abc'.substring(-1, 2)",
+        "'abc'.substring(1)",
+        "'abc'.substring('a', 2)",
+        "'abc'.to_i",
+        "''.to_i",
+        "'12'.to_i(1)",
+        "'12'.to_i(37)",
+        "'12'.to_i(2)",
+        "'abc'.nope",
+        "'abc'.length(1)",
+    ] {
+        assert!(eval_err(src), "{src}");
+    }
+}
+
+#[test]
+fn conversions() {
+    assert_eq!(value("123.to_s"), text("123"));
+    assert_eq!(value("(0 - 5).to_s"), text("-5"));
+    assert_eq!(value("1.5.to_s"), text("1.5"));
+    assert_eq!(value("2.9.to_i"), ExprValue::Int(2));
+    assert_eq!(value("(0 - 2.9).to_i"), ExprValue::Int(-2));
+    assert_eq!(value("true.to_i"), ExprValue::Int(1));
+    assert_eq!(value("false.to_i"), ExprValue::Int(0));
+    assert_eq!(value("true.to_s"), text("true"));
+    let mut c = ctx();
+    c.bind("inf", f64::INFINITY);
+    c.bind("huge", 1e300);
+    c.bind("nan", f64::NAN);
+    for src in ["inf.to_i", "huge.to_i", "nan.to_i"] {
+        assert!(eval_str(src, &c).is_err(), "{src}");
+    }
+}
+
+#[test]
+fn bytes_members_and_indexing() {
+    let mut c = ctx();
+    c.bind("raw", vec![5u8, 7, 6]);
+    let v = |src| eval_str(src, &c).unwrap();
+    assert_eq!(v("raw.size"), ExprValue::Int(3));
+    assert_eq!(v("raw.length"), ExprValue::Int(3));
+    assert_eq!(v("raw[1]"), ExprValue::Int(7));
+    assert_eq!(v("raw.first"), ExprValue::Int(5));
+    assert_eq!(v("raw.last"), ExprValue::Int(6));
+    assert_eq!(v("raw.min"), ExprValue::Int(5));
+    assert_eq!(v("raw.max"), ExprValue::Int(7));
+    assert_eq!(v("raw == raw"), ExprValue::Bool(true));
+    assert!(eval_str("raw[3]", &c).is_err());
+    assert!(eval_str("raw + raw", &c).is_err());
+}
+
+#[test]
+fn members_of_a_bound_field_use_the_longest_bound_prefix() {
+    let mut c = ctx();
+    c.bind("header", "outer");
+    c.bind("header.name", "inner");
+    assert_eq!(eval_str("header.name", &c).unwrap(), text("inner"));
+    assert_eq!(
+        eval_str("header.name.length", &c).unwrap(),
+        ExprValue::Int(5)
+    );
+    assert_eq!(eval_str("header.length", &c).unwrap(), ExprValue::Int(5));
+    assert!(eval_str("header.nope.length", &c).is_err());
+    c.push_frame();
+    c.bind("x", "abc");
+    assert_eq!(
+        eval_str("_parent.header.length", &c).unwrap(),
+        ExprValue::Int(5)
+    );
+    assert_eq!(eval_str("x.length", &c).unwrap(), ExprValue::Int(3));
+}
+
+#[test]
+fn members_and_calls_on_expressions() {
+    assert_eq!(value("('a' + 'bc').length"), ExprValue::Int(3));
+    assert_eq!(value("'abc'.substring(1, 3).length"), ExprValue::Int(2));
+    assert_eq!(value("'abc'.reverse.reverse"), text("abc"));
+    assert_eq!(value("[1, 2][1].to_s"), text("2"));
+    assert_eq!(value("(1 + 2).to_s + 'x'"), text("3x"));
+    assert!(parse_err("'abc'."));
+    assert!(parse_err("'abc'.1"));
+    assert!(parse_err("'abc'.substring(1,"));
+    assert!(parse_err("'abc'.substring(1 2)"));
+    // A call needs a receiver.
+    assert!(parse_err("substring(1, 2)"));
+}
+
+#[test]
+fn eval_bool_and_eval_int() {
+    let c = ctx();
+    let parsed = |src| parse(src).unwrap();
+    assert!(eval_bool(&parsed("1 < 2"), &c, "").unwrap());
+    assert!(eval_bool(&parsed("5"), &c, "").unwrap());
+    assert!(!eval_bool(&parsed("0"), &c, "").unwrap());
+    assert!(eval_bool(&parsed("'a'"), &c, "").is_err());
+    assert_eq!(eval_int(&parsed("2 + 3"), &c, "").unwrap(), 5);
+    assert!(eval_int(&parsed("true"), &c, "").is_err());
+    assert!(eval_int(&parsed("1.5"), &c, "").is_err());
+    assert!(eval_int(&parsed("'a'"), &c, "").is_err());
+}
+
+#[test]
+fn expression_values_convert_from_rust_values_and_display() {
+    assert_eq!(ExprValue::from(7u8), ExprValue::Int(7));
+    assert_eq!(ExprValue::from(-7i32), ExprValue::Int(-7));
+    assert_eq!(
+        ExprValue::from(u64::MAX),
+        ExprValue::Int(i128::from(u64::MAX))
+    );
+    assert_eq!(ExprValue::from(true), ExprValue::Bool(true));
+    assert_eq!(ExprValue::from("s"), text("s"));
+    assert_eq!(ExprValue::from(vec![1u8]), ExprValue::Bytes(vec![1]));
+    assert_eq!(
+        ExprValue::from(vec![ExprValue::Int(1)]),
+        ExprValue::Array(vec![ExprValue::Int(1)])
+    );
+    assert_eq!(ExprValue::Int(1).as_int(), Some(1));
+    assert_eq!(ExprValue::Bool(true).as_int(), None);
+    assert_eq!(ExprValue::Int(42).to_string(), "42");
+    assert_eq!(ExprValue::Float(1.5).to_string(), "1.5");
+    assert_eq!(ExprValue::Bool(true).to_string(), "true");
+    assert_eq!(text("a").to_string(), "\"a\"");
+    assert_eq!(ExprValue::Bytes(vec![1, 2]).to_string(), "<2 bytes>");
+    assert_eq!(ExprValue::Array(vec![]).to_string(), "[0 items]");
+    for (v, name) in [
+        (ExprValue::Int(0), "integer"),
+        (ExprValue::Float(0.0), "float"),
+        (ExprValue::Bool(true), "boolean"),
+        (text(""), "string"),
+        (ExprValue::Bytes(vec![]), "bytes"),
+        (ExprValue::Array(vec![]), "array"),
+    ] {
+        assert_eq!(v.type_name(), name);
+    }
+}
+
+#[test]
+fn unbind_prefix_removes_a_value_and_its_fields() {
+    let mut c = ctx();
+    c.bind("_", 1);
+    c.bind("_.a", 2);
+    c.bind("_x", 3);
+    c.unbind_prefix("_");
+    assert!(eval_str("_", &c).is_err());
+    assert!(eval_str("_.a", &c).is_err());
+    assert_eq!(eval_str("_x", &c).unwrap(), ExprValue::Int(3));
+}
+
+#[test]
+fn deep_but_legal_expressions_do_not_depend_on_the_stack_size() {
+    // Every operator level adds a level to the tree; evaluating it must not
+    // recurse once per level.
+    let src = format!("1{}", "+1".repeat((MAX_EXPR_LEN - 1) / 2));
+    let handle = std::thread::Builder::new()
+        .stack_size(128 * 1024)
+        .spawn(move || eval_str(&src, &EvalContext::new()).unwrap())
+        .unwrap();
+    assert_eq!(handle.join().unwrap(), ExprValue::Int(512));
 }
