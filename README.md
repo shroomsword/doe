@@ -155,13 +155,14 @@ integers. As in Kaitai Struct, entering a sub-type does not start a new byte.
 
 | Attribute | Purpose |
 |-----------|---------|
-| `size` | Byte count for `bytes`/`str`; may be a literal or an expression |
+| `size` | Byte count for `bytes`/`str`, or the size of the window a user type is parsed in (see [Sized sub-types](#sized-sub-types)); may be a literal or an expression |
 | `terminator` | Stop byte for `str` (e.g. `terminator: 0x0a` for newline) |
 | `encoding` | `utf8` (default), `ascii`, or `latin1` |
 | `repeat: eos` | Repeat the field until end of stream |
 | `repeat: expr` + `repeat-expr:` | Repeat a computed number of times |
 | `repeat: until` + `repeat-until:` | Repeat until an expression is true; `_` is the last parsed value |
 | `if:` | Skip the field when the expression is false |
+| `size-eos` | `true` to take the rest of the enclosing window or the input as the size; for `bytes`, `str` and user types |
 | `pos:` | Read the field at this byte offset instead of the current position; see [Seeking](#seeking) |
 | `enum:` | Map the parsed integer to a named variant |
 | `contents:` | Assert fixed bytes (magic numbers, file signatures) |
@@ -285,7 +286,8 @@ array built by an expression is limited to 1 MiB.
 
 `pos:` reads a field somewhere other than where the previous field ended. It
 takes a literal or an expression, like `size:`, and is an offset in bytes from
-the start of the file. Once the field has been read (all of its repeats, if it
+the start of the file (or, inside a [sized sub-type](#sized-sub-types), from the
+start of its window). Once the field has been read (all of its repeats, if it
 has `repeat:`), parsing carries on from where it was before, so `pos:` fields
 do not move the position of the fields around them.
 
@@ -342,6 +344,36 @@ enums:
     "1": b32
     "2": b64
 ```
+
+#### Sized sub-types
+
+`size:` on a field whose type is a sub-type parses it in a window of exactly
+that many bytes, starting at the current position. The type cannot read past
+the end of the window, `repeat: eos` inside it stops there, and `pos:` inside
+it is relative to its start. The enclosing type then continues after the whole
+window, whatever the sub-type used of it. `size-eos: true` makes the window
+run to the end of the enclosing window or of the input. With `repeat:`, each
+element gets its own window.
+
+```yaml
+seq:
+  - id: records
+    type: record
+    repeat: eos
+types:
+  record:
+    seq:
+      - id: kind
+        type: u1
+      - id: length
+        type: u2
+      - id: body
+        type: body_t
+        size: length          # body_t may read at most `length` bytes
+```
+
+`size` and `size-eos` apply to `bytes`, `str` and sub-types; on a numeric or
+bit type, or both on one field, they are a schema error.
 
 Enums are lexically scoped: an `enums:` block is visible in the type that
 declares it and in every type nested inside it. A nested type can declare an

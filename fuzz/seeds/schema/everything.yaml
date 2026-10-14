@@ -56,6 +56,11 @@ seq:
     type: u1
     repeat: until
     repeat-until: _ == 0
+  - id: framed_len
+    type: u1
+  - id: framed
+    type: framed_t
+    size: framed_len
   - id: rest
     type: u2
     repeat: eos
@@ -71,3 +76,10 @@ types:
       - id: inner
         type: bytes
         size: inner_len
+  framed_t:
+    seq:
+      - id: tag
+        type: u1
+      - id: payload
+        type: bytes
+        size-eos: true

@@ -27,6 +27,8 @@ pub struct ParseContext {
     value_frames: Vec<Vec<(String, Value)>>,
     /// Bytes read so far by fields placed with `pos:`.
     reread_bytes: usize,
+    /// The size of the input being parsed, which the `pos:` budget scales with.
+    input_len: usize,
 }
 
 /// A `pos:` field may read this many times the size of the input in total,
@@ -44,11 +46,17 @@ impl ParseContext {
             eval_ctx: EvalContext::new(),
             value_frames: vec![Vec::new()],
             reread_bytes: 0,
+            input_len: 0,
         }
     }
 
-    /// Account for `n` bytes read by a `pos:` field in a window of
-    /// `window_len` bytes.
+    /// Record the size of the whole input, which the `pos:` budget scales with
+    /// (not that of a window a field is read in).
+    pub fn set_input_len(&mut self, len: usize) {
+        self.input_len = len;
+    }
+
+    /// Account for `n` bytes read by a `pos:` field.
     ///
     /// Because `pos:` can send many elements to the same region, the total is
     /// bounded; see [`REREAD_FACTOR`].
@@ -56,9 +64,10 @@ impl ParseContext {
     /// # Errors
     ///
     /// Returns a message if the budget is spent.
-    pub fn charge_reread(&mut self, n: usize, window_len: usize) -> Result<(), String> {
+    pub fn charge_reread(&mut self, n: usize) -> Result<(), String> {
         self.reread_bytes = self.reread_bytes.saturating_add(n);
-        let budget = window_len
+        let budget = self
+            .input_len
             .saturating_mul(REREAD_FACTOR)
             .saturating_add(REREAD_FLOOR);
         if self.reread_bytes > budget {

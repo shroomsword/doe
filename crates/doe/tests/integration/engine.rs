@@ -1256,6 +1256,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
                 doc: None,
                 kind: FieldKind::TypeRef {
                     type_name: "missing".into(),
+                    size: None,
                 },
                 repeat: RepeatMode::Once,
                 if_expr: None,
@@ -2305,4 +2306,350 @@ fn a_bit_field_can_be_used_in_an_enum() {
             name: Some("five".into())
         }
     );
+}
+
+// ── Sized sub-streams ────────────────────────────────────────────────────
+
+const WINDOWED: &str = indoc! {"
+    id: t
+    seq:
+      - id: len
+        type: u1
+      - id: body
+        type: rec
+        size: len
+      - id: after
+        type: u1
+    types:
+      rec:
+        seq:
+          - id: a
+            type: u1
+          - id: b
+            type: u1
+"};
+
+#[test]
+fn a_sized_type_is_parsed_in_a_window_and_the_parent_skips_all_of_it() {
+    let v = parse(WINDOWED, "t", &[4, 1, 2, 9, 9, 7]);
+    let body = get_field(&v, "body");
+    assert_eq!(get_field(body, "a").as_int(), Some(1));
+    assert_eq!(get_field(body, "b").as_int(), Some(2));
+    // The type used two of the four bytes; the parent continues after all four.
+    assert_eq!(get_field(&v, "after").as_int(), Some(7));
+}
+
+#[test]
+fn a_type_cannot_read_past_its_window() {
+    // The window holds one byte, and the next one is there but not the type's.
+    let err = parse_err(WINDOWED, "t", &[1, 1, 2, 7]);
+    assert!(
+        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn a_window_larger_than_what_is_left_is_an_error() {
+    for len in [10u8, 255] {
+        let err = parse_err(WINDOWED, "t", &[len, 1, 2, 3]);
+        assert!(
+            matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
+            "{len}: {err:?}"
+        );
+    }
+    let yaml = "id: t\nseq:\n  - id: body\n    type: rec\n    size: 0x7fffffffffffffff\ntypes:\n  rec:\n    seq: []\n";
+    let err = parse_err(yaml, "t", &[1, 2, 3]);
+    assert!(
+        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn a_zero_size_window_holds_a_type_with_no_fields() {
+    let yaml = "id: t\nseq:\n  - id: body\n    type: empty\n    size: 0\n  - id: after\n    type: u1\ntypes:\n  empty:\n    seq: []\n";
+    let v = parse(yaml, "t", &[5]);
+    assert_eq!(get_field(&v, "after").as_int(), Some(5));
+    assert!(
+        parse_err(WINDOWED, "t", &[0, 1, 2])
+            .to_string()
+            .contains("overrun")
+            || matches!(parse_err(WINDOWED, "t", &[0, 1, 2]), DoeError::Schema(_))
+    );
+}
+
+#[test]
+fn every_repeated_element_gets_its_own_window() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: items
+            type: rec
+            size: 3
+            repeat: expr
+            repeat-expr: 2
+          - id: after
+            type: u1
+        types:
+          rec:
+            seq:
+              - id: a
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[1, 0, 0, 2, 0, 0, 9]);
+    let Value::Array(items) = get_field(&v, "items") else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 2);
+    assert_eq!(get_field(&items[1], "a").as_int(), Some(2));
+    assert_eq!(get_field(&v, "after").as_int(), Some(9));
+}
+
+#[test]
+fn repeat_eos_inside_a_window_stops_at_its_end() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: len
+            type: u1
+          - id: body
+            type: list
+            size: len
+          - id: after
+            type: u1
+        types:
+          list:
+            seq:
+              - id: values
+                type: u1
+                repeat: eos
+    "};
+    let v = parse(yaml, "t", &[3, 10, 11, 12, 99]);
+    let Value::Array(values) = get_field(get_field(&v, "body"), "values") else {
+        panic!("expected an array");
+    };
+    assert_eq!(values.len(), 3);
+    assert_eq!(get_field(&v, "after").as_int(), Some(99));
+}
+
+#[test]
+fn size_eos_runs_to_the_end_of_the_input_or_the_window() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: head
+            type: u1
+          - id: rest
+            type: list
+            size-eos: true
+        types:
+          list:
+            seq:
+              - id: values
+                type: u1
+                repeat: eos
+    "};
+    let v = parse(yaml, "t", &[1, 2, 3, 4]);
+    let Value::Array(values) = get_field(get_field(&v, "rest"), "values") else {
+        panic!("expected an array");
+    };
+    assert_eq!(values.len(), 3);
+    // Inside a window, "the rest" is the rest of that window.
+    let nested = indoc! {"
+        id: t
+        seq:
+          - id: outer
+            type: outer_t
+            size: 3
+          - id: after
+            type: u1
+        types:
+          outer_t:
+            seq:
+              - id: first
+                type: u1
+              - id: rest
+                type: bytes
+                size-eos: true
+    "};
+    let v = parse(nested, "t", &[1, 2, 3, 9]);
+    assert_eq!(
+        get_field(get_field(&v, "outer"), "rest").byte_len(),
+        Some(2)
+    );
+    assert_eq!(get_field(&v, "after").as_int(), Some(9));
+}
+
+#[test]
+fn size_eos_on_bytes_and_str_reads_the_rest() {
+    let yaml = "id: t\nseq:\n  - id: head\n    type: u1\n  - id: text\n    type: str\n    size-eos: true\n    encoding: ascii\n";
+    let v = parse(yaml, "t", b"\x00hello");
+    assert_eq!(get_field(&v, "text"), &Value::Str("hello".into()));
+    let yaml = "id: t\nseq:\n  - id: head\n    type: u1\n  - id: rest\n    type: bytes\n    size-eos: true\n";
+    let v = parse(yaml, "t", &[1, 2, 3]);
+    assert_eq!(get_field(&v, "rest"), &Value::Bytes(vec![2, 3]));
+    let v = parse(yaml, "t", &[1]);
+    assert_eq!(get_field(&v, "rest"), &Value::Bytes(vec![]));
+}
+
+#[test]
+fn windows_nest_and_an_inner_one_cannot_exceed_the_outer() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: outer
+            type: outer_t
+            size: 4
+          - id: after
+            type: u1
+        types:
+          outer_t:
+            seq:
+              - id: inner
+                type: inner_t
+                size: 2
+              - id: tail
+                type: u1
+          inner_t:
+            seq:
+              - id: x
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[1, 2, 3, 4, 9]);
+    assert_eq!(get_field(&v, "after").as_int(), Some(9));
+    let outer = get_field(&v, "outer");
+    assert_eq!(get_field(outer, "tail").as_int(), Some(3));
+    let too_big = yaml.replace("size: 2", "size: 6");
+    let err = parse_err(&too_big, "t", &[1, 2, 3, 4, 9, 9, 9, 9]);
+    assert!(
+        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn a_size_can_use_fields_of_the_enclosing_types() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: n
+            type: u1
+          - id: outer
+            type: outer_t
+        types:
+          outer_t:
+            seq:
+              - id: inner
+                type: inner_t
+                size: _parent.n
+              - id: after
+                type: u1
+          inner_t:
+            seq:
+              - id: x
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[3, 5, 0, 0, 8]);
+    assert_eq!(get_field(get_field(&v, "outer"), "after").as_int(), Some(8));
+}
+
+#[test]
+fn pos_inside_a_window_is_relative_to_the_window() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: skip
+            type: u1
+          - id: body
+            type: rec
+            size: 3
+        types:
+          rec:
+            seq:
+              - id: first
+                type: u1
+              - id: again
+                type: u1
+                pos: 0
+    "};
+    let v = parse(yaml, "t", &[0xaa, 7, 8, 9]);
+    let body = get_field(&v, "body");
+    assert_eq!(get_field(body, "first").as_int(), Some(7));
+    assert_eq!(get_field(body, "again").as_int(), Some(7));
+    // A position beyond the window is an error even if the input goes on.
+    let beyond = yaml.replace("pos: 0", "pos: 4");
+    assert!(
+        parse_err(&beyond, "t", &[0xaa, 7, 8, 9, 10, 11])
+            .to_string()
+            .contains("again")
+    );
+}
+
+#[test]
+fn a_window_starts_on_a_byte_boundary_after_bit_fields() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: bits
+            type: b4
+          - id: body
+            type: rec
+            size: 1
+        types:
+          rec:
+            seq:
+              - id: x
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[0xab, 0xcd]);
+    assert_eq!(get_field(get_field(&v, "body"), "x").as_int(), Some(0xcd));
+}
+
+#[test]
+fn an_empty_window_per_element_makes_no_progress() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: items
+            type: empty
+            size: 0
+            repeat: expr
+            repeat-expr: 3
+        types:
+          empty:
+            seq: []
+    "};
+    let err = parse_err(yaml, "t", &[1, 2, 3]);
+    assert!(
+        matches!(&err, DoeError::FieldError { message, .. } if message.contains("no bytes")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn the_pos_budget_is_measured_against_the_whole_input() {
+    // Many small windows each re-read a few bytes through `pos:`; the total is
+    // well within the budget of a 4 KiB input, though a window is 8 bytes.
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: items
+            type: rec
+            size: 8
+            repeat: eos
+        types:
+          rec:
+            seq:
+              - id: a
+                type: u1
+              - id: again
+                type: u4
+                pos: 0
+    "};
+    let v = parse(yaml, "t", &[1; 4096]);
+    let Value::Array(items) = get_field(&v, "items") else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 512);
 }
