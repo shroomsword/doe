@@ -274,11 +274,15 @@ impl Compiler {
         };
 
         let repeat = compile_repeat(raw, ctx)?;
-        let if_expr = raw.if_expr.as_deref().map(expr::parse).transpose()?;
+        let if_expr = raw
+            .if_expr
+            .as_deref()
+            .map(|text| compile_expr(text, ctx))
+            .transpose()?;
         let pos = raw
             .pos
             .as_ref()
-            .map(|p| expr::parse(&p.as_str()))
+            .map(|p| compile_expr(&p.as_str(), ctx))
             .transpose()?;
 
         // Validate enum reference if present
@@ -535,10 +539,66 @@ fn compile_size(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<SizeExpr> {
             // Validate: all bare identifiers in the expression must refer to
             // fields that appear earlier in the same seq.
             validate_size_expr_refs(s, ctx)?;
-            let ast = expr::parse(s)?;
-            Ok(SizeExpr::Dynamic(ast))
+            Ok(SizeExpr::Dynamic(compile_expr(s, ctx)?))
         }
     }
+}
+
+/// Parse an expression and replace its enum members (`kind_t::data`) with
+/// their values, using the enums visible in the field's type.
+fn compile_expr(text: &str, ctx: &FieldCtx<'_>) -> Result<expr::Expr> {
+    use expr::Expr;
+    let mut ast = expr::parse(text)?;
+    // A stack of subexpressions to visit, rather than recursion.
+    let mut stack = vec![&mut ast];
+    while let Some(node) = stack.pop() {
+        match node {
+            Expr::Enum(path) => {
+                let value = enum_member_value(path, ctx)?;
+                *node = Expr::Int(value);
+            }
+            Expr::Array(items) => stack.extend(items.iter_mut()),
+            Expr::Member(inner, _) | Expr::Unary(_, inner) => stack.push(inner),
+            Expr::Call(recv, _, args) => {
+                stack.push(recv);
+                stack.extend(args.iter_mut());
+            }
+            Expr::Index(a, b) | Expr::Binary(_, a, b) => {
+                stack.push(a);
+                stack.push(b);
+            }
+            Expr::Ternary(a, b, c) => {
+                stack.push(a);
+                stack.push(b);
+                stack.push(c);
+            }
+            Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) | Expr::Field(_) => {}
+        }
+    }
+    Ok(ast)
+}
+
+/// The value of the enum member `path` names (`["kind_t", "data"]`).
+fn enum_member_value(path: &[String], ctx: &FieldCtx<'_>) -> Result<i128> {
+    let context = ctx.parent_fqn.to_owned();
+    let [enum_name, member] = path else {
+        return Err(DoeError::Schema(format!(
+            "{context}: '{}': enum members qualified with a type are not supported; use enum::member",
+            path.join("::")
+        )));
+    };
+    let compiled = ctx
+        .enums
+        .get(enum_name.as_str())
+        .ok_or_else(|| DoeError::UnknownEnum {
+            enum_name: enum_name.clone(),
+            context: context.clone(),
+        })?;
+    compiled.value_of(member).map(i128::from).ok_or_else(|| {
+        DoeError::Schema(format!(
+            "{context}: enum '{enum_name}' has no member '{member}'"
+        ))
+    })
 }
 
 /// Compile `size` or `size-eos` if the field has either.
@@ -563,8 +623,7 @@ fn compile_repeat(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<RepeatMode> {
                     context: ctx.parent_fqn.to_owned(),
                     message: "'repeat: until' requires 'repeat-until'".to_owned(),
                 })?;
-            let ast = expr::parse(s)?;
-            Ok(RepeatMode::Until(ast))
+            Ok(RepeatMode::Until(compile_expr(s, ctx)?))
         }
         Some(RawRepeat::Expr) => {
             let s = raw
@@ -575,8 +634,7 @@ fn compile_repeat(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<RepeatMode> {
                     context: ctx.parent_fqn.to_owned(),
                     message: "'repeat: expr' requires 'repeat-expr'".to_owned(),
                 })?;
-            let ast = expr::parse(s)?;
-            Ok(RepeatMode::Count(ast))
+            Ok(RepeatMode::Count(compile_expr(s, ctx)?))
         }
     }
 }
@@ -744,7 +802,7 @@ fn validate_size_expr_refs(expr_str: &str, ctx: &FieldCtx<'_>) -> Result<()> {
 fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx<'_>, src: &str) -> Result<()> {
     use expr::Expr;
     match e {
-        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) => Ok(()),
+        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) | Expr::Enum(_) => Ok(()),
         Expr::Array(items) => items
             .iter()
             .try_for_each(|item| check_field_refs_in_expr(item, ctx, src)),
@@ -764,8 +822,12 @@ fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx<'_>, src: &str) -> Re
             check_field_refs_in_expr(otherwise, ctx, src)
         }
         Expr::Field(parts) => {
-            // Skip _parent references — those are resolved at parse time
-            if parts.first().map(String::as_str) == Some("_parent") {
+            // Skip _parent, _root and _io references — those are resolved at
+            // parse time
+            if matches!(
+                parts.first().map(String::as_str),
+                Some("_parent" | "_root" | "_io")
+            ) {
                 return Ok(());
             }
             let Some(name) = parts.first() else {

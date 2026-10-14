@@ -968,3 +968,144 @@ fn deep_but_legal_expressions_do_not_depend_on_the_stack_size() {
         .unwrap();
     assert_eq!(handle.join().unwrap(), ExprValue::Int(512));
 }
+
+// ── Enum literals, _root, _io, structs ───────────────────────────────────
+
+#[test]
+fn enum_members_parse_as_paths() {
+    assert_eq!(
+        parse("kind_t::data").unwrap(),
+        Expr::Enum(vec!["kind_t".into(), "data".into()])
+    );
+    assert_eq!(
+        parse("a::b::c").unwrap(),
+        Expr::Enum(vec!["a".into(), "b".into(), "c".into()])
+    );
+    assert!(matches!(
+        parse("kind == kind_t::data").unwrap(),
+        Expr::Binary(BinaryOp::Eq, ..)
+    ));
+    // A single colon is still the conditional.
+    assert!(matches!(parse("x ? a : b").unwrap(), Expr::Ternary(..)));
+    assert!(matches!(
+        parse("x ? kind_t::data : kind_t::other").unwrap(),
+        Expr::Ternary(..)
+    ));
+    for bad in ["a::", "::a", "a::1", "a:: ::b", "a::b::"] {
+        assert!(parse_err(bad), "{bad}");
+    }
+}
+
+#[test]
+fn an_enum_member_that_was_not_resolved_is_an_error_when_evaluated() {
+    let err = eval_str("kind_t::data", &ctx()).unwrap_err();
+    assert!(err.to_string().contains("not resolved"), "{err}");
+}
+
+#[test]
+fn root_reads_the_outermost_scope() {
+    let mut c = ctx();
+    c.bind("count", 3);
+    c.bind(
+        "header",
+        ExprValue::Struct(vec![("n".into(), ExprValue::Int(9))]),
+    );
+    c.push_frame();
+    c.bind("count", 100);
+    c.push_frame();
+    c.bind("count", 200);
+    let v = |src| eval_str(src, &c).unwrap();
+    assert_eq!(v("count"), ExprValue::Int(200));
+    assert_eq!(v("_root.count"), ExprValue::Int(3));
+    assert_eq!(v("_root.header.n"), ExprValue::Int(9));
+    assert_eq!(v("_parent.count"), ExprValue::Int(100));
+    assert_eq!(v("_parent._parent.count"), ExprValue::Int(3));
+    assert!(eval_str("_root", &c).is_err());
+    assert!(eval_str("_root.nope", &c).is_err());
+}
+
+#[test]
+fn io_reports_the_stream_the_expression_is_in() {
+    let mut c = ctx();
+    assert!(eval_str("_io.pos", &c).is_err(), "_io needs a parse");
+    c.set_io(3, 10, false);
+    let v = |src| eval_str(src, &c).unwrap();
+    assert_eq!(v("_io.pos"), ExprValue::Int(3));
+    assert_eq!(v("_io.size"), ExprValue::Int(10));
+    assert_eq!(v("_io.eof"), ExprValue::Bool(false));
+    assert_eq!(v("_io.size - _io.pos"), ExprValue::Int(7));
+    assert_eq!(v("_io.eof ? 1 : 2"), ExprValue::Int(2));
+    assert!(eval_str("_io.nope", &c).is_err());
+    c.set_io(10, 10, true);
+    assert_eq!(eval_str("_io.eof", &c).unwrap(), ExprValue::Bool(true));
+}
+
+#[test]
+fn struct_fields_come_before_methods() {
+    let mut c = ctx();
+    c.bind(
+        "rec",
+        ExprValue::Struct(vec![
+            ("size".into(), ExprValue::Int(42)),
+            ("name".into(), ExprValue::Str("abc".into())),
+        ]),
+    );
+    let v = |src| eval_str(src, &c).unwrap();
+    assert_eq!(v("rec.size"), ExprValue::Int(42));
+    assert_eq!(v("rec.name.length"), ExprValue::Int(3));
+    assert!(eval_str("rec.nope", &c).is_err());
+    assert!(eval_str("rec.length", &c).is_err());
+    assert!(eval_str("rec + 1", &c).is_err());
+}
+
+#[test]
+fn arrays_of_structs_are_indexed_and_navigated() {
+    let entry = |n: i128| ExprValue::Struct(vec![("n".into(), ExprValue::Int(n))]);
+    let mut c = ctx();
+    c.bind(
+        "entries",
+        ExprValue::Array(vec![entry(5), entry(6), entry(7)]),
+    );
+    let v = |src| eval_str(src, &c).unwrap();
+    assert_eq!(v("entries[0].n"), ExprValue::Int(5));
+    assert_eq!(v("entries[2].n + entries[1].n"), ExprValue::Int(13));
+    assert_eq!(v("entries[entries.size - 1].n"), ExprValue::Int(7));
+    assert_eq!(v("entries.first.n"), ExprValue::Int(5));
+    assert_eq!(v("entries.last.n"), ExprValue::Int(7));
+    assert_eq!(v("entries.size"), ExprValue::Int(3));
+    assert!(eval_str("entries[3].n", &c).is_err());
+    assert!(eval_str("entries[-1].n", &c).is_err());
+    assert!(eval_str("entries.min", &c).is_err());
+}
+
+#[test]
+fn an_omitted_value_knows_only_its_size() {
+    let mut c = ctx();
+    c.bind("big", ExprValue::Omitted { len: 5_000_000 });
+    let v = |src| eval_str(src, &c);
+    assert_eq!(v("big.size").unwrap(), ExprValue::Int(5_000_000));
+    assert_eq!(v("big.length").unwrap(), ExprValue::Int(5_000_000));
+    assert_eq!(v("big.size > 1000").unwrap(), ExprValue::Bool(true));
+    for src in [
+        "big[0]",
+        "big.first",
+        "big.to_s",
+        "big == big",
+        "big + 1",
+        "!big",
+    ] {
+        assert!(v(src).is_err(), "{src}");
+    }
+    let err = v("big[0]").unwrap_err().to_string();
+    assert!(err.contains("too large"), "{err}");
+}
+
+#[test]
+fn struct_and_omitted_values_display_and_name_their_type() {
+    let st = ExprValue::Struct(vec![("a".into(), ExprValue::Int(1))]);
+    assert_eq!(st.type_name(), "struct");
+    assert_eq!(st.to_string(), "<struct with 1 fields>");
+    let om = ExprValue::Omitted { len: 9 };
+    assert_eq!(om.type_name(), "omitted value");
+    assert!(om.to_string().contains('9'));
+}

@@ -172,15 +172,22 @@ integers. As in Kaitai Struct, entering a sub-type does not start a new byte.
 
 `size:`, `repeat-expr:`, `repeat-until:`, `if:` and `pos:` accept an expression
 language. Earlier fields in the same sequence are referenced by name; fields in
-the parent type via `_parent.field_name`. Within a `repeat-until:` expression,
-`_` refers to the most recently parsed value (a field of a sub-type is
-`_.name`). A field that holds a sub-type exposes its fields as `field.name`, to
-any depth.
+the parent type via `_parent.field_name`, and those of the top-level type via
+`_root.field_name`. Within a `repeat-until:` expression, `_` refers to the most
+recently parsed value (a field of a sub-type is `_.name`). A field that holds a
+sub-type exposes its fields as `field.name`, to any depth, and an array of
+sub-types is indexed as `entries[0].offset` or `entries.last.size`.
 
-Expressions are typed. A field's value is an integer, a float, a string, a byte
-sequence or an array of those (an array of sub-types, and a `bytes` field longer
-than 64 KiB, cannot be referenced). `size:`, `repeat-expr:` and `pos:` need an
-integer; `if:` needs a condition.
+Expressions are typed. A field's value is an integer, a float, a boolean, a
+string, a byte sequence, an array or a sub-type. `size:`, `repeat-expr:` and
+`pos:` need an integer; `if:` needs a condition. A `bytes` field longer than
+64 KiB, and an array or sub-type of more than about a million values, are too
+large to copy into an expression: only their `.size` can be used.
+
+`_io` is the stream the expression is in, which is a window for a sized
+sub-type: `_io.pos` (bytes from its start), `_io.size` and `_io.eof`. An enum
+member is written `enum_name::member` and stands for its value, using the enums
+visible in the type (see [Sub-types](#sub-types)).
 
 ```yaml
 # size from an earlier field
@@ -241,6 +248,14 @@ integer; `if:` needs a condition.
 - id: body
   type: bytes
   size: 'wide != 0 ? 8 : 4'
+
+# an enum member
+- id: kind
+  type: u1
+  enum: kind_t
+- id: payload
+  type: u2
+  if: kind == kind_t::data
 
 # the length of an earlier field
 - id: name

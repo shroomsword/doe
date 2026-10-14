@@ -278,6 +278,13 @@ pub struct CompiledEnum {
 }
 
 impl CompiledEnum {
+    /// The discriminant of the variant called `name`, if there is one.
+    pub fn value_of(&self, name: &str) -> Option<u64> {
+        self.variants
+            .iter()
+            .find_map(|(value, variant)| (variant == name).then_some(*value))
+    }
+
     /// The variant name for discriminant `v`, if any.
     pub fn lookup(&self, v: u64) -> Option<&str> {
         self.variants.get(&v).map(String::as_str)

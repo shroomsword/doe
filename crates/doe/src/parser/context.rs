@@ -6,6 +6,7 @@
 //! a new scope; when it returns it pops it.  This is what gives `_parent`
 //! references their meaning.
 
+use crate::parser::cursor::Cursor;
 use crate::schema::expr::{EvalContext, ExprValue};
 use crate::value::Value;
 
@@ -30,6 +31,10 @@ pub struct ParseContext {
     /// The size of the input being parsed, which the `pos:` budget scales with.
     input_len: usize,
 }
+
+/// The most values one binding copies into the expression context; a larger
+/// array or sub-type is bound as [`ExprValue::Omitted`].
+pub const MAX_BOUND_VALUES: usize = 1 << 20;
 
 /// A `pos:` field may read this many times the size of the input in total,
 /// plus [`REREAD_FLOOR`]: enough for any table of records, but not for
@@ -110,22 +115,27 @@ impl ParseContext {
         }
     }
 
-    /// Register `value` for expression evaluation.
+    /// Register `value` for expression evaluation, under `name`.
     ///
-    /// Integers, floats, strings, byte sequences and arrays of those are bound
-    /// under `name`. The fields of a struct are bound under dotted names
-    /// (`name.field`, `name.inner.field`, ...), so expressions can read
-    /// `header.section_count`. Values that are not kept in memory (a
-    /// [`Value::Blob`]), absent fields, and arrays with a struct among their
-    /// items are not bound.
+    /// Integers, floats, booleans, strings, byte sequences, arrays and
+    /// sub-types (with their fields) are bound, so expressions can read
+    /// `header.section_count` or `entries[0].offset`. A value that is not kept
+    /// in memory (a [`Value::Blob`]) or too large to copy (see
+    /// [`MAX_BOUND_VALUES`]) is bound as [`ExprValue::Omitted`], which knows only
+    /// its size. Absent fields are not bound.
     fn bind_eval(&mut self, name: &str, value: &Value) {
-        if let Some(v) = to_expr_value(value) {
+        let mut budget = MAX_BOUND_VALUES;
+        if let Some(v) = to_expr_value(value, &mut budget) {
             self.eval_ctx.bind(name, v);
-        } else if let Value::Struct { fields, .. } = value {
-            for (field, inner) in fields {
-                self.bind_eval(&format!("{name}.{field}"), inner);
-            }
         }
+    }
+
+    /// Tell expressions where they are: the position, size and end of the
+    /// stream (the whole input or a window) that `cursor` reads, which `_io`
+    /// stands for.
+    pub fn set_io(&mut self, cursor: &Cursor<'_>) {
+        self.eval_ctx
+            .set_io(cursor.pos(), cursor.len(), cursor.is_eof());
     }
 
     /// Bind a value that exists only while one expression is evaluated, such
@@ -158,21 +168,45 @@ impl Default for ParseContext {
     }
 }
 
-/// The expression value of `value`, if it has one.
-fn to_expr_value(value: &Value) -> Option<ExprValue> {
-    match value {
-        Value::UInt(n) => Some(ExprValue::from(*n)),
-        Value::SInt(n) => Some(ExprValue::from(*n)),
-        Value::Enum { value, .. } => Some(ExprValue::from(*value)),
-        Value::Float(x) => Some(ExprValue::Float(*x)),
-        Value::Bool(b) => Some(ExprValue::Bool(*b)),
-        Value::Str(s) => Some(ExprValue::Str(s.clone())),
-        Value::Bytes(b) => Some(ExprValue::Bytes(b.clone())),
-        Value::Array(items) => items
-            .iter()
-            .map(to_expr_value)
-            .collect::<Option<Vec<_>>>()
-            .map(ExprValue::Array),
-        Value::Blob { .. } | Value::Struct { .. } | Value::Absent => None,
-    }
+/// The expression value of `value`, if it has one; `budget` is how many more
+/// values may be copied.
+fn to_expr_value(value: &Value, budget: &mut usize) -> Option<ExprValue> {
+    let too_large = |len: usize| ExprValue::Omitted { len };
+    Some(match value {
+        Value::UInt(n) => ExprValue::from(*n),
+        Value::SInt(n) => ExprValue::from(*n),
+        Value::Enum { value, .. } => ExprValue::from(*value),
+        Value::Float(x) => ExprValue::Float(*x),
+        Value::Bool(b) => ExprValue::Bool(*b),
+        Value::Str(s) => ExprValue::Str(s.clone()),
+        Value::Bytes(b) => ExprValue::Bytes(b.clone()),
+        Value::Blob { len, .. } => too_large(usize::try_from(*len).unwrap_or(usize::MAX)),
+        Value::Array(items) => {
+            if items.len() > *budget {
+                return Some(too_large(items.len()));
+            }
+            *budget -= items.len();
+            ExprValue::Array(
+                items
+                    .iter()
+                    .map(|item| to_expr_value(item, budget).unwrap_or(too_large(0)))
+                    .collect(),
+            )
+        }
+        Value::Struct { fields, .. } => {
+            if fields.len() > *budget {
+                return Some(too_large(fields.len()));
+            }
+            *budget -= fields.len();
+            ExprValue::Struct(
+                fields
+                    .iter()
+                    .filter_map(|(name, field)| {
+                        to_expr_value(field, budget).map(|v| (name.clone(), v))
+                    })
+                    .collect(),
+            )
+        }
+        Value::Absent => return None,
+    })
 }

@@ -1,0 +1,1 @@
+entries[header.n - 2].n + entries.last.n + _io.size - _io.pos + omitted.size

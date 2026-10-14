@@ -27,6 +27,7 @@
 //! in Kaitai Struct, and the logical operators and `?:` accept an integer as a
 //! condition (non-zero is true).
 
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -49,6 +50,10 @@ pub enum Expr {
     Str(String),
     /// Array literal: `[1, 2, 3]`.
     Array(Vec<Expr>),
+    /// An enum member: `["kind_t", "data"]` for `kind_t::data`. The schema
+    /// compiler replaces it with the member's value; evaluating one that was
+    /// not replaced is an error.
+    Enum(Vec<String>),
     /// Field reference, possibly qualified: `["_parent", "length"]`. Trailing
     /// segments that do not name a bound field are read as members of the
     /// value before them, so `name.length` is the length of the field `name`.
@@ -187,6 +192,7 @@ enum Token {
     Comma,
     Question,
     Colon,
+    ColonColon,
     Tilde,
     Eof,
 }
@@ -412,7 +418,12 @@ impl<'a> Lexer<'a> {
             }
             Some(b':') => {
                 self.advance();
-                Token::Colon
+                if self.peek() == Some(b':') {
+                    self.advance();
+                    Token::ColonColon
+                } else {
+                    Token::Colon
+                }
             }
             Some(b'~') => {
                 self.advance();
@@ -790,6 +801,18 @@ impl<'a> Parser<'a> {
             }
             Token::Ident(name) => {
                 self.bump();
+                if self.current == Token::ColonColon {
+                    let mut path = vec![name];
+                    while self.current == Token::ColonColon {
+                        self.bump();
+                        let Token::Ident(part) = self.current.clone() else {
+                            return Err(self.err("expected a name after '::'"));
+                        };
+                        self.bump();
+                        path.push(part);
+                    }
+                    return Ok(Expr::Enum(path));
+                }
                 Ok(match name.as_str() {
                     "true" => Expr::Bool(true),
                     "false" => Expr::Bool(false),
@@ -865,6 +888,15 @@ pub enum ExprValue {
     Bytes(Vec<u8>),
     /// An array of values.
     Array(Vec<ExprValue>),
+    /// A parsed sub-type: its fields, in order.
+    Struct(Vec<(String, ExprValue)>),
+    /// A value too large to hold in an expression (a long `bytes` field, a
+    /// very large array). Only its length is known, so `.size` and `.length`
+    /// work and any other use is an error.
+    Omitted {
+        /// Its length: bytes, or items.
+        len: usize,
+    },
 }
 
 impl ExprValue {
@@ -877,6 +909,8 @@ impl ExprValue {
             ExprValue::Str(_) => "string",
             ExprValue::Bytes(_) => "bytes",
             ExprValue::Array(_) => "array",
+            ExprValue::Struct(_) => "struct",
+            ExprValue::Omitted { .. } => "omitted value",
         }
     }
 
@@ -898,6 +932,8 @@ impl fmt::Display for ExprValue {
             ExprValue::Str(s) => write!(f, "{s:?}"),
             ExprValue::Bytes(b) => write!(f, "<{} bytes>", b.len()),
             ExprValue::Array(a) => write!(f, "[{} items]", a.len()),
+            ExprValue::Struct(fields) => write!(f, "<struct with {} fields>", fields.len()),
+            ExprValue::Omitted { len } => write!(f, "<value of {len} too large to use>"),
         }
     }
 }
@@ -947,6 +983,16 @@ impl From<&str> for ExprValue {
 pub struct EvalContext {
     /// Frames stored outer-to-inner; last element is current scope.
     frames: Vec<std::collections::HashMap<String, ExprValue>>,
+    /// What `_io` stands for, if an expression is being evaluated while parsing.
+    io: Option<Io>,
+}
+
+/// The stream the expression being evaluated is in.
+#[derive(Debug, Clone, Copy)]
+struct Io {
+    pos: usize,
+    size: usize,
+    eof: bool,
 }
 
 impl EvalContext {
@@ -954,7 +1000,14 @@ impl EvalContext {
     pub fn new() -> Self {
         EvalContext {
             frames: vec![std::collections::HashMap::new()],
+            io: None,
         }
+    }
+
+    /// Set what `_io` stands for: the position within the stream the
+    /// expression is in, its size and whether it is at its end.
+    pub fn set_io(&mut self, pos: usize, size: usize, eof: bool) {
+        self.io = Some(Io { pos, size, eof });
     }
 
     /// Enter a new, empty scope.
@@ -990,13 +1043,40 @@ impl EvalContext {
     /// Resolve a qualified path like `["_parent", "count"]`, or one that ends
     /// in members of a bound value like `["name", "length"]`.
     fn resolve_path(&self, parts: &[String], src: &str) -> Result<ExprValue> {
-        // Start at the innermost frame.
+        self.resolve_ref(parts, src).map(Cow::into_owned)
+    }
+
+    /// Like [`EvalContext::resolve_path`], but borrows the value when the path
+    /// ends at one, so that indexing a large array copies only the element.
+    fn resolve_ref<'a>(&'a self, parts: &[String], src: &str) -> Result<Cow<'a, ExprValue>> {
+        let mut rest = parts;
+
+        if let Some((first, tail)) = rest.split_first()
+            && first == "_io"
+        {
+            let io = self
+                .io
+                .ok_or_else(|| fail(src, "_io is only available while parsing"))?;
+            let stream = ExprValue::Struct(vec![
+                ("pos".to_owned(), length(io.pos)),
+                ("size".to_owned(), length(io.size)),
+                ("eof".to_owned(), ExprValue::Bool(io.eof)),
+            ]);
+            return apply_members(Cow::Owned(stream), tail, src);
+        }
+
+        // Start at the innermost frame, or at the outermost for `_root`.
         let mut frame_idx = self
             .frames
             .len()
             .checked_sub(1)
             .ok_or_else(|| fail(src, "no scope available"))?;
-        let mut rest = parts;
+        if let Some((first, tail)) = rest.split_first()
+            && first == "_root"
+        {
+            frame_idx = 0;
+            rest = tail;
+        }
 
         // Walk _parent segments
         while let Some((first, tail)) = rest.split_first()
@@ -1009,29 +1089,60 @@ impl EvalContext {
         }
 
         if rest.is_empty() {
-            return Err(fail(src, "field path ends at _parent with no field name"));
+            return Err(fail(
+                src,
+                "a field path ends at _root or _parent with no field name",
+            ));
         }
         let frame = self
             .frames
             .get(frame_idx)
             .ok_or_else(|| fail(src, "no scope available"))?;
-        // A path into a parsed sub-type (`header.section_count`) is bound under
-        // its dotted name; anything after the longest bound prefix is a member
-        // of that value.
+        // The longest prefix of the path that is bound names a value; anything
+        // after it is a member of that value.
         for split in (1..=rest.len()).rev() {
             let (Some(head), Some(members)) = (rest.get(..split), rest.get(split..)) else {
                 continue;
             };
             if let Some(value) = frame.get(head.join(".").as_str()) {
-                let mut value = value.clone();
-                for member in members {
-                    value = call_method(value, member, &[], src)?;
-                }
-                return Ok(value);
+                return apply_members(Cow::Borrowed(value), members, src);
             }
         }
         Err(fail(src, &format!("unknown field '{}'", parts.join("."))))
     }
+}
+
+/// Apply `.member`s to a value: a field of a sub-type, or a method without
+/// arguments. Fields are followed by reference, so only the final value is
+/// copied.
+fn apply_members<'a>(
+    mut value: Cow<'a, ExprValue>,
+    members: &[String],
+    src: &str,
+) -> Result<Cow<'a, ExprValue>> {
+    for member in members {
+        value = match value {
+            Cow::Borrowed(ExprValue::Struct(fields)) => Cow::Borrowed(
+                find_field(fields, member)
+                    .ok_or_else(|| fail(src, &format!("a struct has no field '{member}'")))?,
+            ),
+            Cow::Owned(ExprValue::Struct(fields)) => Cow::Owned(
+                fields
+                    .into_iter()
+                    .find(|(name, _)| name == member)
+                    .map(|(_, v)| v)
+                    .ok_or_else(|| fail(src, &format!("a struct has no field '{member}'")))?,
+            ),
+            other => Cow::Owned(call_method(&other, member, &[], src)?),
+        };
+    }
+    Ok(value)
+}
+
+fn find_field<'a>(fields: &'a [(String, ExprValue)], name: &str) -> Option<&'a ExprValue> {
+    fields
+        .iter()
+        .find_map(|(field, value)| (field == name).then_some(value))
 }
 
 impl Default for EvalContext {
@@ -1104,16 +1215,22 @@ pub fn eval(expr: &Expr, ctx: &EvalContext, src: &str) -> Result<ExprValue> {
             }
             Work::Member(name) => {
                 let recv = pop(&mut values, src)?;
-                values.push(call_method(recv, name, &[], src)?);
+                values.push(call_method(&recv, name, &[], src)?);
             }
             Work::Call(name, n) => {
                 let args = values.split_off(values.len().saturating_sub(n));
                 let recv = pop(&mut values, src)?;
-                values.push(call_method(recv, name, &args, src)?);
+                values.push(call_method(&recv, name, &args, src)?);
             }
             Work::Index => {
                 let (index, target) = (pop(&mut values, src)?, pop(&mut values, src)?);
-                values.push(index_value(target, &index, src)?);
+                values.push(index_value(&target, &index, src)?);
+            }
+            Work::IndexField(parts) => {
+                // Index a field in place, without copying all of it first.
+                let index = pop(&mut values, src)?;
+                let target = ctx.resolve_ref(parts, src)?;
+                values.push(index_value(&target, &index, src)?);
             }
         }
     }
@@ -1143,6 +1260,8 @@ enum Work<'e> {
     /// Collect the top `n` values into an array.
     Array(usize),
     Member(&'e str),
+    /// Index the field at this path by the value on top.
+    IndexField(&'e [String]),
     /// Call a method with the top `n` values as arguments, on the one below.
     Call(&'e str, usize),
     Index,
@@ -1202,9 +1321,23 @@ fn schedule<'e>(
             work.push(Work::Eval(recv));
         }
         Expr::Index(target, index) => {
-            work.push(Work::Index);
-            work.push(Work::Eval(index));
-            work.push(Work::Eval(target));
+            if let Expr::Field(parts) = &**target {
+                work.push(Work::IndexField(parts));
+                work.push(Work::Eval(index));
+            } else {
+                work.push(Work::Index);
+                work.push(Work::Eval(index));
+                work.push(Work::Eval(target));
+            }
+        }
+        Expr::Enum(path) => {
+            return Err(fail(
+                src,
+                &format!(
+                    "the enum member {} was not resolved: enum members are resolved when a schema is compiled",
+                    path.join("::")
+                ),
+            ));
         }
     }
     Ok(())
@@ -1399,7 +1532,7 @@ fn compare(l: &ExprValue, r: &ExprValue, src: &str) -> Result<Option<Ordering>> 
     })
 }
 
-fn index_value(target: ExprValue, index: &ExprValue, src: &str) -> Result<ExprValue> {
+fn index_value(target: &ExprValue, index: &ExprValue, src: &str) -> Result<ExprValue> {
     let ExprValue::Int(i) = *index else {
         return Err(fail(
             src,
@@ -1419,6 +1552,10 @@ fn index_value(target: ExprValue, index: &ExprValue, src: &str) -> Result<ExprVa
             .and_then(|i| bytes.get(i))
             .map(|&b| ExprValue::Int(i128::from(b)))
             .ok_or_else(|| out_of_range(bytes.len())),
+        ExprValue::Omitted { .. } => Err(fail(
+            src,
+            "the value is too large to use in an expression; only its size is available",
+        )),
         other => Err(fail(
             src,
             &format!("a {} cannot be indexed", other.type_name()),
@@ -1448,9 +1585,25 @@ fn length(n: usize) -> ExprValue {
 }
 
 /// Members and methods of values: `.length`, `.to_i`, `.substring(a, b)`, ...
-fn call_method(recv: ExprValue, name: &str, args: &[ExprValue], src: &str) -> Result<ExprValue> {
-    use ExprValue::{Array, Bool, Bytes, Float, Int, Str};
-    match (&recv, name) {
+fn call_method(recv: &ExprValue, name: &str, args: &[ExprValue], src: &str) -> Result<ExprValue> {
+    use ExprValue::{Array, Bool, Bytes, Float, Int, Omitted, Str, Struct};
+    match (recv, name) {
+        (Struct(fields), _) => {
+            expect_args(name, args, &[0], src)?;
+            find_field(fields, name)
+                .cloned()
+                .ok_or_else(|| fail(src, &format!("a struct has no field '{name}'")))
+        }
+        (Omitted { len }, "length" | "size") => {
+            expect_args(name, args, &[0], src)?;
+            Ok(length(*len))
+        }
+        (Omitted { .. }, _) => Err(fail(
+            src,
+            &format!(
+                "'{name}': the value is too large to use in an expression; only its size is available"
+            ),
+        )),
         (Str(s), "length" | "size") => {
             expect_args(name, args, &[0], src)?;
             Ok(length(s.chars().count()))
@@ -1495,7 +1648,7 @@ fn call_method(recv: ExprValue, name: &str, args: &[ExprValue], src: &str) -> Re
         }
         (Str(_), "to_s") | (Int(_), "to_i") | (Float(_), "to_f") => {
             expect_args(name, args, &[0], src)?;
-            Ok(recv)
+            Ok(recv.clone())
         }
         (Int(n), "to_s") => {
             expect_args(name, args, &[0], src)?;
