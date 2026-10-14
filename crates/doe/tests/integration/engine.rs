@@ -2848,3 +2848,329 @@ fn pos_can_come_from_an_entry_of_an_array() {
     let v = parse(yaml, "t", &[6, 7, 0, 0, 0, 0, 0xee, 0xff]);
     assert_eq!(get_field(&v, "second").as_int(), Some(0xff));
 }
+
+// ── switch-on ────────────────────────────────────────────────────────────
+
+const CHUNKS: &str = indoc! {"
+    id: t
+    seq:
+      - id: kind
+        type: u1
+      - id: len
+        type: u1
+      - id: body
+        type:
+          switch-on: kind
+          cases:
+            1: text_t
+            2: pair_t
+            3: u2le
+            _: bytes
+        size: len
+      - id: after
+        type: u1
+    types:
+      text_t:
+        seq:
+          - id: text
+            type: str
+            size-eos: true
+            encoding: ascii
+      pair_t:
+        seq:
+          - id: a
+            type: u1
+          - id: b
+            type: u1
+"};
+
+#[test]
+fn a_switch_parses_the_case_that_matches_the_selector() {
+    let v = parse(CHUNKS, "t", &[1, 3, b'a', b'b', b'c', 9]);
+    assert_eq!(
+        get_field(get_field(&v, "body"), "text"),
+        &Value::Str("abc".into())
+    );
+    assert_eq!(get_field(&v, "after").as_int(), Some(9));
+    let v = parse(CHUNKS, "t", &[2, 3, 7, 8, 0, 9]);
+    let body = get_field(&v, "body");
+    assert_eq!(get_field(body, "a").as_int(), Some(7));
+    assert_eq!(get_field(body, "b").as_int(), Some(8));
+    // The window is three bytes whatever the type used.
+    assert_eq!(get_field(&v, "after").as_int(), Some(9));
+}
+
+#[test]
+fn a_switch_can_choose_a_numeric_type() {
+    let v = parse(CHUNKS, "t", &[3, 2, 0x34, 0x12, 9]);
+    assert_eq!(get_field(&v, "body"), &Value::UInt(0x1234));
+}
+
+#[test]
+fn the_default_case_catches_the_rest_and_fills_the_window() {
+    let v = parse(CHUNKS, "t", &[9, 3, 1, 2, 3, 9]);
+    assert_eq!(get_field(&v, "body"), &Value::Bytes(vec![1, 2, 3]));
+    assert_eq!(get_field(&v, "after").as_int(), Some(9));
+}
+
+#[test]
+fn without_a_default_a_sized_field_is_read_as_bytes() {
+    let yaml = CHUNKS.replace("            _: bytes\n", "");
+    let v = parse(&yaml, "t", &[9, 2, 5, 6, 9]);
+    assert_eq!(get_field(&v, "body"), &Value::Bytes(vec![5, 6]));
+    assert_eq!(get_field(&v, "after").as_int(), Some(9));
+}
+
+#[test]
+fn without_a_default_or_a_size_an_unmatched_field_is_absent() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: body
+            type:
+              switch-on: kind
+              cases:
+                1: u1
+          - id: after
+            type: u1
+    "};
+    let v = parse(yaml, "t", &[1, 5, 6]);
+    assert_eq!(get_field(&v, "body"), &Value::UInt(5));
+    assert_eq!(get_field(&v, "after").as_int(), Some(6));
+    let v = parse(yaml, "t", &[2, 6]);
+    assert!(get_field(&v, "body").is_absent());
+    assert_eq!(get_field(&v, "after").as_int(), Some(6));
+}
+
+#[test]
+fn the_chosen_type_cannot_read_past_the_window() {
+    let err = parse_err(CHUNKS, "t", &[2, 1, 7, 8, 9]);
+    assert!(
+        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn case_keys_can_be_enum_members_strings_and_booleans() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+            enum: kind_t
+          - id: by_enum
+            type:
+              switch-on: kind
+              cases:
+                kind_t::data: u1
+                kind_t::control: u2le
+          - id: tag
+            type: str
+            size: 3
+            encoding: ascii
+          - id: by_string
+            type:
+              switch-on: tag
+              cases:
+                '\"abc\"': u1
+                '\"xyz\"': u2le
+          - id: flag
+            type: b1
+          - id: pad
+            type: b7
+          - id: by_bool
+            type:
+              switch-on: flag
+              cases:
+                true: u1
+                false: u2le
+        enums:
+          kind_t:
+            1: data
+            2: control
+    "};
+    let v = parse(
+        yaml,
+        "t",
+        &[2, 0x01, 0x02, b'x', b'y', b'z', 0x07, 0x00, 0x80, 0x55],
+    );
+    assert_eq!(get_field(&v, "by_enum"), &Value::UInt(0x0201));
+    assert_eq!(get_field(&v, "by_string"), &Value::UInt(7));
+    assert_eq!(get_field(&v, "by_bool"), &Value::UInt(0x55));
+}
+
+#[test]
+fn the_first_matching_case_wins() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: body
+            type:
+              switch-on: kind
+              cases:
+                'kind > 0 ? 1 : 0': u1
+                1: u2le
+    "};
+    // Both keys equal the selector 1; the first is tried first.
+    let v = parse(yaml, "t", &[1, 5, 6]);
+    assert_eq!(get_field(&v, "body"), &Value::UInt(5));
+}
+
+#[test]
+fn a_switch_is_evaluated_for_every_repeated_element() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: records
+            type: record
+            repeat: eos
+        types:
+          record:
+            seq:
+              - id: kind
+                type: u1
+              - id: value
+                type:
+                  switch-on: kind
+                  cases:
+                    1: u1
+                    2: u2le
+    "};
+    let v = parse(yaml, "t", &[1, 9, 2, 1, 2, 1, 3]);
+    let Value::Array(records) = get_field(&v, "records") else {
+        panic!("expected an array");
+    };
+    let values: Vec<Value> = records
+        .iter()
+        .map(|r| get_field(r, "value").clone())
+        .collect();
+    assert_eq!(
+        values,
+        [Value::UInt(9), Value::UInt(0x0201), Value::UInt(3)]
+    );
+}
+
+#[test]
+fn a_switch_field_can_have_an_enum_and_be_used_afterwards() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: body
+            type:
+              switch-on: kind
+              cases:
+                1: u1
+                2: u2le
+            enum: body_t
+          - id: next
+            type: u1
+            if: body == body_t::five
+        enums:
+          body_t:
+            5: five
+    "};
+    let v = parse(yaml, "t", &[1, 5, 77]);
+    assert_eq!(
+        get_field(&v, "body"),
+        &Value::Enum {
+            value: 5,
+            name: Some("five".into())
+        }
+    );
+    assert_eq!(get_field(&v, "next").as_int(), Some(77));
+}
+
+#[test]
+fn the_selector_may_use_parent_fields_and_sizes_expressions() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: n
+            type: u1
+          - id: inner
+            type: rec
+        types:
+          rec:
+            seq:
+              - id: body
+                type:
+                  switch-on: _parent.kind
+                  cases:
+                    1: bytes
+                size: _parent.n
+    "};
+    let v = parse(yaml, "t", &[1, 2, 8, 9]);
+    assert_eq!(
+        get_field(get_field(&v, "inner"), "body"),
+        &Value::Bytes(vec![8, 9])
+    );
+}
+
+#[test]
+fn a_selector_and_key_of_different_types_is_an_error() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: body
+            type:
+              switch-on: kind
+              cases:
+                '\"one\"': u1
+    "};
+    let err = parse_err(yaml, "t", &[1, 2]);
+    assert!(
+        matches!(&err, DoeError::ExprEval { message, .. } if message.contains("cannot compare")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn a_switch_with_a_size_eos_window_runs_to_the_end() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: body
+            type:
+              switch-on: kind
+              cases:
+                1: bytes
+            size-eos: true
+    "};
+    let v = parse(yaml, "t", &[1, 2, 3, 4]);
+    assert_eq!(get_field(&v, "body"), &Value::Bytes(vec![2, 3, 4]));
+}
+
+#[test]
+fn a_string_case_fills_the_window_or_stops_at_its_terminator() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: body
+            type:
+              switch-on: kind
+              cases:
+                1: str
+            size: 4
+            encoding: ascii
+          - id: after
+            type: u1
+    "};
+    let v = parse(yaml, "t", &[1, b'a', b'b', b'c', b'd', 9]);
+    assert_eq!(get_field(&v, "body"), &Value::Str("abcd".into()));
+    assert_eq!(get_field(&v, "after").as_int(), Some(9));
+}

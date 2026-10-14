@@ -328,6 +328,20 @@ impl<'reg> Engine<'reg> {
                 let _inner_fields = ctx.pop_scope();
                 result
             }
+            FieldKind::Switch {
+                on,
+                size,
+                cases,
+                default,
+            } => self.read_switch(
+                on,
+                size.as_ref(),
+                cases,
+                default.as_deref(),
+                parent_ty,
+                cursor,
+                ctx,
+            ),
             FieldKind::Contents(expected) => {
                 let actual = cursor.read_bytes(expected.len())?;
                 if actual != expected.as_slice() {
@@ -377,6 +391,49 @@ impl<'reg> Engine<'reg> {
             (FloatWidth::F64, Endian::Big) => cursor.read_f64_be()?,
         };
         Ok(Value::Float(v))
+    }
+
+    /// Read a field whose type is chosen by a value: the first case whose key
+    /// equals the selector, else the default.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the parts of one switch plus the parse state; a struct would only rename them"
+    )]
+    fn read_switch(
+        &self,
+        on: &expr::Expr,
+        size: Option<&SizeExpr>,
+        cases: &[(expr::Expr, FieldKind)],
+        default: Option<&FieldKind>,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
+        ctx.set_io(cursor);
+        let selector = expr::eval(on, &ctx.eval_ctx, "<switch-on>")?;
+        let mut chosen = default;
+        for (key, kind) in cases {
+            let key = expr::eval(key, &ctx.eval_ctx, "<case>")?;
+            if expr::values_equal(&selector, &key, "<case>")? {
+                chosen = Some(kind);
+                break;
+            }
+        }
+        let Some(size) = size else {
+            // Without a size, a selector that matches nothing leaves the field out.
+            return match chosen {
+                Some(kind) => self.read_kind(kind, parent_ty, cursor, ctx),
+                None => Ok(Value::Absent),
+            };
+        };
+        let n = eval_size(size, ctx, cursor)?;
+        let mut window = cursor.sub(cursor.pos(), n)?;
+        let value = match chosen {
+            Some(kind) => self.read_kind(kind, parent_ty, &mut window, ctx)?,
+            None => Self::read_blob(n, &mut window)?,
+        };
+        cursor.skip(n)?;
+        Ok(value)
     }
 
     /// Parse `ty` in a window of the next `n` bytes, then continue after all

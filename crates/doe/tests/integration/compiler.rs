@@ -1720,3 +1720,136 @@ fn size_expressions_may_use_root_parent_and_io() {
         compile(&schema);
     }
 }
+
+// ── switch-on ─────────────────────────────────────────────────────────────
+
+const SWITCH: &str = indoc! {"
+    id: t
+    seq:
+      - id: kind
+        type: u1
+        enum: kind_t
+      - id: body
+        type:
+          switch-on: kind
+          cases:
+            1: a_t
+            kind_t::data: u2le
+            _: bytes
+        size: 4
+    types:
+      a_t:
+        seq:
+          - id: x
+            type: u1
+    enums:
+      kind_t:
+        2: data
+"};
+
+#[test]
+fn a_switch_compiles_to_its_cases() {
+    use doe::schema::expr::Expr;
+    let reg = compile(SWITCH);
+    let FieldKind::Switch {
+        on,
+        size,
+        cases,
+        default,
+    } = &reg.get("t").unwrap().fields[1].kind
+    else {
+        panic!("expected a switch");
+    };
+    assert_eq!(*on, Expr::Field(vec!["kind".into()]));
+    assert!(matches!(size, Some(SizeExpr::Literal(4))));
+    assert_eq!(cases.len(), 2);
+    assert_eq!(cases[0].0, Expr::Int(1));
+    assert!(matches!(cases[0].1, FieldKind::TypeRef { size: None, .. }));
+    // The enum member is replaced by its value.
+    assert_eq!(cases[1].0, Expr::Int(2));
+    assert!(matches!(
+        cases[1].1,
+        FieldKind::UInt {
+            width: IntWidth::W16,
+            endian: EndianOverride::Little
+        }
+    ));
+    // `bytes` fills the window the switch has.
+    assert!(matches!(
+        default.as_deref(),
+        Some(FieldKind::Bytes {
+            size: SizeExpr::Eos
+        })
+    ));
+}
+
+#[test]
+fn a_switch_without_a_size_leaves_bytes_to_size_themselves() {
+    let schema = SWITCH.replace("    size: 4\n", "");
+    let err = compile_err(&schema);
+    assert!(
+        matches!(&err, DoeError::FieldError { message, .. } if message.contains("requires 'size'")),
+        "{err:?}"
+    );
+    compile(&schema.replace("_: bytes", "_: u1"));
+}
+
+#[test]
+fn malformed_switches_are_errors_that_name_the_field() {
+    let cases = [
+        (
+            "empty cases",
+            "id: t\nseq:\n  - id: kind\n    type: u1\n  - id: body\n    type:\n      switch-on: kind\n      cases: {}\n".to_owned(),
+        ),
+        ("unknown type", SWITCH.replace("1: a_t", "1: nope_t")),
+        (
+            "unknown enum",
+            SWITCH.replace("kind_t::data: u2le", "nope_t::data: u2le"),
+        ),
+        (
+            "unknown member",
+            SWITCH.replace("kind_t::data: u2le", "kind_t::nope: u2le"),
+        ),
+        (
+            "later field",
+            SWITCH.replace("switch-on: kind", "switch-on: later"),
+        ),
+        (
+            "bad expression",
+            SWITCH.replace("switch-on: kind", "switch-on: '1 +'"),
+        ),
+    ];
+    for (what, schema) in cases {
+        let err = compile_err(&schema);
+        let text = err.to_string();
+        assert!(
+            text.contains("body")
+                || text.contains("nope")
+                || text.contains("later")
+                || text.contains("switch"),
+            "{what}: {text}"
+        );
+    }
+}
+
+#[test]
+fn size_and_size_eos_on_a_switch_are_checked_like_other_fields() {
+    let both = SWITCH.replace("size: 4", "size: 4\n    size-eos: true");
+    let err = compile_err(&both);
+    assert!(err.to_string().contains("cannot be used together"), "{err}");
+    let eos = SWITCH.replace("size: 4", "size-eos: true");
+    let reg = compile(&eos);
+    assert!(matches!(
+        reg.get("t").unwrap().fields[1].kind,
+        FieldKind::Switch {
+            size: Some(SizeExpr::Eos),
+            ..
+        }
+    ));
+}
+
+#[test]
+fn a_switch_inside_a_repeat_and_with_an_enum_compiles() {
+    let schema = SWITCH.replace("size: 4", "size: 4\n    repeat: eos\n    enum: kind_t");
+    compile(&schema);
+}

@@ -126,10 +126,11 @@ pub struct RawField {
     /// Field identifier (used in expressions and output).
     pub id: String,
 
-    /// Type name: a primitive name, a locally defined type, or an imported type.
+    /// Type name: a primitive name, a locally defined type, or an imported type;
+    /// or a `switch-on` mapping that chooses one by a value.
     /// Required unless `contents` is set.
     #[serde(rename = "type")]
-    pub type_ref: Option<String>,
+    pub type_ref: Option<RawType>,
 
     /// Fixed literal contents.  If present, the parser reads exactly this many
     /// bytes and asserts they match.  `type_ref` is ignored when set.
@@ -189,6 +190,66 @@ pub struct RawField {
     /// Human-readable description.
     #[serde(default)]
     pub doc: Option<String>,
+}
+
+/// The `type` of a field: a type name, or a choice between types.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum RawType {
+    /// A primitive, local or imported type by name.
+    Name(String),
+    /// `switch-on` and `cases`: the type depends on the value of an expression.
+    Switch(RawSwitch),
+}
+
+// Not derived: an untagged enum buffers the input, which turns the integer
+// keys of `cases` (`1: a_t`) into numbers that a `String` key then rejects.
+impl<'de> Deserialize<'de> for RawType {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct TypeVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for TypeVisitor {
+            type Value = RawType;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a type name, or a mapping with `switch-on` and `cases`")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<RawType, E> {
+                Ok(RawType::Name(v.to_owned()))
+            }
+
+            fn visit_map<A: serde::de::MapAccess<'de>>(self, map: A) -> Result<RawType, A::Error> {
+                RawSwitch::deserialize(serde::de::value::MapAccessDeserializer::new(map))
+                    .map(RawType::Switch)
+            }
+        }
+
+        deserializer.deserialize_any(TypeVisitor)
+    }
+}
+
+impl RawType {
+    /// The type name, if this is not a `switch-on`.
+    pub fn as_name(&self) -> Option<&str> {
+        match self {
+            RawType::Name(name) => Some(name),
+            RawType::Switch(_) => None,
+        }
+    }
+}
+
+/// A `type` that is chosen by a value.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawSwitch {
+    /// The expression whose value picks the case.
+    #[serde(rename = "switch-on")]
+    pub switch_on: String,
+
+    /// Case key (an expression, or `_` for the default) → type name, in the
+    /// order they are tried.
+    pub cases: IndexMap<String, String>,
 }
 
 /// The `contents` field can be a hex string, a byte array, or a plain string.

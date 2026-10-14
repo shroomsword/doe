@@ -20,7 +20,10 @@ fn minimal_schema_round_trip() {
     assert_eq!(s.id, "simple");
     assert_eq!(s.seq.len(), 1);
     assert_eq!(s.seq[0].id, "value");
-    assert_eq!(s.seq[0].type_ref.as_deref(), Some("u4"));
+    assert_eq!(
+        s.seq[0].type_ref.as_ref().and_then(RawType::as_name),
+        Some("u4")
+    );
 }
 
 #[test]
@@ -72,7 +75,10 @@ fn field_with_size_integer() {
     "};
     let s = parse(yaml);
     let f = &s.seq[0];
-    assert_eq!(f.type_ref.as_deref(), Some("bytes"));
+    assert_eq!(
+        f.type_ref.as_ref().and_then(RawType::as_name),
+        Some("bytes")
+    );
     assert!(matches!(&f.size, Some(StringOrInt::Int(16))));
 }
 
@@ -376,8 +382,14 @@ fn png_like_schema() {
     // chunk sub-type
     let chunk = &s.types["chunk"];
     assert_eq!(chunk.seq.len(), 4);
-    assert_eq!(chunk.seq[0].type_ref.as_deref(), Some("u4be"));
-    assert_eq!(chunk.seq[2].type_ref.as_deref(), Some("bytes"));
+    assert_eq!(
+        chunk.seq[0].type_ref.as_ref().and_then(RawType::as_name),
+        Some("u4be")
+    );
+    assert_eq!(
+        chunk.seq[2].type_ref.as_ref().and_then(RawType::as_name),
+        Some("bytes")
+    );
     // body size references the length field
     assert!(matches!(&chunk.seq[2].size, Some(StringOrInt::Str(e)) if e == "length"));
 }
@@ -544,4 +556,56 @@ fn meta_bit_endian_is_read_separately_from_endian() {
     assert_eq!(s.meta.bit_endian, Some(RawEndian::Le));
     let s = RawSchema::from_yaml_str("id: t\nmeta:\n  endian: be\n").unwrap();
     assert_eq!(s.meta.bit_endian, None);
+}
+
+#[test]
+fn a_type_can_be_a_switch() {
+    let s = RawSchema::from_yaml_str(indoc! {"
+        id: t
+        seq:
+          - id: body
+            type:
+              switch-on: kind
+              cases:
+                1: a_t
+                kind_t::data: u4
+                '\"RIFF\"': riff_t
+                _: bytes
+            size: 8
+    "})
+    .unwrap();
+    let Some(RawType::Switch(switch)) = &s.seq[0].type_ref else {
+        panic!("expected a switch, got {:?}", s.seq[0].type_ref);
+    };
+    assert_eq!(switch.switch_on, "kind");
+    let cases: Vec<(&str, &str)> = switch
+        .cases
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
+    assert_eq!(
+        cases,
+        [
+            ("1", "a_t"),
+            ("kind_t::data", "u4"),
+            ("\"RIFF\"", "riff_t"),
+            ("_", "bytes")
+        ]
+    );
+    assert!(s.seq[0].type_ref.as_ref().unwrap().as_name().is_none());
+}
+
+#[test]
+fn a_switch_needs_switch_on_and_cases_and_nothing_else() {
+    for body in [
+        "cases:\n          1: a_t",
+        "switch-on: kind",
+        "switch-on: kind\n          cases:\n            1: a_t\n          extra: 1",
+    ] {
+        let yaml = format!(
+            "id: t\nseq:\n  - id: body\n    type:\n      {}\n",
+            body.replace("\n          ", "\n      ")
+        );
+        assert!(RawSchema::from_yaml_str(&yaml).is_err(), "{body}");
+    }
 }

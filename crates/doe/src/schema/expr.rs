@@ -1729,6 +1729,16 @@ fn float_to_int(x: f64) -> Option<i128> {
     (x.is_finite() && x.abs() < 1e38).then_some(x as i128)
 }
 
+/// Whether two values are equal under `==`.
+///
+/// # Errors
+///
+/// Returns [`DoeError::ExprEval`] if they are of types that cannot be
+/// compared, such as a string and an integer.
+pub fn values_equal(a: &ExprValue, b: &ExprValue, src: &str) -> Result<bool> {
+    compare(a, b, src).map(|ord| ord == Some(Ordering::Equal))
+}
+
 /// Convenience: parse then evaluate in one call.
 ///
 /// # Errors
