@@ -29,7 +29,7 @@ fn simple_fixture(dir: &Path) -> (PathBuf, PathBuf) {
     let schema = dir.join("simple.yaml");
     std::fs::write(
         &schema,
-        "id: simple\nseq:\n  - id: a\n    type: u8\n  - id: b\n    type: u16le\n",
+        "id: simple\nseq:\n  - id: a\n    type: u1\n  - id: b\n    type: u2le\n",
     )
     .unwrap();
     let binary = dir.join("simple.bin");
@@ -240,7 +240,7 @@ fn invalid_expression_in_schema_fails_instead_of_being_truncated() {
     let schema = dir.path().join("bad.yaml");
     std::fs::write(
         &schema,
-        "id: bad\nseq:\n  - id: n\n    type: u8\n  - id: data\n    type: bytes\n    size: \"n = 1\"\n",
+        "id: bad\nseq:\n  - id: n\n    type: u1\n  - id: data\n    type: bytes\n    size: \"n = 1\"\n",
     )
     .unwrap();
     let binary = dir.path().join("bad.bin");
@@ -615,7 +615,7 @@ fn sparse_fixture(dir: &Path) -> (PathBuf, PathBuf) {
     std::fs::write(
         &schema,
         format!(
-            "id: sparse\nseq:\n  - id: head\n    type: u32le\n  - id: hole\n    type: bytes\n    size: 1000000000\n  - id: next\n    type: u32le\n  - id: last\n    type: u32le\n    pos: {}\n",
+            "id: sparse\nseq:\n  - id: head\n    type: u4le\n  - id: hole\n    type: bytes\n    size: 1000000000\n  - id: next\n    type: u4le\n  - id: last\n    type: u4le\n    pos: {}\n",
             size - 4
         ),
     )
@@ -669,7 +669,7 @@ fn a_large_bytes_field_is_summarized() {
     let schema = dir.path().join("big.yaml");
     std::fs::write(
         &schema,
-        "id: big\nseq:\n  - id: body\n    type: bytes\n    size: 100000\n  - id: tail\n    type: u8\n",
+        "id: big\nseq:\n  - id: body\n    type: bytes\n    size: 100000\n  - id: tail\n    type: u1\n",
     )
     .unwrap();
     let binary = dir.path().join("big.bin");

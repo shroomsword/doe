@@ -116,6 +116,8 @@ pub enum FieldKind {
     Float {
         /// Width of the float.
         width: FloatWidth,
+        /// Byte-order override for this field.
+        endian: EndianOverride,
     },
     /// Raw byte sequence.
     Bytes {

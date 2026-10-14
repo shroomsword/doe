@@ -85,7 +85,7 @@ meta:
   endian: be
 seq:
   - id: length
-    type: u32
+    type: u4
   - id: tag
     type: str
     size: 4
@@ -94,22 +94,29 @@ seq:
     type: bytes
     size: length        # reference to an earlier field
   - id: crc
-    type: u32
+    type: u4
 ```
 
 ### Primitive types
 
 | Type | Description |
 |------|-------------|
-| `u8`, `u16`, `u32`, `u64` | Unsigned integers (schema-default endian) |
-| `u16le`…`u64le` | Unsigned integers, explicit little-endian |
-| `u16be`…`u64be` | Unsigned integers, explicit big-endian |
-| `i8`, `i16`, `i32`, `i64` | Signed integers (same endian variants) |
-| `f32`, `f64` | IEEE 754 floating-point |
+| `u1`, `u2`, `u4`, `u8` | Unsigned integers of 1, 2, 4 and 8 bytes (schema-default endian) |
+| `u2le`, `u4le`, `u8le` | Unsigned integers, explicit little-endian |
+| `u2be`, `u4be`, `u8be` | Unsigned integers, explicit big-endian |
+| `s1`, `s2`, `s4`, `s8` | Signed integers (same endian variants) |
+| `f4`, `f8` | IEEE 754 floating-point of 4 and 8 bytes (also with `le` and `be`) |
 | `bytes` | Raw byte sequence; requires `size:` |
 | `str` | String; requires `size:` or `terminator:` |
 | `strz` | Null-terminated string |
 | `bits` | Bit field; requires `bit_size:` |
+
+The numeric types are named by their size in bytes, as in Kaitai Struct.
+
+> **Upgrading:** earlier versions named them by their size in bits (`u16`, `i32`,
+> `f64`). Those names are now an error that names the replacement (`u2`, `s4`,
+> `f8`). `u8`, `u8le` and `u8be` are the exception: they used to be one byte and
+> are now eight, and they are not reported, so check them by hand.
 
 ### Field attributes
 
@@ -144,21 +151,21 @@ integer; `if:` needs a condition.
 ```yaml
 # size from an earlier field
 - id: length
-  type: u16le
+  type: u2le
 - id: payload
   type: bytes
   size: length
 
 # conditional field
 - id: flags
-  type: u8
+  type: u1
 - id: extra_data
-  type: u32le
+  type: u4le
   if: flags & 0x01
 
 # computed repeat count
 - id: count
-  type: u8
+  type: u1
 - id: records
   type: record_t
   repeat: expr
@@ -166,7 +173,7 @@ integer; `if:` needs a condition.
 
 # repeat until a sentinel value (terminator is included in the result)
 - id: items
-  type: u8
+  type: u1
   repeat: until
   repeat-until: _ == 0
 
@@ -191,12 +198,12 @@ integer; `if:` needs a condition.
   size: 4
   encoding: ascii
 - id: version
-  type: u8
+  type: u1
   if: tag == 'DATA'
 
 # a conditional value (quote it: YAML reads `: ` in a plain value as a mapping)
 - id: wide
-  type: u8
+  type: u1
 - id: body
   type: bytes
   size: 'wide != 0 ? 8 : 4'
@@ -259,7 +266,7 @@ seq:
     repeat: expr
     repeat-expr: header.table_count
   - id: trailer           # read right after the header, not after the table
-    type: u32
+    type: u4
 ```
 
 Fields appear in the output in schema order, not file order. A `pos:` that is
@@ -287,16 +294,16 @@ types:
       - id: magic
         contents: [0x7f, 0x45, 0x4c, 0x46]
       - id: bitness
-        type: u8
+        type: u1
         enum: bits_t
       - id: section_count
-        type: u16le
+        type: u2le
   section_header:
     seq:
       - id: name_offset
-        type: u32le
+        type: u4le
       - id: section_size
-        type: u32le
+        type: u4le
 enums:
   bits_t:
     "1": b32

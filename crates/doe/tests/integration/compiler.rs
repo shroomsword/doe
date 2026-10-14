@@ -23,7 +23,7 @@ fn compile_u8_field() {
         id: t
         seq:
           - id: x
-            type: u8
+            type: u1
     "});
     let ty = reg.get("t").unwrap();
     assert!(matches!(
@@ -41,7 +41,7 @@ fn compile_u32be_field() {
         id: t
         seq:
           - id: x
-            type: u32be
+            type: u4be
     "});
     let ty = reg.get("t").unwrap();
     assert!(matches!(
@@ -59,7 +59,7 @@ fn compile_u64le_field() {
         id: t
         seq:
           - id: x
-            type: u64le
+            type: u8le
     "});
     let ty = reg.get("t").unwrap();
     assert!(matches!(
@@ -77,7 +77,7 @@ fn compile_i32_field() {
         id: t
         seq:
           - id: x
-            type: i32
+            type: s4
     "});
     let ty = reg.get("t").unwrap();
     assert!(matches!(
@@ -95,7 +95,7 @@ fn compile_i16be_field() {
         id: t
         seq:
           - id: x
-            type: i16be
+            type: s2be
     "});
     let ty = reg.get("t").unwrap();
     assert!(matches!(
@@ -110,10 +110,10 @@ fn compile_i16be_field() {
 #[test]
 fn compile_all_unsigned_widths() {
     for (type_str, expected_width) in &[
-        ("u8", IntWidth::W8),
-        ("u16", IntWidth::W16),
-        ("u32", IntWidth::W32),
-        ("u64", IntWidth::W64),
+        ("u1", IntWidth::W8),
+        ("u2", IntWidth::W16),
+        ("u4", IntWidth::W32),
+        ("u8", IntWidth::W64),
     ] {
         let yaml = format!("id: t\nseq:\n  - id: x\n    type: {type_str}");
         let reg = compile(&yaml);
@@ -134,13 +134,14 @@ fn compile_f32_field() {
         id: t
         seq:
           - id: x
-            type: f32
+            type: f4
     "});
     let ty = reg.get("t").unwrap();
     assert!(matches!(
         ty.fields[0].kind,
         FieldKind::Float {
-            width: FloatWidth::F32
+            width: FloatWidth::F32,
+            endian: EndianOverride::Inherit
         }
     ));
 }
@@ -151,13 +152,14 @@ fn compile_f64_field() {
         id: t
         seq:
           - id: x
-            type: f64
+            type: f8
     "});
     let ty = reg.get("t").unwrap();
     assert!(matches!(
         ty.fields[0].kind,
         FieldKind::Float {
-            width: FloatWidth::F64
+            width: FloatWidth::F64,
+            endian: EndianOverride::Inherit
         }
     ));
 }
@@ -188,7 +190,7 @@ fn compile_bytes_dynamic_size() {
         id: t
         seq:
           - id: len
-            type: u32
+            type: u4
           - id: buf
             type: bytes
             size: len
@@ -323,7 +325,7 @@ fn compile_repeat_eos() {
         id: t
         seq:
           - id: items
-            type: u8
+            type: u1
             repeat: eos
     "});
     let ty = reg.get("t").unwrap();
@@ -336,9 +338,9 @@ fn compile_repeat_expr() {
         id: t
         seq:
           - id: count
-            type: u16
+            type: u2
           - id: items
-            type: u8
+            type: u1
             repeat: expr
             repeat-expr: count
     "});
@@ -352,7 +354,7 @@ fn repeat_expr_without_repeat_expr_is_error() {
         id: t
         seq:
           - id: items
-            type: u8
+            type: u1
             repeat: expr
     "});
     assert!(matches!(err, DoeError::FieldError { .. }));
@@ -364,7 +366,7 @@ fn compile_repeat_until() {
         id: t
         seq:
           - id: items
-            type: u8
+            type: u1
             repeat: until
             repeat-until: _ == 0
     "});
@@ -378,7 +380,7 @@ fn repeat_until_without_repeat_until_is_error() {
         id: t
         seq:
           - id: items
-            type: u8
+            type: u1
             repeat: until
     "});
     assert!(matches!(err, DoeError::FieldError { .. }));
@@ -392,9 +394,9 @@ fn compile_if_expr() {
         id: t
         seq:
           - id: flags
-            type: u8
+            type: u1
           - id: extra
-            type: u32
+            type: u4
             if: flags > 0
     "});
     let ty = reg.get("t").unwrap();
@@ -409,7 +411,7 @@ fn compile_enum_decimal_keys() {
         id: t
         seq:
           - id: kind
-            type: u8
+            type: u1
             enum: kind_t
         enums:
           kind_t:
@@ -430,7 +432,7 @@ fn compile_enum_hex_keys() {
         id: t
         seq:
           - id: type_field
-            type: u8
+            type: u1
             enum: types_t
         enums:
           types_t:
@@ -449,7 +451,7 @@ fn unknown_enum_ref_is_error() {
         id: t
         seq:
           - id: x
-            type: u8
+            type: u1
             enum: nonexistent
     "});
     assert!(matches!(err, DoeError::UnknownEnum { .. }));
@@ -468,9 +470,9 @@ fn compile_inline_subtype() {
           header:
             seq:
               - id: magic
-                type: u32
+                type: u4
               - id: version
-                type: u16
+                type: u2
     "});
     assert!(reg.contains("outer"));
     assert!(reg.contains("outer::header"));
@@ -490,7 +492,7 @@ fn subtype_ref_resolved_correctly() {
           header:
             seq:
               - id: val
-                type: u8
+                type: u1
     "});
     let outer = reg.get("outer").unwrap();
     if let FieldKind::TypeRef { type_name } = &outer.fields[0].kind {
@@ -516,7 +518,7 @@ fn compile_nested_subtypes() {
               level2:
                 seq:
                   - id: val
-                    type: u32
+                    type: u4
     "});
     assert!(reg.contains("root"));
     assert!(reg.contains("root::level1"));
@@ -535,7 +537,7 @@ fn size_expr_forward_ref_is_error() {
             type: bytes
             size: len
           - id: len
-            type: u32
+            type: u4
     "});
     assert!(
         matches!(err, DoeError::FieldError { .. }),
@@ -549,7 +551,7 @@ fn size_expr_back_ref_is_ok() {
         id: t
         seq:
           - id: len
-            type: u32
+            type: u4
           - id: buf
             type: bytes
             size: len
@@ -567,7 +569,7 @@ fn big_endian_propagated_to_type() {
           endian: be
         seq:
           - id: val
-            type: u32
+            type: u4
     "});
     let ty = reg.get("be_file").unwrap();
     assert_eq!(ty.endian, Endian::Big);
@@ -579,7 +581,7 @@ fn little_endian_is_default() {
         id: le_file
         seq:
           - id: val
-            type: u32
+            type: u4
     "});
     let ty = reg.get("le_file").unwrap();
     assert_eq!(ty.endian, Endian::Little);
@@ -637,7 +639,7 @@ fn png_like_compiles() {
           chunk:
             seq:
               - id: length
-                type: u32be
+                type: u4be
               - id: type
                 type: str
                 size: 4
@@ -646,7 +648,7 @@ fn png_like_compiles() {
                 type: bytes
                 size: length
               - id: crc
-                type: u32be
+                type: u4be
     "});
     assert!(reg.contains("png"));
     assert!(reg.contains("png::chunk"));
@@ -676,19 +678,19 @@ fn elf_like_compiles() {
               - id: magic
                 contents: [0x7f, 0x45, 0x4c, 0x46]
               - id: bitness
-                type: u8
+                type: u1
                 enum: bits_t
               - id: endian_byte
-                type: u8
+                type: u1
                 enum: endian_t
               - id: pad
                 type: bytes
                 size: 9
               - id: e_type
-                type: u16le
+                type: u2le
                 enum: obj_type_t
               - id: machine
-                type: u16le
+                type: u2le
             enums:
               bits_t:
                 "1": b32
@@ -754,7 +756,7 @@ fn duplicate_top_level_id_from_different_files_is_error() {
         id: my_type
         seq:
           - id: x
-            type: u8
+            type: u1
     "})
     .unwrap();
     schema_a.source_path = Some(PathBuf::from("/types/a.yaml"));
@@ -763,7 +765,7 @@ fn duplicate_top_level_id_from_different_files_is_error() {
         id: my_type
         seq:
           - id: y
-            type: u16
+            type: u2
     "})
     .unwrap();
     schema_b.source_path = Some(PathBuf::from("/types/b.yaml"));
@@ -796,7 +798,7 @@ fn same_schema_loaded_twice_via_import_is_idempotent() {
         id: shared
         seq:
           - id: val
-            type: u8
+            type: u1
     "})
     .unwrap();
     schema.source_path = Some(PathBuf::from("/types/shared.yaml"));
@@ -818,16 +820,16 @@ fn field_kind(type_name: &str) -> FieldKind {
 #[test]
 fn every_integer_type_name_compiles_to_its_width_and_endian() {
     let cases = [
-        ("u16be", IntWidth::W16, EndianOverride::Big, false),
-        ("u32be", IntWidth::W32, EndianOverride::Big, false),
-        ("u64be", IntWidth::W64, EndianOverride::Big, false),
-        ("i16", IntWidth::W16, EndianOverride::Inherit, true),
-        ("i64", IntWidth::W64, EndianOverride::Inherit, true),
-        ("i16le", IntWidth::W16, EndianOverride::Little, true),
-        ("i32le", IntWidth::W32, EndianOverride::Little, true),
-        ("i64le", IntWidth::W64, EndianOverride::Little, true),
-        ("i32be", IntWidth::W32, EndianOverride::Big, true),
-        ("i64be", IntWidth::W64, EndianOverride::Big, true),
+        ("u2be", IntWidth::W16, EndianOverride::Big, false),
+        ("u4be", IntWidth::W32, EndianOverride::Big, false),
+        ("u8be", IntWidth::W64, EndianOverride::Big, false),
+        ("s2", IntWidth::W16, EndianOverride::Inherit, true),
+        ("s8", IntWidth::W64, EndianOverride::Inherit, true),
+        ("s2le", IntWidth::W16, EndianOverride::Little, true),
+        ("s4le", IntWidth::W32, EndianOverride::Little, true),
+        ("s8le", IntWidth::W64, EndianOverride::Little, true),
+        ("s4be", IntWidth::W32, EndianOverride::Big, true),
+        ("s8be", IntWidth::W64, EndianOverride::Big, true),
     ];
     for (name, width, endian, signed) in cases {
         match field_kind(name) {
@@ -879,7 +881,7 @@ fn size_expression_may_use_operators_and_parent_references() {
         id: t
         seq:
           - id: len
-            type: u8
+            type: u1
           - id: data
             type: bytes
             size: "-(len) + len * 2 + 1 && !0"
@@ -888,7 +890,7 @@ fn size_expression_may_use_operators_and_parent_references() {
         id: t
         seq:
           - id: len
-            type: u8
+            type: u1
           - id: data
             type: bytes
             size: "_parent.len + 1"
@@ -899,7 +901,7 @@ fn size_expression_may_use_operators_and_parent_references() {
 fn size_expression_with_forward_reference_inside_operators_is_an_error() {
     for size in ["-later", "1 + later", "len + later"] {
         let err = compile_err(&format!(
-            "id: t\nseq:\n  - id: len\n    type: u8\n  - id: data\n    type: bytes\n    size: \"{size}\"\n  - id: later\n    type: u8\n"
+            "id: t\nseq:\n  - id: len\n    type: u1\n  - id: data\n    type: bytes\n    size: \"{size}\"\n  - id: later\n    type: u1\n"
         ));
         assert!(
             matches!(&err, DoeError::FieldError { field, .. } if field == "later"),
@@ -927,11 +929,11 @@ fn nested_type_can_reference_a_sibling_and_an_outer_type() {
           second:
             seq:
               - id: x
-                type: u8
+                type: u1
           outer_leaf:
             seq:
               - id: y
-                type: u8
+                type: u1
     "});
     let first = reg.get("outer::first").unwrap();
     assert!(matches!(
@@ -1008,7 +1010,7 @@ fn imports_are_loaded_before_the_importing_schema() {
     write(
         dir.path(),
         "dep.yaml",
-        "id: dep\nseq:\n  - id: v\n    type: u8\n",
+        "id: dep\nseq:\n  - id: v\n    type: u1\n",
     );
     write(
         dir.path(),
@@ -1087,7 +1089,7 @@ fn top_level_enum_is_visible_in_sub_types() {
           child:
             seq:
               - id: kind
-                type: u8
+                type: u1
                 enum: kind_t
         enums:
           kind_t:
@@ -1111,7 +1113,7 @@ fn top_level_enum_is_visible_in_deeply_nested_types() {
               b:
                 seq:
                   - id: kind
-                    type: u8
+                    type: u1
                     enum: kind_t
         enums:
           kind_t:
@@ -1129,13 +1131,13 @@ fn inner_enum_shadows_an_enclosing_enum_of_the_same_name() {
         id: t
         seq:
           - id: x
-            type: u8
+            type: u1
             enum: e
         types:
           child:
             seq:
               - id: y
-                type: u8
+                type: u1
                 enum: e
             enums:
               e:
@@ -1160,7 +1162,7 @@ fn enclosing_type_does_not_see_enums_of_its_sub_types() {
         id: t
         seq:
           - id: x
-            type: u8
+            type: u1
             enum: only_in_child
         types:
           child:
@@ -1186,7 +1188,7 @@ fn sibling_types_do_not_see_each_others_enums() {
           b:
             seq:
               - id: x
-                type: u8
+                type: u1
                 enum: from_a
     "#});
     assert!(matches!(err, DoeError::UnknownEnum { .. }), "{err:?}");
@@ -1207,7 +1209,7 @@ fn nested_field_references_must_name_an_earlier_field() {
           h:
             seq:
               - id: length
-                type: u8
+                type: u1
     "});
     assert!(
         matches!(&err, DoeError::FieldError { field, .. } if field == "header"),
@@ -1229,14 +1231,14 @@ fn nested_field_references_to_earlier_fields_compile() {
           h:
             seq:
               - id: length
-                type: u8
+                type: u1
     "});
 }
 
 #[test]
 fn compile_pos_expr() {
     let reg =
-        compile("id: t\nseq:\n  - id: a\n    type: u8\n    pos: 4\n  - id: b\n    type: u8\n");
+        compile("id: t\nseq:\n  - id: a\n    type: u1\n    pos: 4\n  - id: b\n    type: u1\n");
     let ty = reg.get("t").unwrap();
     assert!(ty.fields[0].pos.is_some());
     assert!(ty.fields[1].pos.is_none());
@@ -1244,6 +1246,119 @@ fn compile_pos_expr() {
 
 #[test]
 fn compile_rejects_a_malformed_pos_expr() {
-    let err = compile_err("id: t\nseq:\n  - id: a\n    type: u8\n    pos: \"1 +\"\n");
+    let err = compile_err("id: t\nseq:\n  - id: a\n    type: u1\n    pos: \"1 +\"\n");
     assert!(matches!(err, DoeError::ExprParse { .. }), "{err:?}");
+}
+
+// ── Numeric type names ────────────────────────────────────────────────────
+
+#[test]
+fn every_width_endian_and_family_of_numeric_name_compiles() {
+    for (suffix, endian) in [
+        ("", EndianOverride::Inherit),
+        ("le", EndianOverride::Little),
+        ("be", EndianOverride::Big),
+    ] {
+        for (bytes, width) in [
+            (1, IntWidth::W8),
+            (2, IntWidth::W16),
+            (4, IntWidth::W32),
+            (8, IntWidth::W64),
+        ] {
+            let name = format!("u{bytes}{suffix}");
+            assert!(
+                matches!(field_kind(&name), FieldKind::UInt { width: w, endian: e } if w == width && e == endian),
+                "{name}"
+            );
+            let name = format!("s{bytes}{suffix}");
+            assert!(
+                matches!(field_kind(&name), FieldKind::SInt { width: w, endian: e } if w == width && e == endian),
+                "{name}"
+            );
+        }
+        for (bytes, width) in [(4, FloatWidth::F32), (8, FloatWidth::F64)] {
+            let name = format!("f{bytes}{suffix}");
+            assert!(
+                matches!(field_kind(&name), FieldKind::Float { width: w, endian: e } if w == width && e == endian),
+                "{name}"
+            );
+        }
+    }
+}
+
+#[test]
+fn u8_means_sixty_four_bits() {
+    assert!(matches!(
+        field_kind("u8"),
+        FieldKind::UInt {
+            width: IntWidth::W64,
+            ..
+        }
+    ));
+    assert!(matches!(
+        field_kind("u1"),
+        FieldKind::UInt {
+            width: IntWidth::W8,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn old_numeric_names_are_errors_that_name_the_replacement() {
+    for (old, new) in [
+        ("u16", "u2"),
+        ("u32", "u4"),
+        ("u64", "u8"),
+        ("u16le", "u2le"),
+        ("u32be", "u4be"),
+        ("u64le", "u8le"),
+        ("i8", "s1"),
+        ("i16", "s2"),
+        ("i32le", "s4le"),
+        ("i64be", "s8be"),
+        ("f32", "f4"),
+        ("f64", "f8"),
+    ] {
+        let err = compile_err(&format!("id: t\nseq:\n  - id: x\n    type: {old}\n"));
+        assert!(
+            matches!(&err, DoeError::FieldError { field, message, .. }
+                if field == "x" && message.contains(&format!("'{old}' was renamed '{new}'"))),
+            "{old}: {err:?}"
+        );
+    }
+}
+
+#[test]
+fn other_numeric_looking_names_are_unknown_types() {
+    for name in [
+        "u3", "u0", "u16x", "s16", "f2", "f16", "i128", "u128", "U4", "uu", "u", "s", "f", "u2LE",
+        "i7", "f4xe",
+    ] {
+        let err = compile_err(&format!("id: t\nseq:\n  - id: x\n    type: {name}\n"));
+        assert!(
+            matches!(&err, DoeError::UnknownType { type_name, .. } if type_name == name)
+                || matches!(&err, DoeError::FieldError { message, .. } if message.contains("was renamed")),
+            "{name}: {err:?}"
+        );
+    }
+}
+
+#[test]
+fn a_user_type_may_use_an_old_primitive_name() {
+    let reg = compile(indoc! {"
+        id: t
+        seq:
+          - id: x
+            type: u16
+        types:
+          u16:
+            seq:
+              - id: inner
+                type: u1
+    "});
+    assert!(matches!(
+        reg.get("t").unwrap().fields[0].kind,
+        FieldKind::TypeRef { .. }
+    ));
 }
