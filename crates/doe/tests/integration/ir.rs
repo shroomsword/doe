@@ -94,8 +94,9 @@ fn field_kind_uint_inherit() {
 fn field_kind_typeref() {
     let fk = FieldKind::TypeRef {
         type_name: "png::chunk".into(),
+        size: None,
     };
-    if let FieldKind::TypeRef { type_name } = &fk {
+    if let FieldKind::TypeRef { type_name, .. } = &fk {
         assert_eq!(type_name, "png::chunk");
     } else {
         panic!("wrong variant");

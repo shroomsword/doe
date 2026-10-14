@@ -67,6 +67,7 @@ impl<'reg> Engine<'reg> {
                 context: "<engine>".to_owned(),
             })?;
         let mut ctx = ParseContext::new();
+        ctx.set_input_len(cursor.len());
         self.parse_compiled_type(ty, cursor, &mut ctx)
     }
 
@@ -128,7 +129,7 @@ impl<'reg> Engine<'reg> {
             .seek(target)
             .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
         let value = self.parse_repeats(field, parent_ty, cursor, ctx)?;
-        ctx.charge_reread(cursor.pos().saturating_sub(target), cursor.len())
+        ctx.charge_reread(cursor.pos().saturating_sub(target))
             .map_err(|message| DoeError::FieldError {
                 field: field.id.clone(),
                 context: parent_ty.name.clone(),
@@ -278,7 +279,7 @@ impl<'reg> Engine<'reg> {
                 Self::read_float(*width, e, cursor)
             }
             FieldKind::Bytes { size } => {
-                let n = eval_size(size, &ctx.eval_ctx)?;
+                let n = eval_size(size, &ctx.eval_ctx, cursor)?;
                 Self::read_blob(n, cursor)
             }
             FieldKind::Str { size, encoding } => Self::read_str(size, *encoding, cursor, ctx),
@@ -294,7 +295,7 @@ impl<'reg> Engine<'reg> {
                     Value::UInt(bits)
                 })
             }
-            FieldKind::TypeRef { type_name } => {
+            FieldKind::TypeRef { type_name, size } => {
                 if ctx.depth() >= MAX_TYPE_DEPTH {
                     return Err(DoeError::FieldError {
                         field: type_name.clone(),
@@ -309,8 +310,17 @@ impl<'reg> Engine<'reg> {
                         type_name: type_name.clone(),
                         context: parent_ty.name.clone(),
                     })?;
+                // The size is an expression of the fields around this one, so
+                // it is evaluated before the new scope exists.
+                let window = size
+                    .as_ref()
+                    .map(|size| eval_size(size, &ctx.eval_ctx, cursor))
+                    .transpose()?;
                 ctx.push_scope();
-                let result = self.parse_compiled_type(sub_ty, cursor, ctx);
+                let result = match window {
+                    None => self.parse_compiled_type(sub_ty, cursor, ctx),
+                    Some(n) => self.parse_in_window(sub_ty, n, cursor, ctx),
+                };
                 let _inner_fields = ctx.pop_scope();
                 result
             }
@@ -365,6 +375,22 @@ impl<'reg> Engine<'reg> {
         Ok(Value::Float(v))
     }
 
+    /// Parse `ty` in a window of the next `n` bytes, then continue after all
+    /// of them, however many the type used. The type cannot read past the
+    /// window, and `pos:` inside it is relative to its start.
+    fn parse_in_window(
+        &self,
+        ty: &CompiledType,
+        n: usize,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
+        let mut window = cursor.sub(cursor.pos(), n)?;
+        let value = self.parse_compiled_type(ty, &mut window, ctx)?;
+        cursor.skip(n)?;
+        Ok(value)
+    }
+
     /// Read `n` bytes. A sequence longer than [`MAX_INLINE_BYTES`] is not read
     /// into memory: the result keeps where it is, its length and its first
     /// [`BLOB_PREVIEW_LEN`] bytes.
@@ -391,7 +417,7 @@ impl<'reg> Engine<'reg> {
         let bytes: Vec<u8> = match size {
             StrSize::Terminator(term) => cursor.read_until(*term)?.into_owned(),
             StrSize::Fixed(sz) => {
-                let n = eval_size(sz, &ctx.eval_ctx)?;
+                let n = eval_size(sz, &ctx.eval_ctx, cursor)?;
                 if n > MAX_TERMINATED_LEN {
                     return Err(DoeError::Schema(format!(
                         "string of {n} bytes is longer than the limit of {MAX_TERMINATED_LEN} bytes"
@@ -417,9 +443,10 @@ fn resolve_endian(field_override: EndianOverride, type_default: Endian) -> Endia
     }
 }
 
-fn eval_size(size: &SizeExpr, eval_ctx: &expr::EvalContext) -> Result<usize> {
+fn eval_size(size: &SizeExpr, eval_ctx: &expr::EvalContext, cursor: &Cursor<'_>) -> Result<usize> {
     match size {
         SizeExpr::Literal(n) => Ok(*n),
+        SizeExpr::Eos => Ok(cursor.remaining()),
         SizeExpr::Dynamic(e) => {
             let v = expr::eval_int(e, eval_ctx, "<size>")?;
             if v < 0 {

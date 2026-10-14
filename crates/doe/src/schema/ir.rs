@@ -146,6 +146,9 @@ pub enum FieldKind {
     TypeRef {
         /// Fully-qualified name of the referenced type.
         type_name: String,
+        /// If set, the type is parsed in a window of this many bytes, and the
+        /// parent continues after the whole window.
+        size: Option<SizeExpr>,
     },
     /// Fixed literal content — parser reads and asserts exact bytes.
     Contents(Vec<u8>),
@@ -223,6 +226,8 @@ pub enum SizeExpr {
     Literal(usize),
     /// An expression evaluated at parse time.
     Dynamic(Expr),
+    /// Everything left in the enclosing window or the input (`size-eos`).
+    Eos,
 }
 
 /// String termination/size strategy.

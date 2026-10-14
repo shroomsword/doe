@@ -498,7 +498,7 @@ fn subtype_ref_resolved_correctly() {
                 type: u1
     "});
     let outer = reg.get("outer").unwrap();
-    if let FieldKind::TypeRef { type_name } = &outer.fields[0].kind {
+    if let FieldKind::TypeRef { type_name, .. } = &outer.fields[0].kind {
         assert_eq!(type_name, "outer::header");
     } else {
         panic!("expected TypeRef");
@@ -941,11 +941,11 @@ fn nested_type_can_reference_a_sibling_and_an_outer_type() {
     let first = reg.get("outer::first").unwrap();
     assert!(matches!(
         &first.fields[0].kind,
-        FieldKind::TypeRef { type_name } if type_name == "outer::second"
+        FieldKind::TypeRef { type_name, .. } if type_name == "outer::second"
     ));
     assert!(matches!(
         &first.fields[1].kind,
-        FieldKind::TypeRef { type_name } if type_name == "outer::outer_leaf"
+        FieldKind::TypeRef { type_name, .. } if type_name == "outer::outer_leaf"
     ));
 }
 
@@ -1437,4 +1437,119 @@ fn the_bit_order_defaults_to_big_and_nested_types_inherit_it() {
     assert_eq!(reg.get("t::inner").unwrap().bit_endian, Endian::Little);
     // The bit order does not change the byte order.
     assert_eq!(reg.get("t").unwrap().endian, Endian::Little);
+}
+
+// ── size and size-eos on user types ───────────────────────────────────────
+
+fn sized_field(attrs: &str) -> FieldKind {
+    let reg = compile(&format!(
+        "id: t\nseq:\n  - id: x\n    type: rec\n    {attrs}\ntypes:\n  rec:\n    seq: []\n"
+    ));
+    reg.get("t").unwrap().fields[0].kind.clone()
+}
+
+#[test]
+fn size_on_a_user_type_compiles_to_a_window() {
+    assert!(matches!(
+        sized_field("size: 8"),
+        FieldKind::TypeRef {
+            size: Some(SizeExpr::Literal(8)),
+            ..
+        }
+    ));
+    assert!(matches!(
+        sized_field("size-eos: true"),
+        FieldKind::TypeRef {
+            size: Some(SizeExpr::Eos),
+            ..
+        }
+    ));
+    // `size-eos: false` is the same as leaving it out.
+    assert!(matches!(
+        sized_field("size-eos: false"),
+        FieldKind::TypeRef { size: None, .. }
+    ));
+    let reg = compile(
+        "id: t\nseq:\n  - id: n\n    type: u1\n  - id: x\n    type: rec\n    size: n * 2\ntypes:\n  rec:\n    seq: []\n",
+    );
+    assert!(matches!(
+        reg.get("t").unwrap().fields[1].kind,
+        FieldKind::TypeRef {
+            size: Some(SizeExpr::Dynamic(_)),
+            ..
+        }
+    ));
+}
+
+#[test]
+fn a_type_without_size_has_no_window() {
+    let reg = compile("id: t\nseq:\n  - id: x\n    type: rec\ntypes:\n  rec:\n    seq: []\n");
+    assert!(matches!(
+        reg.get("t").unwrap().fields[0].kind,
+        FieldKind::TypeRef { size: None, .. }
+    ));
+}
+
+#[test]
+fn size_expressions_on_user_types_may_only_use_earlier_fields() {
+    let err = compile_err(
+        "id: t\nseq:\n  - id: x\n    type: rec\n    size: later\n  - id: later\n    type: u1\ntypes:\n  rec:\n    seq: []\n",
+    );
+    assert!(
+        matches!(&err, DoeError::FieldError { message, .. } if message.contains("later")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn size_and_size_eos_together_are_an_error() {
+    for type_name in ["rec", "bytes", "str"] {
+        let err = compile_err(&format!(
+            "id: t\nseq:\n  - id: x\n    type: {type_name}\n    size: 4\n    size-eos: true\ntypes:\n  rec:\n    seq: []\n"
+        ));
+        assert!(
+            matches!(&err, DoeError::FieldError { message, .. } if message.contains("cannot be used together")),
+            "{type_name}: {err:?}"
+        );
+    }
+}
+
+#[test]
+fn bytes_and_str_accept_size_eos() {
+    for type_name in ["bytes", "str"] {
+        let reg = compile(&format!(
+            "id: t\nseq:\n  - id: x\n    type: {type_name}\n    size-eos: true\n"
+        ));
+        let kind = &reg.get("t").unwrap().fields[0].kind;
+        assert!(
+            matches!(
+                kind,
+                FieldKind::Bytes {
+                    size: SizeExpr::Eos
+                }
+            ) || matches!(
+                kind,
+                FieldKind::Str {
+                    size: StrSize::Fixed(SizeExpr::Eos),
+                    ..
+                }
+            ),
+            "{type_name}: {kind:?}"
+        );
+    }
+}
+
+#[test]
+fn fixed_size_types_do_not_take_a_size() {
+    for type_name in ["u1", "u4le", "s2", "f8", "b4", "b12le"] {
+        for attrs in ["size: 4", "size-eos: true"] {
+            let err = compile_err(&format!(
+                "id: t\nseq:\n  - id: x\n    type: {type_name}\n    {attrs}\n"
+            ));
+            assert!(
+                matches!(&err, DoeError::FieldError { message, .. } if message.contains("fixed size")),
+                "{type_name} {attrs}: {err:?}"
+            );
+        }
+    }
 }

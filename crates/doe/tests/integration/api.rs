@@ -206,3 +206,36 @@ fn file_errors_keep_the_detail_in_their_source_not_in_the_message() {
     );
     assert!(missing.source().is_some());
 }
+
+#[test]
+fn sized_sub_types_work_over_a_file() {
+    use std::io::Write;
+
+    let dir = tempfile::TempDir::new().unwrap();
+    let schema = dir.path().join("framed.yaml");
+    std::fs::write(
+        &schema,
+        "id: framed\nseq:\n  - id: len\n    type: u1\n  - id: body\n    type: rec\n    size: len\n  - id: after\n    type: u1\ntypes:\n  rec:\n    seq:\n      - id: a\n        type: u1\n      - id: rest\n        type: bytes\n        size-eos: true\n",
+    )
+    .unwrap();
+    let data = dir.path().join("framed.bin");
+    let mut bytes = vec![5u8];
+    bytes.extend_from_slice(&[1, 2, 3, 4, 5]);
+    bytes.push(0x7f);
+    std::fs::File::create(&data)
+        .unwrap()
+        .write_all(&bytes)
+        .unwrap();
+    let json = parse_file(
+        &data,
+        schema.to_str().unwrap(),
+        &[],
+        Some(Path::new("/nonexistent/config.toml")),
+        OutputFormat::Json,
+    )
+    .unwrap();
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(v["body"]["a"], 1);
+    assert_eq!(v["body"]["rest"]["len"], 4);
+    assert_eq!(v["after"], 0x7f);
+}

@@ -141,6 +141,11 @@ pub struct RawField {
     #[serde(default)]
     pub size: Option<StringOrInt>,
 
+    /// For `bytes`, `str` and user types: the size is whatever is left of the
+    /// enclosing window or the input.
+    #[serde(rename = "size-eos", default)]
+    pub size_eos: Option<bool>,
+
     /// For `str`: the byte value that terminates the string (default `0x00` for `strz`).
     #[serde(default)]
     pub terminator: Option<u8>,

@@ -311,11 +311,23 @@ impl Compiler {
     ) -> Result<FieldKind> {
         let context = format!("{}.{}", ctx.parent_fqn, raw.id);
 
-        if let Some(kind) = numeric_type(type_name) {
-            return Ok(kind);
-        }
-        if let Some((bit_size, endian)) = bit_type(type_name) {
-            return bit_field(bit_size, endian, raw, ctx);
+        let fixed = numeric_type(type_name).or_else(|| {
+            bit_type(type_name).map(|(bit_size, endian)| FieldKind::Bits { bit_size, endian })
+        });
+        if let Some(kind) = fixed {
+            if raw.size.is_some() || raw.size_eos == Some(true) {
+                return Err(DoeError::FieldError {
+                    field: raw.id.clone(),
+                    context: ctx.parent_fqn.to_owned(),
+                    message: format!(
+                        "'{type_name}' has a fixed size; 'size' and 'size-eos' are for bytes, str and user types"
+                    ),
+                });
+            }
+            return match kind {
+                FieldKind::Bits { bit_size, endian } => bit_field(bit_size, endian, raw, ctx),
+                other => Ok(other),
+            };
         }
 
         match type_name {
@@ -361,7 +373,10 @@ impl Compiler {
                 // Try fully-qualified resolution first, then relative to parent
                 let fqn = self.resolve_type_ref(other, ctx.parent_fqn);
                 match fqn {
-                    Some(name) => Ok(FieldKind::TypeRef { type_name: name }),
+                    Some(name) => Ok(FieldKind::TypeRef {
+                        type_name: name,
+                        size: compile_optional_size(raw, ctx)?,
+                    }),
                     None => Err(old_numeric_name(other).map_or_else(
                         || DoeError::UnknownType {
                             type_name: other.to_owned(),
@@ -488,6 +503,16 @@ fn compile_encoding(enc: Option<RawEncoding>) -> Encoding {
 }
 
 fn compile_size(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<SizeExpr> {
+    if raw.size_eos == Some(true) {
+        if raw.size.is_some() {
+            return Err(DoeError::FieldError {
+                field: raw.id.clone(),
+                context: ctx.parent_fqn.to_owned(),
+                message: "'size' and 'size-eos' cannot be used together".to_owned(),
+            });
+        }
+        return Ok(SizeExpr::Eos);
+    }
     match &raw.size {
         None => Err(DoeError::FieldError {
             field: raw.id.clone(),
@@ -514,6 +539,14 @@ fn compile_size(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<SizeExpr> {
             Ok(SizeExpr::Dynamic(ast))
         }
     }
+}
+
+/// Compile `size` or `size-eos` if the field has either.
+fn compile_optional_size(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<Option<SizeExpr>> {
+    if raw.size.is_none() && raw.size_eos != Some(true) {
+        return Ok(None);
+    }
+    compile_size(raw, ctx).map(Some)
 }
 
 /// Parse and compile a `repeat-expr` expression.
