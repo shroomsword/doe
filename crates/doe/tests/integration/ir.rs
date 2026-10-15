@@ -14,6 +14,7 @@ fn registry_insert_and_get() {
         doc: None,
         endian: Endian::Little,
         bit_endian: Endian::Big,
+        params: vec![],
         instances: vec![],
         fields: vec![],
         enums: HashMap::new(),
@@ -96,6 +97,7 @@ fn field_kind_typeref() {
     let fk = FieldKind::TypeRef {
         type_name: "png::chunk".into(),
         size: None,
+        args: vec![],
     };
     if let FieldKind::TypeRef { type_name, .. } = &fk {
         assert_eq!(type_name, "png::chunk");
@@ -257,6 +259,7 @@ fn compiled_type_with_multiple_fields() {
         doc: Some("A data chunk".into()),
         endian: Endian::Big,
         bit_endian: Endian::Big,
+        params: vec![],
         instances: vec![],
         fields,
         enums: HashMap::new(),

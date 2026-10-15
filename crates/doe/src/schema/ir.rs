@@ -68,6 +68,9 @@ pub struct CompiledType {
     /// most significant bits of a byte first, [`Endian::Little`] the least.
     pub bit_endian: Endian,
 
+    /// The parameters the type takes, in order.
+    pub params: Vec<CompiledParam>,
+
     /// Ordered list of fields.
     pub fields: Vec<CompiledField>,
 
@@ -82,6 +85,15 @@ pub struct CompiledType {
 // ─────────────────────────────────────────────────────────────────────────────
 // Compiled field
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// A parameter of a [`CompiledType`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompiledParam {
+    /// The name the type's expressions use.
+    pub id: String,
+    /// Human-readable description.
+    pub doc: Option<String>,
+}
 
 /// A single compiled field of a [`CompiledType`].
 #[derive(Debug, Clone)]
@@ -203,6 +215,9 @@ pub enum FieldKind {
         /// If set, the type is parsed in a window of this many bytes, and the
         /// parent continues after the whole window.
         size: Option<SizeExpr>,
+        /// The values of the type's parameters, as expressions of the field's
+        /// own type.
+        args: Vec<Expr>,
     },
     /// A type chosen by the value of an expression (`switch-on` / `cases`).
     Switch {

@@ -727,3 +727,38 @@ fn instances_that_read_can_have_valid() {
     assert!(s.instances["x"].reads());
     assert!(s.instances["x"].to_field("x").valid.is_some());
 }
+
+#[test]
+fn params_are_listed_with_optional_type_enum_and_doc() {
+    let s = RawSchema::from_yaml_str(indoc! {"
+        id: t
+        params:
+          - id: size
+            type: u4
+            doc: how many
+          - id: kind
+            enum: kind_t
+          - id: label
+        seq: []
+        types:
+          inner:
+            params:
+              - id: n
+            seq: []
+    "})
+    .unwrap();
+    let ids: Vec<&str> = s.params.iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(ids, ["size", "kind", "label"]);
+    assert_eq!(s.params[0].type_ref.as_deref(), Some("u4"));
+    assert_eq!(s.params[0].doc.as_deref(), Some("how many"));
+    assert_eq!(s.params[1].enum_ref.as_deref(), Some("kind_t"));
+    assert_eq!(s.types["inner"].params.len(), 1);
+}
+
+#[test]
+fn a_param_needs_an_id_and_takes_no_unknown_keys() {
+    for body in ["type: u4", "id: x\n    nope: 1"] {
+        let yaml = format!("id: t\nparams:\n  - {body}\nseq: []\n");
+        assert!(RawSchema::from_yaml_str(&yaml).is_err(), "{body}");
+    }
+}

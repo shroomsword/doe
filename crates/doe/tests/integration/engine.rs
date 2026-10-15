@@ -1251,6 +1251,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
             doc: None,
             endian: Endian::Little,
             bit_endian: Endian::Big,
+            params: vec![],
             instances: vec![],
             fields: vec![CompiledField {
                 id: "child".into(),
@@ -1258,6 +1259,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
                 kind: FieldKind::TypeRef {
                     type_name: "missing".into(),
                     size: None,
+                    args: vec![],
                 },
                 repeat: RepeatMode::Once,
                 if_expr: None,
@@ -3833,4 +3835,285 @@ fn a_sub_type_has_no_value_to_compare() {
         .parse_type("t", &mut Cursor::new(&[]))
         .unwrap_err();
     assert!(err.to_string().contains('x'), "{err}");
+}
+
+// ── params ───────────────────────────────────────────────────────────────
+
+const BLOCKS: &str = indoc! {"
+    id: t
+    seq:
+      - id: n
+        type: u1
+      - id: first
+        type: block(n, 'one')
+      - id: second
+        type: block(2, 'two')
+      - id: after
+        type: u1
+    types:
+      block:
+        params:
+          - id: len
+            type: u4
+          - id: label
+            type: str
+        seq:
+          - id: data
+            type: bytes
+            size: len
+          - id: tag
+            type: str
+            size: label.length
+            encoding: ascii
+            valid: label
+"};
+
+#[test]
+fn a_type_gets_the_arguments_its_field_passes() {
+    let v = parse(
+        BLOCKS,
+        "t",
+        &[3, 1, 2, 3, b'o', b'n', b'e', 9, 9, b't', b'w', b'o', 7],
+    );
+    let first = get_field(&v, "first");
+    assert_eq!(get_field(first, "data"), &Value::Bytes(vec![1, 2, 3]));
+    assert_eq!(get_field(first, "tag"), &Value::Str("one".into()));
+    let second = get_field(&v, "second");
+    assert_eq!(get_field(second, "data"), &Value::Bytes(vec![9, 9]));
+    assert_eq!(get_field(second, "tag"), &Value::Str("two".into()));
+    assert_eq!(get_field(&v, "after").as_int(), Some(7));
+}
+
+#[test]
+fn a_parameter_is_checked_like_any_name_in_the_type() {
+    // `valid: label` fails when the tag read is not the label passed in.
+    let err = parse_err(
+        BLOCKS,
+        "t",
+        &[3, 1, 2, 3, b'o', b'n', b'x', 9, 9, b't', b'w', b'o', 7],
+    );
+    assert!(err.to_string().contains("tag"), "{err}");
+}
+
+#[test]
+fn each_element_of_a_repeat_gets_its_own_arguments() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: sizes
+            type: u1
+            repeat: expr
+            repeat-expr: 2
+          - id: blocks
+            type: block(sizes[0] + 1)
+            repeat: expr
+            repeat-expr: 2
+        types:
+          block:
+            params:
+              - id: len
+            seq:
+              - id: data
+                type: bytes
+                size: len
+    "};
+    let v = parse(yaml, "t", &[1, 5, 8, 8, 9, 9]);
+    let Value::Array(blocks) = get_field(&v, "blocks") else {
+        panic!("expected an array");
+    };
+    assert_eq!(get_field(&blocks[0], "data").byte_len(), Some(2));
+    assert_eq!(get_field(&blocks[1], "data").byte_len(), Some(2));
+}
+
+#[test]
+fn arguments_may_use_instances_and_enum_members() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+            enum: kind_t
+          - id: body
+            type: rec(width, kind == kind_t::wide)
+        instances:
+          width:
+            value: 3
+        types:
+          rec:
+            params:
+              - id: width
+              - id: wide
+            seq:
+              - id: data
+                type: bytes
+                size: 'wide ? width * 2 : width'
+        enums:
+          kind_t:
+            1: narrow
+            2: wide
+    "};
+    let v = parse(yaml, "t", &[2, 1, 2, 3, 4, 5, 6]);
+    assert_eq!(get_field(get_field(&v, "body"), "data").byte_len(), Some(6));
+    let v = parse(yaml, "t", &[1, 1, 2, 3]);
+    assert_eq!(get_field(get_field(&v, "body"), "data").byte_len(), Some(3));
+}
+
+#[test]
+fn params_reach_nested_types_through_parent() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: outer
+            type: outer_t(4)
+        types:
+          outer_t:
+            params:
+              - id: width
+            seq:
+              - id: inner
+                type: inner_t
+          inner_t:
+            seq:
+              - id: data
+                type: bytes
+                size: _parent.width
+    "};
+    let v = parse(yaml, "t", &[1, 2, 3, 4]);
+    let inner = get_field(get_field(&v, "outer"), "inner");
+    assert_eq!(get_field(inner, "data").byte_len(), Some(4));
+}
+
+#[test]
+fn params_work_in_switch_cases_and_sized_windows() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: len
+            type: u1
+          - id: body
+            type:
+              switch-on: kind
+              cases:
+                1: block(2)
+                _: block(len)
+            size: len
+          - id: after
+            type: u1
+        types:
+          block:
+            params:
+              - id: take
+            seq:
+              - id: data
+                type: bytes
+                size: take
+    "};
+    let v = parse(yaml, "t", &[1, 4, 7, 8, 0, 0, 9]);
+    assert_eq!(
+        get_field(get_field(&v, "body"), "data"),
+        &Value::Bytes(vec![7, 8])
+    );
+    assert_eq!(get_field(&v, "after").as_int(), Some(9));
+    let v = parse(yaml, "t", &[2, 3, 7, 8, 6, 9]);
+    assert_eq!(
+        get_field(get_field(&v, "body"), "data"),
+        &Value::Bytes(vec![7, 8, 6])
+    );
+}
+
+#[test]
+fn a_param_is_visible_to_the_instances_and_the_guards_of_its_type() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: x
+            type: rec(3, 'ab')
+        types:
+          rec:
+            params:
+              - id: count
+              - id: label
+            seq:
+              - id: items
+                type: u1
+                repeat: expr
+                repeat-expr: count
+              - id: extra
+                type: u1
+                if: label == 'ab'
+            instances:
+              total:
+                value: count * 10
+    "};
+    let v = parse(yaml, "t", &[1, 2, 3, 4]);
+    let x = get_field(&v, "x");
+    assert_eq!(get_field(x, "extra").as_int(), Some(4));
+    let Value::Instance { value, .. } = get_field(x, "total") else {
+        panic!("expected an instance");
+    };
+    assert_eq!(**value, Value::UInt(30));
+}
+
+#[test]
+fn a_type_with_params_cannot_be_parsed_on_its_own() {
+    let yaml = indoc! {"
+        id: t
+        params:
+          - id: len
+        seq:
+          - id: data
+            type: bytes
+            size: len
+    "};
+    let err = parse_err(yaml, "t", &[1, 2]);
+    assert!(
+        matches!(&err, DoeError::FieldError { message, .. } if message.contains("cannot be parsed on its own")),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn a_failing_argument_names_the_type_and_the_field() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: n
+            type: u1
+          - id: body
+            type: block(1 / n)
+        types:
+          block:
+            params:
+              - id: len
+            seq: []
+    "};
+    let err = parse_err(yaml, "t", &[0]);
+    assert!(err.to_string().contains("argument of t::block"), "{err}");
+}
+
+#[test]
+fn the_same_type_with_different_arguments_does_not_leak_between_uses() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: block(1)
+          - id: b
+            type: block(3)
+          - id: c
+            type: block(2)
+        types:
+          block:
+            params:
+              - id: len
+            seq:
+              - id: data
+                type: bytes
+                size: len
+    "};
+    let v = parse(yaml, "t", &[1, 2, 3, 4, 5, 6]);
+    let len = |name: &str| get_field(get_field(&v, name), "data").byte_len();
+    assert_eq!((len("a"), len("b"), len("c")), (Some(1), Some(3), Some(2)));
 }

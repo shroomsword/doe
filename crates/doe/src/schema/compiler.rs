@@ -24,13 +24,13 @@ use indexmap::IndexMap;
 use crate::error::{DoeError, Result};
 use crate::schema::expr;
 use crate::schema::ir::{
-    CompiledEnum, CompiledField, CompiledInstance, CompiledType, CompiledValid, Encoding, Endian,
-    EndianOverride, FieldKind, FloatWidth, InstanceKind, IntWidth, RepeatMode, SizeExpr, StrSize,
-    TypeRegistry,
+    CompiledEnum, CompiledField, CompiledInstance, CompiledParam, CompiledType, CompiledValid,
+    Encoding, Endian, EndianOverride, FieldKind, FloatWidth, InstanceKind, IntWidth, RepeatMode,
+    SizeExpr, StrSize, TypeRegistry,
 };
 use crate::schema::raw::{
-    ExprText, RawContents, RawEncoding, RawEndian, RawField, RawInstance, RawRepeat, RawSchema,
-    RawSwitch, RawType, RawTypeDecl, RawValid, RawValidRules, StringOrInt,
+    ExprText, RawContents, RawEncoding, RawEndian, RawField, RawInstance, RawParam, RawRepeat,
+    RawSchema, RawSwitch, RawType, RawTypeDecl, RawValid, RawValidRules, StringOrInt,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -152,6 +152,7 @@ impl Compiler {
         self.compile_type_decl(
             &schema.id,
             TypeParts {
+                params: &schema.params,
                 seq: &schema.seq,
                 types: &schema.types,
                 enums: &schema.enums,
@@ -181,7 +182,7 @@ impl Compiler {
         self.registry
             .types
             .entry(schema.id.clone())
-            .or_insert_with(|| placeholder(&schema.id));
+            .or_insert_with(|| placeholder(&schema.id, &schema.params));
 
         let prefix = schema.id.clone();
         self.collect_nested_names(&prefix, &schema.types);
@@ -193,7 +194,7 @@ impl Compiler {
             self.registry
                 .types
                 .entry(fqn.clone())
-                .or_insert_with(|| placeholder(&fqn));
+                .or_insert_with(|| placeholder(&fqn, &decl.params));
             self.collect_nested_names(&fqn, &decl.types);
         }
     }
@@ -215,6 +216,7 @@ impl Compiler {
         (endian, bit_endian): (Endian, Endian),
     ) -> Result<()> {
         let TypeParts {
+            params,
             seq,
             types,
             enums,
@@ -232,6 +234,27 @@ impl Compiler {
                 message: "is both a field of 'seq' and an instance".to_owned(),
             });
         }
+        let param_names: HashSet<String> = params.iter().map(|p| p.id.clone()).collect();
+        let duplicate_param = params
+            .iter()
+            .enumerate()
+            .find(|(i, p)| params.iter().take(*i).any(|earlier| earlier.id == p.id));
+        let clash = duplicate_param
+            .map(|(_, p)| (p.id.as_str(), "is declared twice in 'params'"))
+            .or_else(|| {
+                seq.iter()
+                    .map(|f| f.id.as_str())
+                    .chain(instance_names.iter().map(String::as_str))
+                    .find(|id| param_names.contains(*id))
+                    .map(|id| (id, "is both a parameter and a field or an instance"))
+            });
+        if let Some((id, message)) = clash {
+            return Err(DoeError::FieldError {
+                field: id.to_owned(),
+                context: fqn.to_owned(),
+                message: message.to_owned(),
+            });
+        }
 
         // Compile each field
         let mut fields = Vec::with_capacity(seq.len());
@@ -243,6 +266,7 @@ impl Compiler {
                 seen_ids: &seen_ids,
                 enums: &compiled_enums,
                 instances: &instance_names,
+                params: &param_names,
             };
             let compiled = self.compile_field(raw_field, &ctx)?;
             seen_ids.push(raw_field.id.clone());
@@ -257,6 +281,7 @@ impl Compiler {
                 seen_ids: &seen_ids,
                 enums: &compiled_enums,
                 instances: &instance_names,
+                params: &param_names,
             };
             compiled_instances.push(self.compile_instance(id, raw_instance, &ctx)?);
         }
@@ -266,6 +291,7 @@ impl Compiler {
             doc: None, // doc not propagated here; add if needed
             endian,
             bit_endian,
+            params: compile_params(params),
             fields,
             instances: compiled_instances,
             enums: compiled_enums.clone(),
@@ -280,6 +306,7 @@ impl Compiler {
             self.compile_type_decl(
                 &child_fqn,
                 TypeParts {
+                    params: &decl.params,
                     seq: &decl.seq,
                     types: &decl.types,
                     enums: &decl.enums,
@@ -459,6 +486,41 @@ impl Compiler {
         })
     }
 
+    /// Compile the arguments of a field's type and check them against the
+    /// parameters of the type `type_fqn`.
+    fn compile_type_args(
+        &self,
+        type_fqn: &str,
+        arg_texts: &[&str],
+        raw: &RawField,
+        ctx: &FieldCtx<'_>,
+    ) -> Result<Vec<expr::Expr>> {
+        let bad = |message: String| DoeError::FieldError {
+            field: raw.id.clone(),
+            context: ctx.parent_fqn.to_owned(),
+            message,
+        };
+        let wanted = self.registry.get(type_fqn).map_or(0, |ty| ty.params.len());
+        if wanted != arg_texts.len() {
+            let plural = |n: usize| if n == 1 { "parameter" } else { "parameters" };
+            return Err(bad(format!(
+                "type '{type_fqn}' takes {wanted} {}, but {} {} given",
+                plural(wanted),
+                arg_texts.len(),
+                if arg_texts.len() == 1 { "was" } else { "were" }
+            )));
+        }
+        arg_texts
+            .iter()
+            .map(|text| {
+                let arg =
+                    compile_expr(text, ctx).map_err(|e| bad(format!("argument '{text}': {e}")))?;
+                validate_size_expr_refs(text, ctx)?;
+                Ok(arg)
+            })
+            .collect()
+    }
+
     /// Resolve a type name string to a `FieldKind`.
     fn compile_type_ref(
         &self,
@@ -467,6 +529,30 @@ impl Compiler {
         ctx: &FieldCtx<'_>,
     ) -> Result<FieldKind> {
         let context = format!("{}.{}", ctx.parent_fqn, raw.id);
+
+        // `name(arg, ...)` passes arguments to a type that has parameters.
+        let (type_name, arg_texts) =
+            split_type_call(type_name).map_err(|message| DoeError::FieldError {
+                field: raw.id.clone(),
+                context: ctx.parent_fqn.to_owned(),
+                message,
+            })?;
+
+        if !arg_texts.is_empty()
+            && (matches!(type_name, "bytes" | "str" | "strz" | "bits")
+                || numeric_type(type_name).is_some()
+                || bit_type(type_name).is_some())
+        {
+            return Err(DoeError::FieldError {
+                field: raw.id.clone(),
+                context: ctx.parent_fqn.to_owned(),
+                message: format!(
+                    "type '{type_name}' takes 0 parameters, but {} {} given",
+                    arg_texts.len(),
+                    if arg_texts.len() == 1 { "was" } else { "were" }
+                ),
+            });
+        }
 
         let fixed = numeric_type(type_name).or_else(|| {
             bit_type(type_name).map(|(bit_size, endian)| FieldKind::Bits { bit_size, endian })
@@ -530,10 +616,14 @@ impl Compiler {
                 // Try fully-qualified resolution first, then relative to parent
                 let fqn = self.resolve_type_ref(other, ctx.parent_fqn);
                 match fqn {
-                    Some(name) => Ok(FieldKind::TypeRef {
-                        type_name: name,
-                        size: compile_optional_size(raw, ctx)?,
-                    }),
+                    Some(name) => {
+                        let args = self.compile_type_args(&name, &arg_texts, raw, ctx)?;
+                        Ok(FieldKind::TypeRef {
+                            type_name: name,
+                            size: compile_optional_size(raw, ctx)?,
+                            args,
+                        })
+                    }
                     None => Err(old_numeric_name(other).map_or_else(
                         || DoeError::UnknownType {
                             type_name: other.to_owned(),
@@ -632,25 +722,93 @@ struct FieldCtx<'a> {
     enums: &'a HashMap<String, CompiledEnum>,
     /// The names of the type's instances, which any expression may use.
     instances: &'a HashSet<String>,
+    /// The names of the type's parameters, which any expression may use.
+    params: &'a HashSet<String>,
 }
 
 /// The parts of a type declaration that are compiled together: the same for
 /// the top level of a schema and for a nested type.
 #[derive(Clone, Copy)]
 struct TypeParts<'a> {
+    params: &'a [RawParam],
     seq: &'a [RawField],
     types: &'a IndexMap<String, RawTypeDecl>,
     enums: &'a IndexMap<String, HashMap<String, String>>,
     instances: &'a IndexMap<String, RawInstance>,
 }
 
+/// Split `name(arg, ...)` into the name and the text of each argument, at the
+/// commas that are not inside parentheses, brackets or quotes. A name without
+/// parentheses has no arguments.
+fn split_type_call(text: &str) -> std::result::Result<(&str, Vec<&str>), String> {
+    let Some((name, rest)) = text.split_once('(') else {
+        return Ok((text, Vec::new()));
+    };
+    let Some(inner) = rest.trim_end().strip_suffix(')') else {
+        return Err(format!("'{text}': the arguments are not closed with ')'"));
+    };
+    let mut args = Vec::new();
+    let (mut depth, mut start) = (0usize, 0usize);
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+    for (at, c) in inner.char_indices() {
+        if let Some(open) = quote {
+            if escaped {
+                escaped = false;
+            } else if c == '\\' && open == '"' {
+                escaped = true;
+            } else if c == open {
+                quote = None;
+            }
+            continue;
+        }
+        match c {
+            '\'' | '"' => quote = Some(c),
+            '(' | '[' => depth += 1,
+            ')' | ']' => {
+                depth = depth
+                    .checked_sub(1)
+                    .ok_or_else(|| format!("'{text}': unbalanced parentheses"))?;
+            }
+            ',' if depth == 0 => {
+                args.push(inner.get(start..at).unwrap_or_default().trim());
+                start = at + 1;
+            }
+            _ => {}
+        }
+    }
+    if depth != 0 || quote.is_some() {
+        return Err(format!("'{text}': unbalanced parentheses or quotes"));
+    }
+    let last = inner.get(start..).unwrap_or_default().trim();
+    if !last.is_empty() || !args.is_empty() {
+        args.push(last);
+    }
+    if args.iter().any(|arg| arg.is_empty()) {
+        return Err(format!("'{text}': an argument is empty"));
+    }
+    Ok((name.trim(), args))
+}
+
+/// The parameters of a type, as compiled.
+fn compile_params(params: &[RawParam]) -> Vec<CompiledParam> {
+    params
+        .iter()
+        .map(|param| CompiledParam {
+            id: param.id.clone(),
+            doc: param.doc.clone(),
+        })
+        .collect()
+}
+
 /// Create an empty placeholder `CompiledType` used during name collection.
-fn placeholder(fqn: &str) -> CompiledType {
+fn placeholder(fqn: &str, params: &[RawParam]) -> CompiledType {
     CompiledType {
         name: fqn.to_owned(),
         doc: None,
         endian: Endian::Little,
         bit_endian: Endian::Big,
+        params: compile_params(params),
         fields: vec![],
         instances: vec![],
         enums: HashMap::new(),
@@ -777,8 +935,15 @@ fn field_exprs(field: &CompiledField) -> Vec<&expr::Expr> {
             | FieldKind::Str {
                 size: StrSize::Fixed(s),
                 ..
+            } => size(s, out),
+            FieldKind::TypeRef {
+                size: window, args, ..
+            } => {
+                if let Some(window) = window {
+                    size(window, out);
+                }
+                out.extend(args.iter());
             }
-            | FieldKind::TypeRef { size: Some(s), .. } => size(s, out),
             FieldKind::Switch {
                 on,
                 size: window,
@@ -1146,7 +1311,10 @@ fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx<'_>, src: &str) -> Re
             let Some(name) = parts.first() else {
                 return Ok(());
             };
-            if !ctx.seen_ids.iter().any(|id| id == name) && !ctx.instances.contains(name) {
+            if !ctx.seen_ids.iter().any(|id| id == name)
+                && !ctx.instances.contains(name)
+                && !ctx.params.contains(name)
+            {
                 return Err(DoeError::FieldError {
                     field: name.clone(),
                     context: ctx.parent_fqn.to_owned(),

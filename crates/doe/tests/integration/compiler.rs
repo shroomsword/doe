@@ -2096,3 +2096,216 @@ fn an_instance_used_by_valid_is_computed_first() {
     );
     assert_eq!(reg.get("t").unwrap().fields[0].uses_instances, ["limit"]);
 }
+
+// ── params ────────────────────────────────────────────────────────────────
+
+const PARAMS: &str = indoc! {"
+    id: t
+    seq:
+      - id: n
+        type: u1
+      - id: first
+        type: block(n * 2, 'a')
+      - id: second
+        type: block(4, \"b, c\")
+    types:
+      block:
+        params:
+          - id: len
+            type: u4
+          - id: label
+            type: str
+        seq:
+          - id: data
+            type: bytes
+            size: len
+"};
+
+#[test]
+fn a_type_with_params_is_called_with_arguments() {
+    use doe::schema::expr::Expr;
+    let reg = compile(PARAMS);
+    let block = reg.get("t::block").unwrap();
+    let ids: Vec<&str> = block.params.iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(ids, ["len", "label"]);
+    let FieldKind::TypeRef {
+        type_name, args, ..
+    } = &reg.get("t").unwrap().fields[1].kind
+    else {
+        panic!("expected a type");
+    };
+    assert_eq!(type_name, "t::block");
+    assert_eq!(args.len(), 2);
+    assert!(matches!(args[0], Expr::Binary(..)));
+    assert_eq!(args[1], Expr::Str("a".into()));
+    // A comma inside a string does not split the arguments.
+    let FieldKind::TypeRef { args, .. } = &reg.get("t").unwrap().fields[2].kind else {
+        panic!("expected a type");
+    };
+    assert_eq!(args, &[Expr::Int(4), Expr::Str("b, c".into())]);
+}
+
+#[test]
+fn arguments_may_contain_calls_brackets_and_nested_commas() {
+    let schema = PARAMS.replace(
+        "block(4, \\\"b, c\\\")",
+        "block([1, 2].max + n, 'x'.substring(0, 1))",
+    );
+    let reg = compile(&schema);
+    let FieldKind::TypeRef { args, .. } = &reg.get("t").unwrap().fields[2].kind else {
+        panic!("expected a type");
+    };
+    assert_eq!(args.len(), 2);
+}
+
+#[test]
+fn params_work_in_switch_cases_and_in_imported_style_types() {
+    let schema = indoc! {"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: body
+            type:
+              switch-on: kind
+              cases:
+                1: block(3)
+                _: block(5)
+        types:
+          block:
+            params:
+              - id: len
+            seq:
+              - id: data
+                type: bytes
+                size: len
+    "};
+    compile(schema);
+}
+
+#[test]
+fn wrong_numbers_of_arguments_are_errors_that_name_the_type() {
+    for (what, call, expected) in [
+        ("none", "block", "takes 2 parameters, but 0 were given"),
+        ("too few", "block(1)", "takes 2 parameters, but 1 was given"),
+        (
+            "too many",
+            "block(1, 2, 3)",
+            "takes 2 parameters, but 3 were given",
+        ),
+    ] {
+        let schema = PARAMS
+            .replace("block(n * 2, 'a')", call)
+            .replace("block(4, \"b, c\")", "block(1, 'z')");
+        let err = compile_err(&schema);
+        assert!(err.to_string().contains(expected), "{what}: {err}");
+    }
+    let err =
+        compile_err("id: t\nseq:\n  - id: a\n    type: plain(1)\ntypes:\n  plain:\n    seq: []\n");
+    assert!(
+        err.to_string()
+            .contains("takes 0 parameters, but 1 was given"),
+        "{err}"
+    );
+}
+
+#[test]
+fn malformed_calls_are_schema_errors() {
+    for (call, expected) in [
+        ("block(1, 2", "not closed"),
+        ("block(1,, 2)", "empty"),
+        ("block(1, )", "empty"),
+        ("block(1 + , 2)", "argument"),
+        ("block((1, 2)", "unbalanced"),
+        ("block('a, 2)", "quotes"),
+    ] {
+        let schema = PARAMS.replace("block(n * 2, 'a')", call);
+        let err = compile_err(&schema);
+        assert!(err.to_string().contains(expected), "{call}: {err}");
+    }
+}
+
+#[test]
+fn arguments_on_a_primitive_are_an_error() {
+    for call in ["u4(1)", "bytes(2)", "b3(1)"] {
+        let schema = format!("id: t\nseq:\n  - id: a\n    type: {call}\n    size: 1\n");
+        let err = compile_err(&schema);
+        assert!(
+            err.to_string().contains("takes 0 parameters"),
+            "{call}: {err}"
+        );
+    }
+}
+
+#[test]
+fn arguments_may_only_use_earlier_fields_instances_and_params() {
+    let later = PARAMS.replace("block(n * 2, 'a')", "block(later, 'a')") + "";
+    let schema = later.replace(
+        "      - id: second\n",
+        "      - id: later\n        type: u1\n      - id: second\n",
+    );
+    // `later` is defined after `first`, so `first` cannot use it.
+    let err = compile_err(&schema.replace("block(later, 'a')", "block(missing, 'a')"));
+    assert!(err.to_string().contains("missing"), "{err}");
+    let ok = "id: t\nseq:\n  - id: a\n    type: rec(inst)\ninstances:\n  inst:\n    value: 3\ntypes:\n  rec:\n    params:\n      - id: p\n    seq:\n      - id: b\n        type: bytes\n        size: p\n";
+    let reg = compile(ok);
+    assert_eq!(reg.get("t").unwrap().fields[0].uses_instances, ["inst"]);
+}
+
+#[test]
+fn params_may_not_share_a_name_with_fields_instances_or_each_other() {
+    let cases = [
+        (
+            "a field",
+            "params:\n      - id: len\n    seq:\n      - id: len\n        type: u1\n",
+            "both a parameter",
+        ),
+        (
+            "an instance",
+            "params:\n      - id: len\n    seq: []\n    instances:\n      len:\n        value: 1\n",
+            "both a parameter",
+        ),
+        (
+            "each other",
+            "params:\n      - id: len\n      - id: len\n    seq: []\n",
+            "declared twice",
+        ),
+    ];
+    for (what, body, expected) in cases {
+        let schema = format!("id: t\nseq: []\ntypes:\n  inner:\n    {body}");
+        let err = compile_err(&schema);
+        assert!(err.to_string().contains(expected), "{what}: {err}");
+    }
+}
+
+#[test]
+fn params_can_be_used_in_every_kind_of_expression_of_the_type() {
+    let schema = indoc! {"
+        id: t
+        seq:
+          - id: x
+            type: rec(2, 'ab')
+        types:
+          rec:
+            params:
+              - id: count
+              - id: label
+            seq:
+              - id: items
+                type: u1
+                repeat: expr
+                repeat-expr: count
+              - id: tail
+                type: bytes
+                size: label.length
+                if: count > 0
+              - id: checked
+                type: u1
+                valid:
+                  max: count * 100
+            instances:
+              doubled:
+                value: count * 2
+    "};
+    compile(schema);
+}

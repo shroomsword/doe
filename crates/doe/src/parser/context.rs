@@ -8,6 +8,7 @@
 
 use crate::parser::cursor::Cursor;
 use crate::schema::expr::{EvalContext, ExprValue};
+use crate::schema::ir::CompiledParam;
 use crate::value::Value;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -191,6 +192,15 @@ impl ParseContext {
         if let Some(frame) = self.instance_frames.last_mut() {
             frame.states.insert(id.to_owned(), InstanceState::Done);
             frame.values.insert(id.to_owned(), value);
+        }
+    }
+
+    /// Bind the values passed to a type, as its parameters, in the current
+    /// scope. Parameters without a value (a mismatch the compiler rules out)
+    /// stay unbound.
+    pub fn bind_params(&mut self, params: &[CompiledParam], values: Vec<ExprValue>) {
+        for (param, value) in params.iter().zip(values) {
+            self.eval_ctx.bind(&param.id, value);
         }
     }
 

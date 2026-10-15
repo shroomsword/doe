@@ -468,6 +468,41 @@ that is not read is not checked. `in-enum` needs `enum:` on the field; an empty
 `valid`, an empty `any-of`, and `valid` on a `value:` instance are schema
 errors. `valid` also works on an instance that reads.
 
+### Parameterized types
+
+A type can take values from the field that uses it. `params:` lists them, and
+the field passes arguments after the type name:
+
+```yaml
+seq:
+  - id: count
+    type: u1
+  - id: first
+    type: block(count * 2, 'a')       # arguments are expressions
+  - id: second
+    type: block(4, 'b')
+types:
+  block:
+    params:
+      - id: len
+        type: u4          # documents the parameter; not enforced
+      - id: label
+        type: str
+    seq:
+      - id: data
+        type: bytes
+        size: len         # a parameter is a name like any field
+```
+
+The arguments are expressions in the scope of the field's own type, evaluated
+when the field is read (for each element of a `repeat`, and in `switch-on`
+cases too), so they can use earlier fields, instances and enum members. In the
+new type a parameter can be used in any expression, and by its own children as
+`_parent.name`. The number of arguments must match the number of parameters;
+that is checked when the schema is compiled, and so is an argument on a type
+that takes none. A type with parameters cannot be parsed on its own, and a
+parameter cannot share a name with a field or an instance of its type.
+
 ### Instances
 
 `instances:` names values that are computed or read on demand, on a type or on

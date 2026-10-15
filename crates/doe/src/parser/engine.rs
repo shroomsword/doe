@@ -82,6 +82,17 @@ impl<'reg> Engine<'reg> {
                 type_name: type_name.to_owned(),
                 context: "<engine>".to_owned(),
             })?;
+        if !ty.params.is_empty() {
+            return Err(DoeError::FieldError {
+                field: type_name.to_owned(),
+                context: "<engine>".to_owned(),
+                message: format!(
+                    "the type takes {} parameter{} and cannot be parsed on its own",
+                    ty.params.len(),
+                    if ty.params.len() == 1 { "" } else { "s" }
+                ),
+            });
+        }
         let mut ctx = ParseContext::new();
         ctx.set_input_len(cursor.len());
         self.parse_compiled_type(ty, cursor, &mut ctx)
@@ -472,9 +483,11 @@ impl<'reg> Engine<'reg> {
             FieldKind::Bits { bit_size, endian } => {
                 Self::read_bit_field(*bit_size, *endian, parent_ty, cursor)
             }
-            FieldKind::TypeRef { type_name, size } => {
-                self.read_type_ref(type_name, size.as_ref(), parent_ty, cursor, ctx)
-            }
+            FieldKind::TypeRef {
+                type_name,
+                size,
+                args,
+            } => self.read_type_ref(type_name, (size.as_ref(), args), parent_ty, cursor, ctx),
             FieldKind::Switch {
                 on,
                 size,
@@ -648,6 +661,23 @@ impl<'reg> Engine<'reg> {
         }
     }
 
+    /// The values of the arguments a field passes to a type with parameters.
+    fn eval_args(
+        args: &[expr::Expr],
+        type_name: &str,
+        parent_ty: &CompiledType,
+        cursor: &Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Vec<ExprValue>> {
+        ctx.set_io(cursor);
+        args.iter()
+            .map(|arg| {
+                expr::eval(arg, &ctx.eval_ctx, "<argument>")
+                    .map_err(|e| annotate(&e, &format!("argument of {type_name}"), &parent_ty.name))
+            })
+            .collect()
+    }
+
     fn read_sized_bytes(
         size: &SizeExpr,
         cursor: &mut Cursor<'_>,
@@ -679,7 +709,7 @@ impl<'reg> Engine<'reg> {
     fn read_type_ref(
         &self,
         type_name: &str,
-        size: Option<&SizeExpr>,
+        (size, args): (Option<&SizeExpr>, &[expr::Expr]),
         parent_ty: &CompiledType,
         cursor: &mut Cursor<'_>,
         ctx: &mut ParseContext,
@@ -698,13 +728,19 @@ impl<'reg> Engine<'reg> {
                 type_name: type_name.to_owned(),
                 context: parent_ty.name.clone(),
             })?;
-        // The size is an expression of the fields around this one, so it is
-        // evaluated before the new scope exists.
+        // The size and the arguments are expressions of the fields around
+        // this one, so they are evaluated before the new scope exists.
         let window = match size {
             Some(size) => Some(eval_size(size, ctx, cursor)?),
             None => None,
         };
+        let values = if args.is_empty() {
+            Vec::new()
+        } else {
+            Self::eval_args(args, &sub_ty.name, parent_ty, cursor, ctx)?
+        };
         ctx.push_scope();
+        ctx.bind_params(&sub_ty.params, values);
         let result = match window {
             None => self.parse_compiled_type(sub_ty, cursor, ctx),
             Some(n) => self.parse_in_window(sub_ty, n, cursor, ctx),
