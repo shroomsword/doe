@@ -105,8 +105,30 @@ impl<'reg> Engine<'reg> {
             fields.push((field.id.clone(), value));
         }
 
-        // Instances come after the sequence, in schema order. Some may have
-        // been computed already, because a field used them.
+        if !ty.instances.is_empty() {
+            self.finish_instances(ty, cursor, ctx, &mut fields)?;
+        }
+
+        Ok(Value::Struct {
+            type_name: ty.name.clone(),
+            fields,
+        })
+    }
+
+    /// Compute the instances of `ty` and add them to `fields`, in schema
+    /// order, after the fields of `seq`. Some may have been computed already,
+    /// because a field used them.
+    ///
+    /// The functions on the path of a nested type are kept small, with the
+    /// bulk of the work in functions like this one that the recursion does not
+    /// pass through, so that deeply nested types do not use much stack.
+    fn finish_instances(
+        &self,
+        ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+        fields: &mut Vec<(String, Value)>,
+    ) -> Result<()> {
         for instance in &ty.instances {
             self.ensure_instance(ty, instance, cursor, ctx)?;
         }
@@ -117,11 +139,7 @@ impl<'reg> Engine<'reg> {
                 fields.push((instance.id.clone(), value));
             }
         }
-
-        Ok(Value::Struct {
-            type_name: ty.name.clone(),
-            fields,
-        })
+        Ok(())
     }
 
     fn parse_field(
@@ -131,27 +149,59 @@ impl<'reg> Engine<'reg> {
         cursor: &mut Cursor<'_>,
         ctx: &mut ParseContext,
     ) -> Result<Value> {
-        // Compute the instances the field's expressions use.
+        if !field.uses_instances.is_empty() {
+            self.force_instances(field, parent_ty, cursor, ctx)?;
+        }
+        if field.if_expr.is_some() && !Self::guard_holds(field, parent_ty, cursor, ctx)? {
+            return Ok(Value::Absent);
+        }
+        if field.pos.is_some() {
+            return self.parse_at_pos(field, parent_ty, cursor, ctx);
+        }
+        self.parse_repeats(field, parent_ty, cursor, ctx)
+    }
+
+    /// Compute the instances the field's expressions use.
+    fn force_instances(
+        &self,
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<()> {
         for name in &field.uses_instances {
             self.ensure_named_instance(parent_ty, name, cursor, ctx)?;
         }
+        Ok(())
+    }
 
-        // Evaluate `if:` guard
-        if let Some(if_expr) = &field.if_expr {
-            ctx.set_io(cursor);
-            let cond = expr::eval_bool(if_expr, &ctx.eval_ctx, "<if>")
-                .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
-            if !cond {
-                return Ok(Value::Absent);
-            }
-        }
+    /// Whether the field's `if:` guard is true.
+    fn guard_holds(
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        cursor: &Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<bool> {
+        let Some(if_expr) = &field.if_expr else {
+            return Ok(true);
+        };
+        ctx.set_io(cursor);
+        expr::eval_bool(if_expr, &ctx.eval_ctx, "<if>")
+            .map_err(|e| annotate(&e, &field.id, &parent_ty.name))
+    }
 
+    /// `pos:` reads the whole field (every repeat) somewhere else, then puts
+    /// the cursor back where the sequence left off.
+    fn parse_at_pos(
+        &self,
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
         let Some(pos_expr) = &field.pos else {
             return self.parse_repeats(field, parent_ty, cursor, ctx);
         };
-
-        // `pos:` reads the whole field (every repeat) somewhere else, then
-        // puts the cursor back where the sequence left off.
         ctx.set_io(cursor);
         let target = expr::eval_int(pos_expr, &ctx.eval_ctx, "<pos>")
             .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
@@ -185,60 +235,90 @@ impl<'reg> Engine<'reg> {
     ) -> Result<Value> {
         match &field.repeat {
             RepeatMode::Once => self.parse_field_once(field, parent_ty, cursor, ctx),
-            RepeatMode::Eos => {
-                let mut items = Vec::new();
-                while !cursor.is_eof() {
-                    let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
-                    items.push(v);
-                }
-                Ok(Value::Array(items))
-            }
+            RepeatMode::Eos => self.repeat_eos(field, parent_ty, cursor, ctx),
             RepeatMode::Count(count_expr) => {
-                ctx.set_io(cursor);
-                let n = expr::eval_int(count_expr, &ctx.eval_ctx, "<repeat-expr>")
-                    .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
-                if n < 0 {
-                    return Err(DoeError::FieldError {
-                        field: field.id.clone(),
-                        context: parent_ty.name.clone(),
-                        message: format!("repeat count evaluated to negative value: {n}"),
-                    });
-                }
-                let count = usize::try_from(n).map_err(|_| DoeError::FieldError {
-                    field: field.id.clone(),
-                    context: parent_ty.name.clone(),
-                    message: format!("repeat count too large: {n}"),
-                })?;
-                // Each element consumes at least one byte, so never reserve more
-                // than the remaining input can hold, and never a size that a
-                // large input and a large count could make unreasonable.
-                let mut items =
-                    Vec::with_capacity(count.min(cursor.remaining()).min(MAX_RESERVED_ELEMENTS));
-                for _ in 0..count {
-                    let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
-                    items.push(v);
-                }
-                Ok(Value::Array(items))
+                self.repeat_count(count_expr, field, parent_ty, cursor, ctx)
             }
             RepeatMode::Until(until_expr) => {
-                let mut items = Vec::new();
-                loop {
-                    let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
-                    // Bind the most recently parsed value to `_` so the
-                    // until-expression can reference it, matching the convention
-                    // used by KaitaiStruct.
-                    ctx.bind_scratch("_", &v);
-                    ctx.set_io(cursor);
-                    let done = expr::eval_bool(until_expr, &ctx.eval_ctx, "<repeat-until>")
-                        .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
-                    items.push(v);
-                    if done || cursor.is_eof() {
-                        break;
-                    }
-                }
-                Ok(Value::Array(items))
+                self.repeat_until(until_expr, field, parent_ty, cursor, ctx)
             }
         }
+    }
+
+    fn repeat_eos(
+        &self,
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
+        let mut items = Vec::new();
+        while !cursor.is_eof() {
+            let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
+            items.push(v);
+        }
+        Ok(Value::Array(items))
+    }
+
+    fn repeat_count(
+        &self,
+        count_expr: &expr::Expr,
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
+        ctx.set_io(cursor);
+        let n = expr::eval_int(count_expr, &ctx.eval_ctx, "<repeat-expr>")
+            .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
+        if n < 0 {
+            return Err(DoeError::FieldError {
+                field: field.id.clone(),
+                context: parent_ty.name.clone(),
+                message: format!("repeat count evaluated to negative value: {n}"),
+            });
+        }
+        let count = usize::try_from(n).map_err(|_| DoeError::FieldError {
+            field: field.id.clone(),
+            context: parent_ty.name.clone(),
+            message: format!("repeat count too large: {n}"),
+        })?;
+        // Each element consumes at least one byte, so never reserve more
+        // than the remaining input can hold, and never a size that a
+        // large input and a large count could make unreasonable.
+        let mut items =
+            Vec::with_capacity(count.min(cursor.remaining()).min(MAX_RESERVED_ELEMENTS));
+        for _ in 0..count {
+            let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
+            items.push(v);
+        }
+        Ok(Value::Array(items))
+    }
+
+    fn repeat_until(
+        &self,
+        until_expr: &expr::Expr,
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
+        let mut items = Vec::new();
+        loop {
+            let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
+            // Bind the most recently parsed value to `_` so the
+            // until-expression can reference it, matching the convention
+            // used by KaitaiStruct.
+            ctx.bind_scratch("_", &v);
+            ctx.set_io(cursor);
+            let done = expr::eval_bool(until_expr, &ctx.eval_ctx, "<repeat-until>")
+                .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
+            items.push(v);
+            if done || cursor.is_eof() {
+                break;
+            }
+        }
+        Ok(Value::Array(items))
     }
 
     /// Parse one element of a repeated field, requiring it to consume input.
@@ -379,62 +459,21 @@ impl<'reg> Engine<'reg> {
     ) -> Result<Value> {
         match kind {
             FieldKind::UInt { width, endian } => {
-                let e = resolve_endian(*endian, parent_ty.endian);
-                Self::read_uint(*width, e, cursor)
+                Self::read_uint(*width, resolve_endian(*endian, parent_ty.endian), cursor)
             }
             FieldKind::SInt { width, endian } => {
-                let e = resolve_endian(*endian, parent_ty.endian);
-                Self::read_sint(*width, e, cursor)
+                Self::read_sint(*width, resolve_endian(*endian, parent_ty.endian), cursor)
             }
             FieldKind::Float { width, endian } => {
-                let e = resolve_endian(*endian, parent_ty.endian);
-                Self::read_float(*width, e, cursor)
+                Self::read_float(*width, resolve_endian(*endian, parent_ty.endian), cursor)
             }
-            FieldKind::Bytes { size } => {
-                let n = eval_size(size, ctx, cursor)?;
-                Self::read_blob(n, cursor)
-            }
+            FieldKind::Bytes { size } => Self::read_sized_bytes(size, cursor, ctx),
             FieldKind::Str { size, encoding } => Self::read_str(size, *encoding, cursor, ctx),
             FieldKind::Bits { bit_size, endian } => {
-                let order = match resolve_endian(*endian, parent_ty.bit_endian) {
-                    Endian::Big => BitOrder::MostSignificantFirst,
-                    Endian::Little => BitOrder::LeastSignificantFirst,
-                };
-                let bits = cursor.read_bits(*bit_size, order)?;
-                Ok(if *bit_size == 1 {
-                    Value::Bool(bits != 0)
-                } else {
-                    Value::UInt(bits)
-                })
+                Self::read_bit_field(*bit_size, *endian, parent_ty, cursor)
             }
             FieldKind::TypeRef { type_name, size } => {
-                if ctx.depth() >= MAX_TYPE_DEPTH {
-                    return Err(DoeError::FieldError {
-                        field: type_name.clone(),
-                        context: parent_ty.name.clone(),
-                        message: format!("types are nested more than {MAX_TYPE_DEPTH} levels deep"),
-                    });
-                }
-                let sub_ty = self
-                    .registry
-                    .get(type_name)
-                    .ok_or_else(|| DoeError::UnknownType {
-                        type_name: type_name.clone(),
-                        context: parent_ty.name.clone(),
-                    })?;
-                // The size is an expression of the fields around this one, so
-                // it is evaluated before the new scope exists.
-                let window = match size {
-                    Some(size) => Some(eval_size(size, ctx, cursor)?),
-                    None => None,
-                };
-                ctx.push_scope();
-                let result = match window {
-                    None => self.parse_compiled_type(sub_ty, cursor, ctx),
-                    Some(n) => self.parse_in_window(sub_ty, n, cursor, ctx),
-                };
-                let _inner_fields = ctx.pop_scope();
-                result
+                self.read_type_ref(type_name, size.as_ref(), parent_ty, cursor, ctx)
             }
             FieldKind::Switch {
                 on,
@@ -607,6 +646,71 @@ impl<'reg> Engine<'reg> {
                 Ok((apply_enum(value, enum_ref.as_deref(), ty), None))
             }
         }
+    }
+
+    fn read_sized_bytes(
+        size: &SizeExpr,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
+        let n = eval_size(size, ctx, cursor)?;
+        Self::read_blob(n, cursor)
+    }
+
+    fn read_bit_field(
+        bit_size: u8,
+        endian: EndianOverride,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+    ) -> Result<Value> {
+        let order = match resolve_endian(endian, parent_ty.bit_endian) {
+            Endian::Big => BitOrder::MostSignificantFirst,
+            Endian::Little => BitOrder::LeastSignificantFirst,
+        };
+        let bits = cursor.read_bits(bit_size, order)?;
+        Ok(if bit_size == 1 {
+            Value::Bool(bits != 0)
+        } else {
+            Value::UInt(bits)
+        })
+    }
+
+    /// Read a field of a user type, in a window if it has a size.
+    fn read_type_ref(
+        &self,
+        type_name: &str,
+        size: Option<&SizeExpr>,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
+        if ctx.depth() >= MAX_TYPE_DEPTH {
+            return Err(DoeError::FieldError {
+                field: type_name.to_owned(),
+                context: parent_ty.name.clone(),
+                message: format!("types are nested more than {MAX_TYPE_DEPTH} levels deep"),
+            });
+        }
+        let sub_ty = self
+            .registry
+            .get(type_name)
+            .ok_or_else(|| DoeError::UnknownType {
+                type_name: type_name.to_owned(),
+                context: parent_ty.name.clone(),
+            })?;
+        // The size is an expression of the fields around this one, so it is
+        // evaluated before the new scope exists.
+        let window = match size {
+            Some(size) => Some(eval_size(size, ctx, cursor)?),
+            None => None,
+        };
+        ctx.push_scope();
+        let result = match window {
+            None => self.parse_compiled_type(sub_ty, cursor, ctx),
+            Some(n) => self.parse_in_window(sub_ty, n, cursor, ctx),
+        };
+        let _inner_fields = ctx.pop_scope();
+        result
     }
 
     /// Read a field whose type is chosen by a value: the first case whose key
