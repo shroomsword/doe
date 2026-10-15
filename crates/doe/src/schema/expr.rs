@@ -363,7 +363,16 @@ impl<'a> Lexer<'a> {
             None => Token::Eof,
             Some(b'0'..=b'9') => self.read_number(),
             Some(q @ (b'"' | b'\'')) => self.read_string(q),
-            Some(b'a'..=b'z' | b'A'..=b'Z' | b'_') => Token::Ident(self.read_ident()),
+            Some(b'a'..=b'z' | b'A'..=b'Z' | b'_') => {
+                let id = self.read_ident();
+                match id.as_str() {
+                    // Kaitai Struct spells the logical operators as words.
+                    "and" => Token::AmpAmp,
+                    "or" => Token::PipePipe,
+                    "not" => Token::Bang,
+                    _ => Token::Ident(id),
+                }
+            }
             Some(b'+') => {
                 self.advance();
                 Token::Plus

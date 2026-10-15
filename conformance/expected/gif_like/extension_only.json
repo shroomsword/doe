@@ -1,0 +1,39 @@
+{
+  "blocks": [
+    {
+      "blocktype": 33,
+      "body": {
+        "label": 249,
+        "subblocks": [
+          {
+            "data": "04000000",
+            "len": 4
+          },
+          {
+            "data": "",
+            "len": 0
+          }
+        ]
+      }
+    },
+    {
+      "blocktype": 59
+    }
+  ],
+  "header": {
+    "magic": "474946",
+    "version": "89a"
+  },
+  "logicalscreen": {
+    "backgroundcolorindex": 0,
+    "colorresolution": 0,
+    "colortablebytes": 0,
+    "colortableentries": 0,
+    "colortablesizeexp": 0,
+    "hascolortable": false,
+    "height": 1,
+    "issorted": false,
+    "pixelaspectratio": 0,
+    "width": 1
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "blocks": [
+    {
+      "blocktype": 44,
+      "body": {
+        "haslocaltable": true,
+        "height": 2,
+        "interlaced": false,
+        "issorted": false,
+        "left": 0,
+        "localcolortable": "090807060504",
+        "localtablebytes": 6,
+        "localtablesizeexp": 0,
+        "lzwmincodesize": 2,
+        "reserved": 0,
+        "subblocks": [
+          {
+            "data": "010203",
+            "len": 3
+          },
+          {
+            "data": "",
+            "len": 0
+          }
+        ],
+        "top": 0,
+        "width": 2
+      }
+    },
+    {
+      "blocktype": 59
+    }
+  ],
+  "globalcolortable": "0102030405060708090a0b0c",
+  "header": {
+    "magic": "474946",
+    "version": "87a"
+  },
+  "logicalscreen": {
+    "backgroundcolorindex": 0,
+    "colorresolution": 7,
+    "colortablebytes": 12,
+    "colortableentries": 4,
+    "colortablesizeexp": 1,
+    "hascolortable": true,
+    "height": 2,
+    "issorted": false,
+    "pixelaspectratio": 0,
+    "width": 2
+  }
+}

@@ -565,6 +565,44 @@ seq:
     type: zlib_block
 ```
 
+## Kaitai Struct compatibility
+
+doe reads definitions written in the [Kaitai Struct](https://kaitai.io/) language:
+a `.ksy` file works as a schema (`doe file.bin format.ksy`), and an import
+resolves as Kaitai Struct resolves it (a name is looked for next to the
+importing file and then in the include paths, a name with a leading slash in the
+include paths only). The `meta` keys that do not affect parsing (`title`,
+`license`, `file-extension`, ...) and `doc-ref` are accepted and ignored, and so
+are the `ks-*` options. [`conformance/`](https://github.com/shroomsword/doe/tree/main/conformance) checks that doe and the
+reference compiler's parser produce the same result for a set of formats and
+samples.
+
+What is supported is what this README describes, with Kaitai's names and syntax:
+`seq`, `types`, `enums`, `instances`, `params`, `imports`, `valid`,
+`switch-on`/`cases`, `repeat`, `if`, `contents`, `size`, `size-eos` and `pos`;
+the numeric, bit and string types; and Kaitai's expression language, including
+the word operators `and`, `or` and `not`.
+
+What is different:
+
+- The names of the numeric types are Kaitai's, and `u8` is 64 bits (see the
+  upgrade note under [Primitive types](#primitive-types)).
+- Output lists the instances of a type after its fields, and a failing instance
+  aborts the parse.
+- `%` and `/` accept a negative divisor and round towards negative infinity;
+  the JavaScript runtime of Kaitai Struct refuses a divisor that is not positive.
+- `substring` out of range is an error, where the runtimes differ.
+- Instances of an enclosing type cannot be used from a sub-type while the
+  enclosing type is still being parsed.
+
+What is not supported yet, and fails when a definition uses it: `process:`;
+`terminator` on a field without a type, and `include`, `consume`, `eos-error` and
+`pad-right`; a `size` together with a `terminator` on a string (doe stops at the
+terminator instead of reading the whole size); encodings other than UTF-8, ASCII
+and ISO-8859-1; `meta.endian` as a `switch-on` mapping; enum entries written as
+mappings (`1: {id: name}`); and enum members qualified with a type
+(`type::enum::member`).
+
 ## Output
 
 ### Text (default)

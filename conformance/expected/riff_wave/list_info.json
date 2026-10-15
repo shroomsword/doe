@@ -1,0 +1,40 @@
+{
+  "chunks": [
+    {
+      "body": {
+        "audioformat": 1,
+        "bitspersample": 16,
+        "blockalign": 4,
+        "byterate": 176400,
+        "bytespersample": 2,
+        "channels": 2,
+        "samplerate": 44100
+      },
+      "chunkid": "fmt ",
+      "len": 16
+    },
+    {
+      "body": {
+        "listtype": "INFO",
+        "subchunks": [
+          {
+            "body": "616263",
+            "chunkid": "ISFT",
+            "len": 3,
+            "padbyte": "00"
+          },
+          {
+            "body": "6869",
+            "chunkid": "ICMT",
+            "len": 2
+          }
+        ]
+      },
+      "chunkid": "LIST",
+      "len": 26
+    }
+  ],
+  "filesize": 62,
+  "riffid": "52494646",
+  "waveid": "57415645"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "doe-conformance",
+  "private": true,
+  "description": "Generates the expected output of the conformance suite with the reference Kaitai Struct compiler",
+  "license": "MIT",
+  "scripts": {
+    "generate": "node generate.js"
+  },
+  "dependencies": {
+    "kaitai-struct": "0.11.0",
+    "kaitai-struct-compiler": "0.11.0",
+    "yaml": "2.8.1"
+  }
+}

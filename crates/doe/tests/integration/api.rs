@@ -270,3 +270,10 @@ fn parse_options_default_to_showing_instances() {
     assert!(without.get("doubled").is_none());
     assert_eq!(without["a"], 21);
 }
+
+#[test]
+fn schema_path_ksy_extension() {
+    assert!(is_schema_path("riff.ksy"));
+    assert!(is_schema_path("formats/riff.KSY"));
+    assert!(!is_schema_path("riff"));
+}

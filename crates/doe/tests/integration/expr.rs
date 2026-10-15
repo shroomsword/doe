@@ -1109,3 +1109,28 @@ fn struct_and_omitted_values_display_and_name_their_type() {
     assert_eq!(om.type_name(), "omitted value");
     assert!(om.to_string().contains('9'));
 }
+
+#[test]
+fn kaitai_word_operators_are_the_logical_operators() {
+    let c = ctx();
+    let v = |src| eval_str(src, &c).unwrap();
+    assert_eq!(v("true and false"), ExprValue::Bool(false));
+    assert_eq!(v("true and true"), ExprValue::Bool(true));
+    assert_eq!(v("false or true"), ExprValue::Bool(true));
+    assert_eq!(v("not true"), ExprValue::Bool(false));
+    assert_eq!(v("not (1 > 2) and 2 > 1"), ExprValue::Bool(true));
+    assert_eq!(v("1 > 2 or 3 > 2 and not false"), ExprValue::Bool(true));
+    // They short-circuit like the symbols, and the symbols still work.
+    assert_eq!(v("true or missing"), ExprValue::Bool(true));
+    assert_eq!(v("false and missing"), ExprValue::Bool(false));
+    assert_eq!(v("true && !false"), ExprValue::Bool(true));
+    // Only whole words are operators.
+    let mut c = ctx();
+    c.bind("order", 5);
+    c.bind("android", 6);
+    c.bind("notes", 7);
+    assert_eq!(
+        eval_str("order + android + notes", &c).unwrap(),
+        ExprValue::Int(18)
+    );
+}

@@ -1,0 +1,21 @@
+{
+  "body": "7461696c",
+  "dontfragment": false,
+  "dscp": 46,
+  "dstaddress": "ffffffff",
+  "ecn": 1,
+  "fragmentoffset": 185,
+  "headerchecksum": 258,
+  "headerlen": 24,
+  "headerlenwords": 6,
+  "identification": 43981,
+  "isfragment": true,
+  "morefragments": true,
+  "options": "01010100",
+  "protocol": 6,
+  "reserved": false,
+  "srcaddress": "7f000001",
+  "totallength": 28,
+  "ttl": 1,
+  "version": 4
+}

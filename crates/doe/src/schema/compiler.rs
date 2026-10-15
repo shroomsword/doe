@@ -105,6 +105,19 @@ impl Compiler {
     /// Returns an error if the schema is invalid, conflicts with an already
     /// loaded id, or has an import cycle.
     pub fn process_schema(&mut self, schema: &RawSchema) -> Result<()> {
+        if schema.id.is_empty() {
+            return Err(DoeError::Schema(
+                "the schema has no id (`id`, or `meta.id` in a Kaitai Struct file)".to_owned(),
+            ));
+        }
+        if let Some(meta_id) = &schema.meta.id
+            && *meta_id != schema.id
+        {
+            return Err(DoeError::Schema(format!(
+                "the schema's id '{}' and its meta.id '{meta_id}' differ",
+                schema.id
+            )));
+        }
         // If we have already processed this exact id, check whether it came
         // from the same source.  An id being loaded again via a shared import
         // is fine (idempotent); the same id from a *different* file is an error.
@@ -138,9 +151,9 @@ impl Compiler {
         self.loading_stack.push(schema.id.clone());
 
         // Process imports first (depth-first)
-        for import in &schema.imports {
+        for import in schema.imports.iter().chain(&schema.meta.imports) {
             let rel = schema.source_path.as_deref().and_then(|p| p.parent());
-            self.load(import, rel)?;
+            self.load_import(import, rel)?;
         }
 
         // Collect all type names defined in this schema (pass 1)
@@ -159,7 +172,11 @@ impl Compiler {
                 instances: &schema.instances,
             },
             &HashMap::new(),
-            (endian, bit_endian),
+            TypeDefaults {
+                endian,
+                bit_endian,
+                encoding: schema.meta.encoding,
+            },
         )?;
 
         self.loading_stack.pop();
@@ -213,8 +230,13 @@ impl Compiler {
         fqn: &str, // fully-qualified name for this type
         parts: TypeParts<'_>,
         outer_enums: &HashMap<String, CompiledEnum>,
-        (endian, bit_endian): (Endian, Endian),
+        defaults: TypeDefaults,
     ) -> Result<()> {
+        let TypeDefaults {
+            endian,
+            bit_endian,
+            encoding,
+        } = defaults;
         let TypeParts {
             params,
             seq,
@@ -267,6 +289,7 @@ impl Compiler {
                 enums: &compiled_enums,
                 instances: &instance_names,
                 params: &param_names,
+                encoding,
             };
             let compiled = self.compile_field(raw_field, &ctx)?;
             seen_ids.push(raw_field.id.clone());
@@ -282,6 +305,7 @@ impl Compiler {
                 enums: &compiled_enums,
                 instances: &instance_names,
                 params: &param_names,
+                encoding,
             };
             compiled_instances.push(self.compile_instance(id, raw_instance, &ctx)?);
         }
@@ -313,7 +337,7 @@ impl Compiler {
                     instances: &decl.instances,
                 },
                 &compiled_enums,
-                (endian, bit_endian),
+                defaults,
             )?;
         }
 
@@ -582,14 +606,14 @@ impl Compiler {
 
             // ── Strings ──────────────────────────────────────────────────
             "strz" => {
-                let enc = compile_encoding(raw.encoding);
+                let enc = compile_encoding(raw.encoding.or(ctx.encoding));
                 Ok(FieldKind::Str {
                     size: StrSize::Terminator(raw.terminator.unwrap_or(0x00)),
                     encoding: enc,
                 })
             }
             "str" => {
-                let enc = compile_encoding(raw.encoding);
+                let enc = compile_encoding(raw.encoding.or(ctx.encoding));
                 let str_size = if let Some(term) = raw.terminator {
                     StrSize::Terminator(term)
                 } else {
@@ -688,32 +712,68 @@ impl Compiler {
             });
         }
 
-        // Bare name: search include paths
-        let stem = if crate::has_schema_extension(name_or_path) {
-            name_or_path.to_owned()
-        } else {
-            format!("{name_or_path}.yaml")
-        };
+        // Bare name (or absolute path): search the include paths.
+        let dirs: Vec<&Path> = self.include_paths.iter().map(PathBuf::as_path).collect();
+        find_schema(name_or_path, name_or_path, &dirs)
+    }
 
-        let mut searched = Vec::new();
-        for dir in &self.include_paths {
-            let candidate = dir.join(&stem);
-            searched.push(candidate.clone());
-            if candidate.exists() {
-                return Ok(candidate);
-            }
+    /// Where an import is. A name that starts with `./` or `../` is relative
+    /// to the importing file. As in Kaitai Struct, one that starts with a slash
+    /// is looked for in the include paths only, and any other is looked for
+    /// next to the importing file first and then in the include paths.
+    fn resolve_import(&self, import: &str, importing_dir: Option<&Path>) -> Result<PathBuf> {
+        if let Some(rest) = import.strip_prefix('/') {
+            let dirs: Vec<&Path> = self.include_paths.iter().map(PathBuf::as_path).collect();
+            return find_schema(import, rest, &dirs);
         }
+        if import.starts_with("./") || import.starts_with("../") {
+            return self.resolve_path(import, importing_dir);
+        }
+        let dirs: Vec<&Path> = importing_dir
+            .into_iter()
+            .chain(self.include_paths.iter().map(PathBuf::as_path))
+            .collect();
+        find_schema(import, import, &dirs)
+    }
 
-        Err(DoeError::SchemaNotFound {
-            name: name_or_path.to_owned(),
-            searched,
-        })
+    fn load_import(&mut self, import: &str, importing_dir: Option<&Path>) -> Result<()> {
+        let path = self.resolve_import(import, importing_dir)?;
+        log::debug!("loading imported schema {import} from {}", path.display());
+        let schema = load_yaml(&path)?;
+        self.process_schema(&schema)
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper structs and functions
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Find the schema file `name` in `dirs`, trying the extensions of schemas
+/// when it has none. `shown` is the name in the error.
+fn find_schema(shown: &str, name: &str, dirs: &[&Path]) -> Result<PathBuf> {
+    let names: Vec<String> = if crate::has_schema_extension(name) {
+        vec![name.to_owned()]
+    } else {
+        crate::SCHEMA_EXTENSIONS
+            .iter()
+            .map(|ext| format!("{name}.{ext}"))
+            .collect()
+    };
+    let mut searched = Vec::new();
+    for dir in dirs {
+        for file in &names {
+            let candidate = dir.join(file);
+            searched.push(candidate.clone());
+            if candidate.exists() {
+                return Ok(candidate);
+            }
+        }
+    }
+    Err(DoeError::SchemaNotFound {
+        name: shown.to_owned(),
+        searched,
+    })
+}
 
 /// Context passed through field compilation.
 struct FieldCtx<'a> {
@@ -724,6 +784,16 @@ struct FieldCtx<'a> {
     instances: &'a HashSet<String>,
     /// The names of the type's parameters, which any expression may use.
     params: &'a HashSet<String>,
+    /// The encoding of strings that do not give one.
+    encoding: Option<RawEncoding>,
+}
+
+/// What a type inherits from the schema or the type around it.
+#[derive(Clone, Copy)]
+struct TypeDefaults {
+    endian: Endian,
+    bit_endian: Endian,
+    encoding: Option<RawEncoding>,
 }
 
 /// The parts of a type declaration that are compiled together: the same for
