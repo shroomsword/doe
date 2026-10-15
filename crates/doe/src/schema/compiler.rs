@@ -24,12 +24,13 @@ use indexmap::IndexMap;
 use crate::error::{DoeError, Result};
 use crate::schema::expr;
 use crate::schema::ir::{
-    CompiledEnum, CompiledField, CompiledInstance, CompiledType, Encoding, Endian, EndianOverride,
-    FieldKind, FloatWidth, InstanceKind, IntWidth, RepeatMode, SizeExpr, StrSize, TypeRegistry,
+    CompiledEnum, CompiledField, CompiledInstance, CompiledType, CompiledValid, Encoding, Endian,
+    EndianOverride, FieldKind, FloatWidth, InstanceKind, IntWidth, RepeatMode, SizeExpr, StrSize,
+    TypeRegistry,
 };
 use crate::schema::raw::{
-    RawContents, RawEncoding, RawEndian, RawField, RawInstance, RawRepeat, RawSchema, RawSwitch,
-    RawType, RawTypeDecl, StringOrInt,
+    ExprText, RawContents, RawEncoding, RawEndian, RawField, RawInstance, RawRepeat, RawSchema,
+    RawSwitch, RawType, RawTypeDecl, RawValid, RawValidRules, StringOrInt,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -406,6 +407,7 @@ impl Compiler {
             pos,
             enum_ref: raw.enum_ref.clone(),
             uses_instances: Vec::new(),
+            valid: compile_valid(raw, ctx)?,
         };
         field.uses_instances = instance_refs(&field_exprs(&field), ctx.instances);
         Ok(field)
@@ -711,6 +713,57 @@ fn compile_size(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<SizeExpr> {
     }
 }
 
+/// Compile `valid:`, if the field has it.
+fn compile_valid(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<Option<CompiledValid>> {
+    let Some(valid) = &raw.valid else {
+        return Ok(None);
+    };
+    let bad = |message: String| DoeError::FieldError {
+        field: raw.id.clone(),
+        context: ctx.parent_fqn.to_owned(),
+        message: format!("'valid': {message}"),
+    };
+    let rules = match valid {
+        RawValid::Eq(value) => RawValidRules {
+            eq: Some(value.clone()),
+            ..RawValidRules::default()
+        },
+        RawValid::Rules(rules) => rules.clone(),
+    };
+    if rules.is_empty() {
+        return Err(bad(
+            "needs a value or at least one of eq, min, max, any-of, expr, in-enum".to_owned(),
+        ));
+    }
+    // Rules other than `expr` are about fields read earlier; `expr` is about `_`.
+    let rule = |text: &ExprText| -> Result<expr::Expr> {
+        let ast = compile_expr(&text.0, ctx).map_err(|e| bad(e.to_string()))?;
+        validate_size_expr_refs(&text.0, ctx)?;
+        Ok(ast)
+    };
+    let any_of = match &rules.any_of {
+        Some(list) if list.is_empty() => return Err(bad("'any-of' is empty".to_owned())),
+        Some(list) => list.iter().map(&rule).collect::<Result<Vec<_>>>()?,
+        None => Vec::new(),
+    };
+    let in_enum = rules.in_enum == Some(true);
+    if in_enum && raw.enum_ref.is_none() {
+        return Err(bad("'in-enum' needs 'enum' on the field".to_owned()));
+    }
+    Ok(Some(CompiledValid {
+        eq: rules.eq.as_ref().map(rule).transpose()?,
+        min: rules.min.as_ref().map(rule).transpose()?,
+        max: rules.max.as_ref().map(rule).transpose()?,
+        any_of,
+        expr: rules
+            .expr
+            .as_ref()
+            .map(|text| compile_expr(&text.0, ctx).map_err(|e| bad(e.to_string())))
+            .transpose()?,
+        in_enum,
+    }))
+}
+
 /// Every expression a field evaluates.
 fn field_exprs(field: &CompiledField) -> Vec<&expr::Expr> {
     fn size<'a>(size: &'a SizeExpr, out: &mut Vec<&'a expr::Expr>) {
@@ -750,6 +803,12 @@ fn field_exprs(field: &CompiledField) -> Vec<&expr::Expr> {
     let mut out = Vec::new();
     out.extend(field.if_expr.as_ref());
     out.extend(field.pos.as_ref());
+    if let Some(valid) = &field.valid {
+        out.extend(valid.eq.as_ref());
+        out.extend(valid.min.as_ref());
+        out.extend(valid.max.as_ref());
+        out.extend(valid.any_of.iter());
+    }
     match &field.repeat {
         RepeatMode::Count(e) | RepeatMode::Until(e) => out.push(e),
         RepeatMode::Once | RepeatMode::Eos => {}

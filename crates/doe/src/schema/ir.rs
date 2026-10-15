@@ -103,6 +103,25 @@ pub struct CompiledField {
     /// Instances of the same type that the field's expressions use, which are
     /// computed before the field is.
     pub uses_instances: Vec<String>,
+    /// What the value read may be, if constrained (`valid:`).
+    pub valid: Option<CompiledValid>,
+}
+
+/// The rules a field's value must satisfy; all that are given must hold.
+#[derive(Debug, Clone, Default)]
+pub struct CompiledValid {
+    /// The value must equal this.
+    pub eq: Option<Expr>,
+    /// The value must be at least this.
+    pub min: Option<Expr>,
+    /// The value must be at most this.
+    pub max: Option<Expr>,
+    /// The value must equal one of these; empty when not given.
+    pub any_of: Vec<Expr>,
+    /// An expression over `_`, the value, that must be true.
+    pub expr: Option<Expr>,
+    /// The value must be a member of the field's enum.
+    pub in_enum: bool,
 }
 
 /// A value of a type that is computed or read on demand (`instances:`).

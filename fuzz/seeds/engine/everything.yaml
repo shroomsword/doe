@@ -12,6 +12,9 @@ seq:
     enum: kind_t
   - id: count
     type: u2
+    valid:
+      min: 0
+      max: 65535
   - id: flags
     type: bits
     bit_size: 5
@@ -27,6 +30,8 @@ seq:
     repeat-expr: count % 8
   - id: len
     type: u1
+    valid:
+      expr: _ >= 0
   - id: blob
     type: bytes
     size: len

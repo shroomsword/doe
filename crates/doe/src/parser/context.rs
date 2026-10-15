@@ -200,6 +200,12 @@ impl ParseContext {
         self.instance_frames.last_mut()?.values.remove(id)
     }
 
+    /// The value of `value` in an expression, if it has one.
+    pub fn expr_value(value: &Value) -> Option<ExprValue> {
+        let mut budget = MAX_BOUND_VALUES;
+        to_expr_value(value, &mut budget)
+    }
+
     /// Tell expressions where they are: the position, size and end of the
     /// stream (the whole input or a window) that `cursor` reads, which `_io`
     /// stands for.

@@ -1263,6 +1263,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
                 if_expr: None,
                 pos: None,
                 uses_instances: vec![],
+                valid: None,
                 enum_ref: None,
             }],
             enums: std::collections::HashMap::new(),
@@ -3563,4 +3564,273 @@ fn an_instance_is_visible_to_expressions_after_it_is_computed() {
     let v = parse(yaml, "t", &[7]);
     assert_eq!(instance_of(&v, "big").0, &Value::Bool(true));
     assert_eq!(instance_of(&v, "second_len").0, &Value::UInt(3));
+}
+
+// ── valid ────────────────────────────────────────────────────────────────
+
+fn valid_schema(type_name: &str, valid: &str) -> String {
+    format!(
+        "id: t\nseq:\n  - id: limit\n    type: u1\n  - id: x\n    type: {type_name}\n    valid:{valid}\n  - id: after\n    type: u1\nenums:\n  kind_t:\n    1: one\n    2: two\n"
+    )
+}
+
+fn check(type_name: &str, valid: &str, data: &[u8]) -> Result<Value, DoeError> {
+    let schema = valid_schema(type_name, valid);
+    let parsed = doe::schema::raw::RawSchema::from_yaml_str(&schema).unwrap();
+    let reg = Box::leak(Box::new(compile_schema(&parsed).unwrap()));
+    let engine = Engine::new(reg);
+    engine.parse_type("t", &mut Cursor::new(data))
+}
+
+fn rejected(type_name: &str, valid: &str, data: &[u8]) -> String {
+    match check(type_name, valid, data) {
+        Err(DoeError::FieldError { field, message, .. }) => {
+            assert_eq!(field, "x", "{message}");
+            message
+        }
+        other => panic!("expected a validation failure, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_bare_valid_value_must_be_equal() {
+    assert!(check("u1", " 5", &[0, 5, 9]).is_ok());
+    let message = rejected("u1", " 5", &[0, 6, 9]);
+    assert!(
+        message.contains("validation failed") && message.contains("6 is not equal to 5"),
+        "{message}"
+    );
+}
+
+#[test]
+fn min_and_max_are_inclusive() {
+    let rules = "\n      min: 2\n      max: 4\n";
+    for ok in [2u8, 3, 4] {
+        assert!(check("u1", rules, &[0, ok, 9]).is_ok(), "{ok}");
+    }
+    assert!(rejected("u1", rules, &[0, 1, 9]).contains("less than the minimum 2"));
+    assert!(rejected("u1", rules, &[0, 5, 9]).contains("more than the maximum 4"));
+}
+
+#[test]
+fn any_of_lists_the_allowed_values() {
+    let rules = "\n      any-of: [1, 2, 4]\n";
+    for ok in [1u8, 2, 4] {
+        assert!(check("u1", rules, &[0, ok, 9]).is_ok(), "{ok}");
+    }
+    let message = rejected("u1", rules, &[0, 3, 9]);
+    assert!(message.contains("3 is not one of 1, 2, 4"), "{message}");
+}
+
+#[test]
+fn expr_sees_the_value_as_an_underscore() {
+    let rules = "\n      expr: '_ % 2 == 0 && _ < limit'\n";
+    assert!(check("u1", rules, &[10, 4, 9]).is_ok());
+    assert!(rejected("u1", rules, &[10, 5, 9]).contains("does not satisfy"));
+    assert!(rejected("u1", rules, &[10, 12, 9]).contains("does not satisfy"));
+}
+
+#[test]
+fn in_enum_needs_a_member() {
+    let schema = |data: &[u8]| {
+        let yaml = "id: t\nseq:\n  - id: x\n    type: u1\n    enum: kind_t\n    valid:\n      in-enum: true\nenums:\n  kind_t:\n    1: one\n";
+        let parsed = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+        let reg = Box::leak(Box::new(compile_schema(&parsed).unwrap()));
+        Engine::new(reg).parse_type("t", &mut Cursor::new(data))
+    };
+    assert!(schema(&[1]).is_ok());
+    let err = schema(&[7]).unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("not a member of the enum 'kind_t'"),
+        "{err}"
+    );
+}
+
+#[test]
+fn rules_can_use_earlier_fields_and_enum_members() {
+    assert!(check("u1", " limit", &[3, 3, 9]).is_ok());
+    assert!(rejected("u1", " limit", &[3, 4, 9]).contains("not equal to 3"));
+    assert!(check("u1", " 'kind_t::two'", &[0, 2, 9]).is_ok());
+    assert!(rejected("u1", " 'kind_t::two'", &[0, 1, 9]).contains("not equal to 2"));
+}
+
+#[test]
+fn all_the_rules_given_must_hold() {
+    let rules = "\n      min: 1\n      max: 9\n      expr: '_ != 5'\n";
+    assert!(check("u1", rules, &[0, 4, 9]).is_ok());
+    assert!(rejected("u1", rules, &[0, 5, 9]).contains("does not satisfy"));
+    assert!(rejected("u1", rules, &[0, 0, 9]).contains("minimum"));
+}
+
+#[test]
+fn valid_checks_floats_strings_bytes_and_booleans() {
+    assert!(check("f4", " 1.5", &[0, 0, 0, 0xc0, 0x3f, 9]).is_ok());
+    assert!(
+        check(
+            "f4",
+            "\n      min: 1\n      max: 2\n",
+            &[0, 0, 0, 0xc0, 0x3f, 9]
+        )
+        .is_ok()
+    );
+    assert!(rejected("f4", " 2.5", &[0, 0, 0, 0xc0, 0x3f, 9]).contains("not equal"));
+    let yaml = "id: t\nseq:\n  - id: x\n    type: str\n    size: 3\n    encoding: ascii\n    valid: '\"abc\"'\n";
+    let parsed = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    let reg = Box::leak(Box::new(compile_schema(&parsed).unwrap()));
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(b"abc"))
+            .is_ok()
+    );
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(b"abd"))
+            .is_err()
+    );
+    let yaml =
+        "id: t\nseq:\n  - id: x\n    size: 2\n    valid:\n      expr: '_[0] == 1 && _.size == 2'\n";
+    let parsed = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    let reg = Box::leak(Box::new(compile_schema(&parsed).unwrap()));
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(&[1, 5]))
+            .is_ok()
+    );
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(&[2, 5]))
+            .is_err()
+    );
+    let yaml = "id: t\nseq:\n  - id: x\n    type: b1\n    valid: true\n  - id: pad\n    type: b7\n";
+    let parsed = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    let reg = Box::leak(Box::new(compile_schema(&parsed).unwrap()));
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(&[0x80]))
+            .is_ok()
+    );
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(&[0x00]))
+            .is_err()
+    );
+}
+
+#[test]
+fn every_element_of_a_repeated_field_is_checked() {
+    let yaml = "id: t\nseq:\n  - id: x\n    type: u1\n    repeat: expr\n    repeat-expr: 3\n    valid:\n      max: 5\n";
+    let parsed = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    let reg = Box::leak(Box::new(compile_schema(&parsed).unwrap()));
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(&[1, 5, 3]))
+            .is_ok()
+    );
+    let err = Engine::new(reg)
+        .parse_type("t", &mut Cursor::new(&[1, 2, 9]))
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("9 is more than the maximum 5"),
+        "{err}"
+    );
+}
+
+#[test]
+fn valid_applies_only_when_the_field_is_read() {
+    let yaml = "id: t\nseq:\n  - id: flag\n    type: u1\n  - id: x\n    type: u1\n    if: flag != 0\n    valid: 7\n";
+    let parsed = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    let reg = Box::leak(Box::new(compile_schema(&parsed).unwrap()));
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(&[0]))
+            .is_ok()
+    );
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(&[1, 8]))
+            .is_err()
+    );
+}
+
+#[test]
+fn the_value_is_checked_before_it_is_named_after_an_enum_member() {
+    let yaml = "id: t\nseq:\n  - id: x\n    type: u1\n    enum: kind_t\n    valid: 2\nenums:\n  kind_t:\n    2: two\n";
+    let parsed = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    let reg = Box::leak(Box::new(compile_schema(&parsed).unwrap()));
+    let v = Engine::new(reg)
+        .parse_type("t", &mut Cursor::new(&[2]))
+        .unwrap();
+    assert!(matches!(get_field(&v, "x"), Value::Enum { value: 2, .. }));
+}
+
+#[test]
+fn a_failing_instance_read_names_the_instance() {
+    let yaml = "id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n  far:\n    pos: 1\n    type: u1\n    valid:\n      max: 3\n";
+    let parsed = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    let reg = Box::leak(Box::new(compile_schema(&parsed).unwrap()));
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(&[0, 3]))
+            .is_ok()
+    );
+    let err = Engine::new(reg)
+        .parse_type("t", &mut Cursor::new(&[0, 4]))
+        .unwrap_err();
+    assert!(
+        matches!(&err, DoeError::FieldError { field, .. } if field == "far"),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn valid_can_use_an_instance_and_underscore_survives_repeat_until() {
+    let yaml = indoc! {"
+        id: t
+        seq:
+          - id: n
+            type: u1
+            valid:
+              max: limit
+          - id: items
+            type: u1
+            repeat: until
+            repeat-until: _ == 0
+            valid:
+              expr: _ < 100
+        instances:
+          limit:
+            value: 9
+    "};
+    let parsed = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    let reg = Box::leak(Box::new(compile_schema(&parsed).unwrap()));
+    let v = Engine::new(reg)
+        .parse_type("t", &mut Cursor::new(&[5, 7, 3, 0]))
+        .unwrap();
+    let Value::Array(items) = get_field(&v, "items") else {
+        panic!("expected an array");
+    };
+    assert_eq!(items.len(), 3);
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(&[10, 0]))
+            .is_err()
+    );
+    assert!(
+        Engine::new(reg)
+            .parse_type("t", &mut Cursor::new(&[5, 200, 0]))
+            .is_err()
+    );
+}
+
+#[test]
+fn a_sub_type_has_no_value_to_compare() {
+    let yaml = "id: t\nseq:\n  - id: x\n    type: rec\n    valid: 1\ntypes:\n  rec:\n    seq: []\n";
+    let parsed = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    // The value of a sub-type has fields but no single value to compare.
+    let reg = Box::leak(Box::new(compile_schema(&parsed).unwrap()));
+    let err = Engine::new(reg)
+        .parse_type("t", &mut Cursor::new(&[]))
+        .unwrap_err();
+    assert!(err.to_string().contains('x'), "{err}");
 }

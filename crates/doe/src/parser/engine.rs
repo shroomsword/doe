@@ -5,14 +5,16 @@
 //! read routine, evaluating size/repeat/if expressions against the
 //! accumulated parse context, and building a `Value::Struct`.
 
+use std::cmp::Ordering;
+
 use crate::error::{DoeError, Result};
 use crate::parser::context::{InstanceStart, ParseContext};
 use crate::parser::cursor::{BitOrder, Cursor, MAX_TERMINATED_LEN};
 use crate::schema::expr;
 use crate::schema::expr::ExprValue;
 use crate::schema::ir::{
-    CompiledField, CompiledInstance, CompiledType, Encoding, Endian, EndianOverride, FieldKind,
-    FloatWidth, InstanceKind, IntWidth, RepeatMode, SizeExpr, StrSize, TypeRegistry,
+    CompiledField, CompiledInstance, CompiledType, CompiledValid, Encoding, Endian, EndianOverride,
+    FieldKind, FloatWidth, InstanceKind, IntWidth, RepeatMode, SizeExpr, StrSize, TypeRegistry,
 };
 use crate::value::Value;
 
@@ -272,7 +274,98 @@ impl<'reg> Engine<'reg> {
         ctx: &mut ParseContext,
     ) -> Result<Value> {
         let raw = self.read_kind(&field.kind, parent_ty, cursor, ctx)?;
+        if let Some(valid) = &field.valid {
+            Self::check_valid(valid, field, parent_ty, &raw, cursor, ctx)?;
+        }
         Ok(apply_enum(raw, field.enum_ref.as_deref(), parent_ty))
+    }
+
+    /// Fail unless `value`, just read for `field`, satisfies every rule.
+    fn check_valid(
+        valid: &CompiledValid,
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        value: &Value,
+        cursor: &Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<()> {
+        let fail = |message: String| DoeError::FieldError {
+            field: field.id.clone(),
+            context: parent_ty.name.clone(),
+            message: format!("validation failed: {message}"),
+        };
+        let evaluate = |e: &expr::Expr, ctx: &ParseContext| {
+            expr::eval(e, &ctx.eval_ctx, "<valid>")
+                .map_err(|err| annotate(&err, &field.id, &parent_ty.name))
+        };
+        let Some(read) = ParseContext::expr_value(value) else {
+            return Err(fail(format!("a {} cannot be checked", value.type_name())));
+        };
+        ctx.set_io(cursor);
+        if let Some(rule) = &valid.eq {
+            let want = evaluate(rule, ctx)?;
+            if !expr::values_equal(&read, &want, "<valid>")? {
+                return Err(fail(format!("{read} is not equal to {want}")));
+            }
+        }
+        if let Some(rule) = &valid.min {
+            let min = evaluate(rule, ctx)?;
+            if matches!(
+                expr::compare_values(&read, &min, "<valid>")?,
+                Some(Ordering::Less) | None
+            ) {
+                return Err(fail(format!("{read} is less than the minimum {min}")));
+            }
+        }
+        if let Some(rule) = &valid.max {
+            let max = evaluate(rule, ctx)?;
+            if matches!(
+                expr::compare_values(&read, &max, "<valid>")?,
+                Some(Ordering::Greater) | None
+            ) {
+                return Err(fail(format!("{read} is more than the maximum {max}")));
+            }
+        }
+        if !valid.any_of.is_empty() {
+            let mut options = Vec::with_capacity(valid.any_of.len());
+            for rule in &valid.any_of {
+                options.push(evaluate(rule, ctx)?);
+            }
+            let mut found = false;
+            for option in &options {
+                if expr::values_equal(&read, option, "<valid>")? {
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                let list: Vec<String> = options.iter().map(ToString::to_string).collect();
+                return Err(fail(format!("{read} is not one of {}", list.join(", "))));
+            }
+        }
+        if let Some(rule) = &valid.expr {
+            // `_` is the value, only for this expression.
+            ctx.eval_ctx.bind("_", read.clone());
+            let outcome = expr::eval_bool(rule, &ctx.eval_ctx, "<valid>");
+            ctx.eval_ctx.unbind_prefix("_");
+            if !outcome.map_err(|err| annotate(&err, &field.id, &parent_ty.name))? {
+                return Err(fail(format!("{read} does not satisfy the expression")));
+            }
+        }
+        if valid.in_enum
+            && let Some(enum_name) = &field.enum_ref
+        {
+            let member = value
+                .as_int()
+                .map(i64::cast_unsigned)
+                .and_then(|n| parent_ty.enums.get(enum_name.as_str())?.lookup(n));
+            if member.is_none() {
+                return Err(fail(format!(
+                    "{read} is not a member of the enum '{enum_name}'"
+                )));
+            }
+        }
+        Ok(())
     }
 
     // ── FieldKind dispatch ────────────────────────────────────────────────────
