@@ -25,3 +25,7 @@ target
 /fuzz/corpus/
 /fuzz/artifacts/
 /fuzz/coverage/
+
+# conformance suite: reference compiler dependencies and its generated parsers
+/conformance/node_modules/
+/conformance/.generated/

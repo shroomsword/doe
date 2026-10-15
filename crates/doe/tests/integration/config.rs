@@ -407,3 +407,25 @@ fn discover_types_reports_id_doc_and_source() {
     assert_eq!(found[0].doc.as_deref(), Some("A thing"));
     assert_eq!(found[0].source, file);
 }
+
+#[test]
+fn discover_types_finds_ksy_files_and_ids_in_meta() {
+    let dir = tempfile::TempDir::new().unwrap();
+    std::fs::write(
+        dir.path().join("riff.ksy"),
+        "meta:\n  id: riff\n  title: RIFF\ndoc: Chunks\nseq: []\n",
+    )
+    .unwrap();
+    std::fs::write(dir.path().join("plain.ksy"), "id: plain\nseq: []\n").unwrap();
+    // No id at all: not a schema.
+    std::fs::write(
+        dir.path().join("nameless.ksy"),
+        "meta:\n  title: none\nseq: []\n",
+    )
+    .unwrap();
+
+    let types = discover_types(&[dir.path().to_owned()]).unwrap();
+    let ids: Vec<&str> = types.iter().map(|t| t.id.as_str()).collect();
+    assert_eq!(ids, ["plain", "riff"]);
+    assert_eq!(types[1].doc.as_deref(), Some("Chunks"));
+}

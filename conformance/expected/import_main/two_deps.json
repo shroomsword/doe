@@ -1,0 +1,26 @@
+{
+  "count": 2,
+  "deps": [
+    {
+      "tail": {
+        "both": 1286,
+        "first": 5,
+        "second": 6
+      },
+      "value": 1
+    },
+    {
+      "tail": {
+        "both": 1800,
+        "first": 7,
+        "second": 8
+      },
+      "value": 2
+    }
+  ],
+  "extra": {
+    "both": 2314,
+    "first": 9,
+    "second": 10
+  }
+}

@@ -762,3 +762,95 @@ fn a_param_needs_an_id_and_takes_no_unknown_keys() {
         assert!(RawSchema::from_yaml_str(&yaml).is_err(), "{body}");
     }
 }
+
+// ── Kaitai Struct files ───────────────────────────────────────────────────
+
+#[test]
+fn meta_id_is_the_id_of_a_kaitai_file() {
+    let s = RawSchema::from_yaml_str("meta:\n  id: riff\n  endian: le\nseq: []\n").unwrap();
+    assert_eq!(s.id, "riff");
+    // Both are fine when they agree.
+    let s = RawSchema::from_yaml_str("id: riff\nmeta:\n  id: riff\nseq: []\n").unwrap();
+    assert_eq!(s.id, "riff");
+}
+
+#[test]
+fn a_schema_needs_an_id_or_a_meta_id() {
+    let err = RawSchema::from_yaml_str("meta:\n  endian: le\nseq: []\n").unwrap_err();
+    assert!(err.to_string().contains("id"), "{err}");
+}
+
+#[test]
+fn the_other_meta_keys_of_kaitai_files_are_accepted() {
+    let s = RawSchema::from_yaml_str(indoc! {"
+        meta:
+          id: t
+          title: A title
+          application: Something
+          file-extension: [abc, def]
+          xref:
+            wikidata: Q1
+          license: CC0-1.0
+          ks-version: 0.9
+          ks-debug: true
+          ks-opaque-types: false
+          tags:
+            - archive
+          encoding: UTF-8
+          imports:
+            - other
+        doc-ref: https://example.org/spec
+        seq:
+          - id: a
+            type: u1
+            doc-ref:
+              - https://example.org/a
+        params:
+          - id: p
+            doc-ref: https://example.org/p
+        types:
+          inner:
+            doc-ref: https://example.org/inner
+            seq: []
+        instances:
+          i:
+            value: 1
+            doc-ref: https://example.org/i
+    "})
+    .unwrap();
+    assert_eq!(s.meta.imports, ["other"]);
+    assert_eq!(s.meta.encoding, Some(RawEncoding::Utf8));
+    assert!(s.doc_ref.is_some() && s.seq[0].doc_ref.is_some());
+}
+
+#[test]
+fn encodings_may_be_spelled_the_way_kaitai_does() {
+    for (name, expected) in [
+        ("utf8", RawEncoding::Utf8),
+        ("UTF-8", RawEncoding::Utf8),
+        ("utf_8", RawEncoding::Utf8),
+        ("ascii", RawEncoding::Ascii),
+        ("ASCII", RawEncoding::Ascii),
+        ("US-ASCII", RawEncoding::Ascii),
+        ("latin1", RawEncoding::Latin1),
+        ("ISO-8859-1", RawEncoding::Latin1),
+        ("iso8859-1", RawEncoding::Latin1),
+    ] {
+        assert_eq!(RawEncoding::from_name(name), Some(expected), "{name}");
+        let yaml =
+            format!("id: t\nseq:\n  - id: s\n    type: str\n    size: 1\n    encoding: {name}\n");
+        assert_eq!(
+            RawSchema::from_yaml_str(&yaml).unwrap().seq[0].encoding,
+            Some(expected)
+        );
+    }
+    assert_eq!(RawEncoding::from_name("UTF-16LE"), None);
+    let err = RawSchema::from_yaml_str(
+        "id: t\nseq:\n  - id: s\n    type: str\n    size: 1\n    encoding: UTF-16LE\n",
+    )
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("unsupported encoding 'UTF-16LE'"),
+        "{err}"
+    );
+}

@@ -232,11 +232,17 @@ pub fn is_schema_path(s: &str) -> bool {
     s.starts_with(['.', '/', '\\', '~']) || Path::new(s).is_absolute() || has_schema_extension(s)
 }
 
-/// Returns `true` if `s` ends in `.yaml` or `.yml`, ignoring ASCII case.
+/// The file extensions of schemas: `.yaml` and `.yml`, and `.ksy`, which Kaitai
+/// Struct files have.
+pub(crate) const SCHEMA_EXTENSIONS: [&str; 3] = ["yaml", "yml", "ksy"];
+
+/// Returns `true` if `s` ends in a schema extension, ignoring ASCII case.
 pub(crate) fn has_schema_extension(s: &str) -> bool {
-    Path::new(s)
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("yaml") || ext.eq_ignore_ascii_case("yml"))
+    Path::new(s).extension().is_some_and(|ext| {
+        SCHEMA_EXTENSIONS
+            .iter()
+            .any(|known| ext.eq_ignore_ascii_case(known))
+    })
 }
 
 /// Load and deserialise a YAML schema file from `path`.

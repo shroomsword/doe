@@ -982,7 +982,11 @@ fn missing_bare_name_lists_searched_paths() {
     let err = compiler.load("nope", None).unwrap_err();
     assert!(
         matches!(&err, DoeError::SchemaNotFound { name, searched }
-            if name == "nope" && searched == &[dir.path().join("nope.yaml")]),
+        if name == "nope" && searched == &[
+            dir.path().join("nope.yaml"),
+            dir.path().join("nope.yml"),
+            dir.path().join("nope.ksy"),
+        ]),
         "{err:?}"
     );
 }
@@ -2308,4 +2312,126 @@ fn params_can_be_used_in_every_kind_of_expression_of_the_type() {
                 value: count * 2
     "};
     compile(schema);
+}
+
+// ── Kaitai Struct files ───────────────────────────────────────────────────
+
+#[test]
+fn a_schema_without_an_id_or_with_differing_ids_is_an_error() {
+    let mut schema = RawSchema::from_yaml_str("id: a\nseq: []\n").unwrap();
+    schema.id.clear();
+    let err = compile_schema(&schema).unwrap_err();
+    assert!(err.to_string().contains("no id"), "{err}");
+    let mut compiler = Compiler::new(vec![]);
+    let err = compiler.process_schema(&schema).unwrap_err();
+    assert!(err.to_string().contains("no id"), "{err}");
+    let differing = RawSchema::from_yaml_str("id: a\nmeta:\n  id: b\nseq: []\n").unwrap();
+    let err = Compiler::new(vec![])
+        .process_schema(&differing)
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("'a'") && err.to_string().contains("'b'"),
+        "{err}"
+    );
+}
+
+#[test]
+fn imports_may_be_listed_in_meta_and_files_may_be_ksy() {
+    let dir = tempfile::TempDir::new().unwrap();
+    write(
+        dir.path(),
+        "dep.ksy",
+        "meta:\n  id: dep\nseq:\n  - id: x\n    type: u1\n",
+    );
+    let main = write(
+        dir.path(),
+        "main.ksy",
+        "meta:\n  id: main\n  imports:\n    - dep\nseq:\n  - id: d\n    type: dep\n",
+    );
+    let mut compiler = Compiler::new(vec![]);
+    compiler.process_schema(&load_yaml(&main).unwrap()).unwrap();
+    assert!(compiler.registry.contains("dep") && compiler.registry.contains("main"));
+}
+
+#[test]
+fn a_bare_import_is_looked_for_beside_the_importing_file_then_in_the_include_paths() {
+    let beside = tempfile::TempDir::new().unwrap();
+    let elsewhere = tempfile::TempDir::new().unwrap();
+    write(beside.path(), "near.ksy", "meta:\n  id: near\nseq: []\n");
+    write(elsewhere.path(), "far.ksy", "meta:\n  id: far\nseq: []\n");
+    let main = write(
+        beside.path(),
+        "main.yaml",
+        "id: main\nimports:\n  - near\n  - far\nseq: []\n",
+    );
+    let mut compiler = Compiler::new(vec![elsewhere.path().to_owned()]);
+    compiler.process_schema(&load_yaml(&main).unwrap()).unwrap();
+    assert!(compiler.registry.contains("near") && compiler.registry.contains("far"));
+}
+
+#[test]
+fn a_leading_slash_means_the_include_paths_only() {
+    let beside = tempfile::TempDir::new().unwrap();
+    let include = tempfile::TempDir::new().unwrap();
+    std::fs::create_dir_all(include.path().join("common")).unwrap();
+    write(
+        &include.path().join("common"),
+        "riff.ksy",
+        "meta:\n  id: riff\nseq: []\n",
+    );
+    // A file of the same name beside the importer is not the one meant.
+    std::fs::create_dir_all(beside.path().join("common")).unwrap();
+    write(
+        &beside.path().join("common"),
+        "riff.ksy",
+        "meta:\n  id: wrong\nseq: []\n",
+    );
+    let main = write(
+        beside.path(),
+        "main.yaml",
+        "id: main\nimports:\n  - /common/riff\nseq: []\n",
+    );
+    let mut compiler = Compiler::new(vec![include.path().to_owned()]);
+    compiler.process_schema(&load_yaml(&main).unwrap()).unwrap();
+    assert!(compiler.registry.contains("riff"));
+    assert!(!compiler.registry.contains("wrong"));
+    let err = Compiler::new(vec![])
+        .process_schema(&load_yaml(&main).unwrap())
+        .unwrap_err();
+    assert!(matches!(err, DoeError::SchemaNotFound { .. }), "{err:?}");
+}
+
+#[test]
+fn meta_encoding_is_the_default_of_the_strings_that_give_none() {
+    use doe::schema::ir::Encoding;
+    let reg = compile(indoc! {"
+        id: t
+        meta:
+          encoding: ASCII
+        seq:
+          - id: a
+            type: str
+            size: 1
+          - id: b
+            type: str
+            size: 1
+            encoding: latin1
+          - id: c
+            type: strz
+        types:
+          inner:
+            seq:
+              - id: d
+                type: str
+                size: 1
+    "});
+    let encoding =
+        |type_name: &str, index: usize| match &reg.get(type_name).unwrap().fields[index].kind {
+            FieldKind::Str { encoding, .. } => *encoding,
+            other => panic!("expected a string, got {other:?}"),
+        };
+    assert_eq!(encoding("t", 0), Encoding::Ascii);
+    assert_eq!(encoding("t", 1), Encoding::Latin1);
+    assert_eq!(encoding("t", 2), Encoding::Ascii);
+    assert_eq!(encoding("t::inner", 0), Encoding::Ascii);
 }

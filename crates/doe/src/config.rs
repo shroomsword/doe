@@ -287,16 +287,23 @@ pub fn discover_types(
 
         // Collect all valid schema headers from this directory first, so we
         // can detect within-directory duplicates before committing any of them.
-        let mut dir_entries: Vec<(PathBuf, SchemaHeader)> = entries
+        let mut dir_entries: Vec<(PathBuf, ResolvedHeader)> = entries
             .filter_map(|entry| {
                 let path = entry.ok()?.path();
                 let ext = path.extension()?.to_str()?;
-                if ext != "yaml" && ext != "yml" {
+                if !crate::SCHEMA_EXTENSIONS.contains(&ext) {
                     return None;
                 }
                 let text = std::fs::read_to_string(&path).ok()?;
                 let header: SchemaHeader = crate::schema::raw::parse_yaml(&text).ok()?;
-                Some((path, header))
+                let id = header.id.or_else(|| header.meta?.id)?;
+                Some((
+                    path,
+                    ResolvedHeader {
+                        id,
+                        doc: header.doc,
+                    },
+                ))
             })
             .collect();
 
@@ -359,7 +366,23 @@ pub fn discover_types(
 /// schema file without pulling in the full `RawSchema` machinery.
 #[derive(serde::Deserialize)]
 struct SchemaHeader {
-    id: String,
     #[serde(default)]
+    id: Option<String>,
+    /// Kaitai Struct files give the id as `meta.id`.
+    #[serde(default)]
+    meta: Option<MetaHeader>,
+    #[serde(default)]
+    doc: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct MetaHeader {
+    #[serde(default)]
+    id: Option<String>,
+}
+
+/// A [`SchemaHeader`] with its id found.
+struct ResolvedHeader {
+    id: String,
     doc: Option<String>,
 }

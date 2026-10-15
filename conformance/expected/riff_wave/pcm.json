@@ -1,0 +1,26 @@
+{
+  "chunks": [
+    {
+      "body": {
+        "audioformat": 1,
+        "bitspersample": 16,
+        "blockalign": 4,
+        "byterate": 176400,
+        "bytespersample": 2,
+        "channels": 2,
+        "samplerate": 44100
+      },
+      "chunkid": "fmt ",
+      "len": 16
+    },
+    {
+      "body": "0001020304",
+      "chunkid": "data",
+      "len": 5,
+      "padbyte": "00"
+    }
+  ],
+  "filesize": 42,
+  "riffid": "52494646",
+  "waveid": "57415645"
+}

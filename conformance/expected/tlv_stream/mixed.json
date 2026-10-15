@@ -1,0 +1,38 @@
+{
+  "count": 4,
+  "lastkind": 1,
+  "magic": "544c5631",
+  "records": [
+    {
+      "body": {
+        "text": "hello"
+      },
+      "kind": 1,
+      "len": 5
+    },
+    {
+      "body": {
+        "value": 1234
+      },
+      "kind": 2,
+      "len": 4
+    },
+    {
+      "body": {
+        "first": 3,
+        "second": 4,
+        "sum": 7
+      },
+      "kind": 3,
+      "len": 2
+    },
+    {
+      "body": {
+        "text": ""
+      },
+      "kind": 1,
+      "len": 0
+    }
+  ],
+  "totalrecords": 4
+}

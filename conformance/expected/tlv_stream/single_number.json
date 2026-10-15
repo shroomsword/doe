@@ -1,0 +1,15 @@
+{
+  "count": 1,
+  "lastkind": 2,
+  "magic": "544c5631",
+  "records": [
+    {
+      "body": {
+        "value": 1000000
+      },
+      "kind": 2,
+      "len": 4
+    }
+  ],
+  "totalrecords": 1
+}

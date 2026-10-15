@@ -1,0 +1,22 @@
+{
+  "dib": {
+    "absheight": 2,
+    "bitsperpixel": 24,
+    "colorsimportant": 0,
+    "colorsused": 0,
+    "compression": 0,
+    "headersize": 40,
+    "height": 2,
+    "horizontalppm": 2835,
+    "imagesize": 24,
+    "planes": 1,
+    "rowsize": 12,
+    "verticalppm": 2835,
+    "width": 3
+  },
+  "filesize": 78,
+  "pixeldata": "000102030405060708090a0b0c0d0e0f1011121314151617",
+  "pixeldataoffset": 54,
+  "reserved": "00000000",
+  "signature": "424d"
+}

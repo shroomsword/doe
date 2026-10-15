@@ -27,12 +27,18 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawSchema {
-    /// The canonical identifier for this type (e.g. `png`).
+    /// The canonical identifier for this type (e.g. `png`). Kaitai Struct
+    /// files give it as `meta.id`; [`RawSchema::from_yaml_str`] copies it here.
+    #[serde(default)]
     pub id: String,
 
     /// Human-readable description.
     #[serde(default)]
     pub doc: Option<String>,
+
+    /// Where the format is documented. Accepted and ignored.
+    #[serde(rename = "doc-ref", default)]
+    pub doc_ref: Option<serde_json::Value>,
 
     /// File-level metadata (endianness, etc.).
     #[serde(default)]
@@ -83,7 +89,22 @@ impl RawSchema {
     /// Returns the parser's error, which names the line and column, if the text
     /// is not valid YAML or does not match the schema format.
     pub fn from_yaml_str(text: &str) -> Result<Self, serde_saphyr::Error> {
-        parse_yaml(text)
+        let mut schema: RawSchema = parse_yaml(text)?;
+        if schema.id.is_empty() {
+            if let Some(id) = &schema.meta.id {
+                schema.id.clone_from(id);
+            } else {
+                // Neither `id` nor `meta.id`: report it the way a missing
+                // required field is.
+                #[derive(Deserialize)]
+                struct NeedsId {
+                    #[expect(dead_code, reason = "only here so that its absence is an error")]
+                    id: String,
+                }
+                parse_yaml::<NeedsId>(text)?;
+            }
+        }
+        Ok(schema)
     }
 }
 
@@ -102,6 +123,19 @@ pub(crate) fn parse_yaml<T: DeserializeOwned>(text: &str) -> Result<T, serde_sap
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawMeta {
+    /// The identifier of the type, as Kaitai Struct files give it.
+    #[serde(default)]
+    pub id: Option<String>,
+
+    /// Schemas to import, as Kaitai Struct files list them; the same as the
+    /// top-level `imports`.
+    #[serde(default)]
+    pub imports: Vec<String>,
+
+    /// The encoding of the strings that do not give one.
+    #[serde(default)]
+    pub encoding: Option<RawEncoding>,
+
     /// Default byte order for multi-byte integer fields.
     /// Individual fields may override this with explicit type names (e.g. `u32be`).
     #[serde(default)]
@@ -111,6 +145,43 @@ pub struct RawMeta {
     /// significant bits of a byte first (the default), `le` the least.
     #[serde(rename = "bit-endian", default)]
     pub bit_endian: Option<RawEndian>,
+
+    /// A title for the format. Accepted and ignored.
+    #[serde(default)]
+    pub title: Option<serde_json::Value>,
+
+    /// The applications that use the format. Accepted and ignored.
+    #[serde(default)]
+    pub application: Option<serde_json::Value>,
+
+    /// File extensions of the format. Accepted and ignored.
+    #[serde(rename = "file-extension", default)]
+    pub file_extension: Option<serde_json::Value>,
+
+    /// Cross-references to other documentation. Accepted and ignored.
+    #[serde(default)]
+    pub xref: Option<serde_json::Value>,
+
+    /// The license of the format definition. Accepted and ignored.
+    #[serde(default)]
+    pub license: Option<serde_json::Value>,
+
+    /// The Kaitai Struct version the definition was written for. Accepted
+    /// and ignored.
+    #[serde(rename = "ks-version", default)]
+    pub ks_version: Option<serde_json::Value>,
+
+    /// Compiler options of Kaitai Struct. Accepted and ignored.
+    #[serde(rename = "ks-debug", default)]
+    pub ks_debug: Option<serde_json::Value>,
+
+    /// Compiler options of Kaitai Struct. Accepted and ignored.
+    #[serde(rename = "ks-opaque-types", default)]
+    pub ks_opaque_types: Option<serde_json::Value>,
+
+    /// Tags describing the format. Accepted and ignored.
+    #[serde(default)]
+    pub tags: Option<serde_json::Value>,
 }
 
 /// Byte order as written in a schema's `meta.endian` field.
@@ -145,6 +216,10 @@ pub struct RawParam {
     /// Human-readable description.
     #[serde(default)]
     pub doc: Option<String>,
+
+    /// Where the field or type is documented. Accepted and ignored.
+    #[serde(rename = "doc-ref", default)]
+    pub doc_ref: Option<serde_json::Value>,
 }
 
 /// One field in a `seq` list.
@@ -223,6 +298,10 @@ pub struct RawField {
     /// Human-readable description.
     #[serde(default)]
     pub doc: Option<String>,
+
+    /// Where the field or type is documented. Accepted and ignored.
+    #[serde(rename = "doc-ref", default)]
+    pub doc_ref: Option<serde_json::Value>,
 }
 
 /// What a field's value may be: a value it must equal, or several rules that
@@ -396,6 +475,10 @@ pub struct RawInstance {
     #[serde(default)]
     pub doc: Option<String>,
 
+    /// Where the field or type is documented. Accepted and ignored.
+    #[serde(rename = "doc-ref", default)]
+    pub doc_ref: Option<serde_json::Value>,
+
     /// A value computed from other fields instead of read: an expression, or a
     /// literal (`4`, `true`).
     #[serde(default)]
@@ -422,6 +505,7 @@ impl RawInstance {
             valid: self.valid.clone(),
             enum_ref: self.enum_ref.clone(),
             doc: self.doc.clone(),
+            doc_ref: self.doc_ref.clone(),
         }
     }
 
@@ -573,8 +657,10 @@ impl StringOrInt {
     }
 }
 
-/// String encoding as written in a schema.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+/// String encoding as written in a schema: `utf8`, `ascii` or `latin1`, or
+/// the names Kaitai Struct uses for them (`UTF-8`, `ASCII`, `ISO-8859-1`), in
+/// any case.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
 pub enum RawEncoding {
@@ -585,6 +671,34 @@ pub enum RawEncoding {
     Ascii,
     /// ISO 8859-1.
     Latin1,
+}
+
+impl RawEncoding {
+    /// The encoding called `name`, if it is one of the supported ones.
+    pub fn from_name(name: &str) -> Option<Self> {
+        let normalized: String = name
+            .chars()
+            .filter(|c| !matches!(c, '-' | '_' | ' '))
+            .flat_map(char::to_lowercase)
+            .collect();
+        match normalized.as_str() {
+            "utf8" => Some(RawEncoding::Utf8),
+            "ascii" | "usascii" => Some(RawEncoding::Ascii),
+            "latin1" | "iso88591" => Some(RawEncoding::Latin1),
+            _ => None,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for RawEncoding {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let name = String::deserialize(deserializer)?;
+        RawEncoding::from_name(&name).ok_or_else(|| {
+            serde::de::Error::custom(format!(
+                "unsupported encoding '{name}': use utf8, ascii or latin1 (also spelled UTF-8, ASCII, ISO-8859-1)"
+            ))
+        })
+    }
 }
 
 /// Repetition mode as written in a schema.
@@ -608,6 +722,10 @@ pub struct RawTypeDecl {
     /// Human-readable description.
     #[serde(default)]
     pub doc: Option<String>,
+
+    /// Where the field or type is documented. Accepted and ignored.
+    #[serde(rename = "doc-ref", default)]
+    pub doc_ref: Option<serde_json::Value>,
 
     /// Parameters the type takes, which the field that uses it supplies.
     #[serde(default)]

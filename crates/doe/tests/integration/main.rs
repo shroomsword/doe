@@ -11,6 +11,7 @@
 mod api;
 mod compiler;
 mod config;
+mod conformance;
 mod context;
 mod cursor;
 mod elf;
