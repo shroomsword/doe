@@ -661,3 +661,69 @@ fn instances_reject_unknown_keys_and_an_id() {
         assert!(RawSchema::from_yaml_str(&yaml).is_err(), "{body}");
     }
 }
+
+#[test]
+fn valid_is_a_bare_value_or_a_mapping_of_rules() {
+    let s = RawSchema::from_yaml_str(indoc! {"
+        id: t
+        seq:
+          - id: magic
+            type: u4
+            valid: 0x7f454c46
+          - id: tag
+            type: str
+            size: 3
+            valid: '\"abc\"'
+          - id: flag
+            type: u1
+            valid: true
+          - id: ratio
+            type: f4
+            valid: 1.5
+          - id: version
+            type: u1
+            valid:
+              min: 1
+              max: 3
+              any-of: [1, 2, 3]
+              expr: _ < 4
+              in-enum: true
+              eq: 2
+    "})
+    .unwrap();
+    let eq = |i: usize| match s.seq[i].valid.as_ref().unwrap() {
+        RawValid::Eq(text) => text.0.clone(),
+        RawValid::Rules(_) => panic!("expected a bare value"),
+    };
+    assert_eq!(eq(0), "2135247942");
+    assert_eq!(eq(1), "\"abc\"");
+    assert_eq!(eq(2), "true");
+    assert_eq!(eq(3), "1.5");
+    let Some(RawValid::Rules(rules)) = &s.seq[4].valid else {
+        panic!("expected rules");
+    };
+    assert_eq!(rules.min.as_ref().unwrap().0, "1");
+    assert_eq!(rules.max.as_ref().unwrap().0, "3");
+    assert_eq!(rules.any_of.as_ref().unwrap().len(), 3);
+    assert_eq!(rules.expr.as_ref().unwrap().0, "_ < 4");
+    assert_eq!(rules.in_enum, Some(true));
+    assert_eq!(rules.eq.as_ref().unwrap().0, "2");
+    assert!(!rules.is_empty());
+}
+
+#[test]
+fn valid_rejects_unknown_rules() {
+    let yaml = "id: t\nseq:\n  - id: a\n    type: u1\n    valid:\n      nope: 1\n";
+    assert!(RawSchema::from_yaml_str(yaml).is_err());
+}
+
+#[test]
+fn instances_that_read_can_have_valid() {
+    let s = RawSchema::from_yaml_str(
+        "id: t\ninstances:\n  x:\n    type: u1\n    pos: 0\n    valid: 1\n",
+    )
+    .unwrap();
+    assert!(s.instances["x"].valid.is_some());
+    assert!(s.instances["x"].reads());
+    assert!(s.instances["x"].to_field("x").valid.is_some());
+}

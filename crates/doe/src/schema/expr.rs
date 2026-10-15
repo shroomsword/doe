@@ -1729,6 +1729,16 @@ fn float_to_int(x: f64) -> Option<i128> {
     (x.is_finite() && x.abs() < 1e38).then_some(x as i128)
 }
 
+/// How two values order under `<`, or `None` if they are unordered (a NaN).
+///
+/// # Errors
+///
+/// Returns [`DoeError::ExprEval`] if they are of types that cannot be
+/// compared, such as a string and an integer.
+pub fn compare_values(a: &ExprValue, b: &ExprValue, src: &str) -> Result<Option<Ordering>> {
+    compare(a, b, src)
+}
+
 /// Whether two values are equal under `==`.
 ///
 /// # Errors

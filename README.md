@@ -164,6 +164,7 @@ integers. As in Kaitai Struct, entering a sub-type does not start a new byte.
 | `if:` | Skip the field when the expression is false |
 | `size-eos` | `true` to take the rest of the enclosing window or the input as the size; for `bytes`, `str` and user types |
 | `pos:` | Read the field at this byte offset instead of the current position; see [Seeking](#seeking) |
+| `valid:` | Fail the parse unless the value read satisfies the rules; see [Validating values](#validating-values) |
 | `enum:` | Map the parsed integer to a named variant |
 | `contents:` | Assert fixed bytes (magic numbers, file signatures) |
 | `doc:` | Human-readable description (shown in verbose output) |
@@ -427,6 +428,45 @@ as for a sized sub-type, and a `bytes` or `str` case fills it; without one, a
 default, a field with a size is read as bytes and one without is absent, as in
 Kaitai Struct. Quote keys and expressions that YAML would read as something
 else (`'"RIFF"'`, `'kind > 0 ? 1 : 2'`).
+
+### Validating values
+
+`valid:` states what a field's value may be, and the parse fails if the data
+breaks it, naming the field, the value and the rule. A bare value means "equal
+to"; a mapping gives rules that must all hold:
+
+```yaml
+seq:
+  - id: magic
+    type: u4
+    valid: 0x7f454c46        # eq
+  - id: version
+    type: u1
+    valid:
+      min: 1                 # inclusive
+      max: 3
+  - id: kind
+    type: u1
+    enum: kind_t
+    valid:
+      in-enum: true          # a member of the field's enum
+  - id: tag
+    type: u1
+    valid:
+      any-of: [1, 2, 4]
+  - id: length
+    type: u2
+    valid:
+      expr: _ % 2 == 0 && _ < limit   # `_` is the value
+```
+
+`eq`, `min`, `max` and the elements of `any-of` are expressions, so they can use
+earlier fields, instances and enum members (`kind_t::data`); `expr` sees the
+value as `_`. The value checked is the one read, before it is named after an
+enum member, and with `repeat` every element is checked. A field with `if:`
+that is not read is not checked. `in-enum` needs `enum:` on the field; an empty
+`valid`, an empty `any-of`, and `valid` on a `value:` instance are schema
+errors. `valid` also works on an instance that reads.
 
 ### Instances
 

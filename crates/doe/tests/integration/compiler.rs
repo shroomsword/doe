@@ -2008,3 +2008,91 @@ fn a_seq_field_may_use_an_instance_that_comes_later_but_not_a_later_field() {
     );
     assert!(err.to_string().contains('n'), "{err}");
 }
+
+// ── valid ─────────────────────────────────────────────────────────────────
+
+fn valid_of(rules: &str, extra: &str) -> doe::schema::ir::CompiledValid {
+    let schema = format!(
+        "id: t\nseq:\n  - id: n\n    type: u1\n  - id: x\n    type: u1\n{extra}    valid:{rules}\nenums:\n  kind_t:\n    1: one\n"
+    );
+    compile(&schema).get("t").unwrap().fields[1]
+        .valid
+        .clone()
+        .unwrap()
+}
+
+#[test]
+fn a_bare_valid_is_eq() {
+    let valid = valid_of(" 5", "");
+    assert_eq!(valid.eq, Some(doe::schema::expr::Expr::Int(5)));
+    assert!(valid.min.is_none() && valid.max.is_none() && valid.expr.is_none());
+    assert_eq!(valid.any_of.len(), 0);
+    assert!(!valid.in_enum);
+}
+
+#[test]
+fn valid_rules_compile_to_expressions() {
+    use doe::schema::expr::Expr;
+    let valid = valid_of(
+        "\n      min: 1\n      max: n\n      any-of: [1, 2]\n      expr: '_ > 0'\n",
+        "",
+    );
+    assert_eq!(valid.min, Some(Expr::Int(1)));
+    assert_eq!(valid.max, Some(Expr::Field(vec!["n".into()])));
+    assert_eq!(valid.any_of, [Expr::Int(1), Expr::Int(2)]);
+    assert!(valid.expr.is_some());
+    let in_enum = valid_of("\n      in-enum: true\n", "    enum: kind_t\n");
+    assert!(in_enum.in_enum);
+    // Enum members work in the rules.
+    let member = valid_of(" 'kind_t::one'", "");
+    assert_eq!(member.eq, Some(Expr::Int(1)));
+}
+
+#[test]
+fn malformed_valid_is_a_schema_error_that_names_the_field() {
+    let cases = [
+        ("empty", "\n      {}", "", "needs a value"),
+        (
+            "empty any-of",
+            "\n      any-of: []",
+            "",
+            "'any-of' is empty",
+        ),
+        (
+            "in-enum without an enum",
+            "\n      in-enum: true",
+            "",
+            "needs 'enum'",
+        ),
+        ("bad expression", "\n      min: '1 +'", "", "valid"),
+        ("unknown field", "\n      min: nope", "", "nope"),
+        ("later field", "\n      min: later", "", "later"),
+        ("unknown enum member", " 'kind_t::nope'", "", "nope"),
+    ];
+    for (what, rules, extra, expected) in cases {
+        let schema = format!(
+            "id: t\nseq:\n  - id: x\n    type: u1\n{extra}    valid:{rules}\n  - id: later\n    type: u1\nenums:\n  kind_t:\n    1: one\n"
+        );
+        let err = compile_err(&schema);
+        assert!(err.to_string().contains(expected), "{what}: {err}");
+    }
+}
+
+#[test]
+fn valid_may_not_be_combined_with_value_on_an_instance() {
+    let err = compile_err(
+        "id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n  x:\n    value: 1\n    valid: 1\n",
+    );
+    assert!(err.to_string().contains("cannot be combined"), "{err}");
+    compile(
+        "id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n  x:\n    type: u1\n    pos: 0\n    valid: 1\n",
+    );
+}
+
+#[test]
+fn an_instance_used_by_valid_is_computed_first() {
+    let reg = compile(
+        "id: t\nseq:\n  - id: a\n    type: u1\n    valid:\n      max: limit\ninstances:\n  limit:\n    value: 9\n",
+    );
+    assert_eq!(reg.get("t").unwrap().fields[0].uses_instances, ["limit"]);
+}

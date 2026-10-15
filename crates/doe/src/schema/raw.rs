@@ -187,6 +187,11 @@ pub struct RawField {
     #[serde(default)]
     pub pos: Option<StringOrInt>,
 
+    /// What the value read may be; the parse fails if it is anything else. A
+    /// bare value stands for `eq`.
+    #[serde(default)]
+    pub valid: Option<RawValid>,
+
     /// Name of an enum defined in the nearest enclosing `enums:` block.
     #[serde(rename = "enum", default)]
     pub enum_ref: Option<String>,
@@ -194,6 +199,102 @@ pub struct RawField {
     /// Human-readable description.
     #[serde(default)]
     pub doc: Option<String>,
+}
+
+/// What a field's value may be: a value it must equal, or several rules that
+/// must all hold.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawValidRules {
+    /// The value must equal this expression.
+    #[serde(default)]
+    pub eq: Option<ExprText>,
+
+    /// The value must be at least this.
+    #[serde(default)]
+    pub min: Option<ExprText>,
+
+    /// The value must be at most this.
+    #[serde(default)]
+    pub max: Option<ExprText>,
+
+    /// The value must equal one of these.
+    #[serde(rename = "any-of", default)]
+    pub any_of: Option<Vec<ExprText>>,
+
+    /// An expression over `_`, the value, that must be true.
+    #[serde(default)]
+    pub expr: Option<ExprText>,
+
+    /// The value must be a member of the field's enum.
+    #[serde(rename = "in-enum", default)]
+    pub in_enum: Option<bool>,
+}
+
+impl RawValidRules {
+    /// Whether no rule is given.
+    pub fn is_empty(&self) -> bool {
+        self.eq.is_none()
+            && self.min.is_none()
+            && self.max.is_none()
+            && self.any_of.is_none()
+            && self.expr.is_none()
+            && self.in_enum.is_none()
+    }
+}
+
+/// The `valid` of a field: a bare value (`valid: 4`), which stands for `eq`,
+/// or a mapping of rules.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum RawValid {
+    /// The value must equal this expression.
+    Eq(ExprText),
+    /// Rules that must all hold.
+    Rules(RawValidRules),
+}
+
+// Not derived, for the same reason as `RawType`: a bare value of any scalar
+// kind must work, which an untagged enum's buffering would not allow.
+impl<'de> Deserialize<'de> for RawValid {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct ValidVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for ValidVisitor {
+            type Value = RawValid;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a value, or a mapping with eq, min, max, any-of, expr or in-enum")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<RawValid, E> {
+                Ok(RawValid::Eq(ExprText(v.to_owned())))
+            }
+
+            fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<RawValid, E> {
+                Ok(RawValid::Eq(ExprText(v.to_string())))
+            }
+
+            fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<RawValid, E> {
+                Ok(RawValid::Eq(ExprText(v.to_string())))
+            }
+
+            fn visit_f64<E: serde::de::Error>(self, v: f64) -> Result<RawValid, E> {
+                Ok(RawValid::Eq(ExprText(format!("{v:?}"))))
+            }
+
+            fn visit_bool<E: serde::de::Error>(self, v: bool) -> Result<RawValid, E> {
+                Ok(RawValid::Eq(ExprText(v.to_string())))
+            }
+
+            fn visit_map<A: serde::de::MapAccess<'de>>(self, map: A) -> Result<RawValid, A::Error> {
+                RawValidRules::deserialize(serde::de::value::MapAccessDeserializer::new(map))
+                    .map(RawValid::Rules)
+            }
+        }
+
+        deserializer.deserialize_any(ValidVisitor)
+    }
 }
 
 /// One entry of an `instances` mapping: the attributes of a `seq` field (the id
@@ -258,6 +359,11 @@ pub struct RawInstance {
     #[serde(default)]
     pub pos: Option<StringOrInt>,
 
+    /// What the value read may be; the parse fails if it is anything else. A
+    /// bare value stands for `eq`.
+    #[serde(default)]
+    pub valid: Option<RawValid>,
+
     /// Name of an enum defined in the nearest enclosing `enums:` block.
     #[serde(rename = "enum", default)]
     pub enum_ref: Option<String>,
@@ -289,6 +395,7 @@ impl RawInstance {
             repeat_until: self.repeat_until.clone(),
             if_expr: self.if_expr.clone(),
             pos: self.pos.clone(),
+            valid: self.valid.clone(),
             enum_ref: self.enum_ref.clone(),
             doc: self.doc.clone(),
         }
@@ -307,6 +414,7 @@ impl RawInstance {
             || self.repeat_expr.is_some()
             || self.repeat_until.is_some()
             || self.pos.is_some()
+            || self.valid.is_some()
     }
 }
 
