@@ -44,6 +44,10 @@ pub struct RawSchema {
     #[serde(default)]
     pub imports: Vec<String>,
 
+    /// Parameters the type takes, which the field that uses it supplies.
+    #[serde(default)]
+    pub params: Vec<RawParam>,
+
     /// The top-level field sequence — the root struct.
     #[serde(default)]
     pub seq: Vec<RawField>,
@@ -122,6 +126,26 @@ pub enum RawEndian {
 }
 
 // ── Field ────────────────────────────────────────────────────────────────────
+
+/// A parameter of a type: a value the field that uses the type passes in.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawParam {
+    /// The name the type's expressions use.
+    pub id: String,
+
+    /// The type of the value. It documents the parameter and is not enforced.
+    #[serde(rename = "type", default)]
+    pub type_ref: Option<String>,
+
+    /// Name of the enum the value is a member of. Not enforced.
+    #[serde(rename = "enum", default)]
+    pub enum_ref: Option<String>,
+
+    /// Human-readable description.
+    #[serde(default)]
+    pub doc: Option<String>,
+}
 
 /// One field in a `seq` list.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -584,6 +608,10 @@ pub struct RawTypeDecl {
     /// Human-readable description.
     #[serde(default)]
     pub doc: Option<String>,
+
+    /// Parameters the type takes, which the field that uses it supplies.
+    #[serde(default)]
+    pub params: Vec<RawParam>,
 
     /// The type's fields, in order.
     #[serde(default)]

@@ -61,6 +61,8 @@ seq:
     type: u1
     repeat: until
     repeat-until: _ == 0
+  - id: param_user
+    type: sized_t(len % 4, kind == kind_t::sixteen)
   - id: framed_len
     type: u1
   - id: framed
@@ -100,6 +102,19 @@ types:
       - id: inner
         type: bytes
         size: inner_len
+  sized_t:
+    params:
+      - id: width
+        type: u4
+      - id: flag
+        type: bool
+    seq:
+      - id: head
+        type: bytes
+        size: width
+      - id: marker
+        type: u1
+        if: flag
   framed_t:
     seq:
       - id: tag
