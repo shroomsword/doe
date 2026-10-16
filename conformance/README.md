@@ -44,6 +44,14 @@ definitions use:
 | `value_instance_enum` | a value instance with an enum |
 | `import_main`, `import_dep` | `meta.imports` and a type of an imported definition |
 
+## A bug in the reference runtime
+
+The JavaScript runtime of Kaitai Struct 0.11.0 skips one byte too many after a
+terminated read with `include: true` and `consume: true` (it moves past the
+terminator when it takes the bytes and again when it consumes). doe follows the
+documented behavior, so `terminated.ksy` does not combine the two on a field
+without a `size`.
+
 ## Changing the suite
 
 To add a format, put its `.ksy` in `formats/`, its samples in `samples/<name>/`
