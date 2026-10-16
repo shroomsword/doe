@@ -426,20 +426,49 @@ impl<'buf> Cursor<'buf> {
     /// Returns an error if the result would be longer than
     /// [`MAX_TERMINATED_LEN`] bytes, or if reading the file fails.
     pub fn read_until(&mut self, terminator: u8) -> Result<Cow<'buf, [u8]>> {
+        self.read_terminated(terminator, false, true, false)
+    }
+
+    /// Read bytes up to the first occurrence of `terminator`.
+    ///
+    /// With `include` the terminator is part of the result; with `consume` the
+    /// position ends after it, and otherwise at it. If there is no terminator
+    /// the rest of the window is returned, or with `eos_error` that is an
+    /// error.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if there is no terminator and `eos_error` is set, if the
+    /// result would be longer than [`MAX_TERMINATED_LEN`] bytes, or if reading
+    /// the file fails.
+    pub fn read_terminated(
+        &mut self,
+        terminator: u8,
+        include: bool,
+        consume: bool,
+        eos_error: bool,
+    ) -> Result<Cow<'buf, [u8]>> {
         self.align();
+        let missing = |offset: usize| {
+            DoeError::Schema(format!(
+                "end of the input reached at offset {offset} without the terminator {terminator:#04x}"
+            ))
+        };
         match &self.source {
             Source::Memory(buf) => {
                 let buf: &'buf [u8] = buf;
                 let rest = buf.get(self.pos..).unwrap_or_default();
-                let (found, len) = match rest.iter().position(|&b| b == terminator) {
-                    Some(len) => (true, len),
-                    None => (false, rest.len()),
-                };
+                let found = rest.iter().position(|&b| b == terminator);
+                if found.is_none() && eos_error {
+                    return Err(missing(self.absolute_pos()));
+                }
+                let at = found.unwrap_or(rest.len());
+                let len = at.saturating_add(usize::from(found.is_some() && include));
                 self.check_terminated_len(len)?;
                 self.pos = self
                     .pos
-                    .saturating_add(len)
-                    .saturating_add(usize::from(found));
+                    .saturating_add(at)
+                    .saturating_add(usize::from(found.is_some() && consume));
                 Ok(Cow::Borrowed(rest.get(..len).unwrap_or_default()))
             }
             Source::File(_) => {
@@ -449,15 +478,22 @@ impl<'buf> Cursor<'buf> {
                     let n = self.remaining().min(SCAN_CHUNK_LEN);
                     let window = chunk.get_mut(..n).unwrap_or_default();
                     self.fill(self.pos, window)?;
-                    if let Some(len) = window.iter().position(|&b| b == terminator) {
-                        out.extend_from_slice(window.get(..len).unwrap_or_default());
+                    if let Some(at) = window.iter().position(|&b| b == terminator) {
+                        let kept = at.saturating_add(usize::from(include));
+                        out.extend_from_slice(window.get(..kept).unwrap_or_default());
                         self.check_terminated_len(out.len())?;
-                        self.pos = self.pos.saturating_add(len).saturating_add(1);
+                        self.pos = self
+                            .pos
+                            .saturating_add(at)
+                            .saturating_add(usize::from(consume));
                         return Ok(Cow::Owned(out));
                     }
                     out.extend_from_slice(window);
                     self.check_terminated_len(out.len())?;
                     self.pos = self.pos.saturating_add(n);
+                }
+                if eos_error {
+                    return Err(missing(self.absolute_pos()));
                 }
                 Ok(Cow::Owned(out))
             }

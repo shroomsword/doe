@@ -250,9 +250,27 @@ pub struct RawField {
     #[serde(rename = "size-eos", default)]
     pub size_eos: Option<bool>,
 
-    /// For `str`: the byte value that terminates the string (default `0x00` for `strz`).
+    /// For `bytes` and `str`: the byte value that terminates the value (default
+    /// `0x00` for `strz`).
     #[serde(default)]
     pub terminator: Option<u8>,
+
+    /// With `terminator`: keep the terminator in the value (default `false`).
+    #[serde(default)]
+    pub include: Option<bool>,
+
+    /// With `terminator`: continue after the terminator (default `true`).
+    #[serde(default)]
+    pub consume: Option<bool>,
+
+    /// With `terminator` and no `size`: an error when there is no terminator
+    /// (default `true`); otherwise the rest of the stream is the value.
+    #[serde(rename = "eos-error", default)]
+    pub eos_error: Option<bool>,
+
+    /// With `size`: strip trailing bytes of this value from the result.
+    #[serde(rename = "pad-right", default)]
+    pub pad_right: Option<u8>,
 
     /// For `str`: character encoding.  Defaults to `utf8`.
     #[serde(default)]
@@ -426,9 +444,27 @@ pub struct RawInstance {
     #[serde(rename = "size-eos", default)]
     pub size_eos: Option<bool>,
 
-    /// For `str`: the byte value that terminates the string (default `0x00` for `strz`).
+    /// For `bytes` and `str`: the byte value that terminates the value (default
+    /// `0x00` for `strz`).
     #[serde(default)]
     pub terminator: Option<u8>,
+
+    /// With `terminator`: keep the terminator in the value (default `false`).
+    #[serde(default)]
+    pub include: Option<bool>,
+
+    /// With `terminator`: continue after the terminator (default `true`).
+    #[serde(default)]
+    pub consume: Option<bool>,
+
+    /// With `terminator` and no `size`: an error when there is no terminator
+    /// (default `true`); otherwise the rest of the stream is the value.
+    #[serde(rename = "eos-error", default)]
+    pub eos_error: Option<bool>,
+
+    /// With `size`: strip trailing bytes of this value from the result.
+    #[serde(rename = "pad-right", default)]
+    pub pad_right: Option<u8>,
 
     /// For `str`: character encoding.  Defaults to `utf8`.
     #[serde(default)]
@@ -495,6 +531,10 @@ impl RawInstance {
             size: self.size.clone(),
             size_eos: self.size_eos,
             terminator: self.terminator,
+            include: self.include,
+            consume: self.consume,
+            eos_error: self.eos_error,
+            pad_right: self.pad_right,
             encoding: self.encoding,
             bit_size: self.bit_size,
             repeat: self.repeat,
@@ -516,6 +556,10 @@ impl RawInstance {
             || self.size.is_some()
             || self.size_eos.is_some()
             || self.terminator.is_some()
+            || self.include.is_some()
+            || self.consume.is_some()
+            || self.eos_error.is_some()
+            || self.pad_right.is_some()
             || self.encoding.is_some()
             || self.bit_size.is_some()
             || self.repeat.is_some()

@@ -1,0 +1,12 @@
+{
+  "comma": "2c",
+  "kept": "cd,",
+  "padded": "hi",
+  "paddedcut": "ab",
+  "peeked": "ef",
+  "plain": "ab",
+  "raw": "2c7879",
+  "rest": "tail",
+  "window": "ab",
+  "windowkept": "512e"
+}

@@ -194,6 +194,11 @@ pub enum FieldKind {
         /// Number of bytes to read.
         size: SizeExpr,
     },
+    /// Raw byte sequence that ends at a terminator or is cut from a window.
+    BytesCut {
+        /// Where the value ends.
+        cut: Cut,
+    },
     /// String with optional terminator or explicit size.
     Str {
         /// How the string's extent is determined.
@@ -315,11 +320,32 @@ pub enum SizeExpr {
 /// String termination/size strategy.
 #[derive(Debug, Clone)]
 pub enum StrSize {
-    /// Read until this byte value (inclusive; the terminator is consumed but
-    /// not included in the string value).
+    /// Read until this byte value (the terminator is consumed but not included
+    /// in the string value); the end of the input before it is an error.
     Terminator(u8),
     /// Read exactly this many bytes.
     Fixed(SizeExpr),
+    /// A terminator with options, or a window cut at a terminator or stripped.
+    Cut(Cut),
+}
+
+/// How a `bytes` or `str` value ends when it is more than a plain size or a
+/// terminator that is consumed and not kept.
+#[derive(Debug, Clone)]
+pub struct Cut {
+    /// Read exactly this many bytes, then cut the value; without it the value
+    /// runs to the terminator.
+    pub size: Option<SizeExpr>,
+    /// The byte that ends the value.
+    pub terminator: Option<u8>,
+    /// Keep the terminator in the value.
+    pub include: bool,
+    /// Continue after the terminator (without `size`).
+    pub consume: bool,
+    /// Without `size`: no terminator is an error and not the rest of the stream.
+    pub eos_error: bool,
+    /// With `size`: strip trailing bytes of this value before cutting.
+    pub pad_right: Option<u8>,
 }
 
 /// String character encoding.

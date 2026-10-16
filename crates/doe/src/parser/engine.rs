@@ -13,8 +13,9 @@ use crate::parser::cursor::{BitOrder, Cursor, MAX_TERMINATED_LEN};
 use crate::schema::expr;
 use crate::schema::expr::ExprValue;
 use crate::schema::ir::{
-    CompiledField, CompiledInstance, CompiledType, CompiledValid, Encoding, Endian, EndianOverride,
-    FieldKind, FloatWidth, InstanceKind, IntWidth, RepeatMode, SizeExpr, StrSize, TypeRegistry,
+    CompiledField, CompiledInstance, CompiledType, CompiledValid, Cut, Encoding, Endian,
+    EndianOverride, FieldKind, FloatWidth, InstanceKind, IntWidth, RepeatMode, SizeExpr, StrSize,
+    TypeRegistry,
 };
 use crate::value::Value;
 
@@ -479,6 +480,7 @@ impl<'reg> Engine<'reg> {
                 Self::read_float(*width, resolve_endian(*endian, parent_ty.endian), cursor)
             }
             FieldKind::Bytes { size } => Self::read_sized_bytes(size, cursor, ctx),
+            FieldKind::BytesCut { cut } => Ok(Value::Bytes(Self::read_cut(cut, cursor, ctx)?)),
             FieldKind::Str { size, encoding } => Self::read_str(size, *encoding, cursor, ctx),
             FieldKind::Bits { bit_size, endian } => {
                 Self::read_bit_field(*bit_size, *endian, parent_ty, cursor)
@@ -825,6 +827,36 @@ impl<'reg> Engine<'reg> {
         })
     }
 
+    /// Read a value that ends at a terminator, or is cut from a window of
+    /// `size` bytes (and always consumes all of it).
+    fn read_cut(cut: &Cut, cursor: &mut Cursor<'_>, ctx: &mut ParseContext) -> Result<Vec<u8>> {
+        let Some(size) = &cut.size else {
+            let term = cut.terminator.unwrap_or(0x00);
+            return Ok(cursor
+                .read_terminated(term, cut.include, cut.consume, cut.eos_error)?
+                .into_owned());
+        };
+        let n = eval_size(size, ctx, cursor)?;
+        if n > MAX_TERMINATED_LEN {
+            return Err(DoeError::Schema(format!(
+                "value of {n} bytes is longer than the limit of {MAX_TERMINATED_LEN} bytes"
+            )));
+        }
+        let mut bytes = cursor.read_bytes(n)?.into_owned();
+        if let Some(pad) = cut.pad_right {
+            while bytes.last() == Some(&pad) {
+                bytes.pop();
+            }
+        }
+        let at = cut
+            .terminator
+            .and_then(|term| bytes.iter().position(|&b| b == term));
+        if let Some(at) = at {
+            bytes.truncate(at + usize::from(cut.include));
+        }
+        Ok(bytes)
+    }
+
     fn read_str(
         size: &StrSize,
         encoding: Encoding,
@@ -832,7 +864,10 @@ impl<'reg> Engine<'reg> {
         ctx: &mut ParseContext,
     ) -> Result<Value> {
         let bytes: Vec<u8> = match size {
-            StrSize::Terminator(term) => cursor.read_until(*term)?.into_owned(),
+            StrSize::Terminator(term) => cursor
+                .read_terminated(*term, false, true, true)?
+                .into_owned(),
+            StrSize::Cut(cut) => Self::read_cut(cut, cursor, ctx)?,
             StrSize::Fixed(sz) => {
                 let n = eval_size(sz, ctx, cursor)?;
                 if n > MAX_TERMINATED_LEN {
