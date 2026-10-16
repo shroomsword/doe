@@ -24,7 +24,7 @@ use indexmap::IndexMap;
 use crate::error::{DoeError, Result};
 use crate::schema::expr;
 use crate::schema::ir::{
-    CompiledEnum, CompiledField, CompiledInstance, CompiledParam, CompiledType, CompiledValid,
+    CompiledEnum, CompiledField, CompiledInstance, CompiledParam, CompiledType, CompiledValid, Cut,
     Encoding, Endian, EndianOverride, FieldKind, FloatWidth, InstanceKind, IntWidth, RepeatMode,
     SizeExpr, StrSize, TypeRegistry,
 };
@@ -414,7 +414,10 @@ impl Compiler {
                 Some(RawType::Name(type_name)) => self.compile_type_ref(type_name, raw, ctx)?,
                 Some(RawType::Switch(switch)) => self.compile_switch(switch, raw, ctx)?,
                 // As in Kaitai Struct, a field with a size and no type is bytes.
-                None if raw.size.is_some() || raw.size_eos == Some(true) => {
+                None if raw.size.is_some()
+                    || raw.size_eos == Some(true)
+                    || raw.terminator.is_some() =>
+                {
                     self.compile_type_ref("bytes", raw, ctx)?
                 }
                 None => {
@@ -599,22 +602,30 @@ impl Compiler {
 
         match type_name {
             // ── Bytes ────────────────────────────────────────────────────
-            "bytes" => {
-                let size = compile_size(raw, ctx)?;
-                Ok(FieldKind::Bytes { size })
-            }
+            "bytes" => match compile_cut(raw, ctx, None, true)? {
+                Some(cut) => Ok(FieldKind::BytesCut { cut }),
+                None => Ok(FieldKind::Bytes {
+                    size: compile_size(raw, ctx)?,
+                }),
+            },
 
             // ── Strings ──────────────────────────────────────────────────
             "strz" => {
                 let enc = compile_encoding(raw.encoding.or(ctx.encoding));
+                let size = match compile_cut(raw, ctx, Some(0x00), false)? {
+                    Some(cut) => StrSize::Cut(cut),
+                    None => StrSize::Terminator(raw.terminator.unwrap_or(0x00)),
+                };
                 Ok(FieldKind::Str {
-                    size: StrSize::Terminator(raw.terminator.unwrap_or(0x00)),
+                    size,
                     encoding: enc,
                 })
             }
             "str" => {
                 let enc = compile_encoding(raw.encoding.or(ctx.encoding));
-                let str_size = if let Some(term) = raw.terminator {
+                let str_size = if let Some(cut) = compile_cut(raw, ctx, None, false)? {
+                    StrSize::Cut(cut)
+                } else if let Some(term) = raw.terminator {
                     StrSize::Terminator(term)
                 } else {
                     StrSize::Fixed(compile_size(raw, ctx)?)
@@ -900,6 +911,65 @@ fn compile_encoding(enc: Option<RawEncoding>) -> Encoding {
     }
 }
 
+/// The `Cut` a `bytes` or `str` field asks for with `include`, `consume`,
+/// `eos-error`, `pad-right`, or a `size` together with a `terminator`; `None`
+/// when it is a plain size or a plain terminator. `default_terminator` is the
+/// terminator `strz` has.
+fn compile_cut(
+    raw: &RawField,
+    ctx: &FieldCtx<'_>,
+    default_terminator: Option<u8>,
+    bytes: bool,
+) -> Result<Option<Cut>> {
+    let terminator = raw.terminator.or(default_terminator);
+    let sized = raw.size.is_some() || raw.size_eos == Some(true);
+    let options = raw.include.is_some()
+        || raw.consume.is_some()
+        || raw.eos_error.is_some()
+        || raw.pad_right.is_some();
+    if !(options || terminator.is_some() && (sized || bytes)) {
+        return Ok(None);
+    }
+    let bad = |message: &str| DoeError::FieldError {
+        field: raw.id.clone(),
+        context: ctx.parent_fqn.to_owned(),
+        message: message.to_owned(),
+    };
+    if terminator.is_none()
+        && (raw.include.is_some() || raw.consume.is_some() || raw.eos_error.is_some())
+    {
+        return Err(bad(
+            "'include', 'consume' and 'eos-error' need a 'terminator'",
+        ));
+    }
+    if sized {
+        if raw.consume.is_some() || raw.eos_error.is_some() {
+            return Err(bad(
+                "'consume' and 'eos-error' are for a value that is not read from a 'size'",
+            ));
+        }
+    } else {
+        if raw.pad_right.is_some() {
+            return Err(bad("'pad-right' needs a 'size'"));
+        }
+        if terminator.is_none() {
+            return Err(bad("a value needs a 'size', 'size-eos' or a 'terminator'"));
+        }
+    }
+    Ok(Some(Cut {
+        size: if sized {
+            Some(compile_size(raw, ctx)?)
+        } else {
+            None
+        },
+        terminator,
+        include: raw.include.unwrap_or(false),
+        consume: raw.consume.unwrap_or(true),
+        eos_error: raw.eos_error.unwrap_or(true),
+        pad_right: raw.pad_right,
+    }))
+}
+
 fn compile_size(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<SizeExpr> {
     if raw.size_eos == Some(true) {
         if raw.size.is_some() {
@@ -1006,6 +1076,15 @@ fn field_exprs(field: &CompiledField) -> Vec<&expr::Expr> {
                 size: StrSize::Fixed(s),
                 ..
             } => size(s, out),
+            FieldKind::BytesCut { cut: c }
+            | FieldKind::Str {
+                size: StrSize::Cut(c),
+                ..
+            } => {
+                if let Some(s) = &c.size {
+                    size(s, out);
+                }
+            }
             FieldKind::TypeRef {
                 size: window, args, ..
             } => {

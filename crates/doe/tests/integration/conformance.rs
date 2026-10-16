@@ -179,6 +179,7 @@ formats!(
     png_chunks,
     repeat_until_eof,
     riff_wave,
+    terminated,
     tlv_stream,
     value_instance_enum,
 );

@@ -4117,3 +4117,140 @@ fn the_same_type_with_different_arguments_does_not_leak_between_uses() {
     let len = |name: &str| get_field(get_field(&v, name), "data").byte_len();
     assert_eq!((len("a"), len("b"), len("c")), (Some(1), Some(3), Some(2)));
 }
+
+// ── Terminated reads ─────────────────────────────────────────────────────
+
+const TERMINATED: &str = indoc! {"
+    meta:
+      id: t
+    seq:
+      - id: a
+        terminator: 0x2c
+        __OPTS__
+      - id: b
+        size: 1
+"};
+
+fn terminated(opts: &str, data: &[u8]) -> Value {
+    parse(&TERMINATED.replace("__OPTS__", opts), "t", data)
+}
+
+fn bytes_of(v: &Value) -> Vec<u8> {
+    match v {
+        Value::Bytes(b) => b.clone(),
+        other => panic!("expected bytes, got {other:?}"),
+    }
+}
+
+#[test]
+fn terminator_without_a_type_is_bytes_and_consumes_the_terminator() {
+    let v = terminated("", b"ab,c");
+    assert_eq!(bytes_of(get_field(&v, "a")), b"ab");
+    assert_eq!(bytes_of(get_field(&v, "b")), b"c");
+}
+
+#[test]
+fn terminator_at_the_start_gives_an_empty_value() {
+    let v = terminated("", b",c");
+    assert_eq!(bytes_of(get_field(&v, "a")), b"");
+    assert_eq!(bytes_of(get_field(&v, "b")), b"c");
+}
+
+#[test]
+fn include_keeps_the_terminator() {
+    let v = terminated("include: true", b"ab,c");
+    assert_eq!(bytes_of(get_field(&v, "a")), b"ab,");
+    assert_eq!(bytes_of(get_field(&v, "b")), b"c");
+}
+
+#[test]
+fn consume_false_leaves_the_terminator_for_the_next_field() {
+    let v = terminated("consume: false", b"ab,c");
+    assert_eq!(bytes_of(get_field(&v, "a")), b"ab");
+    assert_eq!(bytes_of(get_field(&v, "b")), b",");
+}
+
+#[test]
+fn a_missing_terminator_is_an_error_unless_eos_error_is_false() {
+    parse_err(&TERMINATED.replace("__OPTS__", ""), "t", b"abc");
+    let (engine, _) = engine_from_yaml(
+        &TERMINATED
+            .replace("__OPTS__", "eos-error: false")
+            .replace("size: 1", "size: 0"),
+    );
+    let mut cursor = Cursor::new(&b"abc"[..]);
+    let v = engine.parse_type("t", &mut cursor).unwrap();
+    assert_eq!(bytes_of(get_field(&v, "a")), b"abc");
+}
+
+#[test]
+fn the_terminator_as_the_last_byte_leaves_nothing_after_it() {
+    parse_err(&TERMINATED.replace("__OPTS__", ""), "t", b"ab,");
+}
+
+#[test]
+fn size_with_terminator_reads_the_whole_size_and_cuts_the_value() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+          encoding: ASCII
+        seq:
+          - id: s
+            type: str
+            size: 6
+            terminator: 0
+          - id: next
+            size: 1
+    "};
+    let v = parse(yaml, "t", b"ab\0xyzQ");
+    assert_eq!(*get_field(&v, "s"), Value::Str("ab".into()));
+    assert_eq!(bytes_of(get_field(&v, "next")), b"Q");
+}
+
+#[test]
+fn size_with_terminator_and_no_terminator_in_the_window_keeps_all() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: s
+            size: 3
+            terminator: 0
+            include: true
+    "};
+    let v = parse(yaml, "t", b"abc");
+    assert_eq!(bytes_of(get_field(&v, "s")), b"abc");
+}
+
+#[test]
+fn a_window_larger_than_the_input_is_an_error() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: s
+            size: 8
+            terminator: 0
+    "};
+    parse_err(yaml, "t", b"ab\0");
+}
+
+#[test]
+fn pad_right_strips_trailing_padding() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+          encoding: ASCII
+        seq:
+          - id: s
+            type: str
+            size: 5
+            pad-right: 0x20
+          - id: e
+            size: 3
+            pad-right: 0x20
+    "};
+    let v = parse(yaml, "t", b"a b  \x20\x20\x20");
+    assert_eq!(*get_field(&v, "s"), Value::Str("a b".into()));
+    assert_eq!(bytes_of(get_field(&v, "e")), b"");
+}

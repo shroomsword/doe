@@ -156,7 +156,11 @@ integers. As in Kaitai Struct, entering a sub-type does not start a new byte.
 | Attribute | Purpose |
 |-----------|---------|
 | `size` | Byte count for `bytes`/`str`, or the size of the window a user type is parsed in (see [Sized sub-types](#sized-sub-types)); may be a literal or an expression |
-| `terminator` | Stop byte for `str` (e.g. `terminator: 0x0a` for newline) |
+| `terminator` | Stop byte for `bytes` and `str` (e.g. `terminator: 0x0a` for newline); without a type the field is `bytes`. With `size` the whole size is read and the value is cut at the first terminator. No terminator before the end of the input is an error |
+| `include` | With `terminator`: keep the terminator in the value (default `false`) |
+| `consume` | With `terminator`: continue after the terminator (default `true`); `false` leaves it for the next field |
+| `eos-error` | With `terminator`: `false` takes the rest of the input when there is no terminator, instead of an error |
+| `pad-right` | With `size`: strip trailing bytes of this value from the result |
 | `encoding` | `utf8` (default), `ascii`, or `latin1` |
 | `repeat: eos` | Repeat the field until end of stream |
 | `repeat: expr` + `repeat-expr:` | Repeat a computed number of times |
@@ -596,9 +600,7 @@ What is different:
   enclosing type is still being parsed.
 
 What is not supported yet, and fails when a definition uses it: `process:`;
-`terminator` on a field without a type, and `include`, `consume`, `eos-error` and
-`pad-right`; a `size` together with a `terminator` on a string (doe stops at the
-terminator instead of reading the whole size); encodings other than UTF-8, ASCII
+a `terminator` of more than one byte; encodings other than UTF-8, ASCII
 and ISO-8859-1; `meta.endian` as a `switch-on` mapping; enum entries written as
 mappings (`1: {id: name}`); and enum members qualified with a type
 (`type::enum::member`).
