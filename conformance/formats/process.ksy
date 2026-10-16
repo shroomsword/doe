@@ -5,8 +5,7 @@ meta:
   endian: le
 doc: |
   `process:` with `xor` (an integer and a byte sequence from an earlier
-  field), `rol`, `ror`, and a user type read from the processed bytes. `zlib`
-  is left out: the JavaScript runtime of the reference needs a library for it.
+  field), `rol`, `ror`, `zlib`, and a user type read from the processed bytes.
 seq:
   - id: a
     size: 4
@@ -26,6 +25,19 @@ seq:
     type: inner
     size: 3
     process: xor(0xff)
+  - id: packed_len
+    type: u1
+  - id: packed
+    type: inner
+    size: packed_len
+    process: zlib
+  - id: text_len
+    type: u1
+  - id: text
+    size: text_len
+    process: zlib
+  - id: tail
+    type: u1
 types:
   inner:
     seq:

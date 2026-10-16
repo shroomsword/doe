@@ -36,7 +36,7 @@ definitions use:
 | `bmp_header` | `valid`, an instance read at a `pos`, floor division, a ternary |
 | `gif_like` | packed flags, `repeat-until` on a field of the element, an enum case with no body |
 | `riff_wave` | string cases, padding, a type that contains itself |
-| `process` | `process:` with `xor`, `rol` and `ror`, and a user type read from the result (`zlib` is left out: the JavaScript runtime needs a library for it) |
+| `process` | `process:` with `xor`, `rol`, `ror` and `zlib`, and a user type read from the result |
 | `png_chunks` | `repeat-until` on a string, `strz`, `size-eos`, `valid` with `min` |
 | `expressions` | arithmetic, bit operations, strings, arrays, floats, conversions |
 | `float_types` | floats of both sizes and byte orders |
