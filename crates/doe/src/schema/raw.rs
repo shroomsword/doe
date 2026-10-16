@@ -272,6 +272,11 @@ pub struct RawField {
     #[serde(rename = "pad-right", default)]
     pub pad_right: Option<u8>,
 
+    /// Transform applied to the bytes of the field's `size` window before they
+    /// are parsed: `xor(key)`, `rol(n)`, `ror(n)` or `zlib`.
+    #[serde(default)]
+    pub process: Option<String>,
+
     /// For `str`: character encoding.  Defaults to `utf8`.
     #[serde(default)]
     pub encoding: Option<RawEncoding>,
@@ -466,6 +471,11 @@ pub struct RawInstance {
     #[serde(rename = "pad-right", default)]
     pub pad_right: Option<u8>,
 
+    /// Transform applied to the bytes of the field's `size` window before they
+    /// are parsed: `xor(key)`, `rol(n)`, `ror(n)` or `zlib`.
+    #[serde(default)]
+    pub process: Option<String>,
+
     /// For `str`: character encoding.  Defaults to `utf8`.
     #[serde(default)]
     pub encoding: Option<RawEncoding>,
@@ -531,6 +541,7 @@ impl RawInstance {
             size: self.size.clone(),
             size_eos: self.size_eos,
             terminator: self.terminator,
+            process: self.process.clone(),
             include: self.include,
             consume: self.consume,
             eos_error: self.eos_error,
@@ -556,6 +567,7 @@ impl RawInstance {
             || self.size.is_some()
             || self.size_eos.is_some()
             || self.terminator.is_some()
+            || self.process.is_some()
             || self.include.is_some()
             || self.consume.is_some()
             || self.eos_error.is_some()

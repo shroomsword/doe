@@ -167,6 +167,7 @@ integers. As in Kaitai Struct, entering a sub-type does not start a new byte.
 | `repeat: until` + `repeat-until:` | Repeat until an expression is true; `_` is the last parsed value |
 | `if:` | Skip the field when the expression is false |
 | `size-eos` | `true` to take the rest of the enclosing window or the input as the size; for `bytes`, `str` and user types |
+| `process` | Transform the bytes of the field's `size` window before they are parsed: `xor(key)` (an integer or a byte sequence, repeated), `rol(n)`, `ror(n)` (rotate each byte) or `zlib`. For `bytes`, `str` and user types that have a `size` or `size-eos`. `zlib` decompresses into memory up to 256 MiB; a larger result, or data that is not zlib data, is an error that names the field |
 | `pos:` | Read the field at this byte offset instead of the current position; see [Seeking](#seeking) |
 | `valid:` | Fail the parse unless the value read satisfies the rules; see [Validating values](#validating-values) |
 | `enum:` | Map the parsed integer to a named variant |
@@ -599,9 +600,8 @@ What is different:
 - Instances of an enclosing type cannot be used from a sub-type while the
   enclosing type is still being parsed.
 
-What is not supported yet, and fails when a definition uses it: `process:`;
-a `terminator` of more than one byte; encodings other than UTF-8, ASCII
-and ISO-8859-1; `meta.endian` as a `switch-on` mapping; enum entries written as
+What is not supported yet, and fails when a definition uses it: a `terminator`
+of more than one byte; encodings other than UTF-8, ASCII and ISO-8859-1; `meta.endian` as a `switch-on` mapping; enum entries written as
 mappings (`1: {id: name}`); and enum members qualified with a type
 (`type::enum::member`).
 

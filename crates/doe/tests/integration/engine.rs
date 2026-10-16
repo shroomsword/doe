@@ -1266,6 +1266,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
                 pos: None,
                 uses_instances: vec![],
                 valid: None,
+                process: None,
                 enum_ref: None,
             }],
             enums: std::collections::HashMap::new(),
@@ -4253,4 +4254,151 @@ fn pad_right_strips_trailing_padding() {
     let v = parse(yaml, "t", b"a b  \x20\x20\x20");
     assert_eq!(*get_field(&v, "s"), Value::Str("a b".into()));
     assert_eq!(bytes_of(get_field(&v, "e")), b"");
+}
+
+// ── process ──────────────────────────────────────────────────────────────
+
+const ZLIB_HELLO: [u8; 16] = [
+    120, 156, 203, 72, 205, 201, 201, 87, 200, 64, 144, 0, 58, 46, 6, 125,
+];
+
+#[test]
+fn process_xor_with_an_integer_key() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            size: 3
+            process: xor(0xff)
+    "};
+    let v = parse(yaml, "t", &[0xff, 0x00, 0x0f]);
+    assert_eq!(*get_field(&v, "a"), Value::Bytes(vec![0x00, 0xff, 0xf0]));
+}
+
+#[test]
+fn process_xor_with_a_key_from_an_earlier_field() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: key
+            size: 2
+          - id: a
+            size: 5
+            process: xor(key)
+          - id: tail
+            type: u1
+    "};
+    let v = parse(yaml, "t", &[1, 2, 1, 1, 1, 1, 1, 9]);
+    assert_eq!(*get_field(&v, "a"), Value::Bytes(vec![0, 3, 0, 3, 0]));
+    assert_eq!(*get_field(&v, "tail"), Value::UInt(9));
+}
+
+#[test]
+fn process_xor_with_an_empty_key_is_an_error() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: key
+            size: 0
+          - id: a
+            size: 1
+            process: xor(key)
+    "};
+    let err = parse_err(yaml, "t", &[1]);
+    assert!(err.to_string().contains("key"), "{err}");
+}
+
+#[test]
+fn process_rol_and_ror_rotate_each_byte() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: l
+            size: 2
+            process: rol(1)
+          - id: r
+            size: 2
+            process: ror(1)
+          - id: wrapped
+            size: 1
+            process: rol(9)
+    "};
+    let v = parse(yaml, "t", &[0x81, 0x40, 0x81, 0x02, 0x81]);
+    assert_eq!(*get_field(&v, "l"), Value::Bytes(vec![0x03, 0x80]));
+    assert_eq!(*get_field(&v, "r"), Value::Bytes(vec![0xc0, 0x01]));
+    assert_eq!(*get_field(&v, "wrapped"), Value::Bytes(vec![0x03]));
+}
+
+#[test]
+fn process_zlib_inflates_and_a_user_type_is_parsed_from_the_result() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+          encoding: ASCII
+        seq:
+          - id: body
+            type: inner
+            size: 16
+            process: zlib
+          - id: after
+            type: u1
+        types:
+          inner:
+            seq:
+              - id: word
+                type: str
+                size: 5
+              - id: rest
+                size-eos: true
+    "};
+    let mut data = ZLIB_HELLO.to_vec();
+    data.push(7);
+    let v = parse(yaml, "t", &data);
+    let body = get_field(&v, "body");
+    assert_eq!(*get_field(body, "word"), Value::Str("hello".into()));
+    assert_eq!(bytes_of(get_field(body, "rest")), b" hello hello");
+    assert_eq!(*get_field(&v, "after"), Value::UInt(7));
+}
+
+#[test]
+fn process_zlib_of_bad_data_names_the_field() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: body
+            size: 4
+            process: zlib
+    "};
+    let err = parse_err(yaml, "t", b"nope");
+    let text = err.to_string();
+    assert!(text.contains("body") && text.contains("zlib"), "{text}");
+}
+
+#[test]
+fn inflate_stops_at_the_limit_without_producing_more() {
+    let data = doe::parser::process::inflate(&ZLIB_HELLO, 17).unwrap();
+    assert_eq!(data, b"hello hello hello");
+    let err = doe::parser::process::inflate(&ZLIB_HELLO, 16).unwrap_err();
+    assert!(err.to_string().contains("limit"), "{err}");
+}
+
+#[test]
+fn process_needs_a_sized_field_and_a_known_name() {
+    for (field, needle) in [
+        ("type: u1\n            process: xor(1)", "size"),
+        ("size: 1\n            process: bogus", "unknown process"),
+        ("size: 1\n            process: rol", "argument"),
+        ("size: 1\n            process: zlib(1)", "argument"),
+    ] {
+        let yaml = format!("meta:\n  id: t\nseq:\n  - id: a\n    {field}\n")
+            .replace("            ", "    ");
+        let schema = doe::schema::raw::RawSchema::from_yaml_str(&yaml).unwrap();
+        let err = compile_schema(&schema).unwrap_err().to_string();
+        assert!(err.contains(needle), "{needle}: {err}");
+    }
 }

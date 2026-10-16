@@ -189,6 +189,7 @@ fn compiled_field_no_repeat_no_if() {
         pos: None,
         uses_instances: vec![],
         valid: None,
+        process: None,
         enum_ref: None,
     };
     assert_eq!(f.id, "magic");
@@ -215,6 +216,7 @@ fn compiled_field_with_if_and_enum() {
         pos: None,
         uses_instances: vec![],
         valid: None,
+        process: None,
         enum_ref: Some("record_type".into()),
     };
     assert!(f.if_expr.is_some());
@@ -238,6 +240,7 @@ fn compiled_type_with_multiple_fields() {
             pos: None,
             uses_instances: vec![],
             valid: None,
+            process: None,
             enum_ref: None,
         },
         CompiledField {
@@ -251,6 +254,7 @@ fn compiled_type_with_multiple_fields() {
             pos: None,
             uses_instances: vec![],
             valid: None,
+            process: None,
             enum_ref: None,
         },
     ];

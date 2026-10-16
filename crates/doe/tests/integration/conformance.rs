@@ -177,6 +177,7 @@ formats!(
     import_main,
     ipv4_packet,
     png_chunks,
+    process,
     repeat_until_eof,
     riff_wave,
     terminated,
