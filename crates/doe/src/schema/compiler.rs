@@ -25,8 +25,8 @@ use crate::error::{DoeError, Result};
 use crate::schema::expr;
 use crate::schema::ir::{
     CompiledEnum, CompiledField, CompiledInstance, CompiledParam, CompiledType, CompiledValid, Cut,
-    Encoding, Endian, EndianOverride, FieldKind, FloatWidth, InstanceKind, IntWidth, RepeatMode,
-    SizeExpr, StrSize, TypeRegistry,
+    Encoding, Endian, EndianOverride, FieldKind, FloatWidth, InstanceKind, IntWidth, Process,
+    RepeatMode, SizeExpr, StrSize, TypeRegistry,
 };
 use crate::schema::raw::{
     ExprText, RawContents, RawEncoding, RawEndian, RawField, RawInstance, RawParam, RawRepeat,
@@ -452,6 +452,7 @@ impl Compiler {
             });
         }
 
+        let process = compile_process(raw, &kind, ctx)?;
         let mut field = CompiledField {
             id: raw.id.clone(),
             doc: raw.doc.clone(),
@@ -462,6 +463,7 @@ impl Compiler {
             enum_ref: raw.enum_ref.clone(),
             uses_instances: Vec::new(),
             valid: compile_valid(raw, ctx)?,
+            process,
         };
         field.uses_instances = instance_refs(&field_exprs(&field), ctx.instances);
         Ok(field)
@@ -1011,6 +1013,70 @@ fn compile_size(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<SizeExpr> {
     }
 }
 
+/// Compile `process:`, if the field has it.
+fn compile_process(
+    raw: &RawField,
+    kind: &FieldKind,
+    ctx: &FieldCtx<'_>,
+) -> Result<Option<Process>> {
+    let Some(text) = &raw.process else {
+        return Ok(None);
+    };
+    let bad = |message: String| DoeError::FieldError {
+        field: raw.id.clone(),
+        context: ctx.parent_fqn.to_owned(),
+        message: format!("process '{text}': {message}"),
+    };
+    let sized = matches!(
+        kind,
+        FieldKind::Bytes { .. }
+            | FieldKind::Str {
+                size: StrSize::Fixed(_),
+                ..
+            }
+            | FieldKind::TypeRef { size: Some(_), .. }
+    );
+    if !sized {
+        return Err(bad(
+            "it applies to 'bytes', a 'str' or a user type that has a 'size' or 'size-eos'"
+                .to_owned(),
+        ));
+    }
+    let (name, args) = split_type_call(text.trim()).map_err(bad)?;
+    let count = |wanted: usize| -> Result<()> {
+        if args.len() == wanted {
+            return Ok(());
+        }
+        Err(bad(format!(
+            "'{name}' takes {wanted} argument{}, but {} {} given",
+            if wanted == 1 { "" } else { "s" },
+            args.len(),
+            if args.len() == 1 { "was" } else { "were" }
+        )))
+    };
+    let argument = || -> Result<expr::Expr> {
+        count(1)?;
+        let text = args.first().copied().unwrap_or_default();
+        validate_size_expr_refs(text, ctx)?;
+        compile_expr(text, ctx).map_err(|e| bad(format!("argument '{text}': {e}")))
+    };
+    let process = match name.trim() {
+        "zlib" => {
+            count(0)?;
+            Process::Zlib
+        }
+        "xor" => Process::Xor(argument()?),
+        "rol" => Process::Rol(argument()?),
+        "ror" => Process::Ror(argument()?),
+        other => {
+            return Err(bad(format!(
+                "unknown process '{other}' (xor, rol, ror and zlib are supported)"
+            )));
+        }
+    };
+    Ok(Some(process))
+}
+
 /// Compile `valid:`, if the field has it.
 fn compile_valid(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<Option<CompiledValid>> {
     let Some(valid) = &raw.valid else {
@@ -1126,6 +1192,9 @@ fn field_exprs(field: &CompiledField) -> Vec<&expr::Expr> {
     match &field.repeat {
         RepeatMode::Count(e) | RepeatMode::Until(e) => out.push(e),
         RepeatMode::Once | RepeatMode::Eos => {}
+    }
+    if let Some(Process::Xor(e) | Process::Rol(e) | Process::Ror(e)) = &field.process {
+        out.push(e);
     }
     kind(&field.kind, &mut out);
     out

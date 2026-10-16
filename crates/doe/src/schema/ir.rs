@@ -117,6 +117,23 @@ pub struct CompiledField {
     pub uses_instances: Vec<String>,
     /// What the value read may be, if constrained (`valid:`).
     pub valid: Option<CompiledValid>,
+    /// A transform applied to the bytes of the field's window before they are
+    /// parsed (`process:`).
+    pub process: Option<Process>,
+}
+
+/// A transform of the bytes of a field (`process:`).
+#[derive(Debug, Clone)]
+pub enum Process {
+    /// Exclusive or with a key: an integer (one byte) or a byte sequence,
+    /// repeated over the bytes.
+    Xor(Expr),
+    /// Rotate each byte left by this many bits.
+    Rol(Expr),
+    /// Rotate each byte right by this many bits.
+    Ror(Expr),
+    /// Decompress zlib data.
+    Zlib,
 }
 
 /// The rules a field's value must satisfy; all that are given must hold.

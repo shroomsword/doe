@@ -10,12 +10,13 @@ use std::cmp::Ordering;
 use crate::error::{DoeError, Result};
 use crate::parser::context::{InstanceStart, ParseContext};
 use crate::parser::cursor::{BitOrder, Cursor, MAX_TERMINATED_LEN};
+use crate::parser::process::{self, MAX_PROCESSED_LEN};
 use crate::schema::expr;
 use crate::schema::expr::ExprValue;
 use crate::schema::ir::{
     CompiledField, CompiledInstance, CompiledType, CompiledValid, Cut, Encoding, Endian,
-    EndianOverride, FieldKind, FloatWidth, InstanceKind, IntWidth, RepeatMode, SizeExpr, StrSize,
-    TypeRegistry,
+    EndianOverride, FieldKind, FloatWidth, InstanceKind, IntWidth, Process, RepeatMode, SizeExpr,
+    StrSize, TypeRegistry,
 };
 use crate::value::Value;
 
@@ -365,11 +366,108 @@ impl<'reg> Engine<'reg> {
         cursor: &mut Cursor<'_>,
         ctx: &mut ParseContext,
     ) -> Result<Value> {
-        let raw = self.read_kind(&field.kind, parent_ty, cursor, ctx)?;
+        let raw = match &field.process {
+            Some(process) => self.read_processed(field, process, parent_ty, cursor, ctx)?,
+            None => self.read_kind(&field.kind, parent_ty, cursor, ctx)?,
+        };
         if let Some(valid) = &field.valid {
             Self::check_valid(valid, field, parent_ty, &raw, cursor, ctx)?;
         }
         Ok(apply_enum(raw, field.enum_ref.as_deref(), parent_ty))
+    }
+
+    /// Read a field whose bytes are transformed (`process:`): take its window,
+    /// apply the transform, and read the field from the result.
+    fn read_processed(
+        &self,
+        field: &CompiledField,
+        process: &Process,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
+        let fail = |message: String| DoeError::FieldError {
+            field: field.id.clone(),
+            context: parent_ty.name.clone(),
+            message,
+        };
+        let (FieldKind::Bytes { size }
+        | FieldKind::Str {
+            size: StrSize::Fixed(size),
+            ..
+        }
+        | FieldKind::TypeRef {
+            size: Some(size), ..
+        }) = &field.kind
+        else {
+            return Err(fail("process: the field has no size".to_owned()));
+        };
+        let n = eval_size(size, ctx, cursor)?;
+        if n > MAX_PROCESSED_LEN {
+            return Err(fail(format!(
+                "process: {n} bytes are more than the limit of {MAX_PROCESSED_LEN} bytes"
+            )));
+        }
+        let offset = cursor.absolute_pos();
+        let mut data = cursor.read_bytes(n)?.into_owned();
+        ctx.set_io(cursor);
+        let apply = |ctx: &ParseContext, e: &expr::Expr| {
+            expr::eval(e, &ctx.eval_ctx, "<process>")
+                .map_err(|err| annotate(&err, &field.id, &parent_ty.name))
+        };
+        let int_arg = |ctx: &ParseContext, e: &expr::Expr| {
+            expr::eval_int(e, &ctx.eval_ctx, "<process>")
+                .map_err(|err| annotate(&err, &field.id, &parent_ty.name))
+        };
+        match process {
+            Process::Xor(key) => {
+                let key = match apply(ctx, key)? {
+                    ExprValue::Bytes(bytes) => bytes,
+                    ExprValue::Int(k) => vec![u8::try_from(k & 0xff).unwrap_or_default()],
+                    other => {
+                        return Err(fail(format!(
+                            "process: an xor key is an integer or bytes, not a {}",
+                            other.type_name()
+                        )));
+                    }
+                };
+                process::xor(&mut data, &key).map_err(|e| fail(format!("process: {e}")))?;
+            }
+            Process::Rol(by) => process::rotate_left(&mut data, int_arg(ctx, by)?),
+            Process::Ror(by) => process::rotate_left(&mut data, int_arg(ctx, by)?.wrapping_neg()),
+            Process::Zlib => {
+                data = process::inflate(&data, MAX_PROCESSED_LEN)
+                    .map_err(|e| fail(format!("process: {e}")))?;
+            }
+        }
+        let mut inner = Cursor::new(&data);
+        match &field.kind {
+            FieldKind::Bytes { .. } => {
+                if data.len() <= MAX_INLINE_BYTES {
+                    return Ok(Value::Bytes(data));
+                }
+                let preview = data.get(..BLOB_PREVIEW_LEN).unwrap_or_default().to_vec();
+                Ok(Value::Blob {
+                    offset: u64::try_from(offset).unwrap_or(u64::MAX),
+                    len: u64::try_from(data.len()).unwrap_or(u64::MAX),
+                    preview,
+                })
+            }
+            FieldKind::Str { encoding, .. } => {
+                Self::read_str(&StrSize::Fixed(SizeExpr::Eos), *encoding, &mut inner, ctx)
+            }
+            FieldKind::TypeRef {
+                type_name, args, ..
+            } => {
+                let whole = FieldKind::TypeRef {
+                    type_name: type_name.clone(),
+                    size: None,
+                    args: args.clone(),
+                };
+                self.read_kind(&whole, parent_ty, &mut inner, ctx)
+            }
+            _ => Err(fail("process: the field has no size".to_owned())),
+        }
     }
 
     /// Fail unless `value`, just read for `field`, satisfies every rule.
