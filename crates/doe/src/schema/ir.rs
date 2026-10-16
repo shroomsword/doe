@@ -375,6 +375,19 @@ pub enum Encoding {
     Ascii,
     /// ISO 8859-1.
     Latin1,
+    /// UTF-16, little endian.
+    Utf16Le,
+    /// UTF-16, big endian.
+    Utf16Be,
+    /// UTF-32, little endian.
+    Utf32Le,
+    /// UTF-32, big endian.
+    Utf32Be,
+    /// IBM code page 437.
+    Cp437,
+    /// One of the legacy encodings of `encoding_rs`, by its name (for example
+    /// `windows-1252`, `ISO-8859-2`, `Shift_JIS`, `GBK`, `Big5`).
+    Legacy(&'static str),
 }
 
 /// Repetition mode for a field.

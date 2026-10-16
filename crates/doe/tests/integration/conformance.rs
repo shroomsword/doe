@@ -171,6 +171,7 @@ macro_rules! formats {
 formats!(
     bmp_header,
     expressions,
+    encodings,
     float_types,
     gif_like,
     import_dep,

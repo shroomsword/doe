@@ -10,6 +10,7 @@ use std::cmp::Ordering;
 use crate::error::{DoeError, Result};
 use crate::parser::context::{InstanceStart, ParseContext};
 use crate::parser::cursor::{BitOrder, Cursor, MAX_TERMINATED_LEN};
+use crate::parser::encoding;
 use crate::parser::process::{self, MAX_PROCESSED_LEN};
 use crate::schema::expr;
 use crate::schema::expr::ExprValue;
@@ -368,7 +369,15 @@ impl<'reg> Engine<'reg> {
     ) -> Result<Value> {
         let raw = match &field.process {
             Some(process) => self.read_processed(field, process, parent_ty, cursor, ctx)?,
-            None => self.read_kind(&field.kind, parent_ty, cursor, ctx)?,
+            None => self
+                .read_kind(&field.kind, parent_ty, cursor, ctx)
+                .map_err(|e| match (&field.kind, e) {
+                    // A string that is not valid in its encoding, or too long.
+                    (FieldKind::Str { .. }, e @ DoeError::Schema(_)) => {
+                        annotate(&e, &field.id, &parent_ty.name)
+                    }
+                    (_, e) => e,
+                })?,
         };
         if let Some(valid) = &field.valid {
             Self::check_valid(valid, field, parent_ty, &raw, cursor, ctx)?;
@@ -976,7 +985,7 @@ impl<'reg> Engine<'reg> {
                 cursor.read_bytes(n)?.into_owned()
             }
         };
-        let s = decode_string(&bytes, encoding)?;
+        let s = encoding::decode(&bytes, encoding)?;
         Ok(Value::Str(s))
     }
 }
@@ -1007,24 +1016,6 @@ fn eval_size(size: &SizeExpr, ctx: &mut ParseContext, cursor: &Cursor<'_>) -> Re
             }
             usize::try_from(v)
                 .map_err(|_| DoeError::Schema(format!("size expression value too large: {v}")))
-        }
-    }
-}
-
-fn decode_string(bytes: &[u8], encoding: Encoding) -> Result<String> {
-    match encoding {
-        Encoding::Utf8 => std::str::from_utf8(bytes)
-            .map(str::to_owned)
-            .map_err(|e| DoeError::Schema(format!("UTF-8 decode error: {e}"))),
-        Encoding::Ascii => {
-            if bytes.iter().any(|&b| b > 0x7f) {
-                return Err(DoeError::Schema("non-ASCII byte in ASCII string".into()));
-            }
-            Ok(String::from_utf8_lossy(bytes).into_owned())
-        }
-        Encoding::Latin1 => {
-            // Latin-1 maps directly to the first 256 Unicode code points
-            Ok(bytes.iter().map(|&b| char::from(b)).collect())
         }
     }
 }

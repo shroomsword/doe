@@ -910,6 +910,12 @@ fn compile_encoding(enc: Option<RawEncoding>) -> Encoding {
         RawEncoding::Utf8 => Encoding::Utf8,
         RawEncoding::Ascii => Encoding::Ascii,
         RawEncoding::Latin1 => Encoding::Latin1,
+        RawEncoding::Utf16Le => Encoding::Utf16Le,
+        RawEncoding::Utf16Be => Encoding::Utf16Be,
+        RawEncoding::Utf32Le => Encoding::Utf32Le,
+        RawEncoding::Utf32Be => Encoding::Utf32Be,
+        RawEncoding::Cp437 => Encoding::Cp437,
+        RawEncoding::Legacy(name) => Encoding::Legacy(name),
     }
 }
 

@@ -1868,7 +1868,8 @@ fn fixed_size_strings_are_bounded() {
     "};
     let err = parse_err(yaml, "t", &[0u8; 10]);
     assert!(
-        matches!(&err, DoeError::Schema(m) if m.contains("longer than the limit")),
+        matches!(&err, DoeError::FieldError { field, message, .. }
+            if field == "s" && message.contains("longer than the limit")),
         "{err:?}"
     );
 }
@@ -4401,4 +4402,32 @@ fn process_needs_a_sized_field_and_a_known_name() {
         let err = compile_schema(&schema).unwrap_err().to_string();
         assert!(err.contains(needle), "{needle}: {err}");
     }
+}
+
+// ── encodings ────────────────────────────────────────────────────────────
+
+#[test]
+fn strings_in_the_wider_encodings_are_read_and_bad_ones_name_the_field() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: w
+            type: str
+            size: 4
+            encoding: UTF-16LE
+          - id: j
+            type: strz
+            encoding: Shift_JIS
+          - id: bad
+            type: str
+            size: 2
+            encoding: UTF-16BE
+    "};
+    let v = parse(yaml, "t", &[b'h', 0, b'i', 0, 0x82, 0xa0, 0, 0, 0x41]);
+    assert_eq!(*get_field(&v, "w"), Value::Str("hi".into()));
+    assert_eq!(*get_field(&v, "j"), Value::Str("\u{3042}".into()));
+    let err = parse_err(yaml, "t", &[b'h', 0, b'i', 0, 0, 0xd8, 0x00]);
+    let text = err.to_string();
+    assert!(text.contains("bad") && text.contains("UTF-16BE"), "{text}");
 }

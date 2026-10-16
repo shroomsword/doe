@@ -15,5 +15,6 @@
 
 pub mod context;
 pub mod cursor;
+pub mod encoding;
 pub mod engine;
 pub mod process;
