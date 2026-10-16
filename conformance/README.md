@@ -38,6 +38,7 @@ definitions use:
 | `riff_wave` | string cases, padding, a type that contains itself |
 | `process` | `process:` with `xor`, `rol`, `ror` and `zlib`, and a user type read from the result |
 | `png_chunks` | `repeat-until` on a string, `strz`, `size-eos`, `valid` with `min` |
+| `encodings` | UTF-16 and the legacy encodings the reference decodes (UTF-32 and CP437 are left out: its runtime decodes through `TextDecoder`) |
 | `expressions` | arithmetic, bit operations, strings, arrays, floats, conversions |
 | `float_types` | floats of both sizes and byte orders |
 | `repeat_until_eof` | `_io.eof` |

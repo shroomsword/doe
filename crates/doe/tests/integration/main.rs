@@ -15,6 +15,7 @@ mod conformance;
 mod context;
 mod cursor;
 mod elf;
+mod encoding;
 mod engine;
 mod expr;
 mod ir;

@@ -161,7 +161,7 @@ integers. As in Kaitai Struct, entering a sub-type does not start a new byte.
 | `consume` | With `terminator`: continue after the terminator (default `true`); `false` leaves it for the next field |
 | `eos-error` | With `terminator`: `false` takes the rest of the input when there is no terminator, instead of an error |
 | `pad-right` | With `size`: strip trailing bytes of this value from the result |
-| `encoding` | `utf8` (default), `ascii`, or `latin1` |
+| `encoding` | `utf8` (default), `ascii`, `latin1`, or any of the encodings in [Encodings](#encodings) |
 | `repeat: eos` | Repeat the field until end of stream |
 | `repeat: expr` + `repeat-expr:` | Repeat a computed number of times |
 | `repeat: until` + `repeat-until:` | Repeat until an expression is true; `_` is the last parsed value |
@@ -173,6 +173,27 @@ integers. As in Kaitai Struct, entering a sub-type does not start a new byte.
 | `enum:` | Map the parsed integer to a named variant |
 | `contents:` | Assert fixed bytes (magic numbers, file signatures) |
 | `doc:` | Human-readable description (shown in verbose output) |
+
+### Encodings
+
+`encoding:` (on a field, or `meta.encoding` as the default) takes these names,
+in any case and with `-` and `_` interchangeable:
+
+| Encoding | Names |
+|----------|-------|
+| UTF-8, ASCII, ISO-8859-1 | `UTF-8`, `ASCII`, `ISO-8859-1` (also `utf8`, `ascii`, `latin1`) |
+| UTF-16, UTF-32 | `UTF-16LE`, `UTF-16BE`, `UTF-32LE`, `UTF-32BE` |
+| Code pages | `CP437`, `CP1250` to `CP1258` (also `windows-1252`...) |
+| ISO 8859 | `ISO-8859-2` to `ISO-8859-16` (not 12) |
+| East Asian and others | `Shift_JIS`, `GBK`, `GB18030`, `Big5`, `EUC-JP`, `EUC-KR`, `KOI8-R`, `KOI8-U` |
+
+Bytes that are not valid in the encoding are an error that names the field, the
+encoding and the offset in the string; nothing is replaced by `U+FFFD`. A byte
+order mark is not removed. The legacy encodings are decoded by
+[`encoding_rs`](https://crates.io/crates/encoding_rs), so they follow the WHATWG
+tables, which is also what the JavaScript runtime of Kaitai Struct uses (one
+consequence: `ISO-8859-9`, `ISO-8859-11` and the ISO-8859 names that WHATWG maps
+to a Windows code page decode as that code page).
 
 ### Expressions
 
@@ -601,7 +622,8 @@ What is different:
   enclosing type is still being parsed.
 
 What is not supported yet, and fails when a definition uses it: a `terminator`
-of more than one byte; encodings other than UTF-8, ASCII and ISO-8859-1; `meta.endian` as a `switch-on` mapping; enum entries written as
+of more than one byte; encodings other than those in [Encodings](#encodings);
+`meta.endian` as a `switch-on` mapping; enum entries written as
 mappings (`1: {id: name}`); and enum members qualified with a type
 (`type::enum::member`).
 

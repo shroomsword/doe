@@ -727,6 +727,19 @@ pub enum RawEncoding {
     Ascii,
     /// ISO 8859-1.
     Latin1,
+    /// UTF-16, little endian.
+    Utf16Le,
+    /// UTF-16, big endian.
+    Utf16Be,
+    /// UTF-32, little endian.
+    Utf32Le,
+    /// UTF-32, big endian.
+    Utf32Be,
+    /// IBM code page 437.
+    Cp437,
+    /// One of the legacy encodings of `encoding_rs`, by its name (for example
+    /// `windows-1252`, `ISO-8859-2`, `Shift_JIS`, `GBK`, `Big5`).
+    Legacy(&'static str),
 }
 
 impl RawEncoding {
@@ -741,9 +754,51 @@ impl RawEncoding {
             "utf8" => Some(RawEncoding::Utf8),
             "ascii" | "usascii" => Some(RawEncoding::Ascii),
             "latin1" | "iso88591" => Some(RawEncoding::Latin1),
-            _ => None,
+            "utf16le" => Some(RawEncoding::Utf16Le),
+            "utf16be" => Some(RawEncoding::Utf16Be),
+            "utf32le" => Some(RawEncoding::Utf32Le),
+            "utf32be" => Some(RawEncoding::Utf32Be),
+            "cp437" | "ibm437" => Some(RawEncoding::Cp437),
+            other => legacy_label(other)
+                .and_then(|label| encoding_rs::Encoding::for_label(label.as_bytes()))
+                .map(|encoding| RawEncoding::Legacy(encoding.name())),
         }
     }
+}
+
+/// The label that `encoding_rs` knows a legacy encoding by, from its name
+/// without case, `-`, `_` and spaces.
+fn legacy_label(normalized: &str) -> Option<String> {
+    if let Some(n) = normalized
+        .strip_prefix("cp")
+        .or_else(|| normalized.strip_prefix("windows"))
+        && matches!(
+            n,
+            "874" | "1250" | "1251" | "1252" | "1253" | "1254" | "1255" | "1256" | "1257" | "1258"
+        )
+    {
+        return Some(format!("windows-{n}"));
+    }
+    if let Some(n) = normalized
+        .strip_prefix("iso8859")
+        .and_then(|n| n.parse::<u8>().ok())
+        && (2..=16).contains(&n)
+        && n != 12
+    {
+        return Some(format!("iso-8859-{n}"));
+    }
+    let label = match normalized {
+        "shiftjis" | "sjis" | "mskanji" => "shift_jis",
+        "gbk" | "gb2312" | "cp936" => "gbk",
+        "gb18030" => "gb18030",
+        "big5" | "big5hkscs" => "big5",
+        "eucjp" => "euc-jp",
+        "euckr" | "cp949" => "euc-kr",
+        "koi8r" => "koi8-r",
+        "koi8u" => "koi8-u",
+        _ => return None,
+    };
+    Some(label.to_owned())
 }
 
 impl<'de> Deserialize<'de> for RawEncoding {
@@ -751,7 +806,7 @@ impl<'de> Deserialize<'de> for RawEncoding {
         let name = String::deserialize(deserializer)?;
         RawEncoding::from_name(&name).ok_or_else(|| {
             serde::de::Error::custom(format!(
-                "unsupported encoding '{name}': use utf8, ascii or latin1 (also spelled UTF-8, ASCII, ISO-8859-1)"
+                "unsupported encoding '{name}': use one of UTF-8, ASCII, ISO-8859-1, UTF-16LE, UTF-16BE, UTF-32LE, UTF-32BE, CP437, CP1250..CP1258, ISO-8859-2..16, Shift_JIS, GBK, GB18030, Big5, EUC-JP, EUC-KR, KOI8-R or KOI8-U"
             ))
         })
     }

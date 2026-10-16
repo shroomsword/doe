@@ -844,13 +844,39 @@ fn encodings_may_be_spelled_the_way_kaitai_does() {
             Some(expected)
         );
     }
-    assert_eq!(RawEncoding::from_name("UTF-16LE"), None);
+    assert_eq!(RawEncoding::from_name("EBCDIC"), None);
     let err = RawSchema::from_yaml_str(
-        "id: t\nseq:\n  - id: s\n    type: str\n    size: 1\n    encoding: UTF-16LE\n",
+        "id: t\nseq:\n  - id: s\n    type: str\n    size: 1\n    encoding: EBCDIC\n",
     )
     .unwrap_err();
     assert!(
-        err.to_string().contains("unsupported encoding 'UTF-16LE'"),
+        err.to_string().contains("unsupported encoding 'EBCDIC'"),
         "{err}"
     );
+}
+
+#[test]
+fn the_wider_encodings_are_matched_as_kaitai_does() {
+    for (name, expected) in [
+        ("UTF-16LE", RawEncoding::Utf16Le),
+        ("utf_16_be", RawEncoding::Utf16Be),
+        ("UTF-32LE", RawEncoding::Utf32Le),
+        ("utf-32be", RawEncoding::Utf32Be),
+        ("CP437", RawEncoding::Cp437),
+        ("IBM437", RawEncoding::Cp437),
+        ("CP1252", RawEncoding::Legacy("windows-1252")),
+        ("windows-1251", RawEncoding::Legacy("windows-1251")),
+        ("ISO-8859-2", RawEncoding::Legacy("ISO-8859-2")),
+        ("iso8859_15", RawEncoding::Legacy("ISO-8859-15")),
+        ("Shift_JIS", RawEncoding::Legacy("Shift_JIS")),
+        ("GBK", RawEncoding::Legacy("GBK")),
+        ("Big5", RawEncoding::Legacy("Big5")),
+        ("EUC-JP", RawEncoding::Legacy("EUC-JP")),
+        ("EUC-KR", RawEncoding::Legacy("EUC-KR")),
+    ] {
+        assert_eq!(RawEncoding::from_name(name), Some(expected), "{name}");
+    }
+    for name in ["ISO-8859-12", "ISO-8859-17", "CP1259", "UTF-16", "UTF-7"] {
+        assert_eq!(RawEncoding::from_name(name), None, "{name}");
+    }
 }
