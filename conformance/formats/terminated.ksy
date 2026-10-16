@@ -10,10 +10,6 @@ seq:
   - id: plain
     type: str
     terminator: 0x2c
-  - id: kept
-    type: str
-    terminator: 0x2c
-    include: true
   - id: peeked
     type: str
     terminator: 0x2c
