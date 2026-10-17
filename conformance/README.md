@@ -37,6 +37,7 @@ definitions use:
 | `gif_like` | packed flags, `repeat-until` on a field of the element, an enum case with no body |
 | `riff_wave` | string cases, padding, a type that contains itself |
 | `process` | `process:` with `xor`, `rol`, `ror` and `zlib`, and a user type read from the result |
+| `parent_instances` | instances of the types around a sub-type (`_parent.limit`, `_parent._parent.is_control`), and `type::enum::member` |
 | `png_chunks` | `repeat-until` on a string, `strz`, `size-eos`, `valid` with `min` |
 | `encodings` | UTF-16 and the legacy encodings the reference decodes (UTF-32 and CP437 are left out: its runtime decodes through `TextDecoder`) |
 | `endian_switch` | `meta.endian` with `switch-on` and a default case, a parameter as the selector, a nested type that inherits the choice, an explicit `u2be` |

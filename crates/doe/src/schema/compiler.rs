@@ -180,6 +180,8 @@ impl Compiler {
             },
         )?;
 
+        self.link_parent_instances(&schema.id);
+
         self.loading_stack.pop();
         self.processed.insert(schema.id.clone());
         // Record source for future duplicate detection.
@@ -191,29 +193,91 @@ impl Compiler {
         Ok(())
     }
 
+    /// Make a field compute the instances of its type that the type it
+    /// reads uses as `_parent.name` before it reads that type, so that the
+    /// instance is there, computed against the stream of its own type, when
+    /// the nested type asks for it.
+    fn link_parent_instances(&mut self, root: &str) {
+        let wanted = parent_instance_uses(&self.registry);
+        let prefix = format!("{root}::");
+        let mut additions: Vec<(String, Vec<(usize, Vec<String>)>)> = Vec::new();
+        for (name, ty) in &self.registry.types {
+            if name != root && !name.starts_with(&prefix) {
+                continue;
+            }
+            let instance_names: HashSet<&str> =
+                ty.instances.iter().map(|i| i.id.as_str()).collect();
+            if instance_names.is_empty() {
+                continue;
+            }
+            let mut per_field = Vec::new();
+            for (index, field) in all_fields(ty).enumerate() {
+                let mut found: Vec<String> = Vec::new();
+                for target in kind_targets(&field.kind) {
+                    for (up, used) in wanted.get(target).into_iter().flatten() {
+                        if *up == 1
+                            && instance_names.contains(used.as_str())
+                            && !field.uses_instances.contains(used)
+                            && !found.contains(used)
+                        {
+                            found.push(used.clone());
+                        }
+                    }
+                }
+                if !found.is_empty() {
+                    per_field.push((index, found));
+                }
+            }
+            if !per_field.is_empty() {
+                additions.push((name.clone(), per_field));
+            }
+        }
+        for (name, per_field) in additions {
+            let Some(ty) = self.registry.types.get_mut(&name) else {
+                continue;
+            };
+            for (index, found) in per_field {
+                if let Some(field) = all_fields_mut(ty).nth(index) {
+                    field.uses_instances.extend(found);
+                }
+            }
+        }
+    }
+
     // ── Name collection (pass 1) ─────────────────────────────────────────────
 
     /// Walk the schema tree and register every type name we'll produce, so
     /// that forward references within the same schema work during compilation.
     fn collect_type_names(&mut self, schema: &RawSchema) {
         // The root type
+        // The enums a type sees are known now, so that an enum member
+        // qualified with a type can name a type that is compiled later. A
+        // malformed enum is reported when its type is compiled.
+        let enums = compile_enums(&schema.enums, &schema.id).unwrap_or_default();
         self.registry
             .types
             .entry(schema.id.clone())
-            .or_insert_with(|| placeholder(&schema.id, &schema.params));
+            .or_insert_with(|| placeholder(&schema.id, &schema.params, &enums));
 
         let prefix = schema.id.clone();
-        self.collect_nested_names(&prefix, &schema.types);
+        self.collect_nested_names(&prefix, &schema.types, &enums);
     }
 
-    fn collect_nested_names(&mut self, prefix: &str, types: &IndexMap<String, RawTypeDecl>) {
+    fn collect_nested_names(
+        &mut self,
+        prefix: &str,
+        types: &IndexMap<String, RawTypeDecl>,
+        outer_enums: &HashMap<String, CompiledEnum>,
+    ) {
         for (name, decl) in types {
             let fqn = format!("{prefix}::{name}");
+            let mut enums = outer_enums.clone();
+            enums.extend(compile_enums(&decl.enums, &fqn).unwrap_or_default());
             self.registry
                 .types
                 .entry(fqn.clone())
-                .or_insert_with(|| placeholder(&fqn, &decl.params));
-            self.collect_nested_names(&fqn, &decl.types);
+                .or_insert_with(|| placeholder(&fqn, &decl.params, &enums));
+            self.collect_nested_names(&fqn, &decl.types, &enums);
         }
     }
 
@@ -290,6 +354,7 @@ impl Compiler {
                     instances: &HashSet::new(),
                     params: &param_names,
                     encoding,
+                    registry: &self.registry,
                 };
                 let rule = compile_endian_switch(switch, &ctx)?;
                 (defaults.endian, EndianRule::Switch(rule))
@@ -317,6 +382,7 @@ impl Compiler {
                 instances: &instance_names,
                 params: &param_names,
                 encoding,
+                registry: &self.registry,
             };
             let compiled = self.compile_field(raw_field, &ctx)?;
             seen_ids.push(raw_field.id.clone());
@@ -333,6 +399,7 @@ impl Compiler {
                 instances: &instance_names,
                 params: &param_names,
                 encoding,
+                registry: &self.registry,
             };
             compiled_instances.push(self.compile_instance(id, raw_instance, &ctx)?);
         }
@@ -716,26 +783,7 @@ impl Compiler {
     /// 2. `<parent_fqn>::<name>` (inline sibling type).
     /// 3. Walk up the parent hierarchy: `<grandparent>::<name>`, etc.
     fn resolve_type_ref(&self, name: &str, parent_fqn: &str) -> Option<String> {
-        // 1. Bare name
-        if self.registry.contains(name) {
-            return Some(name.to_owned());
-        }
-
-        // 2 & 3. Walk up parent hierarchy
-        let mut scope = parent_fqn;
-        loop {
-            let candidate = format!("{scope}::{name}");
-            if self.registry.contains(&candidate) {
-                return Some(candidate);
-            }
-            // Strip one level
-            match scope.rsplit_once("::") {
-                Some((parent, _)) => scope = parent,
-                None => break,
-            }
-        }
-
-        None
+        resolve_in(&self.registry, name, parent_fqn)
     }
 
     // ── Path resolution ───────────────────────────────────────────────────────
@@ -828,6 +876,9 @@ struct FieldCtx<'a> {
     params: &'a HashSet<String>,
     /// The encoding of strings that do not give one.
     encoding: Option<RawEncoding>,
+    /// The types compiled so far, and the names of the others in the schema
+    /// with the enums they see, for enum members qualified with a type.
+    registry: &'a TypeRegistry,
 }
 
 /// What a type inherits from the schema or the type around it.
@@ -917,8 +968,141 @@ fn compile_params(params: &[RawParam]) -> Vec<CompiledParam> {
         .collect()
 }
 
+/// The fields of a type that read data: those of `seq`, then the instances
+/// that read.
+fn all_fields(ty: &CompiledType) -> impl Iterator<Item = &CompiledField> {
+    ty.fields
+        .iter()
+        .chain(ty.instances.iter().filter_map(|i| match &i.kind {
+            InstanceKind::Read(field) => Some(field.as_ref()),
+            InstanceKind::Value { .. } => None,
+        }))
+}
+
+fn all_fields_mut(ty: &mut CompiledType) -> impl Iterator<Item = &mut CompiledField> {
+    ty.fields
+        .iter_mut()
+        .chain(ty.instances.iter_mut().filter_map(|i| match &mut i.kind {
+            InstanceKind::Read(field) => Some(field.as_mut()),
+            InstanceKind::Value { .. } => None,
+        }))
+}
+
+/// The names of the types a field reads.
+fn kind_targets(kind: &FieldKind) -> Vec<&str> {
+    match kind {
+        FieldKind::TypeRef { type_name, .. } => vec![type_name.as_str()],
+        FieldKind::Switch { cases, default, .. } => cases
+            .iter()
+            .map(|(_, case)| case)
+            .chain(default.as_deref())
+            .flat_map(kind_targets)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// For each type, which instances of the types around it it uses, directly or
+/// through the types it reads: pairs of how many `_parent`s up, and the name.
+fn parent_instance_uses(
+    registry: &TypeRegistry,
+) -> HashMap<&str, std::collections::BTreeSet<(usize, String)>> {
+    use expr::Expr;
+    let mut uses: HashMap<&str, std::collections::BTreeSet<(usize, String)>> = HashMap::new();
+    for (name, ty) in &registry.types {
+        let mut exprs: Vec<&Expr> = all_fields(ty).flat_map(field_exprs).collect();
+        for instance in &ty.instances {
+            if let InstanceKind::Value { expr, if_expr, .. } = &instance.kind {
+                exprs.push(expr);
+                exprs.extend(if_expr.as_ref());
+            }
+        }
+        if let EndianRule::Switch(switch) = &ty.endian_rule {
+            exprs.push(&switch.on);
+            exprs.extend(switch.cases.iter().map(|(key, _)| key));
+        }
+        let entry = uses.entry(name.as_str()).or_default();
+        let mut stack = exprs;
+        while let Some(node) = stack.pop() {
+            match node {
+                Expr::Field(parts) => {
+                    let up = parts.iter().take_while(|p| *p == "_parent").count();
+                    if up > 0
+                        && let Some(used) = parts.get(up)
+                    {
+                        entry.insert((up, used.clone()));
+                    }
+                }
+                Expr::Array(items) => stack.extend(items.iter()),
+                Expr::Member(inner, _) | Expr::Unary(_, inner) => stack.push(inner),
+                Expr::Call(recv, _, args) => {
+                    stack.extend(args.iter());
+                    stack.push(recv);
+                }
+                Expr::Index(a, b) | Expr::Binary(_, a, b) => {
+                    stack.push(a);
+                    stack.push(b);
+                }
+                Expr::Ternary(a, b, c) => {
+                    stack.push(a);
+                    stack.push(b);
+                    stack.push(c);
+                }
+                Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) | Expr::Enum(_) => {}
+            }
+        }
+    }
+    // A type that reads a type using `_parent._parent.x` uses `_parent.x`.
+    loop {
+        let mut changed = false;
+        for (name, ty) in &registry.types {
+            let inherited: Vec<(usize, String)> = all_fields(ty)
+                .flat_map(|field| kind_targets(&field.kind))
+                .filter_map(|target| uses.get(target))
+                .flatten()
+                .filter(|(up, _)| *up > 1)
+                .map(|(up, used)| (up - 1, used.clone()))
+                .collect();
+            if let Some(entry) = uses.get_mut(name.as_str()) {
+                for item in inherited {
+                    changed |= entry.insert(item);
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    uses
+}
+
+/// Resolve a bare or partially-qualified type name to a fully-qualified one
+/// that exists in `registry`, looking from the type `parent_fqn`.
+fn resolve_in(registry: &TypeRegistry, name: &str, parent_fqn: &str) -> Option<String> {
+    // 1. Bare name as-is (for top-level imported types like `"zlib_block"`).
+    if registry.contains(name) {
+        return Some(name.to_owned());
+    }
+    // 2 & 3. `<parent_fqn>::<name>`, then up the parent hierarchy.
+    let mut scope = parent_fqn;
+    loop {
+        let candidate = format!("{scope}::{name}");
+        if registry.contains(&candidate) {
+            return Some(candidate);
+        }
+        match scope.rsplit_once("::") {
+            Some((parent, _)) => scope = parent,
+            None => return None,
+        }
+    }
+}
+
 /// Create an empty placeholder `CompiledType` used during name collection.
-fn placeholder(fqn: &str, params: &[RawParam]) -> CompiledType {
+fn placeholder(
+    fqn: &str,
+    params: &[RawParam],
+    enums: &HashMap<String, CompiledEnum>,
+) -> CompiledType {
     CompiledType {
         name: fqn.to_owned(),
         doc: None,
@@ -928,7 +1112,7 @@ fn placeholder(fqn: &str, params: &[RawParam]) -> CompiledType {
         params: compile_params(params),
         fields: vec![],
         instances: vec![],
-        enums: HashMap::new(),
+        enums: enums.clone(),
     }
 }
 
@@ -1317,14 +1501,27 @@ fn compile_expr(text: &str, ctx: &FieldCtx<'_>) -> Result<expr::Expr> {
 /// The value of the enum member `path` names (`["kind_t", "data"]`).
 fn enum_member_value(path: &[String], ctx: &FieldCtx<'_>) -> Result<i128> {
     let context = ctx.parent_fqn.to_owned();
-    let [enum_name, member] = path else {
-        return Err(DoeError::Schema(format!(
-            "{context}: '{}': enum members qualified with a type are not supported; use enum::member",
-            path.join("::")
-        )));
+    let (enum_name, member, enums) = match path {
+        [enum_name, member] => (enum_name, member, ctx.enums),
+        [type_path @ .., enum_name, member] if !type_path.is_empty() => {
+            // `type::enum::member`: the enums of the type the path names.
+            let type_name = type_path.join("::");
+            let ty = resolve_in(ctx.registry, &type_name, ctx.parent_fqn)
+                .and_then(|fqn| ctx.registry.get(&fqn))
+                .ok_or_else(|| DoeError::UnknownType {
+                    type_name: type_name.clone(),
+                    context: context.clone(),
+                })?;
+            (enum_name, member, &ty.enums)
+        }
+        _ => {
+            return Err(DoeError::Schema(format!(
+                "{context}: '{}' is not an enum member (use enum::member or type::enum::member)",
+                path.join("::")
+            )));
+        }
     };
-    let compiled = ctx
-        .enums
+    let compiled = enums
         .get(enum_name.as_str())
         .ok_or_else(|| DoeError::UnknownEnum {
             enum_name: enum_name.clone(),

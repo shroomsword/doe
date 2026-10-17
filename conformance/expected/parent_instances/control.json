@@ -1,0 +1,15 @@
+{
+  "body": {
+    "inner": {
+      "flagged": true,
+      "w": 1
+    },
+    "v": 8
+  },
+  "header": {
+    "kind": 2,
+    "max": 7
+  },
+  "iscontrol": true,
+  "limit": 8
+}

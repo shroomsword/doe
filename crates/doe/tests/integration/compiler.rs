@@ -1676,9 +1676,53 @@ fn unknown_enums_and_members_are_schema_errors() {
     let unknown_member = ENUM_SCHEMA.replace("kind_t::data", "kind_t::nope");
     let err = compile_err(&unknown_member);
     assert!(err.to_string().contains("no member 'nope'"), "{err}");
-    let qualified = ENUM_SCHEMA.replace("kind_t::data", "t::kind_t::data");
-    let err = compile_err(&qualified);
-    assert!(err.to_string().contains("not supported"), "{err}");
+    let unknown_type = ENUM_SCHEMA.replace("kind_t::data", "nope::kind_t::data");
+    let err = compile_err(&unknown_type);
+    assert!(
+        matches!(&err, DoeError::UnknownType { type_name, .. } if type_name == "nope"),
+        "{err:?}"
+    );
+    let unknown_qualified = ENUM_SCHEMA.replace("kind_t::data", "t::kind_t::nope");
+    let err = compile_err(&unknown_qualified);
+    assert!(err.to_string().contains("no member 'nope'"), "{err}");
+}
+
+#[test]
+fn enum_members_may_be_qualified_with_the_type_that_declares_the_enum() {
+    // `right` is compiled after `left`, and `later` after `right`: the order
+    // of the declarations does not matter.
+    let schema = indoc! {"
+        id: t
+        seq:
+          - id: a
+            type: right
+        types:
+          right:
+            seq:
+              - id: y
+                type: u1
+                if: y == left::e::one or y == later::inner::f::two or y == t::e0::zero
+          left:
+            enums:
+              e:
+                1: one
+          later:
+            types:
+              inner:
+                enums:
+                  f:
+                    2: two
+        enums:
+          e0:
+            0: zero
+    "};
+    let reg = compile(schema);
+    let field = &reg.get("t::right").unwrap().fields[0];
+    let text = format!("{:?}", field.if_expr);
+    assert!(
+        text.contains("Int(1)") && text.contains("Int(2)") && text.contains("Int(0)"),
+        "{text}"
+    );
 }
 
 #[test]

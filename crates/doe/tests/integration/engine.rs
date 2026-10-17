@@ -4557,3 +4557,103 @@ fn a_type_without_an_endian_takes_the_one_of_the_type_that_uses_it() {
     let v = parse(yaml, "t", &[1, 2]);
     assert_eq!(*get_field(get_field(&v, "x"), "v"), Value::UInt(0x0102));
 }
+
+// ── instances of an enclosing type from a sub-type ───────────────────────
+
+const PARENT_INSTANCES: &str = indoc! {"
+    meta:
+      id: t
+    seq:
+      - id: n
+        type: u1
+      - id: child
+        type: c
+      - id: tail
+        type: u1
+    instances:
+      doubled:
+        value: n * 2
+      first_byte:
+        pos: 0
+        type: u1
+    types:
+      c:
+        seq:
+          - id: x
+            type: u1
+          - id: grand
+            type: g
+        instances:
+          sum:
+            value: x + _parent.doubled
+        types:
+          g:
+            seq:
+              - id: y
+                type: u1
+            instances:
+              all:
+                value: y + _parent.sum + _parent._parent.first_byte
+"};
+
+#[test]
+fn a_sub_type_uses_the_instances_of_the_types_around_it() {
+    let v = parse(PARENT_INSTANCES, "t", &[5, 1, 2, 9]);
+    let child = get_field(&v, "child");
+    // 1 + 2 * 5
+    assert_eq!(get_field(child, "sum").as_int(), Some(11));
+    // 2 + 11 + the first byte of the input, 5
+    assert_eq!(
+        get_field(get_field(child, "grand"), "all").as_int(),
+        Some(18)
+    );
+    assert_eq!(*get_field(&v, "tail"), Value::UInt(9));
+}
+
+#[test]
+fn an_instance_that_reads_a_type_that_uses_it_is_a_cycle() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        instances:
+          loop:
+            type: c
+        types:
+          c:
+            seq:
+              - id: x
+                type: u1
+                if: _parent.loop.x == 0
+    "};
+    let err = parse_err(yaml, "t", &[0]);
+    assert!(err.to_string().contains("depends on itself"), "{err}");
+}
+
+#[test]
+fn a_switch_case_can_use_an_instance_of_the_enclosing_type() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: body
+            type:
+              switch-on: kind
+              cases:
+                1: one
+        instances:
+          limit:
+            value: kind + 10
+        types:
+          one:
+            seq:
+              - id: v
+                type: u1
+                valid:
+                  max: _parent.limit
+    "};
+    let v = parse(yaml, "t", &[1, 11]);
+    assert_eq!(*get_field(get_field(&v, "body"), "v"), Value::UInt(11));
+    parse_err(yaml, "t", &[1, 12]);
+}
