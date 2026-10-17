@@ -422,6 +422,49 @@ declares it and in every type nested inside it. A nested type can declare an
 enum with the same name to replace the outer one for its own fields. An enum
 declared in a sub-type is not visible in its parent or its siblings.
 
+An enum member is written `1: name`, or as a mapping with the name as `id`
+(`1: {id: name, doc: ...}`); `doc`, `doc-ref` and `-orig-id` are ignored.
+
+#### Choosing the byte order by a value
+
+`meta.endian` is `le`, `be`, or a rule that chooses between them by a value
+read earlier, as formats with a byte-order mark need. It can be given in a
+schema's `meta` and in the `meta` of a type (which also takes `bit-endian` and
+`encoding`):
+
+```yaml
+seq:
+  - id: mark
+    type: str
+    size: 2
+    encoding: ASCII
+  - id: body
+    type: body(mark)
+types:
+  body:
+    params:
+      - id: mark
+        type: str
+    meta:
+      endian:
+        switch-on: mark
+        cases:
+          '"II"': le
+          '"MM"': be     # `_` is the default case
+    seq:
+      - id: count
+        type: u4         # little or big endian, as `mark` says
+      - id: fixed
+        type: u2be       # an explicit byte order always wins
+```
+
+The value is evaluated when the type starts, so it can only use parameters,
+`_root` and `_parent`, not the fields of the type itself. Types nested in it
+use the same byte order, and so does a type that sets none and is used by it.
+A value that matches no case, with no `_` case, is an error. As in Kaitai
+Struct, a type with no `endian` anywhere takes the byte order of the type that
+uses it.
+
 #### Choosing a type by a value
 
 When the layout of a field depends on a tag read earlier, `type:` can be a
@@ -623,9 +666,7 @@ What is different:
 
 What is not supported yet, and fails when a definition uses it: a `terminator`
 of more than one byte; encodings other than those in [Encodings](#encodings);
-`meta.endian` as a `switch-on` mapping; enum entries written as
-mappings (`1: {id: name}`); and enum members qualified with a type
-(`type::enum::member`).
+and enum members qualified with a type (`type::enum::member`).
 
 ## Output
 

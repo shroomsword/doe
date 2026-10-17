@@ -1250,6 +1250,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
             name: "t".into(),
             doc: None,
             endian: Endian::Little,
+            endian_rule: doe::schema::ir::EndianRule::default(),
             bit_endian: Endian::Big,
             params: vec![],
             instances: vec![],
@@ -4430,4 +4431,129 @@ fn strings_in_the_wider_encodings_are_read_and_bad_ones_name_the_field() {
     let err = parse_err(yaml, "t", &[b'h', 0, b'i', 0, 0, 0xd8, 0x00]);
     let text = err.to_string();
     assert!(text.contains("bad") && text.contains("UTF-16BE"), "{text}");
+}
+
+// ── enum mappings and endian switch ──────────────────────────────────────
+
+#[test]
+fn enum_members_may_be_mappings() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: k
+            type: u1
+            enum: kind
+        enums:
+          kind:
+            1: first
+            2:
+              id: second
+              doc: The second.
+              doc-ref: https://example.org
+              -orig-id: SECOND
+    "};
+    let v = parse(yaml, "t", &[2]);
+    assert!(matches!(get_field(&v, "k"), Value::Enum { name: Some(n), .. } if n == "second"));
+}
+
+const SWITCH: &str = indoc! {"
+    meta:
+      id: t
+    types:
+      rec:
+        params:
+          - id: order
+            type: u1
+        meta:
+          endian:
+            switch-on: order
+            cases:
+              1: le
+              2: be
+              __DEFAULT__
+        seq:
+          - id: a
+            type: u2
+          - id: b
+            type: u2le
+          - id: c
+            type: s2
+          - id: d
+            type: f4
+    seq:
+      - id: order
+        type: u1
+      - id: r
+        type: rec(order)
+"};
+
+fn switched(order: u8, default: &str) -> Result<Value, DoeError> {
+    let yaml = SWITCH.replace("__DEFAULT__", default);
+    let (engine, _) = engine_from_yaml(&yaml);
+    let mut data = vec![order];
+    data.extend([1, 2, 3, 4, 0xff, 0xfe, 0x3f, 0x80, 0, 0]);
+    engine.parse_type("t", &mut Cursor::new(&data))
+}
+
+#[test]
+fn endian_switch_picks_the_byte_order_per_type_and_explicit_names_win() {
+    let v = switched(1, "'_': be").unwrap();
+    let r = get_field(&v, "r");
+    assert_eq!(*get_field(r, "a"), Value::UInt(0x0201));
+    assert_eq!(*get_field(r, "b"), Value::UInt(0x0403));
+    assert_eq!(*get_field(r, "c"), Value::SInt(-257));
+    let v = switched(2, "'_': be").unwrap();
+    let r = get_field(&v, "r");
+    assert_eq!(*get_field(r, "a"), Value::UInt(0x0102));
+    assert_eq!(*get_field(r, "b"), Value::UInt(0x0403));
+    assert_eq!(*get_field(r, "c"), Value::SInt(-2));
+    assert_eq!(*get_field(r, "d"), Value::Float(1.0));
+}
+
+#[test]
+fn endian_switch_uses_the_default_case_and_otherwise_fails() {
+    let v = switched(9, "'_': le").unwrap();
+    assert_eq!(*get_field(get_field(&v, "r"), "a"), Value::UInt(0x0201));
+    let err = switched(9, "3: le").unwrap_err().to_string();
+    assert!(
+        err.contains("meta.endian") && err.contains("no case"),
+        "{err}"
+    );
+}
+
+#[test]
+fn endian_switch_cannot_use_a_field_of_its_own_type() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+          endian:
+            switch-on: first
+            cases:
+              1: le
+        seq:
+          - id: first
+            type: u1
+    "};
+    let schema = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    assert!(compile_schema(&schema).is_err());
+}
+
+#[test]
+fn a_type_without_an_endian_takes_the_one_of_the_type_that_uses_it() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+          endian: be
+        seq:
+          - id: x
+            type: free
+        types:
+          free:
+            seq:
+              - id: v
+                type: u2
+    "};
+    let v = parse(yaml, "t", &[1, 2]);
+    assert_eq!(*get_field(get_field(&v, "x"), "v"), Value::UInt(0x0102));
 }

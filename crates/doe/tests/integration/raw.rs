@@ -37,7 +37,7 @@ fn schema_with_doc_and_meta() {
     "#};
     let s = parse(yaml);
     assert_eq!(s.doc.as_deref(), Some("A big-endian file format"));
-    assert_eq!(s.meta.endian, Some(RawEndian::Be));
+    assert_eq!(s.meta.endian, Some(RawEndianSpec::Fixed(RawEndian::Be)));
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn meta_endian_little_endian() {
         seq: []
     "};
     let s = parse(yaml);
-    assert_eq!(s.meta.endian, Some(RawEndian::Le));
+    assert_eq!(s.meta.endian, Some(RawEndianSpec::Fixed(RawEndian::Le)));
 }
 
 #[test]
@@ -194,7 +194,7 @@ fn field_with_enum_ref() {
     assert_eq!(s.seq[0].enum_ref.as_deref(), Some("record_type"));
     assert!(s.enums.contains_key("record_type"));
     let e = &s.enums["record_type"];
-    assert_eq!(e.get("1").map(String::as_str), Some("header"));
+    assert_eq!(e.get("1").map(RawEnumEntry::id), Some("header"));
 }
 
 #[test]
@@ -372,7 +372,7 @@ fn png_like_schema() {
     "#};
     let s = parse(yaml);
     assert_eq!(s.id, "png");
-    assert_eq!(s.meta.endian, Some(RawEndian::Be));
+    assert_eq!(s.meta.endian, Some(RawEndianSpec::Fixed(RawEndian::Be)));
 
     // root fields
     assert_eq!(s.seq.len(), 2);
@@ -449,7 +449,7 @@ fn elf_like_schema() {
     assert!(hdr.enums.contains_key("bits_t"));
     assert!(hdr.enums.contains_key("obj_type_t"));
     assert_eq!(
-        hdr.enums["obj_type_t"].get("2").map(String::as_str),
+        hdr.enums["obj_type_t"].get("2").map(RawEnumEntry::id),
         Some("exec")
     );
 }
@@ -552,7 +552,7 @@ fn field_with_pos_expression_or_literal() {
 #[test]
 fn meta_bit_endian_is_read_separately_from_endian() {
     let s = RawSchema::from_yaml_str("id: t\nmeta:\n  endian: be\n  bit-endian: le\n").unwrap();
-    assert_eq!(s.meta.endian, Some(RawEndian::Be));
+    assert_eq!(s.meta.endian, Some(RawEndianSpec::Fixed(RawEndian::Be)));
     assert_eq!(s.meta.bit_endian, Some(RawEndian::Le));
     let s = RawSchema::from_yaml_str("id: t\nmeta:\n  endian: be\n").unwrap();
     assert_eq!(s.meta.bit_endian, None);

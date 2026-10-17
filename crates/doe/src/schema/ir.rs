@@ -64,6 +64,11 @@ pub struct CompiledType {
     /// Default byte order for this type's fields.
     pub endian: Endian,
 
+    /// How the byte order of the type is chosen; [`CompiledType::endian`] is it
+    /// when this is [`EndianRule::Fixed`], and the default of a type parsed on
+    /// its own otherwise.
+    pub endian_rule: EndianRule,
+
     /// Default bit order for this type's bit fields: [`Endian::Big`] takes the
     /// most significant bits of a byte first, [`Endian::Little`] the least.
     pub bit_endian: Endian,
@@ -85,6 +90,29 @@ pub struct CompiledType {
 // ─────────────────────────────────────────────────────────────────────────────
 // Compiled field
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// How the byte order of a type is chosen when it is parsed.
+#[derive(Debug, Clone, Default)]
+pub enum EndianRule {
+    /// It is [`CompiledType::endian`].
+    #[default]
+    Fixed,
+    /// A value chooses it, when the type starts.
+    Switch(EndianSwitch),
+    /// It is the one of the type around it, which a value chooses.
+    Inherit,
+}
+
+/// A byte order chosen by a value.
+#[derive(Debug, Clone)]
+pub struct EndianSwitch {
+    /// The value.
+    pub on: Expr,
+    /// The first case whose key equals the value gives the byte order.
+    pub cases: Vec<(Expr, Endian)>,
+    /// The byte order when no case matches; without it that is an error.
+    pub default: Option<Endian>,
+}
 
 /// A parameter of a [`CompiledType`].
 #[derive(Debug, Clone, PartialEq, Eq)]
