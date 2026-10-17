@@ -214,7 +214,9 @@ large to copy into an expression: only their `.size` can be used.
 `_io` is the stream the expression is in, which is a window for a sized
 sub-type: `_io.pos` (bytes from its start), `_io.size` and `_io.eof`. An enum
 member is written `enum_name::member` and stands for its value, using the enums
-visible in the type (see [Sub-types](#sub-types)).
+visible in the type (see [Sub-types](#sub-types)), or `type::enum::member` for an
+enum declared in another type (`type` is looked up as a type name is: in the
+type, then in the types around it).
 
 ```yaml
 # size from an earlier field
@@ -611,9 +613,11 @@ offset for a computed value), and in JSON inline, with the offsets of the ones
 that were read in a `$offsets` object next to them. Any error aborts the parse.
 `--no-instances` leaves them out of the output (those that fields use are still
 computed), and so does `ParseOptions { instances: false }` with
-`parse_file_with`. A name cannot be both a field and an instance. The
-instances of an enclosing type are not visible from a sub-type while the
-enclosing type is still being parsed (`_parent.name` is unknown there).
+`parse_file_with`. A name cannot be both a field and an instance. A sub-type
+can use an instance of an enclosing type as `_parent.name`: the field of the
+enclosing type that reads the sub-type computes the instance first, against
+the stream of its own type, so it may only depend on what has been read by
+then. An instance that reads a type that uses it is an error.
 
 A field with a `size` and no `type` is `bytes`, as in Kaitai Struct.
 
@@ -661,12 +665,10 @@ What is different:
 - `%` and `/` accept a negative divisor and round towards negative infinity;
   the JavaScript runtime of Kaitai Struct refuses a divisor that is not positive.
 - `substring` out of range is an error, where the runtimes differ.
-- Instances of an enclosing type cannot be used from a sub-type while the
-  enclosing type is still being parsed.
 
 What is not supported yet, and fails when a definition uses it: a `terminator`
-of more than one byte; encodings other than those in [Encodings](#encodings);
-and enum members qualified with a type (`type::enum::member`).
+of more than one byte; and encodings other than those in
+[Encodings](#encodings).
 
 ## Output
 

@@ -179,6 +179,7 @@ formats!(
     import_dep,
     import_main,
     ipv4_packet,
+    parent_instances,
     png_chunks,
     process,
     repeat_until_eof,
