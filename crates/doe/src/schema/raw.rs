@@ -139,7 +139,7 @@ pub struct RawMeta {
     /// Default byte order for multi-byte integer fields.
     /// Individual fields may override this with explicit type names (e.g. `u32be`).
     #[serde(default)]
-    pub endian: Option<RawEndian>,
+    pub endian: Option<RawEndianSpec>,
 
     /// Default bit order for bit fields (`b1`..`b64`): `be` takes the most
     /// significant bits of a byte first (the default), `le` the least.
@@ -194,6 +194,61 @@ pub enum RawEndian {
     Le,
     /// Big-endian (most-significant byte first).
     Be,
+}
+
+/// `meta.endian`: a byte order, or a rule that chooses one by a value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum RawEndianSpec {
+    /// `le` or `be`.
+    Fixed(RawEndian),
+    /// `switch-on` and `cases`.
+    Switch(RawEndianSwitch),
+}
+
+impl<'de> Deserialize<'de> for RawEndianSpec {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct SpecVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for SpecVisitor {
+            type Value = RawEndianSpec;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("'le', 'be', or a mapping with 'switch-on' and 'cases'")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, name: &str) -> Result<Self::Value, E> {
+                match name {
+                    "le" => Ok(RawEndianSpec::Fixed(RawEndian::Le)),
+                    "be" => Ok(RawEndianSpec::Fixed(RawEndian::Be)),
+                    other => Err(E::invalid_value(serde::de::Unexpected::Str(other), &self)),
+                }
+            }
+
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                map: A,
+            ) -> Result<Self::Value, A::Error> {
+                RawEndianSwitch::deserialize(serde::de::value::MapAccessDeserializer::new(map))
+                    .map(RawEndianSpec::Switch)
+            }
+        }
+
+        deserializer.deserialize_any(SpecVisitor)
+    }
+}
+
+/// A byte order chosen by a value: the first case whose key equals the value.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawEndianSwitch {
+    /// The expression whose value picks the case.
+    #[serde(rename = "switch-on")]
+    pub switch_on: String,
+
+    /// Case key (an expression, or `_` for the default) → byte order, in the
+    /// order they are tried.
+    pub cases: IndexMap<String, RawEndian>,
 }
 
 // ── Field ────────────────────────────────────────────────────────────────────
@@ -838,6 +893,12 @@ pub struct RawTypeDecl {
     #[serde(rename = "doc-ref", default)]
     pub doc_ref: Option<serde_json::Value>,
 
+    /// The byte order, bit order and string encoding of this type and the
+    /// types in it (`endian`, `bit-endian`, `encoding`); the other keys of
+    /// `meta` are accepted and ignored.
+    #[serde(default)]
+    pub meta: Option<RawMeta>,
+
     /// Parameters the type takes, which the field that uses it supplies.
     #[serde(default)]
     pub params: Vec<RawParam>,
@@ -861,7 +922,45 @@ pub struct RawTypeDecl {
 
 // ── Enum definition ──────────────────────────────────────────────────────────
 
-/// An enum definition: a map from integer discriminant to variant name.
+/// An enum definition: a map from integer discriminant to variant.
 /// The key may be decimal (`0`, `1`) or hex (`0x00`, `0x4d`).
 /// We store it as a raw string-keyed map and parse keys during compilation.
-pub type RawEnum = HashMap<String, String>;
+pub type RawEnum = HashMap<String, RawEnumEntry>;
+
+/// A member of an enum: its name, or a mapping with the name as `id`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum RawEnumEntry {
+    /// `1: first`.
+    Name(String),
+    /// `1: {id: first, doc: the first}`.
+    Mapping(RawEnumMapping),
+}
+
+impl RawEnumEntry {
+    /// The name of the member.
+    pub fn id(&self) -> &str {
+        match self {
+            Self::Name(id) => id,
+            Self::Mapping(mapping) => &mapping.id,
+        }
+    }
+}
+
+/// A member of an enum written as a mapping.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawEnumMapping {
+    /// The name of the member.
+    pub id: String,
+    /// Human-readable description. Accepted and ignored.
+    #[serde(default)]
+    pub doc: Option<String>,
+    /// Where the member is documented. Accepted and ignored.
+    #[serde(rename = "doc-ref", default)]
+    pub doc_ref: Option<serde_json::Value>,
+    /// The name the member had in the source of the definition. Accepted and
+    /// ignored.
+    #[serde(rename = "-orig-id", default)]
+    pub orig_id: Option<serde_json::Value>,
+}

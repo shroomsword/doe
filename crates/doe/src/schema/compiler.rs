@@ -25,12 +25,13 @@ use crate::error::{DoeError, Result};
 use crate::schema::expr;
 use crate::schema::ir::{
     CompiledEnum, CompiledField, CompiledInstance, CompiledParam, CompiledType, CompiledValid, Cut,
-    Encoding, Endian, EndianOverride, FieldKind, FloatWidth, InstanceKind, IntWidth, Process,
-    RepeatMode, SizeExpr, StrSize, TypeRegistry,
+    Encoding, Endian, EndianOverride, EndianRule, EndianSwitch, FieldKind, FloatWidth,
+    InstanceKind, IntWidth, Process, RepeatMode, SizeExpr, StrSize, TypeRegistry,
 };
 use crate::schema::raw::{
-    ExprText, RawContents, RawEncoding, RawEndian, RawField, RawInstance, RawParam, RawRepeat,
-    RawSchema, RawSwitch, RawType, RawTypeDecl, RawValid, RawValidRules, StringOrInt,
+    ExprText, RawContents, RawEncoding, RawEndian, RawEndianSpec, RawEndianSwitch, RawEnum,
+    RawField, RawInstance, RawMeta, RawParam, RawRepeat, RawSchema, RawSwitch, RawType,
+    RawTypeDecl, RawValid, RawValidRules, StringOrInt,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -160,8 +161,6 @@ impl Compiler {
         self.collect_type_names(schema);
 
         // Compile all types in this schema (pass 2)
-        let endian = raw_endian_to_ir(schema.meta.endian.unwrap_or(RawEndian::Le));
-        let bit_endian = raw_endian_to_ir(schema.meta.bit_endian.unwrap_or(RawEndian::Be));
         self.compile_type_decl(
             &schema.id,
             TypeParts {
@@ -170,12 +169,14 @@ impl Compiler {
                 types: &schema.types,
                 enums: &schema.enums,
                 instances: &schema.instances,
+                meta: Some(&schema.meta),
             },
             &HashMap::new(),
             TypeDefaults {
-                endian,
-                bit_endian,
-                encoding: schema.meta.encoding,
+                endian: Endian::Little,
+                bit_endian: Endian::Big,
+                encoding: None,
+                runtime_endian: true,
             },
         )?;
 
@@ -232,18 +233,18 @@ impl Compiler {
         outer_enums: &HashMap<String, CompiledEnum>,
         defaults: TypeDefaults,
     ) -> Result<()> {
-        let TypeDefaults {
-            endian,
-            bit_endian,
-            encoding,
-        } = defaults;
         let TypeParts {
             params,
             seq,
             types,
             enums,
             instances,
+            meta,
         } = parts;
+        let bit_endian = meta
+            .and_then(|m| m.bit_endian)
+            .map_or(defaults.bit_endian, raw_endian_to_ir);
+        let encoding = meta.and_then(|m| m.encoding).or(defaults.encoding);
         // Enums visible in this type: the enclosing ones, then its own.
         let mut compiled_enums = outer_enums.clone();
         compiled_enums.extend(compile_enums(enums, fqn)?);
@@ -277,6 +278,32 @@ impl Compiler {
                 message: message.to_owned(),
             });
         }
+
+        // The byte order: this type's own, else the one of the type around it.
+        let (endian, endian_rule) = match meta.and_then(|m| m.endian.as_ref()) {
+            Some(RawEndianSpec::Fixed(e)) => (raw_endian_to_ir(*e), EndianRule::Fixed),
+            Some(RawEndianSpec::Switch(switch)) => {
+                let ctx = FieldCtx {
+                    parent_fqn: fqn,
+                    seen_ids: &[],
+                    enums: &compiled_enums,
+                    instances: &HashSet::new(),
+                    params: &param_names,
+                    encoding,
+                };
+                let rule = compile_endian_switch(switch, &ctx)?;
+                (defaults.endian, EndianRule::Switch(rule))
+            }
+            None if defaults.runtime_endian => (defaults.endian, EndianRule::Inherit),
+            None => (defaults.endian, EndianRule::Fixed),
+        };
+        let runtime_endian = !matches!(endian_rule, EndianRule::Fixed);
+        let defaults = TypeDefaults {
+            endian,
+            bit_endian,
+            encoding,
+            runtime_endian,
+        };
 
         // Compile each field
         let mut fields = Vec::with_capacity(seq.len());
@@ -314,6 +341,7 @@ impl Compiler {
             name: fqn.to_owned(),
             doc: None, // doc not propagated here; add if needed
             endian,
+            endian_rule,
             bit_endian,
             params: compile_params(params),
             fields,
@@ -325,8 +353,8 @@ impl Compiler {
         // Recurse into nested types
         for (name, decl) in types {
             let child_fqn = format!("{fqn}::{name}");
-            // Nested types inherit the byte and bit order from the parent
-            // (RawTypeDecl has no meta; both are purely inherited)
+            // Nested types inherit the byte order, bit order and encoding of
+            // the type around them, unless they give their own.
             self.compile_type_decl(
                 &child_fqn,
                 TypeParts {
@@ -335,6 +363,7 @@ impl Compiler {
                     types: &decl.types,
                     enums: &decl.enums,
                     instances: &decl.instances,
+                    meta: decl.meta.as_ref(),
                 },
                 &compiled_enums,
                 defaults,
@@ -807,6 +836,8 @@ struct TypeDefaults {
     endian: Endian,
     bit_endian: Endian,
     encoding: Option<RawEncoding>,
+    /// A value chooses the byte order of the type around.
+    runtime_endian: bool,
 }
 
 /// The parts of a type declaration that are compiled together: the same for
@@ -816,8 +847,10 @@ struct TypeParts<'a> {
     params: &'a [RawParam],
     seq: &'a [RawField],
     types: &'a IndexMap<String, RawTypeDecl>,
-    enums: &'a IndexMap<String, HashMap<String, String>>,
+    enums: &'a IndexMap<String, RawEnum>,
     instances: &'a IndexMap<String, RawInstance>,
+    /// The `meta` of the type: its own byte order, bit order and encoding.
+    meta: Option<&'a RawMeta>,
 }
 
 /// Split `name(arg, ...)` into the name and the text of each argument, at the
@@ -890,6 +923,7 @@ fn placeholder(fqn: &str, params: &[RawParam]) -> CompiledType {
         name: fqn.to_owned(),
         doc: None,
         endian: Endian::Little,
+        endian_rule: EndianRule::Fixed,
         bit_endian: Endian::Big,
         params: compile_params(params),
         fields: vec![],
@@ -1357,20 +1391,46 @@ fn compile_contents(contents: &RawContents, field_id: &str, parent_fqn: &str) ->
 }
 
 /// Compile `enums:` blocks into `CompiledEnum` maps.
+/// Compile `meta.endian: {switch-on, cases}`.
+fn compile_endian_switch(switch: &RawEndianSwitch, ctx: &FieldCtx<'_>) -> Result<EndianSwitch> {
+    let bad = |message: String| DoeError::FieldError {
+        field: "meta.endian".to_owned(),
+        context: ctx.parent_fqn.to_owned(),
+        message,
+    };
+    if switch.cases.is_empty() {
+        return Err(bad("'switch-on' needs at least one case".to_owned()));
+    }
+    let on = compile_expr(&switch.switch_on, ctx).map_err(|e| bad(format!("'switch-on': {e}")))?;
+    validate_size_expr_refs(&switch.switch_on, ctx)?;
+    let mut cases = Vec::new();
+    let mut default = None;
+    for (key, endian) in &switch.cases {
+        let endian = raw_endian_to_ir(*endian);
+        if key == "_" {
+            default = Some(endian);
+        } else {
+            let key_expr = compile_expr(key, ctx).map_err(|e| bad(format!("case '{key}': {e}")))?;
+            cases.push((key_expr, endian));
+        }
+    }
+    Ok(EndianSwitch { on, cases, default })
+}
+
 fn compile_enums(
-    raw_enums: &IndexMap<String, HashMap<String, String>>,
+    raw_enums: &IndexMap<String, RawEnum>,
     context: &str,
 ) -> Result<HashMap<String, CompiledEnum>> {
     let mut result = HashMap::new();
     for (enum_name, raw_map) in raw_enums {
         let mut ce = CompiledEnum::default();
-        for (key_str, variant_name) in raw_map {
+        for (key_str, variant) in raw_map {
             let key: u64 = parse_enum_key(key_str).ok_or_else(|| {
                 DoeError::Schema(format!(
                     "enum '{enum_name}' in {context}: invalid key '{key_str}'"
                 ))
             })?;
-            ce.variants.insert(key, variant_name.clone());
+            ce.variants.insert(key, variant.id().to_owned());
         }
         result.insert(enum_name.clone(), ce);
     }

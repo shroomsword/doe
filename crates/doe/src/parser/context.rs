@@ -8,7 +8,7 @@
 
 use crate::parser::cursor::Cursor;
 use crate::schema::expr::{EvalContext, ExprValue};
-use crate::schema::ir::CompiledParam;
+use crate::schema::ir::{CompiledParam, Endian};
 use crate::value::Value;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,6 +58,8 @@ pub enum InstanceStart {
 struct InstanceFrame {
     states: std::collections::HashMap<String, InstanceState>,
     values: std::collections::HashMap<String, Value>,
+    /// The byte order of the type of the scope, once it is known.
+    endian: Option<Endian>,
 }
 
 /// The most values one binding copies into the expression context; a larger
@@ -115,6 +117,32 @@ impl ParseContext {
     /// The number of scopes entered, including the root scope.
     pub fn depth(&self) -> usize {
         self.value_frames.len()
+    }
+
+    /// Record the byte order of the type of the current scope.
+    pub fn set_endian(&mut self, endian: Endian) {
+        if let Some(frame) = self.instance_frames.last_mut() {
+            frame.endian = Some(endian);
+        }
+    }
+
+    /// The byte order of the type of the current scope, or `default` if it has
+    /// not been recorded.
+    pub fn endian(&self, default: Endian) -> Endian {
+        self.instance_frames
+            .last()
+            .and_then(|frame| frame.endian)
+            .unwrap_or(default)
+    }
+
+    /// The byte order of the type around the current scope, or `default`.
+    pub fn parent_endian(&self, default: Endian) -> Endian {
+        self.instance_frames
+            .len()
+            .checked_sub(2)
+            .and_then(|below| self.instance_frames.get(below))
+            .and_then(|frame| frame.endian)
+            .unwrap_or(default)
     }
 
     /// Push a new scope (entering a sub-type).

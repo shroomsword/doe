@@ -16,8 +16,8 @@ use crate::schema::expr;
 use crate::schema::expr::ExprValue;
 use crate::schema::ir::{
     CompiledField, CompiledInstance, CompiledType, CompiledValid, Cut, Encoding, Endian,
-    EndianOverride, FieldKind, FloatWidth, InstanceKind, IntWidth, Process, RepeatMode, SizeExpr,
-    StrSize, TypeRegistry,
+    EndianOverride, EndianRule, EndianSwitch, FieldKind, FloatWidth, InstanceKind, IntWidth,
+    Process, RepeatMode, SizeExpr, StrSize, TypeRegistry,
 };
 use crate::value::Value;
 
@@ -110,6 +110,8 @@ impl<'reg> Engine<'reg> {
         ctx: &mut ParseContext,
     ) -> Result<Value> {
         let mut fields: Vec<(String, Value)> = Vec::new();
+        let endian = Self::type_endian(ty, cursor, ctx)?;
+        ctx.set_endian(endian);
 
         for field in &ty.fields {
             let value = self.parse_field(field, ty, cursor, ctx)?;
@@ -127,6 +129,46 @@ impl<'reg> Engine<'reg> {
             type_name: ty.name.clone(),
             fields,
         })
+    }
+
+    /// The byte order of `ty` for this parse: its own, or the one a value
+    /// chooses, or the one of the type around it.
+    fn type_endian(
+        ty: &CompiledType,
+        cursor: &Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Endian> {
+        match &ty.endian_rule {
+            EndianRule::Fixed => Ok(ty.endian),
+            EndianRule::Inherit => Ok(ctx.parent_endian(ty.endian)),
+            EndianRule::Switch(switch) => Self::choose_endian(switch, ty, cursor, ctx),
+        }
+    }
+
+    fn choose_endian(
+        switch: &EndianSwitch,
+        ty: &CompiledType,
+        cursor: &Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Endian> {
+        let fail = |message: String| DoeError::FieldError {
+            field: "meta.endian".to_owned(),
+            context: ty.name.clone(),
+            message,
+        };
+        ctx.set_io(cursor);
+        let selector = expr::eval(&switch.on, &ctx.eval_ctx, "<endian>")
+            .map_err(|e| annotate(&e, "meta.endian", &ty.name))?;
+        for (key, endian) in &switch.cases {
+            let key = expr::eval(key, &ctx.eval_ctx, "<endian>")
+                .map_err(|e| annotate(&e, "meta.endian", &ty.name))?;
+            if expr::values_equal(&selector, &key, "<endian>")? {
+                return Ok(*endian);
+            }
+        }
+        switch
+            .default
+            .ok_or_else(|| fail(format!("{selector} matches no case of the byte order")))
     }
 
     /// Compute the instances of `ty` and add them to `fields`, in schema
@@ -577,15 +619,21 @@ impl<'reg> Engine<'reg> {
         ctx: &mut ParseContext,
     ) -> Result<Value> {
         match kind {
-            FieldKind::UInt { width, endian } => {
-                Self::read_uint(*width, resolve_endian(*endian, parent_ty.endian), cursor)
-            }
-            FieldKind::SInt { width, endian } => {
-                Self::read_sint(*width, resolve_endian(*endian, parent_ty.endian), cursor)
-            }
-            FieldKind::Float { width, endian } => {
-                Self::read_float(*width, resolve_endian(*endian, parent_ty.endian), cursor)
-            }
+            FieldKind::UInt { width, endian } => Self::read_uint(
+                *width,
+                resolve_endian(*endian, ctx.endian(parent_ty.endian)),
+                cursor,
+            ),
+            FieldKind::SInt { width, endian } => Self::read_sint(
+                *width,
+                resolve_endian(*endian, ctx.endian(parent_ty.endian)),
+                cursor,
+            ),
+            FieldKind::Float { width, endian } => Self::read_float(
+                *width,
+                resolve_endian(*endian, ctx.endian(parent_ty.endian)),
+                cursor,
+            ),
             FieldKind::Bytes { size } => Self::read_sized_bytes(size, cursor, ctx),
             FieldKind::BytesCut { cut } => Ok(Value::Bytes(Self::read_cut(cut, cursor, ctx)?)),
             FieldKind::Str { size, encoding } => Self::read_str(size, *encoding, cursor, ctx),

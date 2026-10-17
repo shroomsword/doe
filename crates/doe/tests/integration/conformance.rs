@@ -170,6 +170,8 @@ macro_rules! formats {
 
 formats!(
     bmp_header,
+    endian_switch,
+    enum_mappings,
     expressions,
     encodings,
     float_types,
