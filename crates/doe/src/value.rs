@@ -56,8 +56,9 @@ pub enum Value {
     Str(String),
     /// An integer with an optional symbolic name from an enum.
     Enum {
-        /// The numeric discriminant.
-        value: u64,
+        /// The numeric discriminant; negative if the field is signed and read
+        /// a negative number.
+        value: i128,
         /// `None` when the discriminant has no matching variant.
         name: Option<String>,
     },
@@ -91,7 +92,9 @@ impl Value {
         match self {
             Value::UInt(n) => Some(n.cast_signed()),
             Value::SInt(n) => Some(*n),
-            Value::Enum { value, .. } => Some(value.cast_signed()),
+            Value::Enum { value, .. } => i64::try_from(*value)
+                .ok()
+                .or_else(|| u64::try_from(*value).ok().map(u64::cast_signed)),
             Value::Instance { value, .. } => value.as_int(),
             _ => None,
         }

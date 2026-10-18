@@ -4794,3 +4794,104 @@ fn an_unknown_type_or_enum_in_a_qualified_enum_names_the_field() {
         assert!(err.contains('k') && err.contains(written), "{err}");
     }
 }
+
+// ── Gallery blockers, step 1 ─────────────────────────────────────────────
+
+#[test]
+fn contents_with_a_string_and_bytes_is_checked_byte_by_byte() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: magic
+            contents: ['Rar!', 0x1a, 0x07]
+    "};
+    parse(yaml, "t", b"Rar!\x1a\x07");
+    parse_err(yaml, "t", b"Rar!\x1a\x08");
+}
+
+#[test]
+fn a_field_without_an_id_reads_and_is_named_by_position() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: n
+            type: u1
+          - size: 2
+            if: n == 1
+          - id: after
+            type: u1
+    "};
+    let v = parse(yaml, "t", &[1, 9, 9, 7]);
+    assert_eq!(*get_field(&v, "_unnamed1"), Value::Bytes(vec![9, 9]));
+    assert_eq!(*get_field(&v, "after"), Value::UInt(7));
+}
+
+#[test]
+fn enum_keys_may_be_negative_and_members_may_be_named_true() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            type: s1
+            enum: e
+          - id: b
+            type: u1
+            enum: flag
+        instances:
+          is_eof:
+            value: a == e::eof
+        enums:
+          e:
+            -1: eof
+            1: one
+          flag:
+            0x2a: true
+            0x20: false
+    "};
+    let v = parse(yaml, "t", &[0xff, 0x2a]);
+    assert_eq!(
+        *get_field(&v, "a"),
+        Value::Enum {
+            value: -1,
+            name: Some("eof".into())
+        }
+    );
+    assert_eq!(
+        *get_field(&v, "b"),
+        Value::Enum {
+            value: 0x2a,
+            name: Some("true".into())
+        }
+    );
+    assert!(get_field(&v, "is_eof").is_truthy());
+}
+
+#[test]
+fn valid_may_mention_its_own_field() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: len
+            type: u1
+            valid:
+              expr: _ > 0
+              max: len + 1
+          - id: other
+            type: u1
+            valid:
+              eq: other
+    "};
+    parse(yaml, "t", &[3, 5]);
+}
+
+#[test]
+fn a_long_table_in_an_expression_is_accepted() {
+    let table = format!("[{}0]", "1,".repeat(5000));
+    let yaml = format!("meta:\n  id: t\ninstances:\n  total:\n    value: '{table}.size'\n");
+    let v = parse(&yaml, "t", b"");
+    assert_eq!(get_field(&v, "total").as_int(), Some(5001));
+}

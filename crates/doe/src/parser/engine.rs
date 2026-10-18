@@ -543,6 +543,8 @@ impl<'reg> Engine<'reg> {
             return Err(fail(format!("a {} cannot be checked", value.type_name())));
         };
         ctx.set_io(cursor);
+        // The rules may name the field itself, which has the value just read.
+        ctx.eval_ctx.bind(&field.id, read.clone());
         if let Some(rule) = &valid.eq {
             let want = evaluate(rule, ctx)?;
             if !expr::values_equal(&read, &want, "<valid>")? {
@@ -597,6 +599,7 @@ impl<'reg> Engine<'reg> {
             && let Some(enum_name) = &field.enum_ref
         {
             let member = enum_discriminant(value)
+                .and_then(enum_key)
                 .and_then(|n| parent_ty.enums.get(enum_name.as_str())?.lookup(n));
             if member.is_none() {
                 return Err(fail(format!(
@@ -1068,11 +1071,23 @@ fn eval_size(size: &SizeExpr, ctx: &mut ParseContext, cursor: &Cursor<'_>) -> Re
 
 /// The number an enum is applied to. A single bit is a boolean unless it has an
 /// enum, which takes it as the integer 0 or 1.
-fn enum_discriminant(value: &Value) -> Option<u64> {
+fn enum_discriminant(value: &Value) -> Option<i128> {
     match value {
-        Value::Bool(bit) => Some(u64::from(*bit)),
-        other => other.as_int().map(i64::cast_unsigned),
+        Value::Bool(bit) => Some(i128::from(*bit)),
+        Value::UInt(n) => Some(i128::from(*n)),
+        Value::SInt(n) => Some(i128::from(*n)),
+        Value::Enum { value, .. } => Some(*value),
+        Value::Instance { value, .. } => enum_discriminant(value),
+        _ => None,
     }
+}
+
+/// The number an enum member is looked up by: a negative discriminant is its
+/// two's complement as 64 bits.
+fn enum_key(discriminant: i128) -> Option<u64> {
+    u64::try_from(discriminant)
+        .ok()
+        .or_else(|| i64::try_from(discriminant).ok().map(i64::cast_unsigned))
 }
 
 /// Name an integer value after the member of `enum_name` it matches.
@@ -1083,7 +1098,7 @@ fn apply_enum(value: Value, enum_name: Option<&str>, ty: &CompiledType) -> Value
     let name = ty
         .enums
         .get(enum_name)
-        .and_then(|e| e.lookup(discriminant))
+        .and_then(|e| e.lookup(enum_key(discriminant)?))
         .map(str::to_owned);
     Value::Enum {
         value: discriminant,

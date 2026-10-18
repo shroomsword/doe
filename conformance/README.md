@@ -35,6 +35,7 @@ definitions use:
 | `tlv_stream` | `switch-on` on an enum, sized windows, `params`, instances in sub-types |
 | `bit_enums` | `enum:` and `valid: in-enum` on bit fields, including a single bit, which is an integer when it has an enum |
 | `bmp_header` | `valid`, an instance read at a `pos`, floor division, a ternary |
+| `gallery_syntax` | the metadata keys of the Kaitai tools, `contents` of strings and bytes, a field without an id, `0b`/`0o` literals, `_` in numbers, `24000.`, unary `+`, a list ending in a comma, negative and `true` enum members, `valid` that names its own field |
 | `gif_like` | packed flags, `repeat-until` on a field of the element, an enum case with no body |
 | `riff_wave` | string cases, padding, a type that contains itself |
 | `process` | `process:` with `xor`, `rol`, `ror` and `zlib`, and a user type read from the result |

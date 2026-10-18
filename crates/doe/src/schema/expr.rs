@@ -234,33 +234,67 @@ impl<'a> Lexer<'a> {
 
     fn read_number(&mut self) -> Token {
         let start = self.pos;
-        // Hex literal
-        if self.peek() == Some(b'0') && matches!(self.peek2(), Some(b'x' | b'X')) {
-            self.advance();
-            self.advance(); // consume "0x"
-            while matches!(self.peek(), Some(b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')) {
+        // Hex, binary and octal literals. `_` may separate digits.
+        if self.peek() == Some(b'0') {
+            let radix = match self.peek2() {
+                Some(b'x' | b'X') => Some(16),
+                Some(b'b' | b'B') => Some(2),
+                Some(b'o' | b'O') => Some(8),
+                _ => None,
+            };
+            if let Some(radix) = radix {
                 self.advance();
+                self.advance(); // consume "0x", "0b" or "0o"
+                while matches!(
+                    self.peek(),
+                    Some(b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F' | b'_')
+                ) {
+                    // A binary or octal literal does not swallow a letter that
+                    // is not a digit of it, so that the error names it.
+                    if radix != 16 && matches!(self.peek(), Some(b'a'..=b'f' | b'A'..=b'F')) {
+                        break;
+                    }
+                    self.advance();
+                }
+                let digits: String = self
+                    .slice_str(start.saturating_add(2), self.pos)
+                    .chars()
+                    .filter(|c| *c != '_')
+                    .collect();
+                return i128::from_str_radix(&digits, radix)
+                    .map_or_else(|_| self.bad_int(start), Token::Int);
             }
-            let hex = self.slice_str(start.saturating_add(2), self.pos);
-            return i128::from_str_radix(hex, 16).map_or_else(|_| self.bad_int(start), Token::Int);
         }
-        while matches!(self.peek(), Some(b'0'..=b'9')) {
+        while matches!(self.peek(), Some(b'0'..=b'9' | b'_')) {
             self.advance();
         }
         // A fraction needs a digit after the point, so `items.size` and
-        // `1.to_s` are not floats.
-        if self.peek() == Some(b'.') && matches!(self.peek2(), Some(b'0'..=b'9')) {
+        // `1.to_s` are not floats; a point followed by something that cannot
+        // start a member (`24000.`) ends a float.
+        let after_point = self.peek2();
+        if self.peek() == Some(b'.')
+            && (matches!(after_point, Some(b'0'..=b'9'))
+                || !matches!(after_point, Some(b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'.')))
+        {
             self.advance();
-            while matches!(self.peek(), Some(b'0'..=b'9')) {
+            while matches!(self.peek(), Some(b'0'..=b'9' | b'_')) {
                 self.advance();
             }
-            return self
+            let text: String = self
                 .slice_str(start, self.pos)
+                .chars()
+                .filter(|c| *c != '_')
+                .collect();
+            return text
                 .parse()
                 .map_or_else(|_| self.bad_int(start), Token::Float);
         }
-        self.slice_str(start, self.pos)
-            .parse()
+        let text: String = self
+            .slice_str(start, self.pos)
+            .chars()
+            .filter(|c| *c != '_')
+            .collect();
+        text.parse()
             .map_or_else(|_| self.bad_int(start), Token::Int)
     }
 
@@ -528,7 +562,12 @@ struct Parser<'a> {
 /// Evaluation and dropping an expression recurse once per tree level, and a
 /// chain such as `1+1+1+…` is as deep as it is long, so an unbounded input
 /// could overflow the stack.
-pub const MAX_EXPR_LEN: usize = 1024;
+pub const MAX_EXPR_LEN: usize = 64 * 1024;
+
+/// The most operators and suffixes (`a + b + c`, `x.f(1)[2]`) that [`parse`]
+/// accepts in an expression, which bounds how deep a chain of them can make
+/// the tree. A long array literal is not limited by it.
+pub const MAX_EXPR_LINKS: usize = 512;
 
 /// The deepest nesting of parentheses and unary operators that [`parse`]
 /// accepts. The parser recurses once per level.
@@ -714,6 +753,13 @@ impl<'a> Parser<'a> {
                 self.depth -= 1;
                 Ok(Expr::Unary(UnaryOp::Neg, Box::new(e)))
             }
+            Token::Plus => {
+                self.bump();
+                self.descend()?;
+                let e = self.parse_unary()?;
+                self.depth -= 1;
+                Ok(e)
+            }
             Token::Bang => {
                 self.bump();
                 self.descend()?;
@@ -781,6 +827,10 @@ impl<'a> Parser<'a> {
                 args.push(self.parse_expr()?);
                 if self.current == Token::Comma {
                     self.bump();
+                    // A list may end in a comma.
+                    if self.current == *close {
+                        break;
+                    }
                 } else {
                     break;
                 }
@@ -846,13 +896,57 @@ impl<'a> Parser<'a> {
     }
 }
 
+/// Fail if `src` has more operators and suffixes than [`MAX_EXPR_LINKS`].
+///
+/// A chain of them (`1+1+1+…`, `a.f().g()…`) makes the tree one level deeper
+/// per link without any parenthesis, and the evaluation and dropping of a tree
+/// recurse once per level in the worst case. Counting the tokens first leaves
+/// the parser, which recurses per level of nesting, as small as it is.
+fn check_links(src: &str) -> Result<()> {
+    let mut lexer = Lexer::new(src);
+    let mut links = 0usize;
+    loop {
+        match lexer.next_token() {
+            Token::Eof => return Ok(()),
+            Token::Plus
+            | Token::Minus
+            | Token::Star
+            | Token::Slash
+            | Token::Percent
+            | Token::Shl
+            | Token::Shr
+            | Token::Amp
+            | Token::Caret
+            | Token::Pipe
+            | Token::AmpAmp
+            | Token::PipePipe
+            | Token::EqEq
+            | Token::BangEq
+            | Token::Dot
+            | Token::LBracket => {
+                links += 1;
+                if links > MAX_EXPR_LINKS {
+                    return Err(DoeError::ExprParse {
+                        expr: format!("{}…", src.chars().take(40).collect::<String>()),
+                        message: format!(
+                            "expression has more than {MAX_EXPR_LINKS} operators or suffixes"
+                        ),
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 /// Parse an expression string into an AST.
 ///
 /// # Errors
 ///
 /// Returns [`DoeError::ExprParse`] on a syntax error, if `src` is longer than
-/// [`MAX_EXPR_LEN`] bytes, or if it nests more than [`MAX_EXPR_DEPTH`] levels
-/// of parentheses or unary operators.
+/// [`MAX_EXPR_LEN`] bytes, if it has more than [`MAX_EXPR_LINKS`] operators and
+/// suffixes, or if it nests more than [`MAX_EXPR_DEPTH`] levels of parentheses
+/// or unary operators.
 pub fn parse(src: &str) -> Result<Expr> {
     if src.len() > MAX_EXPR_LEN {
         return Err(DoeError::ExprParse {
@@ -860,6 +954,7 @@ pub fn parse(src: &str) -> Result<Expr> {
             message: format!("expression is longer than {MAX_EXPR_LEN} bytes"),
         });
     }
+    check_links(src)?;
     let mut p = Parser::new(src);
     let e = p.parse_expr()?;
     if p.current != Token::Eof {

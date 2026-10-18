@@ -289,7 +289,7 @@ fn to_expr_value(value: &Value, budget: &mut usize) -> Option<ExprValue> {
     Some(match value {
         Value::UInt(n) => ExprValue::from(*n),
         Value::SInt(n) => ExprValue::from(*n),
-        Value::Enum { value, .. } => ExprValue::from(*value),
+        Value::Enum { value, .. } => ExprValue::Int(*value),
         Value::Float(x) => ExprValue::Float(*x),
         Value::Bool(b) => ExprValue::Bool(*b),
         Value::Str(s) => ExprValue::Str(s.clone()),

@@ -439,8 +439,12 @@ pub enum RepeatMode {
 /// An enum: maps integer discriminant → variant name.
 #[derive(Debug, Clone, Default)]
 pub struct CompiledEnum {
-    /// Variant names keyed by discriminant.
+    /// Variant names keyed by discriminant. A negative one is its two's
+    /// complement as 64 bits, which is what a signed field of that value is
+    /// looked up by.
     pub variants: HashMap<u64, String>,
+    /// The discriminants in `variants` that were written as negative numbers.
+    pub negative: std::collections::HashSet<u64>,
 }
 
 impl CompiledEnum {
@@ -449,6 +453,17 @@ impl CompiledEnum {
         self.variants
             .iter()
             .find_map(|(value, variant)| (variant == name).then_some(*value))
+    }
+
+    /// The number the variant called `name` stands for in an expression: its
+    /// discriminant, negative if it was written that way.
+    pub fn number_of(&self, name: &str) -> Option<i128> {
+        let value = self.value_of(name)?;
+        Some(if self.negative.contains(&value) {
+            i128::from(value.cast_signed())
+        } else {
+            i128::from(value)
+        })
     }
 
     /// The variant name for discriminant `v`, if any.
