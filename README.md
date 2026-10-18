@@ -300,7 +300,7 @@ type, then in the types around it).
 comparisons `==` `!=` `<` `>` `<=` `>=`, `|`, `^`, `&`, `<<` `>>`, `+` `-`,
 `*` `/` `%`, and the prefix operators `!` `-` `~`.
 
-**Literals:** integers (decimal or `0x` hex), floats (`1.5`), strings, `true`,
+**Literals:** integers (decimal, `0x` hex, `0b` binary or `0o` octal, with `_` between digits: `0xffff_ffff`), floats (`1.5`, or `24000.`), strings, `true`,
 `false` and arrays (`[1, 2, 3]`). A string is `'raw'`, with no escapes, or
 `"with escapes"`, which understands `\\ \" \' \n \r \t \0 \xNN \uNNNN`.
 
@@ -646,7 +646,9 @@ resolves as Kaitai Struct resolves it (a name is looked for next to the
 importing file and then in the include paths, a name with a leading slash in the
 include paths only). The `meta` keys that do not affect parsing (`title`,
 `license`, `file-extension`, ...) and `doc-ref` are accepted and ignored, and so
-are the `ks-*` options. [`conformance/`](https://github.com/shroomsword/doe/tree/main/conformance) checks that doe and the
+are the `ks-*` options, `to-string` and the keys of the Kaitai Struct tools that
+start with `-` (`-orig-id`, `-webide-representation`, ...). A field without an
+`id` is read, and named `_unnamed` and its position in `seq`. [`conformance/`](https://github.com/shroomsword/doe/tree/main/conformance) checks that doe and the
 reference compiler's parser produce the same result for a set of formats and
 samples.
 
@@ -665,6 +667,9 @@ What is different:
 - `%` and `/` accept a negative divisor and round towards negative infinity;
   the JavaScript runtime of Kaitai Struct refuses a divisor that is not positive.
 - `substring` out of range is an error, where the runtimes differ.
+- An enum member can be called `true` or `false`, and its number can be
+  negative; a signed field that reads a negative number has a negative enum
+  value.
 
 What is not supported yet, and fails when a definition uses it: a `terminator`
 of more than one byte; and encodings other than those in

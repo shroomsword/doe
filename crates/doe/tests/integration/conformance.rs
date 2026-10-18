@@ -33,7 +33,9 @@ fn canonical(value: &Json) -> Json {
             Some("enum") => map.get("value").cloned().unwrap_or(Json::Null),
             _ => Json::Object(
                 map.iter()
-                    .filter(|(key, _)| !key.starts_with('$'))
+                    // `$type` and the like; and the unnamed fields (`_unnamed0`),
+                    // which the reference leaves out of its output.
+                    .filter(|(key, _)| !key.starts_with('$') && !key.starts_with('_'))
                     .map(|(key, v)| (normalize_key(key), canonical(v)))
                     .collect(),
             ),
@@ -176,6 +178,7 @@ formats!(
     expressions,
     encodings,
     float_types,
+    gallery_syntax,
     gif_like,
     import_dep,
     import_main,

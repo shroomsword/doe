@@ -482,14 +482,78 @@ fn unknown_field_fails() {
 }
 
 #[test]
-fn field_without_id_fails() {
+fn a_field_without_an_id_is_named_after_its_position() {
     let yaml = indoc! {r"
-        id: bad
+        id: t
         seq:
           - type: u4
+          - id: named
+            type: u1
+          - size: 2
+            if: true
+        types:
+          inner:
+            seq:
+              - size: 1
     "};
-    let result: Result<RawSchema, _> = RawSchema::from_yaml_str(yaml);
-    assert!(result.is_err(), "field missing id should fail");
+    let s = RawSchema::from_yaml_str(yaml).unwrap();
+    let ids: Vec<&str> = s.seq.iter().map(|f| f.id.as_str()).collect();
+    assert_eq!(ids, ["_unnamed0", "named", "_unnamed2"]);
+    assert_eq!(s.types["inner"].seq[0].id, "_unnamed0");
+}
+
+#[test]
+fn the_metadata_keys_of_the_kaitai_tools_are_ignored() {
+    let yaml = indoc! {r"
+        meta:
+          id: t
+        -webide-representation: '{a}'
+        -license: CC0-1.0
+        params:
+          - id: p
+            type: u1
+            -orig-id: P
+            -affected-by: 3
+        seq:
+          - id: a
+            type: u1
+            -orig-id: A
+            -affected-by: 4
+        instances:
+          i:
+            value: 1
+            -orig-id: I
+            -webide-parse-mode: eager
+            -affected-by: 5
+        types:
+          inner:
+            -orig-id: Inner
+            -webide-representation: '{b}'
+            to-string: 'x'
+            seq: []
+        enums:
+          e:
+            1:
+              id: one
+              -orig-id: ONE
+              -affected-by: 6
+            2: true
+    "};
+    let s = RawSchema::from_yaml_str(yaml).unwrap();
+    assert_eq!(s.enums["e"]["1"].id(), "one");
+    assert_eq!(s.enums["e"]["2"].id(), "true");
+}
+
+#[test]
+fn contents_may_mix_strings_and_bytes() {
+    let yaml = indoc! {r"
+        id: t
+        seq:
+          - id: magic
+            contents: ['Rar!', 0x1a, 0x07]
+    "};
+    let s = RawSchema::from_yaml_str(yaml).unwrap();
+    assert!(matches!(s.seq[0].contents, Some(RawContents::Items(ref items)) if items.len() == 3));
 }
 
 // ── StringOrInt helper ───────────────────────────────────────────────────

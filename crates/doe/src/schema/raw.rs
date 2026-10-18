@@ -27,6 +27,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawSchema {
+    /// The `-webide-representation` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-webide-representation", default)]
+    pub webide_representation: Option<serde_json::Value>,
+
+    /// The `-license` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-license", default)]
+    pub license_key: Option<serde_json::Value>,
+
     /// The canonical identifier for this type (e.g. `png`). Kaitai Struct
     /// files give it as `meta.id`; [`RawSchema::from_yaml_str`] copies it here.
     #[serde(default)]
@@ -104,7 +112,25 @@ impl RawSchema {
                 parse_yaml::<NeedsId>(text)?;
             }
         }
+        schema.name_unnamed_fields();
         Ok(schema)
+    }
+
+    /// Give the fields that have no `id` the name Kaitai Struct gives them:
+    /// `_unnamed` and the position in `seq`.
+    pub fn name_unnamed_fields(&mut self) {
+        name_unnamed(&mut self.seq);
+        for decl in self.types.values_mut() {
+            decl.name_unnamed_fields();
+        }
+    }
+}
+
+fn name_unnamed(seq: &mut [RawField]) {
+    for (index, field) in seq.iter_mut().enumerate() {
+        if field.id.is_empty() {
+            field.id = format!("_unnamed{index}");
+        }
     }
 }
 
@@ -257,6 +283,14 @@ pub struct RawEndianSwitch {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawParam {
+    /// The `-orig-id` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-orig-id", default)]
+    pub orig_id: Option<serde_json::Value>,
+
+    /// The `-affected-by` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-affected-by", default)]
+    pub affected_by: Option<serde_json::Value>,
+
     /// The name the type's expressions use.
     pub id: String,
 
@@ -281,7 +315,17 @@ pub struct RawParam {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawField {
-    /// Field identifier (used in expressions and output).
+    /// The `-orig-id` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-orig-id", default)]
+    pub orig_id: Option<serde_json::Value>,
+
+    /// The `-affected-by` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-affected-by", default)]
+    pub affected_by: Option<serde_json::Value>,
+
+    /// Field identifier (used in expressions and output). A field without one
+    /// is named `_unnamed` and its position in `seq` when the schema is read.
+    #[serde(default)]
     pub id: String,
 
     /// Type name: a primitive name, a locally defined type, or an imported type;
@@ -483,6 +527,18 @@ impl<'de> Deserialize<'de> for RawValid {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawInstance {
+    /// The `-orig-id` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-orig-id", default)]
+    pub orig_id: Option<serde_json::Value>,
+
+    /// The `-webide-parse-mode` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-webide-parse-mode", default)]
+    pub webide_parse_mode: Option<serde_json::Value>,
+
+    /// The `-affected-by` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-affected-by", default)]
+    pub affected_by: Option<serde_json::Value>,
+
     /// Type name: a primitive name, a locally defined type, or an imported type;
     /// or a `switch-on` mapping that chooses one by a value.
     /// Required unless `contents` is set.
@@ -590,6 +646,8 @@ impl RawInstance {
     /// The instance as a `seq` field named `id`, ignoring `value`.
     pub fn to_field(&self, id: &str) -> RawField {
         RawField {
+            orig_id: self.orig_id.clone(),
+            affected_by: self.affected_by.clone(),
             id: id.to_owned(),
             type_ref: self.type_ref.clone(),
             contents: self.contents.clone(),
@@ -746,6 +804,19 @@ pub enum RawContents {
     Bytes(Vec<u8>),
     /// A string.
     Str(String),
+    /// A list of byte values and strings, whose bytes are put one after the
+    /// other: `['Rar!', 0x1a, 0x07]`.
+    Items(Vec<RawContentItem>),
+}
+
+/// One element of a list in `contents`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum RawContentItem {
+    /// A byte value.
+    Byte(u8),
+    /// A string, as its UTF-8 bytes.
+    Str(String),
 }
 
 /// Serde helper: accept either a quoted string (`"length"`) or a bare integer (`12`).
@@ -885,6 +956,19 @@ pub enum RawRepeat {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawTypeDecl {
+    /// How to show a value of the type as text (Kaitai Struct 0.11). Accepted
+    /// and ignored.
+    #[serde(rename = "to-string", default)]
+    pub to_string: Option<serde_json::Value>,
+
+    /// The `-orig-id` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-orig-id", default)]
+    pub orig_id: Option<serde_json::Value>,
+
+    /// The `-webide-representation` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-webide-representation", default)]
+    pub webide_representation: Option<serde_json::Value>,
+
     /// Human-readable description.
     #[serde(default)]
     pub doc: Option<String>,
@@ -920,6 +1004,16 @@ pub struct RawTypeDecl {
     pub enums: IndexMap<String, RawEnum>,
 }
 
+impl RawTypeDecl {
+    /// Name the fields without an `id` in this type and the types in it.
+    pub fn name_unnamed_fields(&mut self) {
+        name_unnamed(&mut self.seq);
+        for decl in self.types.values_mut() {
+            decl.name_unnamed_fields();
+        }
+    }
+}
+
 // ── Enum definition ──────────────────────────────────────────────────────────
 
 /// An enum definition: a map from integer discriminant to variant.
@@ -933,6 +1027,8 @@ pub type RawEnum = HashMap<String, RawEnumEntry>;
 pub enum RawEnumEntry {
     /// `1: first`.
     Name(String),
+    /// `1: true`: a member called `true` or `false`.
+    Bool(bool),
     /// `1: {id: first, doc: the first}`.
     Mapping(RawEnumMapping),
 }
@@ -942,6 +1038,8 @@ impl RawEnumEntry {
     pub fn id(&self) -> &str {
         match self {
             Self::Name(id) => id,
+            Self::Bool(true) => "true",
+            Self::Bool(false) => "false",
             Self::Mapping(mapping) => &mapping.id,
         }
     }
@@ -951,6 +1049,10 @@ impl RawEnumEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawEnumMapping {
+    /// The `-affected-by` key of the Kaitai Struct tools. Accepted and ignored.
+    #[serde(rename = "-affected-by", default)]
+    pub affected_by: Option<serde_json::Value>,
+
     /// The name of the member.
     pub id: String,
     /// Human-readable description. Accepted and ignored.

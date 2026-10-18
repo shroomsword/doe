@@ -521,13 +521,18 @@ fn nesting_up_to_the_limit_is_accepted() {
 fn very_long_expressions_are_rejected_not_a_stack_overflow() {
     let text = format!("1{}", "+1".repeat(100_000));
     assert!(parse(&text).is_err());
-    let at_limit = format!("1{}", "+1".repeat((MAX_EXPR_LEN - 1) / 2));
-    assert!(at_limit.len() <= MAX_EXPR_LEN);
-    assert_eq!(
-        eval(&at_limit),
-        i64::try_from((MAX_EXPR_LEN - 1) / 2 + 1).unwrap()
-    );
-    assert!(parse(&format!("{at_limit}+1+1")).is_err());
+    // The operators of a chain are limited, not the length.
+    let at_limit = format!("1{}", "+1".repeat(MAX_EXPR_LINKS));
+    assert_eq!(eval(&at_limit), i64::try_from(MAX_EXPR_LINKS + 1).unwrap());
+    assert!(parse(&format!("{at_limit}+1")).is_err());
+    // Suffixes count too.
+    let suffixes = format!("a{}", ".reverse".repeat(MAX_EXPR_LINKS + 1));
+    assert!(parse(&suffixes).is_err());
+    // A long expression without a chain is fine, up to the length limit.
+    let table = format!("[{}0]", "0,".repeat(MAX_EXPR_LEN / 4));
+    assert!(parse(&table).is_ok());
+    let too_long = format!("[{}0]", "0,".repeat(MAX_EXPR_LEN));
+    assert!(parse(&too_long).is_err());
 }
 
 #[test]
@@ -961,12 +966,12 @@ fn unbind_prefix_removes_a_value_and_its_fields() {
 fn deep_but_legal_expressions_do_not_depend_on_the_stack_size() {
     // Every operator level adds a level to the tree; evaluating it must not
     // recurse once per level.
-    let src = format!("1{}", "+1".repeat((MAX_EXPR_LEN - 1) / 2));
+    let src = format!("1{}", "+1".repeat(MAX_EXPR_LINKS));
     let handle = std::thread::Builder::new()
         .stack_size(128 * 1024)
         .spawn(move || eval_str(&src, &EvalContext::new()).unwrap())
         .unwrap();
-    assert_eq!(handle.join().unwrap(), ExprValue::Int(512));
+    assert_eq!(handle.join().unwrap(), ExprValue::Int(513));
 }
 
 // ── Enum literals, _root, _io, structs ───────────────────────────────────
@@ -1133,4 +1138,51 @@ fn kaitai_word_operators_are_the_logical_operators() {
         eval_str("order + android + notes", &c).unwrap(),
         ExprValue::Int(18)
     );
+}
+
+// ── Literals ─────────────────────────────────────────────────────────────
+
+#[test]
+fn binary_octal_and_separated_literals() {
+    assert_eq!(eval("0b1000_0000"), 128);
+    assert_eq!(eval("0B101"), 5);
+    assert_eq!(eval("0o0170000"), 0o017_0000);
+    assert_eq!(eval("0xffff_ffff"), 0xffff_ffff);
+    assert_eq!(eval("1_000"), 1000);
+    assert_eq!(eval("0x1F & 0b1111_0000"), 0x10);
+    for bad in ["0b", "0b2", "0o8", "0x", "0b1a"] {
+        assert!(parse_err(bad), "{bad}");
+    }
+}
+
+#[test]
+fn a_float_may_end_in_a_point_and_a_number_may_have_members() {
+    assert_eq!(
+        eval_str("24000. * 2", &EvalContext::new()).unwrap(),
+        ExprValue::Float(48000.0)
+    );
+    assert_eq!(
+        eval_str("1.to_s", &EvalContext::new()).unwrap(),
+        ExprValue::Str("1".to_owned())
+    );
+    assert_eq!(
+        eval_str("1.5", &EvalContext::new()).unwrap(),
+        ExprValue::Float(1.5)
+    );
+}
+
+#[test]
+fn unary_plus_is_a_no_op() {
+    assert_eq!(eval("+3"), 3);
+    assert_eq!(eval("(1 < 0 ? -1 : +1) * -4"), -4);
+    assert_eq!(eval("2 - +1"), 1);
+}
+
+#[test]
+fn a_list_may_end_in_a_comma() {
+    assert_eq!(eval("[1, 2, 3, ].size"), 3);
+    assert_eq!(eval("[[1, 2,], [3,],].size"), 2);
+    for bad in ["[,]", "[1,,2]", "[1 2]"] {
+        assert!(parse_err(bad), "{bad}");
+    }
 }

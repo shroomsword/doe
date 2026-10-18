@@ -1,0 +1,13 @@
+{
+  "big": 4294966295,
+  "bits": 143,
+  "flag": 42,
+  "iseof": true,
+  "kind": -1,
+  "len": 3,
+  "magic": "526172211a07",
+  "mask": 129,
+  "scaled": 72000,
+  "signed": 3,
+  "tablesize": 2
+}

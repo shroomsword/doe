@@ -29,8 +29,8 @@ use crate::schema::ir::{
     InstanceKind, IntWidth, Process, RepeatMode, SizeExpr, StrSize, TypeRegistry,
 };
 use crate::schema::raw::{
-    ExprText, RawContents, RawEncoding, RawEndian, RawEndianSpec, RawEndianSwitch, RawEnum,
-    RawField, RawInstance, RawMeta, RawParam, RawRepeat, RawSchema, RawSwitch, RawType,
+    ExprText, RawContentItem, RawContents, RawEncoding, RawEndian, RawEndianSpec, RawEndianSwitch,
+    RawEnum, RawField, RawInstance, RawMeta, RawParam, RawRepeat, RawSchema, RawSwitch, RawType,
     RawTypeDecl, RawValid, RawValidRules, StringOrInt,
 };
 
@@ -1353,10 +1353,17 @@ fn compile_valid(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<Option<CompiledVa
             "needs a value or at least one of eq, min, max, any-of, expr, in-enum".to_owned(),
         ));
     }
-    // Rules other than `expr` are about fields read earlier; `expr` is about `_`.
+    // Rules other than `expr` are about fields read earlier, or the field
+    // itself; `expr` is about `_`.
+    let mut seen = ctx.seen_ids.to_vec();
+    seen.push(raw.id.clone());
+    let with_self = FieldCtx {
+        seen_ids: &seen,
+        ..*ctx
+    };
     let rule = |text: &ExprText| -> Result<expr::Expr> {
-        let ast = compile_expr(&text.0, ctx).map_err(|e| bad(e.to_string()))?;
-        validate_size_expr_refs(&text.0, ctx)?;
+        let ast = compile_expr(&text.0, &with_self).map_err(|e| bad(e.to_string()))?;
+        validate_size_expr_refs(&text.0, &with_self)?;
         Ok(ast)
     };
     let any_of = match &rules.any_of {
@@ -1557,7 +1564,7 @@ fn enum_member_value(path: &[String], ctx: &FieldCtx<'_>) -> Result<i128> {
             enum_name: enum_name.clone(),
             context: context.clone(),
         })?;
-    compiled.value_of(member).map(i128::from).ok_or_else(|| {
+    compiled.number_of(member).ok_or_else(|| {
         DoeError::Schema(format!(
             "{context}: enum '{enum_name}' has no member '{member}'"
         ))
@@ -1606,6 +1613,13 @@ fn compile_contents(contents: &RawContents, field_id: &str, parent_fqn: &str) ->
     let bytes = match contents {
         RawContents::Bytes(b) => b.clone(),
         RawContents::Str(s) => s.as_bytes().to_vec(),
+        RawContents::Items(items) => items
+            .iter()
+            .flat_map(|item| match item {
+                RawContentItem::Byte(b) => vec![*b],
+                RawContentItem::Str(s) => s.as_bytes().to_vec(),
+            })
+            .collect(),
     };
     if bytes.is_empty() {
         return Err(DoeError::FieldError {
@@ -1652,12 +1666,15 @@ fn compile_enums(
     for (enum_name, raw_map) in raw_enums {
         let mut ce = CompiledEnum::default();
         for (key_str, variant) in raw_map {
-            let key: u64 = parse_enum_key(key_str).ok_or_else(|| {
+            let (key, negative) = parse_enum_key(key_str).ok_or_else(|| {
                 DoeError::Schema(format!(
                     "enum '{enum_name}' in {context}: invalid key '{key_str}'"
                 ))
             })?;
             ce.variants.insert(key, variant.id().to_owned());
+            if negative {
+                ce.negative.insert(key);
+            }
         }
         result.insert(enum_name.clone(), ce);
     }
@@ -1665,12 +1682,19 @@ fn compile_enums(
 }
 
 /// Parse an enum discriminant key — decimal or `0x`-prefixed hex.
-fn parse_enum_key(s: &str) -> Option<u64> {
-    let s = s.trim();
+///
+/// A negative key (`-1`) gives the two's complement of its 64 bits, and `true`
+/// says it was negative.
+fn parse_enum_key(s: &str) -> Option<(u64, bool)> {
+    // `_` may separate digits, as in an expression.
+    let s: String = s.trim().chars().filter(|c| *c != '_').collect();
+    let s = s.as_str();
     if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
-        u64::from_str_radix(hex, 16).ok()
+        u64::from_str_radix(hex, 16).ok().map(|n| (n, false))
+    } else if s.starts_with('-') {
+        s.parse::<i64>().ok().map(|n| (n.cast_unsigned(), true))
     } else {
-        s.parse::<u64>().ok()
+        s.parse::<u64>().ok().map(|n| (n, false))
     }
 }
 
