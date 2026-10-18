@@ -169,6 +169,7 @@ macro_rules! formats {
 }
 
 formats!(
+    bit_enums,
     bmp_header,
     endian_switch,
     enum_mappings,
