@@ -200,7 +200,9 @@ impl Compiler {
     fn link_parent_instances(&mut self, root: &str) {
         let wanted = parent_instance_uses(&self.registry);
         let prefix = format!("{root}::");
-        let mut additions: Vec<(String, Vec<(usize, Vec<String>)>)> = Vec::new();
+        /// For a type, the instances to compute before each of its fields (by index).
+        type Additions = Vec<(String, Vec<(usize, Vec<String>)>)>;
+        let mut additions: Additions = Vec::new();
         for (name, ty) in &self.registry.types {
             if name != root && !name.starts_with(&prefix) {
                 continue;
