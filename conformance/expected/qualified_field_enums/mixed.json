@@ -1,0 +1,9 @@
+{
+  "again": 1,
+  "iscontrol": true,
+  "kind": 2,
+  "nested": {
+    "k": 7
+  },
+  "other": 1
+}

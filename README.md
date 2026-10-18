@@ -170,7 +170,7 @@ it the integer 0 or 1 and names it; the wider ones are unsigned integers. As in 
 | `process` | Transform the bytes of the field's `size` window before they are parsed: `xor(key)` (an integer or a byte sequence, repeated), `rol(n)`, `ror(n)` (rotate each byte) or `zlib`. For `bytes`, `str` and user types that have a `size` or `size-eos`. `zlib` decompresses into memory up to 256 MiB; a larger result, or data that is not zlib data, is an error that names the field |
 | `pos:` | Read the field at this byte offset instead of the current position; see [Seeking](#seeking) |
 | `valid:` | Fail the parse unless the value read satisfies the rules; see [Validating values](#validating-values) |
-| `enum:` | Map the parsed integer to a named variant |
+| `enum:` | Map the parsed integer to a named variant. `name` is an enum visible in the type; `type::name` is one declared in another type (a nested path is allowed) |
 | `contents:` | Assert fixed bytes (magic numbers, file signatures) |
 | `doc:` | Human-readable description (shown in verbose output) |
 

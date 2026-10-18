@@ -313,6 +313,26 @@ impl Compiler {
         let mut compiled_enums = outer_enums.clone();
         compiled_enums.extend(compile_enums(enums, fqn)?);
 
+        // `enum: type::name` names an enum of another type: it is added under
+        // the name as written, so it is found like the others.
+        let qualified = seq
+            .iter()
+            .map(|f| (f.id.as_str(), &f.enum_ref))
+            .chain(instances.iter().map(|(id, i)| (id.as_str(), &i.enum_ref)));
+        for (id, enum_ref) in qualified {
+            let Some(written) = enum_ref.as_ref().filter(|e| e.contains("::")) else {
+                continue;
+            };
+            let found = self
+                .qualified_enum(written, fqn)
+                .ok_or_else(|| DoeError::FieldError {
+                    field: id.to_owned(),
+                    context: fqn.to_owned(),
+                    message: format!("'{written}' is not an enum of a type"),
+                })?;
+            compiled_enums.insert(written.clone(), found);
+        }
+
         let instance_names: HashSet<String> = instances.keys().cloned().collect();
         if let Some(clash) = seq.iter().find(|f| instance_names.contains(&f.id)) {
             return Err(DoeError::FieldError {
@@ -773,6 +793,13 @@ impl Compiler {
                 }
             }
         }
+    }
+
+    /// The enum `type::name` stands for, seen from the type `from`.
+    fn qualified_enum(&self, written: &str, from: &str) -> Option<CompiledEnum> {
+        let (type_name, enum_name) = written.rsplit_once("::")?;
+        let fqn = resolve_in(&self.registry, type_name, from)?;
+        self.registry.get(&fqn)?.enums.get(enum_name).cloned()
     }
 
     /// Resolve a bare or partially-qualified type name to a fully-qualified one
