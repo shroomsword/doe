@@ -144,8 +144,8 @@ order on one field (`b4le`, `b4be`); it is independent of `meta.endian`. A
 nested type inherits the setting. Any field that is not a bit field starts on a
 byte boundary and drops the unread bits of the byte before it, as does a bit
 field of the other order, `seek` and `pos:`. A `b1` is a boolean (`true` or
-`false` in the output, and in expressions); the wider ones are unsigned
-integers. As in Kaitai Struct, entering a sub-type does not start a new byte.
+`false` in the output, and in expressions) unless it has an `enum:`, which makes
+it the integer 0 or 1 and names it; the wider ones are unsigned integers. As in Kaitai Struct, entering a sub-type does not start a new byte.
 
 > **Upgrading:** `bits` with `bit_size:` used to read whole bytes (two `bits: 4`
 > fields took two bytes). It is now the same as `bN`, so they share one byte.

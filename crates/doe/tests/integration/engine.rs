@@ -4657,3 +4657,73 @@ fn a_switch_case_can_use_an_instance_of_the_enclosing_type() {
     assert_eq!(*get_field(get_field(&v, "body"), "v"), Value::UInt(11));
     parse_err(yaml, "t", &[1, 12]);
 }
+
+// ── enums on single bits ─────────────────────────────────────────────────
+
+const BIT_ENUM: &str = indoc! {"
+    meta:
+      id: t
+    seq:
+      - id: plain
+        type: b1
+      - id: flag
+        type: b1
+        enum: onoff
+        valid:
+          in-enum: true
+      - id: wide
+        type: b2
+        enum: onoff
+    instances:
+      is_on:
+        value: flag == onoff::on
+    enums:
+      onoff:
+        0: off
+        1: on
+"};
+
+#[test]
+fn a_single_bit_with_an_enum_is_an_integer_with_a_name() {
+    // plain 1, flag 0, wide 2 (not a member).
+    let v = parse(BIT_ENUM, "t", &[0b1010_0000]);
+    assert_eq!(*get_field(&v, "plain"), Value::Bool(true));
+    assert_eq!(
+        *get_field(&v, "flag"),
+        Value::Enum {
+            value: 0,
+            name: Some("off".into())
+        }
+    );
+    assert_eq!(
+        *get_field(&v, "wide"),
+        Value::Enum {
+            value: 2,
+            name: None
+        }
+    );
+    assert!(!get_field(&v, "is_on").is_truthy());
+    let v = parse(BIT_ENUM, "t", &[0b0100_0000]);
+    assert_eq!(*get_field(&v, "plain"), Value::Bool(false));
+    assert!(get_field(&v, "is_on").is_truthy());
+}
+
+#[test]
+fn in_enum_is_checked_on_a_single_bit() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: flag
+            type: b1
+            enum: only_on
+            valid:
+              in-enum: true
+        enums:
+          only_on:
+            1: on
+    "};
+    parse(yaml, "t", &[0x80]);
+    let err = parse_err(yaml, "t", &[0x00]);
+    assert!(err.to_string().contains("not a member"), "{err}");
+}

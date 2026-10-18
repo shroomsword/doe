@@ -596,9 +596,7 @@ impl<'reg> Engine<'reg> {
         if valid.in_enum
             && let Some(enum_name) = &field.enum_ref
         {
-            let member = value
-                .as_int()
-                .map(i64::cast_unsigned)
+            let member = enum_discriminant(value)
                 .and_then(|n| parent_ty.enums.get(enum_name.as_str())?.lookup(n));
             if member.is_none() {
                 return Err(fail(format!(
@@ -1068,12 +1066,20 @@ fn eval_size(size: &SizeExpr, ctx: &mut ParseContext, cursor: &Cursor<'_>) -> Re
     }
 }
 
+/// The number an enum is applied to. A single bit is a boolean unless it has an
+/// enum, which takes it as the integer 0 or 1.
+fn enum_discriminant(value: &Value) -> Option<u64> {
+    match value {
+        Value::Bool(bit) => Some(u64::from(*bit)),
+        other => other.as_int().map(i64::cast_unsigned),
+    }
+}
+
 /// Name an integer value after the member of `enum_name` it matches.
 fn apply_enum(value: Value, enum_name: Option<&str>, ty: &CompiledType) -> Value {
-    let (Some(enum_name), Some(n)) = (enum_name, value.as_int()) else {
+    let (Some(enum_name), Some(discriminant)) = (enum_name, enum_discriminant(&value)) else {
         return value;
     };
-    let discriminant = n.cast_unsigned();
     let name = ty
         .enums
         .get(enum_name)

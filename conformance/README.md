@@ -33,6 +33,7 @@ definitions use:
 |--------|-----------|
 | `ipv4_packet` | bit fields that share and span bytes, `valid`, enums, computed instances |
 | `tlv_stream` | `switch-on` on an enum, sized windows, `params`, instances in sub-types |
+| `bit_enums` | `enum:` and `valid: in-enum` on bit fields, including a single bit, which is an integer when it has an enum |
 | `bmp_header` | `valid`, an instance read at a `pos`, floor division, a ternary |
 | `gif_like` | packed flags, `repeat-until` on a field of the element, an enum case with no body |
 | `riff_wave` | string cases, padding, a type that contains itself |
