@@ -4727,3 +4727,70 @@ fn in_enum_is_checked_on_a_single_bit() {
     let err = parse_err(yaml, "t", &[0x00]);
     assert!(err.to_string().contains("not a member"), "{err}");
 }
+
+// ── enum: type::name ─────────────────────────────────────────────────────
+
+const QUALIFIED_FIELD_ENUM: &str = indoc! {"
+    meta:
+      id: t
+    seq:
+      - id: k
+        type: u1
+        enum: later::kinds
+        valid:
+          in-enum: true
+      - id: u
+        type: user
+    instances:
+      shown:
+        pos: 0
+        type: u1
+        enum: later::kinds
+    types:
+      user:
+        seq:
+          - id: j
+            type: u1
+            enum: later::kinds
+      later:
+        enums:
+          kinds:
+            1: data
+            2: control
+"};
+
+#[test]
+fn a_field_may_name_an_enum_of_another_type() {
+    let v = parse(QUALIFIED_FIELD_ENUM, "t", &[2, 1]);
+    assert_eq!(
+        *get_field(&v, "k"),
+        Value::Enum {
+            value: 2,
+            name: Some("control".into())
+        }
+    );
+    assert_eq!(
+        *get_field(get_field(&v, "u"), "j"),
+        Value::Enum {
+            value: 1,
+            name: Some("data".into())
+        }
+    );
+    let shown = get_field(&v, "shown");
+    assert!(matches!(shown, Value::Instance { value, .. }
+        if matches!(value.as_ref(), Value::Enum { name: Some(n), .. } if n == "control")));
+    parse_err(QUALIFIED_FIELD_ENUM, "t", &[9, 1]);
+}
+
+#[test]
+fn an_unknown_type_or_enum_in_a_qualified_enum_names_the_field() {
+    for written in ["nope::kinds", "later::nope"] {
+        let yaml = QUALIFIED_FIELD_ENUM.replace(
+            "enum: later::kinds\n    valid",
+            &format!("enum: {written}\n    valid"),
+        );
+        let schema = doe::schema::raw::RawSchema::from_yaml_str(&yaml).unwrap();
+        let err = compile_schema(&schema).unwrap_err().to_string();
+        assert!(err.contains('k') && err.contains(written), "{err}");
+    }
+}

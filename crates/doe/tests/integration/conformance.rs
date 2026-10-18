@@ -182,6 +182,7 @@ formats!(
     ipv4_packet,
     parent_instances,
     png_chunks,
+    qualified_field_enums,
     process,
     repeat_until_eof,
     riff_wave,
