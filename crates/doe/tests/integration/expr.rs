@@ -1186,3 +1186,22 @@ fn a_list_may_end_in_a_comma() {
         assert!(parse_err(bad), "{bad}");
     }
 }
+
+#[test]
+fn as_and_sizeof_parse() {
+    assert_eq!(
+        parse("a.b.as<c>.d").unwrap(),
+        Expr::Field(vec!["a".into(), "b".into(), "d".into()])
+    );
+    assert!(parse("a.as<c::d>.e").is_ok());
+    assert_eq!(
+        parse("sizeof<s4>").unwrap(),
+        Expr::Field(vec!["sizeof<s4>".into()])
+    );
+    assert!(parse("bitsizeof<a::b> * 2").is_ok());
+    for bad in [
+        "a.as<>", "a.as<1>", "a.as<b", "sizeof<>", "sizeof<a", "a.as < b",
+    ] {
+        assert!(parse_err(bad), "{bad}");
+    }
+}

@@ -24,6 +24,12 @@ use crate::schema::expr::Expr;
 pub struct TypeRegistry {
     /// All known types, keyed by fully-qualified name.
     pub types: IndexMap<String, CompiledType>,
+    /// The size in bytes of each type that always has the same one (`sizeof<type>`
+    /// and `_sizeof` in an expression), keyed by fully-qualified name.
+    pub static_sizes: std::collections::HashMap<String, u64>,
+    /// Whether an expression of any type uses `field._sizeof`, the number of
+    /// bytes a field took, which the parser then records for every field.
+    pub uses_field_sizes: bool,
 }
 
 impl TypeRegistry {
@@ -143,6 +149,9 @@ pub struct CompiledField {
     /// Instances of the same type that the field's expressions use, which are
     /// computed before the field is.
     pub uses_instances: Vec<String>,
+    /// Whether a repeated field's expressions use the elements read so far
+    /// (`groups[_index - 1]` in the arguments of `groups`).
+    pub reads_itself: bool,
     /// What the value read may be, if constrained (`valid:`).
     pub valid: Option<CompiledValid>,
     /// A transform applied to the bytes of the field's window before they are

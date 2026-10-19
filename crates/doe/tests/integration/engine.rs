@@ -1266,6 +1266,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
                 if_expr: None,
                 pos: None,
                 uses_instances: vec![],
+                reads_itself: false,
                 valid: None,
                 process: None,
                 enum_ref: None,
@@ -4894,4 +4895,229 @@ fn a_long_table_in_an_expression_is_accepted() {
     let yaml = format!("meta:\n  id: t\ninstances:\n  total:\n    value: '{table}.size'\n");
     let v = parse(&yaml, "t", b"");
     assert_eq!(get_field(&v, "total").as_int(), Some(5001));
+}
+
+// ── Gallery blockers, step 2 ─────────────────────────────────────────────
+
+#[test]
+fn index_is_the_position_of_the_element_in_the_expressions_of_its_field() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: lens
+            type: u1
+            repeat: expr
+            repeat-expr: 3
+          - id: items
+            size: lens[_index]
+            repeat: expr
+            repeat-expr: 3
+          - id: until
+            type: u1
+            repeat: until
+            repeat-until: _index >= 1
+          - id: after
+            type: u1
+    "};
+    let v = parse(yaml, "t", &[1, 2, 3, 9, 8, 8, 7, 7, 7, 5, 6, 4, 2]);
+    let Value::Array(items) = get_field(&v, "items") else {
+        panic!("not an array")
+    };
+    let sizes: Vec<usize> = items
+        .iter()
+        .map(|item| match item {
+            Value::Bytes(b) => b.len(),
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(sizes, [1, 2, 3]);
+    let Value::Array(until) = get_field(&v, "until") else {
+        panic!("not an array")
+    };
+    assert_eq!(until.len(), 2);
+    assert_eq!(*get_field(&v, "after"), Value::UInt(4));
+}
+
+#[test]
+fn index_is_an_argument_of_the_type_of_a_repeated_field() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: rows
+            type: row(_index)
+            repeat: expr
+            repeat-expr: 2
+        types:
+          row:
+            params:
+              - id: n
+                type: u4
+            seq:
+              - id: v
+                type: u1
+                valid:
+                  eq: n * 10
+    "};
+    parse(yaml, "t", &[0, 10]);
+    parse_err(yaml, "t", &[0, 11]);
+}
+
+#[test]
+fn a_list_of_byte_literals_is_a_byte_sequence() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: magic
+            size: 2
+        instances:
+          is_le:
+            value: magic == [0x49, 0x49]
+          first:
+            value: '[7, 8].first'
+          mixed_size:
+            value: '[1, 256].size'
+    "};
+    let v = parse(yaml, "t", b"II");
+    assert!(get_field(&v, "is_le").is_truthy());
+    assert_eq!(get_field(&v, "first").as_int(), Some(7));
+    assert_eq!(get_field(&v, "mixed_size").as_int(), Some(2));
+    assert!(!get_field(&parse(yaml, "t", b"MM"), "is_le").is_truthy());
+}
+
+#[test]
+fn as_names_a_type_and_leaves_the_value_alone() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: body
+            type:
+              switch-on: kind
+              cases:
+                1: one
+        instances:
+          v:
+            value: body.as<one>.v + 1
+          w:
+            value: body.as<t::one>.v + 2
+        types:
+          one:
+            seq:
+              - id: v
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[1, 5]);
+    assert_eq!(get_field(&v, "v").as_int(), Some(6));
+    assert_eq!(get_field(&v, "w").as_int(), Some(7));
+}
+
+#[test]
+fn sizes_of_types_and_fields() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: head
+            type: header
+          - id: names
+            type: strz
+            encoding: ASCII
+          - id: tail
+            type: u1
+        instances:
+          prim:
+            value: sizeof<s4> * 2 + sizeof<b12> + bitsizeof<u2>
+          header_size:
+            value: sizeof<header> + sizeof<t::header>
+          here:
+            value: head._sizeof + names._sizeof + tail._sizeof
+          root_head:
+            value: _root.head._sizeof
+        types:
+          header:
+            seq:
+              - id: a
+                type: u2
+              - id: b
+                size: 3
+            instances:
+              own:
+                value: _sizeof
+    "};
+    let v = parse(yaml, "t", &[1, 2, 1, 2, 3, b'h', b'i', 0, 9]);
+    // 8 + 2 + 16
+    assert_eq!(get_field(&v, "prim").as_int(), Some(26));
+    assert_eq!(get_field(&v, "header_size").as_int(), Some(10));
+    assert_eq!(get_field(&v, "here").as_int(), Some(9));
+    assert_eq!(get_field(&v, "root_head").as_int(), Some(5));
+    assert_eq!(get_field(get_field(&v, "head"), "own").as_int(), Some(5));
+}
+
+#[test]
+fn the_size_of_a_type_without_a_fixed_size_is_an_error() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        instances:
+          n:
+            value: sizeof<var>
+        types:
+          var:
+            seq:
+              - id: len
+                type: u1
+              - id: body
+                size: len
+    "};
+    parse_err(yaml, "t", &[]);
+}
+
+#[test]
+fn a_repeated_field_may_use_the_elements_read_so_far() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: groups
+            type: 'group(_index != 0 ? groups[_index - 1].total : 0)'
+            repeat: until
+            repeat-until: not _.more
+        types:
+          group:
+            params:
+              - id: before
+                type: u4
+            seq:
+              - id: byte
+                type: u1
+            instances:
+              more:
+                value: byte >= 0x80
+              total:
+                value: before + (byte & 0x7f)
+    "};
+    let v = parse(yaml, "t", &[0x81, 0x82, 0x03]);
+    let Value::Array(groups) = get_field(&v, "groups") else {
+        panic!("not an array")
+    };
+    assert_eq!(groups.len(), 3);
+    assert_eq!(get_field(&groups[2], "total").as_int(), Some(6));
+}
+
+#[test]
+fn a_field_that_is_not_repeated_cannot_use_itself() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            size: a
+    "};
+    let schema = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    assert!(compile_schema(&schema).is_err());
 }

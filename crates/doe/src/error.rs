@@ -69,16 +69,6 @@ pub enum DoeError {
         searched: Vec<PathBuf>,
     },
 
-    /// A schema's `imports:` list creates a dependency cycle.
-    ///
-    /// The `cycle` field contains the chain of schema ids leading back to the
-    /// repeated id, e.g. `["a", "b", "c", "a"]`.
-    #[error("import cycle detected: {cycle:?}")]
-    ImportCycle {
-        /// The import chain, with the repeated id at both ends.
-        cycle: Vec<String>,
-    },
-
     /// The same type name is defined in two separate schema files.
     #[error("duplicate type name '{name}' defined in {first} and {second}")]
     DuplicateType {
