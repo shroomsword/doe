@@ -25,11 +25,13 @@ use crate::value::Value;
 pub struct ParseContext {
     /// Numeric bindings visible to size, repeat, and `if` expressions.
     pub eval_ctx: EvalContext,
-    /// Stack of frames; each frame is a vec of (`field_id`, Value).
-    value_frames: Vec<Vec<(String, Value)>>,
-    /// Per scope, which instances are computed or being computed, and their
-    /// values until the end of the scope.
-    instance_frames: Vec<InstanceFrame>,
+    /// What is known of each scope, by the number of its frame in `eval_ctx`.
+    scopes: Vec<Scope>,
+    /// Instances that could not be computed where their type ended, and are
+    /// tried again once the whole input is read.
+    deferred: Vec<Deferred>,
+    /// The next number for the value that stands for an instance in `deferred`.
+    next_deferred: u64,
     /// The `parent:` of the field being read, until the sub-type it applies to
     /// is entered.
     pending_parent: Option<usize>,
@@ -37,6 +39,9 @@ pub struct ParseContext {
     reread_bytes: usize,
     /// The size of the input being parsed, which the `pos:` budget scales with.
     input_len: usize,
+    /// The size of the whole input that the parse started from, which tells
+    /// the cursors over it from those over other bytes (a `process:` result).
+    root_len: usize,
 }
 
 /// Where an instance is in being computed.
@@ -57,6 +62,32 @@ pub enum InstanceStart {
     Cycle,
 }
 
+/// What is known of one scope: a struct being parsed, or that was.
+#[derive(Debug, Default)]
+struct Scope {
+    /// The fields accumulated, as (`field_id`, Value).
+    values: Vec<(String, Value)>,
+    /// Which instances are computed or being computed, and their values until
+    /// the end of the scope.
+    instances: InstanceFrame,
+}
+
+/// An instance that is computed later; see [`ParseContext::defer`].
+#[derive(Debug, Clone)]
+pub struct Deferred {
+    /// The number of the frame of the scope the instance belongs to.
+    pub frame: usize,
+    /// The fully-qualified name of its type.
+    pub type_name: String,
+    /// Its position among the instances of the type.
+    pub instance: usize,
+    /// The number of the value that stands for it in the result.
+    pub id: u64,
+    /// The stream of the scope, and where its type ended: the start in the
+    /// whole input, the size and the position.
+    pub stream: (usize, usize, usize),
+}
+
 #[derive(Debug, Default)]
 struct InstanceFrame {
     states: std::collections::HashMap<String, InstanceState>,
@@ -64,6 +95,15 @@ struct InstanceFrame {
     /// The byte order of the type of the scope, once it is known.
     endian: Option<Endian>,
 }
+
+/// The name of the struct that stands, in the values of a parse, for an
+/// instance that is computed later.
+pub const DEFERRED_TYPE: &str = "$deferred";
+
+/// The start of the name of a field that holds a parameter of the type, which
+/// expressions read as a field of the struct (`color_mask_given.has_alpha_mask`)
+/// and the output leaves out.
+pub const PARAM_PREFIX: &str = "$param:";
 
 /// The most values one binding copies into the expression context; a larger
 /// array or sub-type is bound as [`ExprValue::Omitted`].
@@ -82,11 +122,13 @@ impl ParseContext {
     pub fn new() -> Self {
         ParseContext {
             eval_ctx: EvalContext::new(),
-            value_frames: vec![Vec::new()],
-            instance_frames: vec![InstanceFrame::default()],
+            scopes: vec![Scope::default()],
+            deferred: Vec::new(),
+            next_deferred: 0,
             pending_parent: None,
             reread_bytes: 0,
             input_len: 0,
+            root_len: 0,
         }
     }
 
@@ -94,6 +136,16 @@ impl ParseContext {
     /// (not that of a window a field is read in).
     pub fn set_input_len(&mut self, len: usize) {
         self.input_len = len;
+    }
+
+    /// Record the size of the whole input that a cursor was opened over.
+    pub fn set_root_len(&mut self, len: usize) {
+        self.root_len = len;
+    }
+
+    /// Whether `cursor` reads the input that the parse started from.
+    pub fn is_input(&self, cursor: &Cursor<'_>) -> bool {
+        cursor.root_len() == self.root_len
     }
 
     /// Account for `n` bytes read by a `pos:` field.
@@ -120,48 +172,61 @@ impl ParseContext {
 
     /// The number of scopes entered, including the root scope.
     pub fn depth(&self) -> usize {
-        self.value_frames.len()
+        self.eval_ctx.depth()
+    }
+
+    /// The scope being parsed.
+    fn scope_mut(&mut self) -> Option<&mut Scope> {
+        let current = self.eval_ctx.current_frame();
+        self.scopes.get_mut(current)
+    }
+
+    /// Start frame `id` as an empty scope.
+    fn start_scope(&mut self, id: usize) {
+        if self.scopes.len() <= id {
+            self.scopes.resize_with(id + 1, Scope::default);
+        }
+        if let Some(scope) = self.scopes.get_mut(id) {
+            *scope = Scope::default();
+        }
     }
 
     /// Record the byte order of the type of the current scope.
     pub fn set_endian(&mut self, endian: Endian) {
-        if let Some(frame) = self.instance_frames.last_mut() {
-            frame.endian = Some(endian);
+        if let Some(scope) = self.scope_mut() {
+            scope.instances.endian = Some(endian);
         }
     }
 
     /// The byte order of the type of the current scope, or `default` if it has
     /// not been recorded.
     pub fn endian(&self, default: Endian) -> Endian {
-        self.instance_frames
-            .last()
-            .and_then(|frame| frame.endian)
+        self.scopes
+            .get(self.eval_ctx.current_frame())
+            .and_then(|scope| scope.instances.endian)
             .unwrap_or(default)
     }
 
     /// The byte order of the type around the current scope, or `default`.
     pub fn parent_endian(&self, default: Endian) -> Endian {
-        self.instance_frames
-            .len()
-            .checked_sub(2)
-            .and_then(|below| self.instance_frames.get(below))
-            .and_then(|frame| frame.endian)
+        self.eval_ctx
+            .enclosing_frame(1)
+            .and_then(|below| self.scopes.get(below))
+            .and_then(|scope| scope.instances.endian)
             .unwrap_or(default)
     }
 
     /// Push a new scope (entering a sub-type).
     pub fn push_scope(&mut self) {
-        self.eval_ctx.push_frame();
-        self.value_frames.push(Vec::new());
-        self.instance_frames.push(InstanceFrame::default());
+        let id = self.eval_ctx.push_frame();
+        self.start_scope(id);
     }
 
     /// Push a new scope for a sub-type of a field with `parent: _parent`: its
     /// `_parent` is that of the current scope, `up` times over.
     pub fn push_scope_under(&mut self, up: usize) {
-        self.eval_ctx.push_frame_under(up);
-        self.value_frames.push(Vec::new());
-        self.instance_frames.push(InstanceFrame::default());
+        let id = self.eval_ctx.push_frame_under(up);
+        self.start_scope(id);
     }
 
     /// The `parent:` set for the sub-type being entered, which is used once.
@@ -178,9 +243,12 @@ impl ParseContext {
     /// Pop the current scope (returning from a sub-type).
     /// Returns the fields accumulated in the scope.
     pub fn pop_scope(&mut self) -> Vec<(String, Value)> {
+        let id = self.eval_ctx.current_frame();
         self.eval_ctx.pop_frame();
-        self.instance_frames.pop();
-        self.value_frames.pop().unwrap_or_default()
+        self.scopes
+            .get_mut(id)
+            .map(|scope| std::mem::take(&mut scope.values))
+            .unwrap_or_default()
     }
 
     /// Bind a parsed field value in the current scope.
@@ -189,11 +257,8 @@ impl ParseContext {
     /// expression evaluator so size/repeat/if expressions can reference it.
     pub fn bind(&mut self, id: &str, value: Value) {
         self.bind_eval(id, &value);
-        if self.value_frames.is_empty() {
-            self.value_frames.push(Vec::new());
-        }
-        if let Some(frame) = self.value_frames.last_mut() {
-            frame.push((id.to_owned(), value));
+        if let Some(scope) = self.scope_mut() {
+            scope.values.push((id.to_owned(), value));
         }
     }
 
@@ -214,9 +279,10 @@ impl ParseContext {
 
     /// Note that the instance `id` of the current type is about to be computed.
     pub fn begin_instance(&mut self, id: &str) -> InstanceStart {
-        let Some(frame) = self.instance_frames.last_mut() else {
+        let Some(scope) = self.scope_mut() else {
             return InstanceStart::Compute;
         };
+        let frame = &mut scope.instances;
         match frame.states.get(id) {
             Some(InstanceState::Done) => InstanceStart::Done,
             Some(InstanceState::InProgress) => InstanceStart::Cycle,
@@ -240,9 +306,12 @@ impl ParseContext {
         if let Some(v) = to_expr_value(inner, &mut budget) {
             self.eval_ctx.bind(id, v);
         }
-        if let Some(frame) = self.instance_frames.last_mut() {
-            frame.states.insert(id.to_owned(), InstanceState::Done);
-            frame.values.insert(id.to_owned(), value);
+        if let Some(scope) = self.scope_mut() {
+            scope
+                .instances
+                .states
+                .insert(id.to_owned(), InstanceState::Done);
+            scope.instances.values.insert(id.to_owned(), value);
         }
     }
 
@@ -258,7 +327,72 @@ impl ParseContext {
     /// Take the value of the instance `id` of the current type, if it has
     /// been computed.
     pub fn take_instance(&mut self, id: &str) -> Option<Value> {
-        self.instance_frames.last_mut()?.values.remove(id)
+        self.scope_mut()?.instances.values.remove(id)
+    }
+
+    /// Forget that the instance `id` of the current type was started, because
+    /// computing it failed, so that it can be tried again.
+    pub fn abandon_instance(&mut self, id: &str) {
+        if let Some(scope) = self.scope_mut() {
+            scope.instances.states.remove(id);
+        }
+    }
+
+    /// Whether the instance `id` of the current type has been computed.
+    pub fn instance_done(&self, id: &str) -> bool {
+        self.scopes
+            .get(self.eval_ctx.current_frame())
+            .is_some_and(|scope| scope.instances.states.get(id) == Some(&InstanceState::Done))
+    }
+
+    /// Put off the instance number `instance` of the type `type_name`, which
+    /// belongs to the current scope, until the whole input is read. Keeps the
+    /// scope and the ones around it. `stream` is where the type was read from:
+    /// the start in the whole input, the size and the position. Returns the
+    /// number of the value that stands for the instance in the result.
+    pub fn defer(
+        &mut self,
+        type_name: &str,
+        instance: usize,
+        stream: (usize, usize, usize),
+    ) -> u64 {
+        self.eval_ctx.retain_scope();
+        let id = self.next_deferred;
+        self.next_deferred += 1;
+        self.deferred.push(Deferred {
+            frame: self.eval_ctx.current_frame(),
+            type_name: type_name.to_owned(),
+            instance,
+            id,
+            stream,
+        });
+        id
+    }
+
+    /// How many instances are waiting.
+    pub fn deferred_len(&self) -> usize {
+        self.deferred.len()
+    }
+
+    /// Forget the instances that were put off after the first `len`.
+    pub fn truncate_deferred(&mut self, len: usize) {
+        self.deferred.truncate(len);
+    }
+
+    /// Whether any instance is waiting.
+    pub fn has_deferred(&self) -> bool {
+        !self.deferred.is_empty()
+    }
+
+    /// Take the instances that are waiting.
+    pub fn take_deferred(&mut self) -> Vec<Deferred> {
+        std::mem::take(&mut self.deferred)
+    }
+
+    /// Put instances back that are still waiting, before any added since.
+    pub fn put_back_deferred(&mut self, mut waiting: Vec<Deferred>) {
+        waiting.append(&mut self.deferred);
+        self.deferred = waiting;
     }
 
     /// The value of `value` in an expression, if it has one.
@@ -288,8 +422,9 @@ impl ParseContext {
 
     /// Look up the most recently bound value for `id` in the current scope.
     pub fn lookup(&self, id: &str) -> Option<&Value> {
-        self.value_frames
-            .last()?
+        self.scopes
+            .get(self.eval_ctx.current_frame())?
+            .values
             .iter()
             .rev()
             .find(|(k, _)| k == id)
@@ -299,7 +434,9 @@ impl ParseContext {
     /// Returns the fields accumulated in the current scope so far,
     /// without popping the scope.
     pub fn current_fields(&self) -> &[(String, Value)] {
-        self.value_frames.last().map_or(&[], Vec::as_slice)
+        self.scopes
+            .get(self.eval_ctx.current_frame())
+            .map_or(&[], |scope| scope.values.as_slice())
     }
 }
 
@@ -334,6 +471,13 @@ fn to_expr_value(value: &Value, budget: &mut usize) -> Option<ExprValue> {
                     .collect(),
             )
         }
+        Value::Struct { type_name, fields } if type_name == DEFERRED_TYPE => {
+            // An instance that is computed later; see `EvalContext::deferred_marker`.
+            match fields.first() {
+                Some((_, Value::UInt(id))) => EvalContext::deferred_marker(*id),
+                _ => return None,
+            }
+        }
         Value::Struct { fields, .. } => {
             if fields.len() > *budget {
                 return Some(too_large(fields.len()));
@@ -343,7 +487,9 @@ fn to_expr_value(value: &Value, budget: &mut usize) -> Option<ExprValue> {
                 fields
                     .iter()
                     .filter_map(|(name, field)| {
-                        to_expr_value(field, budget).map(|v| (name.clone(), v))
+                        // A parameter is a field to expressions.
+                        let name = name.strip_prefix(PARAM_PREFIX).unwrap_or(name);
+                        to_expr_value(field, budget).map(|v| (name.to_owned(), v))
                     })
                     .collect(),
             )

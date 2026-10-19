@@ -264,6 +264,11 @@ impl<'buf> Cursor<'buf> {
         })
     }
 
+    /// The size of the whole input, whatever window this cursor is.
+    pub fn root_len(&self) -> usize {
+        self.root_len
+    }
+
     /// Offset of the first byte of this cursor's window in the whole input.
     pub fn window_start(&self) -> usize {
         self.base

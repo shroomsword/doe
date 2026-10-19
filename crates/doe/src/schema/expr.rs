@@ -1056,17 +1056,37 @@ impl From<&str> for ExprValue {
 
 /// A stack-based evaluation context.
 ///
-/// Each "frame" is a flat mapping of field name → value.
-/// `_parent` walks one frame up the stack.
+/// Each "frame" is a flat mapping of field name → value, with the frame that
+/// `_parent` means. The frames in use are a stack, and the last one is the
+/// current scope. A frame that is [retained](EvalContext::retain_scope) outlives
+/// its scope, so that something can be computed in it later.
 #[derive(Debug)]
 pub struct EvalContext {
-    /// Frames stored outer-to-inner; last element is current scope.
-    frames: Vec<std::collections::HashMap<String, ExprValue>>,
-    /// For each frame, the frame that `_parent` means when it is not the one
-    /// below (a type with `parent:`).
-    parents: Vec<Option<usize>>,
+    /// All the frames, by number; the stack and the retained frames are in it.
+    frames: Vec<Frame>,
+    /// The numbers of the frames in use, outermost first. Never empty.
+    stack: Vec<usize>,
+    /// Numbers of frames that can be used again.
+    free: Vec<usize>,
     /// What `_io` stands for, if an expression is being evaluated while parsing.
     io: Option<Io>,
+    /// The values of the instances that were computed after the struct they
+    /// belong to was bound, by their number (see [`EvalContext::deferred_marker`]).
+    resolved: std::collections::HashMap<u64, ExprValue>,
+}
+
+/// The name of the only field of the struct that stands for an instance that
+/// is computed later.
+const DEFERRED_FIELD: &str = "$deferred";
+
+/// One scope of an [`EvalContext`].
+#[derive(Debug, Default)]
+struct Frame {
+    vars: std::collections::HashMap<String, ExprValue>,
+    /// The frame `_parent` means; `None` for the root.
+    parent: Option<usize>,
+    /// Whether the frame stays when its scope is left.
+    keep: bool,
 }
 
 /// The stream the expression being evaluated is in.
@@ -1082,9 +1102,38 @@ impl EvalContext {
     /// Create a context with one empty (root) frame.
     pub fn new() -> Self {
         EvalContext {
-            frames: vec![std::collections::HashMap::new()],
-            parents: vec![None],
+            frames: vec![Frame::default()],
+            stack: vec![0],
+            free: Vec::new(),
             io: None,
+            resolved: std::collections::HashMap::new(),
+        }
+    }
+
+    /// The value that stands, in the struct it belongs to, for the instance
+    /// number `id`, which is computed later.
+    pub fn deferred_marker(id: u64) -> ExprValue {
+        ExprValue::Struct(vec![(
+            DEFERRED_FIELD.to_owned(),
+            ExprValue::Int(i128::from(id)),
+        )])
+    }
+
+    /// Say what the instance number `id` turned out to be.
+    pub fn resolve_deferred(&mut self, id: u64, value: ExprValue) {
+        self.resolved.insert(id, value);
+    }
+
+    /// `value`, or the instance it stands for if it is the marker of one.
+    fn settle(&self, value: ExprValue, src: &str) -> Result<ExprValue> {
+        match deferred_id(&value) {
+            Some(id) => self.resolved.get(&id).cloned().ok_or_else(|| {
+                fail(
+                    src,
+                    "an instance that is computed later is not computed yet",
+                )
+            }),
+            None => Ok(value),
         }
     }
 
@@ -1105,55 +1154,133 @@ impl EvalContext {
         });
     }
 
-    /// Enter a new, empty scope.
-    pub fn push_frame(&mut self) {
-        self.frames.push(std::collections::HashMap::new());
-        self.parents.push(None);
+    /// The number of the current frame.
+    pub fn current_frame(&self) -> usize {
+        self.stack.last().copied().unwrap_or(0)
+    }
+
+    /// The number of the frame `levels` below the current one on the stack.
+    pub fn enclosing_frame(&self, levels: usize) -> Option<usize> {
+        let at = self.stack.len().checked_sub(1)?.checked_sub(levels)?;
+        self.stack.get(at).copied()
+    }
+
+    /// How many scopes are entered, the root included.
+    pub fn depth(&self) -> usize {
+        self.stack.len()
+    }
+
+    /// Enter a new, empty scope, and return its number.
+    pub fn push_frame(&mut self) -> usize {
+        let parent = self.current_frame();
+        self.enter_new(Some(parent))
     }
 
     /// Enter a new scope whose `_parent` is not the scope it is entered from but
     /// the `_parent` of that, `up` times over (`parent: _parent` of a field).
-    pub fn push_frame_under(&mut self, up: usize) {
-        let mut target = self.frames.len().checked_sub(1);
+    pub fn push_frame_under(&mut self, up: usize) -> usize {
+        let mut target = Some(self.current_frame());
         for _ in 0..up {
             target = target.and_then(|frame| self.parent_of(frame));
         }
-        self.frames.push(std::collections::HashMap::new());
-        self.parents.push(target);
+        self.enter_new(target)
+    }
+
+    fn enter_new(&mut self, parent: Option<usize>) -> usize {
+        let id = if let Some(id) = self.free.pop() {
+            if let Some(frame) = self.frames.get_mut(id) {
+                *frame = Frame {
+                    parent,
+                    ..Frame::default()
+                };
+            }
+            id
+        } else {
+            self.frames.push(Frame {
+                parent,
+                ..Frame::default()
+            });
+            self.frames.len() - 1
+        };
+        self.stack.push(id);
+        id
     }
 
     /// The frame `_parent` means in frame `frame`.
     fn parent_of(&self, frame: usize) -> Option<usize> {
-        self.parents
-            .get(frame)
-            .copied()
-            .flatten()
-            .or_else(|| frame.checked_sub(1))
+        self.frames.get(frame).and_then(|f| f.parent)
     }
 
-    /// Leave the innermost scope. The root scope is never popped.
+    /// Leave the innermost scope. The root scope is never popped. The frame is
+    /// forgotten, unless it was retained.
     pub fn pop_frame(&mut self) {
-        if self.frames.len() > 1 {
-            self.frames.pop();
-            self.parents.pop();
+        if self.stack.len() > 1
+            && let Some(id) = self.stack.pop()
+            && let Some(frame) = self.frames.get_mut(id)
+            && !frame.keep
+        {
+            frame.vars = std::collections::HashMap::new();
+            self.free.push(id);
         }
+    }
+
+    /// Keep the current frame, and the ones its `_parent`s lead to, when their
+    /// scopes are left, so that they can be [entered](EvalContext::enter_frame)
+    /// again.
+    pub fn retain_scope(&mut self) {
+        let mut at = Some(self.current_frame());
+        while let Some(id) = at {
+            let Some(frame) = self.frames.get_mut(id) else {
+                break;
+            };
+            frame.keep = true;
+            at = frame.parent;
+        }
+    }
+
+    /// Make frame `id` the current scope, with the frames its `_parent`s lead
+    /// to around it, in place of the scopes entered now. Returns what to give to
+    /// [`EvalContext::restore_frames`].
+    pub fn enter_frame(&mut self, id: usize) -> Vec<usize> {
+        let mut chain = Vec::new();
+        let mut at = Some(id);
+        while let Some(frame) = at {
+            chain.push(frame);
+            at = self.parent_of(frame);
+        }
+        chain.reverse();
+        if chain.first() != Some(&0) {
+            chain.insert(0, 0);
+        }
+        std::mem::replace(&mut self.stack, chain)
+    }
+
+    /// Go back to the scopes that were entered before [`EvalContext::enter_frame`].
+    pub fn restore_frames(&mut self, stack: Vec<usize>) {
+        self.stack = stack;
     }
 
     /// Bind `name` → `value` in the current (innermost) frame.
     pub fn bind(&mut self, name: &str, value: impl Into<ExprValue>) {
-        if self.frames.is_empty() {
-            self.frames.push(std::collections::HashMap::new());
+        let current = self.current_frame();
+        if let Some(frame) = self.frames.get_mut(current) {
+            frame.vars.insert(name.to_owned(), value.into());
         }
-        if let Some(frame) = self.frames.last_mut() {
-            frame.insert(name.to_owned(), value.into());
-        }
+    }
+
+    /// The value bound to `name` in the current frame, if any.
+    pub fn get(&self, name: &str) -> Option<&ExprValue> {
+        self.frames.get(self.current_frame())?.vars.get(name)
     }
 
     /// Remove `name` and every `name.field` binding from the current frame.
     pub fn unbind_prefix(&mut self, name: &str) {
         let dotted = format!("{name}.");
-        if let Some(frame) = self.frames.last_mut() {
-            frame.retain(|k, _| k != name && !k.starts_with(&dotted));
+        let current = self.current_frame();
+        if let Some(frame) = self.frames.get_mut(current) {
+            frame
+                .vars
+                .retain(|k, _| k != name && !k.starts_with(&dotted));
         }
     }
 
@@ -1180,15 +1307,11 @@ impl EvalContext {
                 ("size".to_owned(), length(io.size)),
                 ("eof".to_owned(), ExprValue::Bool(io.eof)),
             ]);
-            return apply_members(Cow::Owned(stream), tail, src);
+            return apply_members(Cow::Owned(stream), tail, &self.resolved, src);
         }
 
         // Start at the innermost frame, or at the outermost for `_root`.
-        let mut frame_idx = self
-            .frames
-            .len()
-            .checked_sub(1)
-            .ok_or_else(|| fail(src, "no scope available"))?;
+        let mut frame_idx = self.current_frame();
         if let Some((first, tail)) = rest.split_first()
             && first == "_root"
         {
@@ -1222,8 +1345,8 @@ impl EvalContext {
             let (Some(head), Some(members)) = (rest.get(..split), rest.get(split..)) else {
                 continue;
             };
-            if let Some(value) = frame.get(head.join(".").as_str()) {
-                return apply_members(Cow::Borrowed(value), members, src);
+            if let Some(value) = frame.vars.get(head.join(".").as_str()) {
+                return apply_members(Cow::Borrowed(value), members, &self.resolved, src);
             }
         }
         Err(fail(src, &format!("unknown field '{}'", parts.join("."))))
@@ -1236,9 +1359,11 @@ impl EvalContext {
 fn apply_members<'a>(
     mut value: Cow<'a, ExprValue>,
     members: &[String],
+    resolved: &'a std::collections::HashMap<u64, ExprValue>,
     src: &str,
 ) -> Result<Cow<'a, ExprValue>> {
     for member in members {
+        value = settled(value, resolved, src)?;
         value = match value {
             Cow::Borrowed(ExprValue::Struct(fields)) => Cow::Borrowed(
                 find_field(fields, member)
@@ -1254,7 +1379,36 @@ fn apply_members<'a>(
             other => Cow::Owned(call_method(&other, member, &[], src)?),
         };
     }
-    Ok(value)
+    settled(value, resolved, src)
+}
+
+/// The number of the instance that `value` stands for, if it is the marker of
+/// one that is computed later.
+fn deferred_id(value: &ExprValue) -> Option<u64> {
+    match value {
+        ExprValue::Struct(fields) => match fields.as_slice() {
+            [(name, ExprValue::Int(id))] if name == DEFERRED_FIELD => u64::try_from(*id).ok(),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// `value`, or the instance it stands for if it is the marker of one.
+fn settled<'a>(
+    value: Cow<'a, ExprValue>,
+    resolved: &'a std::collections::HashMap<u64, ExprValue>,
+    src: &str,
+) -> Result<Cow<'a, ExprValue>> {
+    match deferred_id(&value) {
+        Some(id) => resolved.get(&id).map(Cow::Borrowed).ok_or_else(|| {
+            fail(
+                src,
+                "an instance that is computed later is not computed yet",
+            )
+        }),
+        None => Ok(value),
+    }
 }
 
 fn find_field<'a>(fields: &'a [(String, ExprValue)], name: &str) -> Option<&'a ExprValue> {
@@ -1332,12 +1486,12 @@ pub fn eval(expr: &Expr, ctx: &EvalContext, src: &str) -> Result<ExprValue> {
                 values.push(ExprValue::Array(items));
             }
             Work::Member(name) => {
-                let recv = pop(&mut values, src)?;
+                let recv = ctx.settle(pop(&mut values, src)?, src)?;
                 values.push(call_method(&recv, name, &[], src)?);
             }
             Work::Call(name, n) => {
                 let args = values.split_off(values.len().saturating_sub(n));
-                let recv = pop(&mut values, src)?;
+                let recv = ctx.settle(pop(&mut values, src)?, src)?;
                 values.push(call_method(&recv, name, &args, src)?);
             }
             Work::Index => {
@@ -1352,7 +1506,7 @@ pub fn eval(expr: &Expr, ctx: &EvalContext, src: &str) -> Result<ExprValue> {
             }
         }
     }
-    pop(&mut values, src)
+    ctx.settle(pop(&mut values, src)?, src)
 }
 
 /// One step of [`eval`].
@@ -1803,6 +1957,20 @@ fn call_method(recv: &ExprValue, name: &str, args: &[ExprValue], src: &str) -> R
             float_to_int(*x)
                 .map(Int)
                 .ok_or_else(|| fail(src, &format!("to_i: {x} is not an integer in range")))
+        }
+        (Bytes(b), "to_s") => {
+            expect_args(name, args, &[1], src)?;
+            let [Str(encoding)] = args else {
+                return Err(fail(src, "to_s: the encoding is a string"));
+            };
+            let encoding = crate::schema::raw::RawEncoding::from_name(encoding)
+                .ok_or_else(|| fail(src, &format!("to_s: unknown encoding '{encoding}'")))?;
+            crate::parser::encoding::decode(
+                b,
+                crate::schema::compiler::compile_encoding(Some(encoding)),
+            )
+            .map(Str)
+            .map_err(|e| fail(src, &format!("to_s: {e}")))
         }
         (Bytes(b), "length" | "size") => {
             expect_args(name, args, &[0], src)?;

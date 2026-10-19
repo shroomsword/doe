@@ -6,9 +6,10 @@
 //! accumulated parse context, and building a `Value::Struct`.
 
 use std::cmp::Ordering;
+use std::collections::HashMap;
 
 use crate::error::{DoeError, Result};
-use crate::parser::context::{InstanceStart, ParseContext};
+use crate::parser::context::{DEFERRED_TYPE, Deferred, InstanceStart, PARAM_PREFIX, ParseContext};
 use crate::parser::cursor::{BitOrder, Cursor, MAX_TERMINATED_LEN};
 use crate::parser::encoding;
 use crate::parser::process::{self, MAX_PROCESSED_LEN};
@@ -98,6 +99,7 @@ impl<'reg> Engine<'reg> {
         }
         let mut ctx = ParseContext::new();
         ctx.set_input_len(cursor.len());
+        ctx.set_root_len(cursor.root_len());
         // `sizeof<type>` and `_sizeof`, which the compiler turned into names
         // of the root scope, are the sizes of the types that always have one.
         for (name, size) in &self.registry.static_sizes {
@@ -106,7 +108,94 @@ impl<'reg> Engine<'reg> {
                 ExprValue::Int(i128::from(*size)),
             );
         }
-        self.parse_compiled_type(ty, cursor, &mut ctx)
+        let value = self.parse_compiled_type(ty, cursor, &mut ctx)?;
+        if ctx.has_deferred() {
+            return self.settle_deferred(cursor, &mut ctx, value);
+        }
+        Ok(value)
+    }
+
+    // ── Instances that wait ───────────────────────────────────────────────────
+
+    /// Compute the instances that could not be computed where their type ended
+    /// (they use what is read later), now that the input is read, and put
+    /// them in their places in `value`.
+    ///
+    /// They are tried in rounds: one may need another that comes after it. If
+    /// a round computes none, the first error of the round is the result.
+    fn settle_deferred(
+        &self,
+        cursor: &Cursor<'_>,
+        ctx: &mut ParseContext,
+        mut value: Value,
+    ) -> Result<Value> {
+        let mut results: HashMap<u64, Value> = HashMap::new();
+        while ctx.has_deferred() {
+            let waiting = ctx.take_deferred();
+            let total = waiting.len();
+            let mut still = Vec::new();
+            let mut first_error = None;
+            for item in waiting {
+                let mark = ctx.deferred_len();
+                match self.compute_deferred(&item, cursor, ctx) {
+                    Ok(computed) => {
+                        // What was bound with the struct it belongs to can now
+                        // be told what it is.
+                        if let Some(settled) = ParseContext::expr_value(&computed) {
+                            ctx.eval_ctx.resolve_deferred(item.id, settled);
+                        }
+                        results.insert(item.id, computed);
+                    }
+                    Err(e) => {
+                        // What the failed attempt put off belongs to nothing.
+                        ctx.truncate_deferred(mark);
+                        first_error.get_or_insert(e);
+                        still.push(item);
+                    }
+                }
+            }
+            if still.len() == total {
+                // None could be computed, so none will be.
+                return Err(first_error.unwrap_or_else(|| {
+                    DoeError::Schema("an instance could not be computed".to_owned())
+                }));
+            }
+            ctx.put_back_deferred(still);
+        }
+        substitute_deferred(&mut value, &mut results);
+        Ok(value)
+    }
+
+    /// Compute one instance that waited, in the scope it belongs to.
+    fn compute_deferred(
+        &self,
+        item: &Deferred,
+        cursor: &Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
+        let ty = self
+            .registry
+            .get(&item.type_name)
+            .ok_or_else(|| DoeError::UnknownType {
+                type_name: item.type_name.clone(),
+                context: "<engine>".to_owned(),
+            })?;
+        let instance = ty.instances.get(item.instance).ok_or_else(|| {
+            DoeError::Schema(format!("{} has no instance {}", ty.name, item.instance))
+        })?;
+        let saved = ctx.eval_ctx.enter_frame(item.frame);
+        let (start, size, end) = item.stream;
+        let outcome = cursor.stream(start, size).and_then(|mut own| {
+            own.seek(end)?;
+            self.ensure_instance(ty, instance, &mut own, ctx)?;
+            Ok(ctx.take_instance(&instance.id))
+        });
+        ctx.eval_ctx.restore_frames(saved);
+        outcome?.ok_or_else(|| DoeError::FieldError {
+            field: instance.id.clone(),
+            context: ty.name.clone(),
+            message: "the instance was not computed".to_owned(),
+        })
     }
 
     // ── Internal recursion ────────────────────────────────────────────────────
@@ -144,6 +233,14 @@ impl<'reg> Engine<'reg> {
 
         if !ty.instances.is_empty() {
             self.finish_instances(ty, cursor, ctx, &mut fields)?;
+        }
+        if !ty.params.is_empty() {
+            // The parameters, which expressions can read as fields of the value.
+            for param in &ty.params {
+                if let Some(value) = ctx.eval_ctx.get(&param.id).and_then(|v| to_value(v).ok()) {
+                    fields.push((format!("{PARAM_PREFIX}{}", param.id), value));
+                }
+            }
         }
         if self.registry.uses_io {
             // The stream the value was parsed from, for `some_field._io`.
@@ -210,11 +307,26 @@ impl<'reg> Engine<'reg> {
         ctx: &mut ParseContext,
         fields: &mut Vec<(String, Value)>,
     ) -> Result<()> {
-        for instance in &ty.instances {
-            self.ensure_instance(ty, instance, cursor, ctx)?;
+        let mut waiting: HashMap<usize, u64> = HashMap::new();
+        for (index, instance) in ty.instances.iter().enumerate() {
+            let mark = ctx.deferred_len();
+            if let Err(e) = self.ensure_instance(ty, instance, cursor, ctx) {
+                // One that uses what is read later is computed once everything
+                // is, when the input it is in is the one being parsed.
+                if !ctx.is_input(cursor) {
+                    return Err(e);
+                }
+                ctx.truncate_deferred(mark);
+                let stream = (cursor.window_start(), cursor.len(), cursor.pos());
+                waiting.insert(index, ctx.defer(&ty.name, index, stream));
+            }
         }
-        for instance in &ty.instances {
-            if let Some(value) = ctx.take_instance(&instance.id)
+        for (index, instance) in ty.instances.iter().enumerate() {
+            if let Some(&id) = waiting.get(&index) {
+                if self.instances {
+                    fields.push((instance.id.clone(), deferred_placeholder(id)));
+                }
+            } else if let Some(value) = ctx.take_instance(&instance.id)
                 && self.instances
             {
                 fields.push((instance.id.clone(), value));
@@ -806,7 +918,13 @@ impl<'reg> Engine<'reg> {
         let mark = cursor.mark();
         let computed = self.compute_instance(ty, instance, cursor, ctx);
         cursor.reset(mark);
-        let (value, offset) = computed?;
+        let (value, offset) = match computed {
+            Ok(done) => done,
+            Err(e) => {
+                ctx.abandon_instance(&instance.id);
+                return Err(e);
+            }
+        };
         ctx.finish_instance(
             &instance.id,
             Value::Instance {
@@ -1152,6 +1270,47 @@ impl<'reg> Engine<'reg> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// The value that stands for the instance number `id` that is computed later.
+fn deferred_placeholder(id: u64) -> Value {
+    Value::Struct {
+        type_name: DEFERRED_TYPE.to_owned(),
+        fields: vec![("id".to_owned(), Value::UInt(id))],
+    }
+}
+
+/// The number of the instance that `value` stands for, if it stands for one.
+fn placeholder_id(value: &Value) -> Option<u64> {
+    match value {
+        Value::Struct { type_name, fields } if type_name == DEFERRED_TYPE => match fields.first() {
+            Some((_, Value::UInt(id))) => Some(*id),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Put the instances that were computed later in the places that stand for
+/// them in `value`.
+fn substitute_deferred(value: &mut Value, results: &mut HashMap<u64, Value>) {
+    match value {
+        Value::Struct { fields, .. } => {
+            for (_, field) in fields.iter_mut() {
+                if let Some(id) = placeholder_id(field) {
+                    *field = results.remove(&id).unwrap_or(Value::Absent);
+                }
+                substitute_deferred(field, results);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                substitute_deferred(item, results);
+            }
+        }
+        Value::Instance { value, .. } => substitute_deferred(value, results),
+        _ => {}
+    }
+}
 
 /// The name of the field that records the stream a value was parsed from.
 pub const STREAM_FIELD: &str = "_io";

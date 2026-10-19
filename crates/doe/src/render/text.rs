@@ -18,6 +18,7 @@
 //!       ...
 //! ```
 
+use crate::parser::context::PARAM_PREFIX;
 use crate::parser::engine::STREAM_FIELD;
 use crate::value::Value;
 
@@ -74,7 +75,10 @@ fn write_value(out: &mut String, value: &Value, depth: usize, indent: &str, labe
             }
             for (field_id, field_val) in fields {
                 // Skip absent fields entirely — no output for them
-                if field_val.is_absent() || field_id == STREAM_FIELD {
+                if field_val.is_absent()
+                    || field_id == STREAM_FIELD
+                    || field_id.starts_with(PARAM_PREFIX)
+                {
                     continue;
                 }
                 // An instance read from somewhere shows where.

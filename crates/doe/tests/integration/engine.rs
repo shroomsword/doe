@@ -5326,3 +5326,163 @@ fn parent_other_than_parent_is_not_supported() {
     let schema = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
     assert!(compile_schema(&schema).is_err());
 }
+
+// ── Instances that are computed later (#72) ──────────────────────────────
+
+#[test]
+fn an_instance_that_uses_what_its_parent_reads_later_is_computed_after() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: flags
+            type: flags
+          - id: method
+            type: u1
+        types:
+          flags:
+            seq:
+              - id: raw
+                type: u1
+            instances:
+              deflated:
+                value: raw == 1 and _parent.method == 8
+              plain:
+                value: raw + 1
+    "};
+    let v = parse(yaml, "t", &[1, 8]);
+    let flags = get_field(&v, "flags");
+    assert!(get_field(flags, "deflated").is_truthy());
+    // The order of the instances is the one of the schema.
+    let Value::Struct { fields, .. } = flags else {
+        panic!("not a struct")
+    };
+    let names: Vec<&str> = fields.iter().map(|(name, _)| name.as_str()).collect();
+    assert_eq!(names, ["raw", "deflated", "plain"]);
+    assert!(
+        !get_field(&parse(yaml, "t", &[1, 9]), "flags")
+            .clone()
+            .eq(&Value::Absent)
+    );
+}
+
+#[test]
+fn an_instance_may_use_an_instance_that_is_computed_later_too() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: header
+            type: header
+          - id: item
+            type: item
+        types:
+          header:
+            seq:
+              - id: n
+                type: u1
+            instances:
+              late:
+                value: _root.header.n * 10
+          item:
+            seq:
+              - id: x
+                type: u1
+            instances:
+              uses_late:
+                value: _root.header.late + x
+    "};
+    let v = parse(yaml, "t", &[3, 4]);
+    assert_eq!(
+        get_field(get_field(&v, "header"), "late").as_int(),
+        Some(30)
+    );
+    assert_eq!(
+        get_field(get_field(&v, "item"), "uses_late").as_int(),
+        Some(34)
+    );
+}
+
+#[test]
+fn an_instance_that_can_never_be_computed_fails_the_parse_with_its_own_error() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            type: u1
+        instances:
+          bad:
+            value: _root.nope + 1
+    "};
+    let err = parse_err(yaml, "t", &[1]).to_string();
+    assert!(err.contains("bad") && err.contains("nope"), "{err}");
+}
+
+#[test]
+fn instances_that_need_each_other_are_an_error() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            type: u1
+        instances:
+          x:
+            value: y + 1
+          y:
+            value: x + 1
+    "};
+    let err = parse_err(yaml, "t", &[1]).to_string();
+    assert!(err.contains("depends on itself"), "{err}");
+}
+
+#[test]
+fn the_parameters_of_a_type_are_fields_to_expressions() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: m
+            type: mask(true)
+        instances:
+          has: 
+            value: m.has_alpha
+          alpha_or_zero:
+            value: 'm.has_alpha ? m.alpha : 0'
+        types:
+          mask:
+            params:
+              - id: has_alpha
+                type: bool
+            seq:
+              - id: alpha
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[5]);
+    assert!(get_field(&v, "has").is_truthy());
+    assert_eq!(get_field(&v, "alpha_or_zero").as_int(), Some(5));
+    // The output does not show the parameter.
+    let json = doe::render::json::to_json(&v).to_string();
+    assert!(!json.contains("has_alpha"), "{json}");
+}
+
+#[test]
+fn bytes_to_s_decodes_with_an_encoding() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: tag
+            size: 4
+        instances:
+          text:
+            value: tag.to_s('ASCII')
+          wide:
+            value: 'tag.to_s(\"UTF-16LE\")'
+    "};
+    let v = parse(yaml, "t", b"IH\0\0");
+    assert!(matches!(get_field(&v, "text"),
+        Value::Instance { value, .. } if **value == Value::Str("IH\0\0".into())));
+    parse_err(&yaml.replace("'ASCII'", "'NOPE'"), "t", b"IHDR");
+}

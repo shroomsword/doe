@@ -1137,8 +1137,8 @@ fn field_paths(exprs: Vec<&expr::Expr>) -> Vec<&Vec<String>> {
 }
 
 /// The size in bytes of `name` if it is always the same: made of fields of a
-/// fixed size that are neither optional, repeated, placed with `pos`, nor
-/// bit fields. Cached in `known`.
+/// fixed size that are neither optional (unless empty), repeated, placed with
+/// `pos`, nor bit fields. Cached in `known`.
 fn static_size(
     registry: &TypeRegistry,
     name: &str,
@@ -1156,10 +1156,7 @@ fn static_size(
     let ty = registry.get(name)?;
     let mut total: u64 = 0;
     for field in &ty.fields {
-        if !matches!(field.repeat, RepeatMode::Once)
-            || field.if_expr.is_some()
-            || field.pos.is_some()
-        {
+        if !matches!(field.repeat, RepeatMode::Once) || field.pos.is_some() {
             return None;
         }
         let size = match &field.kind {
@@ -1192,6 +1189,12 @@ fn static_size(
             } => static_size(registry, type_name, known, depth + 1)?,
             _ => return None,
         };
+        // An optional field has no fixed size, unless it takes no bytes anyway
+        // (`- size: 0` with an `if`, which some definitions use to make
+        // something be computed first).
+        if field.if_expr.is_some() && size != 0 {
+            return None;
+        }
         total = total.checked_add(size)?;
     }
     known.insert(name.to_owned(), Some(total));
@@ -1286,7 +1289,7 @@ fn raw_endian_to_ir(e: RawEndian) -> Endian {
     }
 }
 
-fn compile_encoding(enc: Option<RawEncoding>) -> Encoding {
+pub(crate) fn compile_encoding(enc: Option<RawEncoding>) -> Encoding {
     match enc.unwrap_or(RawEncoding::Utf8) {
         RawEncoding::Utf8 => Encoding::Utf8,
         RawEncoding::Ascii => Encoding::Ascii,
