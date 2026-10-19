@@ -1205,3 +1205,20 @@ fn as_and_sizeof_parse() {
         assert!(parse_err(bad), "{bad}");
     }
 }
+
+#[test]
+fn the_deepest_legal_nesting_fits_in_a_small_stack() {
+    // Parsing recurses per level of nesting; this keeps the stack a level
+    // uses small, so that it works on threads with the smallest stacks of the
+    // platforms CI runs on (Windows threads, and debug builds).
+    let nested = format!(
+        "{}1{}",
+        "(".repeat(MAX_EXPR_DEPTH),
+        ")".repeat(MAX_EXPR_DEPTH)
+    );
+    let handle = std::thread::Builder::new()
+        .stack_size(1536 * 1024)
+        .spawn(move || parse(&nested).is_ok())
+        .unwrap();
+    assert!(handle.join().unwrap());
+}

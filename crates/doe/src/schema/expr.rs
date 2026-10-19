@@ -550,6 +550,9 @@ impl<'a> Lexer<'a> {
 // Parser
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// The precedence of the comparisons, which do not chain.
+const COMPARISON: u8 = 3;
+
 struct Parser<'a> {
     lexer: Lexer<'a>,
     current: Token,
@@ -612,7 +615,7 @@ impl<'a> Parser<'a> {
     // ── Grammar rules ─────────────────────────────────────────────────────
 
     fn parse_expr(&mut self) -> Result<Expr> {
-        let cond = self.parse_or()?;
+        let cond = self.parse_binary(1)?;
         if self.current != Token::Question {
             return Ok(cond);
         }
@@ -632,113 +635,44 @@ impl<'a> Parser<'a> {
         ))
     }
 
-    fn parse_or(&mut self) -> Result<Expr> {
-        let mut lhs = self.parse_and()?;
-        while self.current == Token::PipePipe {
-            self.bump();
-            let rhs = self.parse_and()?;
-            lhs = Expr::Binary(BinaryOp::Or, Box::new(lhs), Box::new(rhs));
-        }
-        Ok(lhs)
+    /// The binary operators by precedence, from `||` (the loosest) to `*`.
+    /// Each is left-associative, except the comparisons, which do not chain.
+    fn binary_op(token: &Token) -> Option<(u8, BinaryOp)> {
+        Some(match token {
+            Token::PipePipe => (1, BinaryOp::Or),
+            Token::AmpAmp => (2, BinaryOp::And),
+            Token::EqEq => (3, BinaryOp::Eq),
+            Token::BangEq => (3, BinaryOp::Ne),
+            Token::Lt => (3, BinaryOp::Lt),
+            Token::Gt => (3, BinaryOp::Gt),
+            Token::Le => (3, BinaryOp::Le),
+            Token::Ge => (3, BinaryOp::Ge),
+            Token::Pipe => (4, BinaryOp::BitOr),
+            Token::Caret => (5, BinaryOp::BitXor),
+            Token::Amp => (6, BinaryOp::BitAnd),
+            Token::Shl => (7, BinaryOp::Shl),
+            Token::Shr => (7, BinaryOp::Shr),
+            Token::Plus => (8, BinaryOp::Add),
+            Token::Minus => (8, BinaryOp::Sub),
+            Token::Star => (9, BinaryOp::Mul),
+            Token::Slash => (9, BinaryOp::Div),
+            Token::Percent => (9, BinaryOp::Rem),
+            _ => return None,
+        })
     }
 
-    fn parse_and(&mut self) -> Result<Expr> {
-        let mut lhs = self.parse_cmp()?;
-        while self.current == Token::AmpAmp {
-            self.bump();
-            let rhs = self.parse_cmp()?;
-            lhs = Expr::Binary(BinaryOp::And, Box::new(lhs), Box::new(rhs));
-        }
-        Ok(lhs)
-    }
-
-    fn parse_cmp(&mut self) -> Result<Expr> {
-        let lhs = self.parse_bitor()?;
-        let op = match self.current {
-            Token::EqEq => BinaryOp::Eq,
-            Token::BangEq => BinaryOp::Ne,
-            Token::Lt => BinaryOp::Lt,
-            Token::Gt => BinaryOp::Gt,
-            Token::Le => BinaryOp::Le,
-            Token::Ge => BinaryOp::Ge,
-            _ => return Ok(lhs),
-        };
-        self.bump();
-        let rhs = self.parse_bitor()?;
-        Ok(Expr::Binary(op, Box::new(lhs), Box::new(rhs)))
-    }
-
-    fn parse_bitor(&mut self) -> Result<Expr> {
-        let mut lhs = self.parse_bitxor()?;
-        while self.current == Token::Pipe {
-            self.bump();
-            let rhs = self.parse_bitxor()?;
-            lhs = Expr::Binary(BinaryOp::BitOr, Box::new(lhs), Box::new(rhs));
-        }
-        Ok(lhs)
-    }
-
-    fn parse_bitxor(&mut self) -> Result<Expr> {
-        let mut lhs = self.parse_bitand()?;
-        while self.current == Token::Caret {
-            self.bump();
-            let rhs = self.parse_bitand()?;
-            lhs = Expr::Binary(BinaryOp::BitXor, Box::new(lhs), Box::new(rhs));
-        }
-        Ok(lhs)
-    }
-
-    fn parse_bitand(&mut self) -> Result<Expr> {
-        let mut lhs = self.parse_shift()?;
-        while self.current == Token::Amp {
-            self.bump();
-            let rhs = self.parse_shift()?;
-            lhs = Expr::Binary(BinaryOp::BitAnd, Box::new(lhs), Box::new(rhs));
-        }
-        Ok(lhs)
-    }
-
-    fn parse_shift(&mut self) -> Result<Expr> {
-        let mut lhs = self.parse_add()?;
-        loop {
-            let op = match self.current {
-                Token::Shl => BinaryOp::Shl,
-                Token::Shr => BinaryOp::Shr,
-                _ => break,
-            };
-            self.bump();
-            let rhs = self.parse_add()?;
-            lhs = Expr::Binary(op, Box::new(lhs), Box::new(rhs));
-        }
-        Ok(lhs)
-    }
-
-    fn parse_add(&mut self) -> Result<Expr> {
-        let mut lhs = self.parse_mul()?;
-        loop {
-            let op = match self.current {
-                Token::Plus => BinaryOp::Add,
-                Token::Minus => BinaryOp::Sub,
-                _ => break,
-            };
-            self.bump();
-            let rhs = self.parse_mul()?;
-            lhs = Expr::Binary(op, Box::new(lhs), Box::new(rhs));
-        }
-        Ok(lhs)
-    }
-
-    fn parse_mul(&mut self) -> Result<Expr> {
+    /// Operators of at least precedence `min`. One function for all the
+    /// levels, so that a level of nesting costs few stack frames.
+    fn parse_binary(&mut self, min: u8) -> Result<Expr> {
         let mut lhs = self.parse_unary()?;
-        loop {
-            let op = match self.current {
-                Token::Star => BinaryOp::Mul,
-                Token::Slash => BinaryOp::Div,
-                Token::Percent => BinaryOp::Rem,
-                _ => break,
-            };
+        let mut compared = false;
+        while let Some((prec, op)) = Self::binary_op(&self.current) {
+            if prec < min || (prec == COMPARISON && compared) {
+                break;
+            }
+            compared = prec == COMPARISON;
             self.bump();
-            let rhs = self.parse_unary()?;
+            let rhs = self.parse_binary(prec + 1)?;
             lhs = Expr::Binary(op, Box::new(lhs), Box::new(rhs));
         }
         Ok(lhs)
@@ -873,6 +807,37 @@ impl<'a> Parser<'a> {
         Ok(args)
     }
 
+    /// A name: an enum member (`a::b`), `sizeof<type>`, a boolean or a field.
+    /// Kept out of [`Parser::parse_primary`], which a level of nesting passes
+    /// through, to keep its stack frame small.
+    #[inline(never)]
+    fn parse_name(&mut self, name: String) -> Result<Expr> {
+        self.bump();
+        if self.current == Token::ColonColon {
+            let mut path = vec![name];
+            while self.current == Token::ColonColon {
+                self.bump();
+                let Token::Ident(part) = self.current.clone() else {
+                    return Err(self.err("expected a name after '::'"));
+                };
+                self.bump();
+                path.push(part);
+            }
+            return Ok(Expr::Enum(path));
+        }
+        if matches!(name.as_str(), "sizeof" | "bitsizeof") && self.current == Token::Lt {
+            // `sizeof<type>`: a marker the schema compiler replaces
+            // with the size, so it is a name that no field can have.
+            let ty = self.parse_type_arg()?;
+            return Ok(Expr::Field(vec![format!("{name}<{ty}>")]));
+        }
+        Ok(match name.as_str() {
+            "true" => Expr::Bool(true),
+            "false" => Expr::Bool(false),
+            _ => Expr::Field(vec![name]),
+        })
+    }
+
     fn parse_primary(&mut self) -> Result<Expr> {
         match self.current.clone() {
             Token::Int(n) => {
@@ -887,32 +852,7 @@ impl<'a> Parser<'a> {
                 self.bump();
                 Ok(Expr::Str(text))
             }
-            Token::Ident(name) => {
-                self.bump();
-                if self.current == Token::ColonColon {
-                    let mut path = vec![name];
-                    while self.current == Token::ColonColon {
-                        self.bump();
-                        let Token::Ident(part) = self.current.clone() else {
-                            return Err(self.err("expected a name after '::'"));
-                        };
-                        self.bump();
-                        path.push(part);
-                    }
-                    return Ok(Expr::Enum(path));
-                }
-                if matches!(name.as_str(), "sizeof" | "bitsizeof") && self.current == Token::Lt {
-                    // `sizeof<type>`: a marker the schema compiler replaces
-                    // with the size, so it is a name that no field can have.
-                    let ty = self.parse_type_arg()?;
-                    return Ok(Expr::Field(vec![format!("{name}<{ty}>")]));
-                }
-                Ok(match name.as_str() {
-                    "true" => Expr::Bool(true),
-                    "false" => Expr::Bool(false),
-                    _ => Expr::Field(vec![name]),
-                })
-            }
+            Token::Ident(name) => self.parse_name(name),
             Token::LBracket => Ok(Expr::Array(self.parse_args(&Token::RBracket)?)),
             Token::LParen => {
                 self.bump();
