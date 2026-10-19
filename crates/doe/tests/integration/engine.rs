@@ -1267,6 +1267,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
                 pos: None,
                 uses_instances: vec![],
                 reads_itself: false,
+                parent_up: None,
                 valid: None,
                 process: None,
                 enum_ref: None,
@@ -5117,6 +5118,210 @@ fn a_field_that_is_not_repeated_cannot_use_itself() {
         seq:
           - id: a
             size: a
+    "};
+    let schema = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+    assert!(compile_schema(&schema).is_err());
+}
+
+// ── Gallery blockers, step 3: io ─────────────────────────────────────────
+
+#[test]
+fn an_instance_reads_from_the_root_stream_or_that_of_the_enclosing_type() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: n
+            type: u1
+          - id: body
+            type: inner
+            size: 3
+        types:
+          inner:
+            seq:
+              - id: x
+                type: u1
+            instances:
+              from_root:
+                io: _root._io
+                pos: 0
+                type: u1
+              from_parent:
+                io: _parent._io
+                pos: 4
+                type: u1
+              from_here:
+                pos: 1
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[7, 1, 2, 3, 9]);
+    let body = get_field(&v, "body");
+    assert_eq!(get_field(body, "x").as_int(), Some(1));
+    assert_eq!(get_field(body, "from_root").as_int(), Some(7));
+    assert_eq!(get_field(body, "from_parent").as_int(), Some(9));
+    // Relative to the window of `body`: the second byte of it.
+    assert_eq!(get_field(body, "from_here").as_int(), Some(2));
+}
+
+#[test]
+fn an_instance_reads_from_the_stream_a_value_was_parsed_from() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: len
+            type: u1
+          - id: slot
+            type: slot
+            size: len
+          - id: after
+            type: u1
+        instances:
+          again:
+            io: slot._io
+            pos: 1
+            type: u1
+            size-eos: false
+          rest:
+            io: slot._io
+            pos: 1
+            size-eos: true
+        types:
+          slot: {}
+    "};
+    let v = parse(yaml, "t", &[3, 10, 20, 30, 99]);
+    assert_eq!(get_field(&v, "again").as_int(), Some(20));
+    // Up to the end of the stream of `slot`, not of the input.
+    assert!(matches!(get_field(&v, "rest"),
+        Value::Instance { value, .. } if **value == Value::Bytes(vec![20, 30])));
+    assert_eq!(*get_field(&v, "after"), Value::UInt(99));
+}
+
+#[test]
+fn the_stream_of_a_value_is_not_in_the_output() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: slot
+            type: slot
+            size: 1
+        instances:
+          first:
+            io: slot._io
+            pos: 0
+            type: u1
+        types:
+          slot: {}
+    "};
+    let v = parse(yaml, "t", &[5]);
+    let json = doe::render::json::to_json(&v).to_string();
+    assert!(!json.contains("_io"), "{json}");
+}
+
+#[test]
+fn io_must_be_a_stream() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        instances:
+          bad:
+            io: 3
+            pos: 0
+            type: u1
+    "};
+    let err = parse_err(yaml, "t", &[1]);
+    assert!(err.to_string().contains("not a stream"), "{err}");
+}
+
+#[test]
+fn parent_makes_the_parent_of_a_sub_type_that_of_the_type_around() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: rv
+            type: u1
+          - id: a
+            type: left
+        types:
+          left:
+            seq:
+              - id: lv
+                type: u1
+              - id: kid
+                type: kid
+                parent: _parent
+          kid:
+            seq:
+              - id: v
+                type: u1
+                valid:
+                  eq: _parent.rv
+    "};
+    parse(yaml, "t", &[5, 9, 5]);
+    parse_err(yaml, "t", &[5, 9, 6]);
+    // Without it, `_parent` is `left`, which has no `rv`.
+    parse_err(
+        &yaml.replace("        parent: _parent\n", ""),
+        "t",
+        &[5, 9, 5],
+    );
+}
+
+#[test]
+fn parent_works_on_instances_and_two_levels_up() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: top
+            type: u1
+          - id: a
+            type: mid
+        types:
+          mid:
+            seq:
+              - id: m
+                type: u1
+              - id: b
+                type: low
+            types:
+              low:
+                seq:
+                  - id: l
+                    type: u1
+                instances:
+                  leaf:
+                    pos: 0
+                    type: leaf
+                    parent: _parent._parent
+          leaf:
+            seq:
+              - id: x
+                type: u1
+            instances:
+              sum:
+                value: x + _parent.top
+    "};
+    let v = parse(yaml, "t", &[10, 1, 2]);
+    let Value::Instance { value: leaf, .. } = get_field(get_field(get_field(&v, "a"), "b"), "leaf")
+    else {
+        panic!("not an instance")
+    };
+    // `x` is the first byte of the stream of `low`, 10, and `top` is 10.
+    assert_eq!(get_field(leaf, "sum").as_int(), Some(20));
+}
+
+#[test]
+fn parent_other_than_parent_is_not_supported() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            type: u1
+            parent: a
     "};
     let schema = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
     assert!(compile_schema(&schema).is_err());

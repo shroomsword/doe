@@ -31,6 +31,7 @@ definitions use:
 
 | Format | Exercises |
 |--------|-----------|
+| `io_streams` | instances read with `io:` from `_root._io`, `_parent._io` and the stream of a value, and `parent: _parent` |
 | `ipv4_packet` | bit fields that share and span bytes, `valid`, enums, computed instances |
 | `tlv_stream` | `switch-on` on an enum, sized windows, `params`, instances in sub-types |
 | `bit_enums` | `enum:` and `valid: in-enum` on bit fields, including a single bit, which is an integer when it has an enum |

@@ -21,6 +21,7 @@ use std::fmt::Write;
 
 use serde_json::{Value as JValue, json};
 
+use crate::parser::engine::STREAM_FIELD;
 use crate::value::Value;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -89,6 +90,10 @@ pub fn to_json(value: &Value) -> JValue {
             // Where instances were read from; computed ones have no offset.
             let mut offsets = serde_json::Map::new();
             for (k, v) in fields {
+                // The stream a value was parsed from is for expressions only.
+                if k == STREAM_FIELD {
+                    continue;
+                }
                 if let Value::Instance {
                     offset: Some(offset),
                     ..

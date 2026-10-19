@@ -30,6 +30,9 @@ pub struct ParseContext {
     /// Per scope, which instances are computed or being computed, and their
     /// values until the end of the scope.
     instance_frames: Vec<InstanceFrame>,
+    /// The `parent:` of the field being read, until the sub-type it applies to
+    /// is entered.
+    pending_parent: Option<usize>,
     /// Bytes read so far by fields placed with `pos:`.
     reread_bytes: usize,
     /// The size of the input being parsed, which the `pos:` budget scales with.
@@ -81,6 +84,7 @@ impl ParseContext {
             eval_ctx: EvalContext::new(),
             value_frames: vec![Vec::new()],
             instance_frames: vec![InstanceFrame::default()],
+            pending_parent: None,
             reread_bytes: 0,
             input_len: 0,
         }
@@ -150,6 +154,25 @@ impl ParseContext {
         self.eval_ctx.push_frame();
         self.value_frames.push(Vec::new());
         self.instance_frames.push(InstanceFrame::default());
+    }
+
+    /// Push a new scope for a sub-type of a field with `parent: _parent`: its
+    /// `_parent` is that of the current scope, `up` times over.
+    pub fn push_scope_under(&mut self, up: usize) {
+        self.eval_ctx.push_frame_under(up);
+        self.value_frames.push(Vec::new());
+        self.instance_frames.push(InstanceFrame::default());
+    }
+
+    /// The `parent:` set for the sub-type being entered, which is used once.
+    pub fn take_pending_parent(&mut self) -> Option<usize> {
+        self.pending_parent.take()
+    }
+
+    /// Say that the next sub-type that is entered has `parent: _parent` `up`
+    /// times over.
+    pub fn set_pending_parent(&mut self, up: Option<usize>) {
+        self.pending_parent = up;
     }
 
     /// Pop the current scope (returning from a sub-type).
@@ -248,8 +271,12 @@ impl ParseContext {
     /// stream (the whole input or a window) that `cursor` reads, which `_io`
     /// stands for.
     pub fn set_io(&mut self, cursor: &Cursor<'_>) {
-        self.eval_ctx
-            .set_io(cursor.pos(), cursor.len(), cursor.is_eof());
+        self.eval_ctx.set_io_at(
+            cursor.window_start(),
+            cursor.pos(),
+            cursor.len(),
+            cursor.is_eof(),
+        );
     }
 
     /// Bind a value that exists only while one expression is evaluated, such

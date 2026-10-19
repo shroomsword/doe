@@ -1062,6 +1062,9 @@ impl From<&str> for ExprValue {
 pub struct EvalContext {
     /// Frames stored outer-to-inner; last element is current scope.
     frames: Vec<std::collections::HashMap<String, ExprValue>>,
+    /// For each frame, the frame that `_parent` means when it is not the one
+    /// below (a type with `parent:`).
+    parents: Vec<Option<usize>>,
     /// What `_io` stands for, if an expression is being evaluated while parsing.
     io: Option<Io>,
 }
@@ -1069,6 +1072,7 @@ pub struct EvalContext {
 /// The stream the expression being evaluated is in.
 #[derive(Debug, Clone, Copy)]
 struct Io {
+    start: usize,
     pos: usize,
     size: usize,
     eof: bool,
@@ -1079,6 +1083,7 @@ impl EvalContext {
     pub fn new() -> Self {
         EvalContext {
             frames: vec![std::collections::HashMap::new()],
+            parents: vec![None],
             io: None,
         }
     }
@@ -1086,18 +1091,51 @@ impl EvalContext {
     /// Set what `_io` stands for: the position within the stream the
     /// expression is in, its size and whether it is at its end.
     pub fn set_io(&mut self, pos: usize, size: usize, eof: bool) {
-        self.io = Some(Io { pos, size, eof });
+        self.set_io_at(0, pos, size, eof);
+    }
+
+    /// Like [`EvalContext::set_io`], for a stream that starts at `start` in the
+    /// whole input.
+    pub fn set_io_at(&mut self, start: usize, pos: usize, size: usize, eof: bool) {
+        self.io = Some(Io {
+            start,
+            pos,
+            size,
+            eof,
+        });
     }
 
     /// Enter a new, empty scope.
     pub fn push_frame(&mut self) {
         self.frames.push(std::collections::HashMap::new());
+        self.parents.push(None);
+    }
+
+    /// Enter a new scope whose `_parent` is not the scope it is entered from but
+    /// the `_parent` of that, `up` times over (`parent: _parent` of a field).
+    pub fn push_frame_under(&mut self, up: usize) {
+        let mut target = self.frames.len().checked_sub(1);
+        for _ in 0..up {
+            target = target.and_then(|frame| self.parent_of(frame));
+        }
+        self.frames.push(std::collections::HashMap::new());
+        self.parents.push(target);
+    }
+
+    /// The frame `_parent` means in frame `frame`.
+    fn parent_of(&self, frame: usize) -> Option<usize> {
+        self.parents
+            .get(frame)
+            .copied()
+            .flatten()
+            .or_else(|| frame.checked_sub(1))
     }
 
     /// Leave the innermost scope. The root scope is never popped.
     pub fn pop_frame(&mut self) {
         if self.frames.len() > 1 {
             self.frames.pop();
+            self.parents.pop();
         }
     }
 
@@ -1137,6 +1175,7 @@ impl EvalContext {
                 .io
                 .ok_or_else(|| fail(src, "_io is only available while parsing"))?;
             let stream = ExprValue::Struct(vec![
+                ("start".to_owned(), length(io.start)),
                 ("pos".to_owned(), length(io.pos)),
                 ("size".to_owned(), length(io.size)),
                 ("eof".to_owned(), ExprValue::Bool(io.eof)),
@@ -1161,8 +1200,8 @@ impl EvalContext {
         while let Some((first, tail)) = rest.split_first()
             && first == "_parent"
         {
-            frame_idx = frame_idx
-                .checked_sub(1)
+            frame_idx = self
+                .parent_of(frame_idx)
                 .ok_or_else(|| fail(src, "_parent: already at root scope"))?;
             rest = tail;
         }

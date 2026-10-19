@@ -24,9 +24,9 @@ use indexmap::IndexMap;
 use crate::error::{DoeError, Result};
 use crate::schema::expr;
 use crate::schema::ir::{
-    CompiledEnum, CompiledField, CompiledInstance, CompiledParam, CompiledType, CompiledValid, Cut,
-    Encoding, Endian, EndianOverride, EndianRule, EndianSwitch, FieldKind, FloatWidth,
-    InstanceKind, IntWidth, Process, RepeatMode, SizeExpr, StrSize, TypeRegistry,
+    CompiledEnum, CompiledField, CompiledInstance, CompiledIo, CompiledParam, CompiledType,
+    CompiledValid, Cut, Encoding, Endian, EndianOverride, EndianRule, EndianSwitch, FieldKind,
+    FloatWidth, InstanceKind, IntWidth, Process, RepeatMode, SizeExpr, StrSize, TypeRegistry,
 };
 use crate::schema::raw::{
     ExprText, RawContentItem, RawContents, RawEncoding, RawEndian, RawEndianSpec, RawEndianSwitch,
@@ -254,6 +254,11 @@ impl Compiler {
             .into_iter()
             .filter_map(|(name, size)| Some((name, size?)))
             .collect();
+        self.registry.uses_io = self
+            .registry
+            .types
+            .values()
+            .any(|ty| ty.instances.iter().any(|instance| instance.io.is_some()));
         self.registry.uses_field_sizes = self.registry.types.values().any(|ty| {
             field_paths(type_exprs(ty))
                 .iter()
@@ -498,9 +503,23 @@ impl Compiler {
                     }
                     other => other,
                 })?;
+            let io = raw
+                .io
+                .as_deref()
+                .map(|text| {
+                    let expr = compile_expr(text, ctx).map_err(|e| bad(format!("'io': {e}")))?;
+                    validate_size_expr_refs(text, ctx)?;
+                    let uses_instances = instance_refs(&[&expr], ctx.instances);
+                    Ok::<_, DoeError>(CompiledIo {
+                        expr,
+                        uses_instances,
+                    })
+                })
+                .transpose()?;
             return Ok(CompiledInstance {
                 id: id.to_owned(),
                 kind: InstanceKind::Read(Box::new(field)),
+                io,
             });
         };
         if raw.reads() {
@@ -528,6 +547,7 @@ impl Compiler {
         exprs.extend(if_expr.as_ref());
         let uses_instances = instance_refs(&exprs, ctx.instances);
         Ok(CompiledInstance {
+            io: None,
             id: id.to_owned(),
             kind: InstanceKind::Value {
                 doc: raw.doc.clone(),
@@ -614,6 +634,7 @@ impl Compiler {
             enum_ref: raw.enum_ref.clone(),
             uses_instances: Vec::new(),
             reads_itself: false,
+            parent_up: compile_parent(raw, ctx)?,
             valid: compile_valid(raw, ctx)?,
             process,
         };
@@ -1077,6 +1098,7 @@ fn type_exprs(ty: &CompiledType) -> Vec<&expr::Expr> {
             exprs.push(expr);
             exprs.extend(if_expr.as_ref());
         }
+        exprs.extend(instance.io.as_ref().map(|io| &io.expr));
     }
     if let EndianRule::Switch(switch) = &ty.endian_rule {
         exprs.push(&switch.on);
@@ -1376,6 +1398,24 @@ fn compile_size(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<SizeExpr> {
             Ok(SizeExpr::Dynamic(compile_expr(s, ctx)?))
         }
     }
+}
+
+/// Compile `parent:`: how many `_parent`s up the `_parent` of the type the
+/// field reads is.
+fn compile_parent(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<Option<usize>> {
+    let Some(text) = &raw.parent else {
+        return Ok(None);
+    };
+    let path = text.trim();
+    let up = path.split('.').count();
+    if path.split('.').all(|part| part.trim() == "_parent") {
+        return Ok(Some(up));
+    }
+    Err(DoeError::FieldError {
+        field: raw.id.clone(),
+        context: ctx.parent_fqn.to_owned(),
+        message: format!("'parent: {path}' is not supported: use _parent, or _parent._parent"),
+    })
 }
 
 /// Compile `process:`, if the field has it.

@@ -30,6 +30,9 @@ pub struct TypeRegistry {
     /// Whether an expression of any type uses `field._sizeof`, the number of
     /// bytes a field took, which the parser then records for every field.
     pub uses_field_sizes: bool,
+    /// Whether any instance reads from another stream (`io:`), so that the
+    /// parser records the stream of every value it parses.
+    pub uses_io: bool,
 }
 
 impl TypeRegistry {
@@ -152,6 +155,9 @@ pub struct CompiledField {
     /// Whether a repeated field's expressions use the elements read so far
     /// (`groups[_index - 1]` in the arguments of `groups`).
     pub reads_itself: bool,
+    /// `parent: _parent`: the type the field reads has as its `_parent` that of
+    /// the type the field is in, this many `_parent`s up.
+    pub parent_up: Option<usize>,
     /// What the value read may be, if constrained (`valid:`).
     pub valid: Option<CompiledValid>,
     /// A transform applied to the bytes of the field's window before they are
@@ -197,6 +203,18 @@ pub struct CompiledInstance {
     pub id: String,
     /// What it is.
     pub kind: InstanceKind,
+    /// The stream a read instance is read from, if not the one of its type
+    /// (`io:`).
+    pub io: Option<CompiledIo>,
+}
+
+/// The stream an instance is read from.
+#[derive(Debug, Clone)]
+pub struct CompiledIo {
+    /// The expression whose value is the stream.
+    pub expr: Expr,
+    /// Instances of the same type that the expression uses.
+    pub uses_instances: Vec<String>,
 }
 
 /// How an instance gets its value.

@@ -185,6 +185,7 @@ formats!(
     import_cycle_b,
     import_dep,
     import_main,
+    io_streams,
     ipv4_packet,
     parent_instances,
     png_chunks,

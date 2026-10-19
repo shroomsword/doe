@@ -40,6 +40,11 @@ const SCAN_CHUNK_LEN: usize = 4096;
 #[derive(Debug, Clone)]
 pub struct Cursor<'buf> {
     source: Source<'buf>,
+    /// The whole input, when it is in memory, which a stream is cut from
+    /// (see [`Cursor::stream`]); empty for a file.
+    root: &'buf [u8],
+    /// The size of the whole input.
+    root_len: usize,
     /// Absolute offset of the window's first byte within the original input.
     /// Always zero for the root cursor; non-zero for sub-cursors.
     base: usize,
@@ -145,6 +150,8 @@ impl<'buf> Cursor<'buf> {
     pub fn new(buf: &'buf [u8]) -> Self {
         Cursor {
             source: Source::Memory(buf),
+            root: buf,
+            root_len: buf.len(),
             base: 0,
             len: buf.len(),
             pos: 0,
@@ -177,6 +184,8 @@ impl<'buf> Cursor<'buf> {
             ))
         })?;
         Ok(Cursor {
+            root: &[],
+            root_len: len,
             source: Source::File(Arc::new(Mutex::new(FileSource {
                 file,
                 path,
@@ -211,6 +220,8 @@ impl<'buf> Cursor<'buf> {
         };
         Ok(Cursor {
             source,
+            root: self.root,
+            root_len: self.root_len,
             base: self.base.saturating_add(start),
             len,
             pos: 0,
@@ -218,6 +229,44 @@ impl<'buf> Cursor<'buf> {
             bits_left: 0,
             bit_order: BitOrder::default(),
         })
+    }
+
+    /// A cursor over `start..start + len` of the whole input, whatever window
+    /// this one is, positioned at its start. This is how a stream that was
+    /// parsed earlier (`some_field._io`, `_root._io`) is read again.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the range extends past the end of the input.
+    pub fn stream(&self, start: usize, len: usize) -> Result<Cursor<'buf>> {
+        let end = start
+            .checked_add(len)
+            .filter(|&end| end <= self.root_len)
+            .ok_or_else(|| self.overrun_error(len))?;
+        let source = match &self.source {
+            Source::Memory(_) => Source::Memory(
+                self.root
+                    .get(start..end)
+                    .ok_or_else(|| self.overrun_error(len))?,
+            ),
+            Source::File(shared) => Source::File(Arc::clone(shared)),
+        };
+        Ok(Cursor {
+            source,
+            root: self.root,
+            root_len: self.root_len,
+            base: start,
+            len,
+            pos: 0,
+            bit_buf: 0,
+            bits_left: 0,
+            bit_order: BitOrder::default(),
+        })
+    }
+
+    /// Offset of the first byte of this cursor's window in the whole input.
+    pub fn window_start(&self) -> usize {
+        self.base
     }
 
     // ── Position ─────────────────────────────────────────────────────────────
