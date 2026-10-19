@@ -1,0 +1,43 @@
+{
+  "body": {
+    "own": 2,
+    "v": 4660
+  },
+  "bytessize": 3,
+  "groups": [
+    {
+      "byte": 129,
+      "more": true,
+      "total": 1
+    },
+    {
+      "byte": 130,
+      "more": true,
+      "total": 3
+    },
+    {
+      "byte": 3,
+      "more": false,
+      "total": 6
+    }
+  ],
+  "headersize": 3,
+  "here": 3,
+  "isii": true,
+  "items": [
+    "61",
+    "6262",
+    "636363"
+  ],
+  "kind": 1,
+  "lens": [
+    1,
+    2,
+    3
+  ],
+  "magic": "4949",
+  "name": "hi",
+  "onev": 4661,
+  "prims": 12,
+  "tail": 9
+}

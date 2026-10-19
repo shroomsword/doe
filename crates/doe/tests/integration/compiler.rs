@@ -1031,24 +1031,44 @@ fn imports_are_loaded_before_the_importing_schema() {
 }
 
 #[test]
-fn import_cycles_are_detected() {
+fn schemas_may_import_each_other() {
     let dir = tempfile::TempDir::new().unwrap();
     write(
         dir.path(),
         "a.yaml",
-        "id: a\nimports: [./b.yaml]\nseq: []\n",
+        indoc! {"
+            id: a
+            imports: [./b.yaml]
+            seq:
+              - id: body
+                type: b
+            enums:
+              kinds:
+                1: one
+        "},
     );
     write(
         dir.path(),
         "b.yaml",
-        "id: b\nimports: [./a.yaml]\nseq: []\n",
+        indoc! {"
+            id: b
+            imports: [./a.yaml]
+            seq:
+              - id: first
+                type: u1
+                enum: a::kinds
+              - id: again
+                type: a
+                if: first == a::kinds::one
+        "},
     );
     let mut compiler = Compiler::new(vec![]);
-    let err = compiler.load("./a.yaml", Some(dir.path())).unwrap_err();
-    assert!(
-        matches!(&err, DoeError::ImportCycle { cycle } if cycle.first() == cycle.last()),
-        "{err:?}"
-    );
+    compiler.load("./a.yaml", Some(dir.path())).unwrap();
+    assert!(compiler.registry.contains("a") && compiler.registry.contains("b"));
+    // Starting from the other one gives the same.
+    let mut compiler = Compiler::new(vec![]);
+    compiler.load("./b.yaml", Some(dir.path())).unwrap();
+    assert!(compiler.registry.contains("a") && compiler.registry.contains("b"));
 }
 
 #[test]

@@ -98,6 +98,14 @@ impl<'reg> Engine<'reg> {
         }
         let mut ctx = ParseContext::new();
         ctx.set_input_len(cursor.len());
+        // `sizeof<type>` and `_sizeof`, which the compiler turned into names
+        // of the root scope, are the sizes of the types that always have one.
+        for (name, size) in &self.registry.static_sizes {
+            ctx.eval_ctx.bind(
+                &format!("sizeof<{name}>"),
+                ExprValue::Int(i128::from(*size)),
+            );
+        }
         self.parse_compiled_type(ty, cursor, &mut ctx)
     }
 
@@ -114,10 +122,19 @@ impl<'reg> Engine<'reg> {
         ctx.set_endian(endian);
 
         for field in &ty.fields {
+            let start = cursor.absolute_pos();
             let value = self.parse_field(field, ty, cursor, ctx)?;
 
             // Bind into the context so subsequent fields can reference this one
             ctx.bind(&field.id, value.clone());
+            if self.registry.uses_field_sizes {
+                // `field._sizeof`: the bytes the field took.
+                let size = cursor.absolute_pos().saturating_sub(start);
+                ctx.eval_ctx.bind(
+                    &format!("{}._sizeof", field.id),
+                    ExprValue::Int(i128::try_from(size).unwrap_or(i128::MAX)),
+                );
+            }
             fields.push((field.id.clone(), value));
         }
 
@@ -310,9 +327,11 @@ impl<'reg> Engine<'reg> {
     ) -> Result<Value> {
         let mut items = Vec::new();
         while !cursor.is_eof() {
-            let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
+            Self::expose_elements(field, &items, ctx);
+            let v = self.parse_repeated_element(items.len(), field, parent_ty, cursor, ctx)?;
             items.push(v);
         }
+        Self::hide_elements(field, ctx);
         Ok(Value::Array(items))
     }
 
@@ -344,10 +363,12 @@ impl<'reg> Engine<'reg> {
         // large input and a large count could make unreasonable.
         let mut items =
             Vec::with_capacity(count.min(cursor.remaining()).min(MAX_RESERVED_ELEMENTS));
-        for _ in 0..count {
-            let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
+        for index in 0..count {
+            Self::expose_elements(field, &items, ctx);
+            let v = self.parse_repeated_element(index, field, parent_ty, cursor, ctx)?;
             items.push(v);
         }
+        Self::hide_elements(field, ctx);
         Ok(Value::Array(items))
     }
 
@@ -361,7 +382,8 @@ impl<'reg> Engine<'reg> {
     ) -> Result<Value> {
         let mut items = Vec::new();
         loop {
-            let v = self.parse_repeated_element(field, parent_ty, cursor, ctx)?;
+            Self::expose_elements(field, &items, ctx);
+            let v = self.parse_repeated_element(items.len(), field, parent_ty, cursor, ctx)?;
             // Bind the most recently parsed value to `_` so the
             // until-expression can reference it, matching the convention
             // used by KaitaiStruct.
@@ -374,22 +396,48 @@ impl<'reg> Engine<'reg> {
                 break;
             }
         }
+        Self::hide_elements(field, ctx);
         Ok(Value::Array(items))
     }
 
-    /// Parse one element of a repeated field, requiring it to consume input.
+    /// Let the expressions of a repeated field that uses the elements read so
+    /// far (`groups[_index - 1]`) see them under the name of the field.
+    fn expose_elements(field: &CompiledField, items: &[Value], ctx: &mut ParseContext) {
+        if field.reads_itself {
+            ctx.bind_scratch(&field.id, &Value::Array(items.to_vec()));
+        }
+    }
+
+    /// The end of a repeated field: `_index` and the elements go out of sight
+    /// (the field is bound with all its elements once it is read).
+    fn hide_elements(field: &CompiledField, ctx: &mut ParseContext) {
+        ctx.eval_ctx.unbind_prefix("_index");
+        if field.reads_itself {
+            ctx.eval_ctx.unbind_prefix(&field.id);
+        }
+    }
+
+    /// Parse element number `index` of a repeated field, requiring it to
+    /// consume input.
     ///
     /// An element that consumes nothing (an empty type, a zero-size `bytes`)
     /// would repeat forever under `eos` or `until` and, with a large count,
     /// effectively forever under `repeat-expr`, so it is an error.
     fn parse_repeated_element(
         &self,
+        index: usize,
         field: &CompiledField,
         parent_ty: &CompiledType,
         cursor: &mut Cursor<'_>,
         ctx: &mut ParseContext,
     ) -> Result<Value> {
         let before = cursor.bit_position();
+        // `_index` is the position of the element, for the expressions of the
+        // field and of the arguments and `until` that go with it.
+        ctx.eval_ctx.bind(
+            "_index",
+            ExprValue::Int(i128::try_from(index).unwrap_or(i128::MAX)),
+        );
         let value = self.parse_field_once(field, parent_ty, cursor, ctx)?;
         if cursor.bit_position() == before {
             return Err(DoeError::FieldError {

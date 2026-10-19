@@ -45,6 +45,8 @@ definitions use:
 | `encodings` | UTF-16 and the legacy encodings the reference decodes (UTF-32 and CP437 are left out: its runtime decodes through `TextDecoder`) |
 | `endian_switch` | `meta.endian` with `switch-on` and a default case, a parameter as the selector, a nested type that inherits the choice, an explicit `u2be` |
 | `enum_mappings` | enum members written as mappings |
+| `expression_features` | `_index` in the expressions, arguments and `repeat-until` of a repeated field, the elements read so far, `x._sizeof`, `_sizeof`, `sizeof<type>`, `.as<type>` and a list of byte literals |
+| `import_cycle_a`, `import_cycle_b` | two definitions that import each other |
 | `expressions` | arithmetic, bit operations, strings, arrays, floats, conversions |
 | `float_types` | floats of both sizes and byte orders |
 | `repeat_until_eof` | `_io.eof` |

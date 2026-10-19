@@ -315,6 +315,18 @@ condition, where non-zero is true.
 **Strings** can be compared (`==`, `<`, ...) and joined with `+`; a string or
 array built by an expression is limited to 1 MiB.
 
+**Position and size:** in a repeated field, `_index` is the position of the
+element (0 for the first) in its `size`, `type` arguments, `switch-on` and
+`repeat-until`, and the elements read so far are the field's name
+(`groups[_index - 1].total`). `field._sizeof` is the number of bytes a field
+took (Kaitai Struct allows it for fields of a fixed size only), `_sizeof` the
+size of the type the expression is in, and `sizeof<type>` and `bitsizeof<type>`
+the size of a type or of a primitive such as `s4` or `b12`, in bytes or bits;
+for a type, it is an error unless every field of the type has a fixed size.
+`x.as<type>` is `x`: it names which type a value of a `switch-on` is, and is not
+checked. A list of integer literals that all fit in a byte (`[0x49, 0x49]`) is a
+byte sequence, so `magic == [0x49, 0x49]` works for a `bytes` field.
+
 **Members and methods:**
 
 | On | Member |
@@ -637,6 +649,9 @@ seq:
   - id: body
     type: zlib_block
 ```
+
+Two schemas may import each other (the types of each refer to those of the
+other); a schema that is already being loaded is not loaded again.
 
 ## Kaitai Struct compatibility
 

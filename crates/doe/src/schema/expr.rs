@@ -790,7 +790,11 @@ impl<'a> Parser<'a> {
                         return Err(self.err("expected identifier after '.'"));
                     };
                     self.bump();
-                    if self.current == Token::LParen {
+                    if name == "as" && self.current == Token::Lt {
+                        // `x.as<type>` names the type of a value that is one
+                        // of several; the value is the same.
+                        self.parse_type_arg()?;
+                    } else if self.current == Token::LParen {
                         let args = self.parse_args(&Token::RParen)?;
                         base = Expr::Call(Box::new(base), name, args);
                     } else if let Expr::Field(mut parts) = base {
@@ -814,6 +818,31 @@ impl<'a> Parser<'a> {
                 _ => return Ok(base),
             }
         }
+    }
+
+    /// Parse `<name>` or `<a::b>`, the type of `as<>` and `sizeof<>`; the
+    /// current token is the `<`.
+    fn parse_type_arg(&mut self) -> Result<String> {
+        self.bump();
+        let mut name = String::new();
+        loop {
+            let Token::Ident(part) = self.current.clone() else {
+                return Err(self.err("expected a type name after '<'"));
+            };
+            self.bump();
+            name.push_str(&part);
+            if self.current == Token::ColonColon {
+                self.bump();
+                name.push_str("::");
+            } else {
+                break;
+            }
+        }
+        if self.current != Token::Gt {
+            return Err(self.err("expected '>' after the type name"));
+        }
+        self.bump();
+        Ok(name)
     }
 
     /// Parse a comma-separated list up to `close`; the opening token is the
@@ -871,6 +900,12 @@ impl<'a> Parser<'a> {
                         path.push(part);
                     }
                     return Ok(Expr::Enum(path));
+                }
+                if matches!(name.as_str(), "sizeof" | "bitsizeof") && self.current == Token::Lt {
+                    // `sizeof<type>`: a marker the schema compiler replaces
+                    // with the size, so it is a name that no field can have.
+                    let ty = self.parse_type_arg()?;
+                    return Ok(Expr::Field(vec![format!("{name}<{ty}>")]));
                 }
                 Ok(match name.as_str() {
                     "true" => Expr::Bool(true),
@@ -1412,8 +1447,22 @@ fn schedule<'e>(
             work.push(Work::Eval(cond));
         }
         Expr::Array(items) => {
-            work.push(Work::Array(items.len()));
-            work.extend(items.iter().rev().map(Work::Eval));
+            // As in Kaitai Struct, a list of integer literals that all fit in
+            // a byte is a byte sequence.
+            let bytes: Option<Vec<u8>> = items
+                .iter()
+                .map(|item| match item {
+                    Expr::Int(n) => u8::try_from(*n).ok(),
+                    _ => None,
+                })
+                .collect();
+            match bytes {
+                Some(bytes) if !bytes.is_empty() => values.push(ExprValue::Bytes(bytes)),
+                _ => {
+                    work.push(Work::Array(items.len()));
+                    work.extend(items.iter().rev().map(Work::Eval));
+                }
+            }
         }
         Expr::Member(recv, name) => {
             work.push(Work::Member(name));

@@ -142,23 +142,25 @@ impl Compiler {
             return Ok(());
         }
 
-        // Cycle detection
+        // Two schemas may import each other. The one that is being compiled
+        // has registered its types (below), which the other one is compiled
+        // against; when it comes up again it is left to the first visit.
         if self.loading_stack.contains(&schema.id) {
-            let mut cycle = self.loading_stack.clone();
-            cycle.push(schema.id.clone());
-            return Err(DoeError::ImportCycle { cycle });
+            return Ok(());
         }
 
         self.loading_stack.push(schema.id.clone());
+
+        // Collect all type names defined in this schema (pass 1), before the
+        // imports, so that a schema that imports this one back can refer to
+        // them.
+        self.collect_type_names(schema);
 
         // Process imports first (depth-first)
         for import in schema.imports.iter().chain(&schema.meta.imports) {
             let rel = schema.source_path.as_deref().and_then(|p| p.parent());
             self.load_import(import, rel)?;
         }
-
-        // Collect all type names defined in this schema (pass 1)
-        self.collect_type_names(schema);
 
         // Compile all types in this schema (pass 2)
         self.compile_type_decl(
@@ -180,7 +182,8 @@ impl Compiler {
             },
         )?;
 
-        self.link_parent_instances(&schema.id);
+        self.link_parent_instances();
+        self.measure_types();
 
         self.loading_stack.pop();
         self.processed.insert(schema.id.clone());
@@ -197,14 +200,10 @@ impl Compiler {
     /// reads uses as `_parent.name` before it reads that type, so that the
     /// instance is there, computed against the stream of its own type, when
     /// the nested type asks for it.
-    fn link_parent_instances(&mut self, root: &str) {
+    fn link_parent_instances(&mut self) {
         let wanted = parent_instance_uses(&self.registry);
-        let prefix = format!("{root}::");
         let mut additions: Additions = Vec::new();
         for (name, ty) in &self.registry.types {
-            if name != root && !name.starts_with(&prefix) {
-                continue;
-            }
             let instance_names: HashSet<&str> =
                 ty.instances.iter().map(|i| i.id.as_str()).collect();
             if instance_names.is_empty() {
@@ -242,6 +241,24 @@ impl Compiler {
                 }
             }
         }
+    }
+
+    /// Work out which types always have the same size, and whether any
+    /// expression asks for the size of a field.
+    fn measure_types(&mut self) {
+        let mut sizes: HashMap<String, Option<u64>> = HashMap::new();
+        for name in self.registry.types.keys() {
+            static_size(&self.registry, name, &mut sizes, 0);
+        }
+        self.registry.static_sizes = sizes
+            .into_iter()
+            .filter_map(|(name, size)| Some((name, size?)))
+            .collect();
+        self.registry.uses_field_sizes = self.registry.types.values().any(|ty| {
+            field_paths(type_exprs(ty))
+                .iter()
+                .any(|parts| parts.len() > 1 && parts.last().is_some_and(|p| p == "_sizeof"))
+        });
     }
 
     // ── Name collection (pass 1) ─────────────────────────────────────────────
@@ -523,6 +540,24 @@ impl Compiler {
     }
 
     fn compile_field(&self, raw: &RawField, ctx: &FieldCtx<'_>) -> Result<CompiledField> {
+        if raw.repeat.is_none() {
+            return self.compile_field_in(raw, ctx);
+        }
+        // The expressions of a repeated field may use the elements read so far.
+        let mut seen = ctx.seen_ids.to_vec();
+        seen.push(raw.id.clone());
+        let inner = FieldCtx {
+            seen_ids: &seen,
+            ..*ctx
+        };
+        let mut field = self.compile_field_in(raw, &inner)?;
+        field.reads_itself = field_paths(field_exprs(&field))
+            .iter()
+            .any(|parts| parts.first() == Some(&raw.id));
+        Ok(field)
+    }
+
+    fn compile_field_in(&self, raw: &RawField, ctx: &FieldCtx<'_>) -> Result<CompiledField> {
         let kind = if let Some(contents) = &raw.contents {
             compile_contents(contents, &raw.id, ctx.parent_fqn)?
         } else {
@@ -578,6 +613,7 @@ impl Compiler {
             pos,
             enum_ref: raw.enum_ref.clone(),
             uses_instances: Vec::new(),
+            reads_itself: false,
             valid: compile_valid(raw, ctx)?,
             process,
         };
@@ -1032,53 +1068,128 @@ fn kind_targets(kind: &FieldKind) -> Vec<&str> {
     }
 }
 
+/// Every expression of a type: those of its fields and instances, and of its
+/// byte order.
+fn type_exprs(ty: &CompiledType) -> Vec<&expr::Expr> {
+    let mut exprs: Vec<&expr::Expr> = all_fields(ty).flat_map(field_exprs).collect();
+    for instance in &ty.instances {
+        if let InstanceKind::Value { expr, if_expr, .. } = &instance.kind {
+            exprs.push(expr);
+            exprs.extend(if_expr.as_ref());
+        }
+    }
+    if let EndianRule::Switch(switch) = &ty.endian_rule {
+        exprs.push(&switch.on);
+        exprs.extend(switch.cases.iter().map(|(key, _)| key));
+    }
+    exprs
+}
+
+/// The paths of the fields the expressions refer to (`_parent.x.y`).
+fn field_paths(exprs: Vec<&expr::Expr>) -> Vec<&Vec<String>> {
+    use expr::Expr;
+    let mut paths = Vec::new();
+    let mut stack = exprs;
+    while let Some(node) = stack.pop() {
+        match node {
+            Expr::Field(parts) => paths.push(parts),
+            Expr::Array(items) => stack.extend(items.iter()),
+            Expr::Member(inner, _) | Expr::Unary(_, inner) => stack.push(inner),
+            Expr::Call(recv, _, args) => {
+                stack.extend(args.iter());
+                stack.push(recv);
+            }
+            Expr::Index(a, b) | Expr::Binary(_, a, b) => {
+                stack.push(a);
+                stack.push(b);
+            }
+            Expr::Ternary(a, b, c) => {
+                stack.push(a);
+                stack.push(b);
+                stack.push(c);
+            }
+            Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) | Expr::Enum(_) => {}
+        }
+    }
+    paths
+}
+
+/// The size in bytes of `name` if it is always the same: made of fields of a
+/// fixed size that are neither optional, repeated, placed with `pos`, nor
+/// bit fields. Cached in `known`.
+fn static_size(
+    registry: &TypeRegistry,
+    name: &str,
+    known: &mut HashMap<String, Option<u64>>,
+    depth: usize,
+) -> Option<u64> {
+    if let Some(size) = known.get(name) {
+        return *size;
+    }
+    // A type that contains itself, or is nested too deep, has no fixed size.
+    if depth > 64 {
+        return None;
+    }
+    known.insert(name.to_owned(), None);
+    let ty = registry.get(name)?;
+    let mut total: u64 = 0;
+    for field in &ty.fields {
+        if !matches!(field.repeat, RepeatMode::Once)
+            || field.if_expr.is_some()
+            || field.pos.is_some()
+        {
+            return None;
+        }
+        let size = match &field.kind {
+            FieldKind::UInt { width, .. } | FieldKind::SInt { width, .. } => match width {
+                IntWidth::W8 => 1,
+                IntWidth::W16 => 2,
+                IntWidth::W32 => 4,
+                IntWidth::W64 => 8,
+            },
+            FieldKind::Float { width, .. } => match width {
+                FloatWidth::F32 => 4,
+                FloatWidth::F64 => 8,
+            },
+            FieldKind::Contents(bytes) => u64::try_from(bytes.len()).ok()?,
+            FieldKind::Bytes {
+                size: SizeExpr::Literal(n),
+            }
+            | FieldKind::Str {
+                size: StrSize::Fixed(SizeExpr::Literal(n)),
+                ..
+            }
+            | FieldKind::TypeRef {
+                size: Some(SizeExpr::Literal(n)),
+                ..
+            } => u64::try_from(*n).ok()?,
+            FieldKind::TypeRef {
+                type_name,
+                size: None,
+                ..
+            } => static_size(registry, type_name, known, depth + 1)?,
+            _ => return None,
+        };
+        total = total.checked_add(size)?;
+    }
+    known.insert(name.to_owned(), Some(total));
+    Some(total)
+}
+
 /// For each type, which instances of the types around it it uses, directly or
 /// through the types it reads: pairs of how many `_parent`s up, and the name.
 fn parent_instance_uses(
     registry: &TypeRegistry,
 ) -> HashMap<&str, std::collections::BTreeSet<(usize, String)>> {
-    use expr::Expr;
     let mut uses: HashMap<&str, std::collections::BTreeSet<(usize, String)>> = HashMap::new();
     for (name, ty) in &registry.types {
-        let mut exprs: Vec<&Expr> = all_fields(ty).flat_map(field_exprs).collect();
-        for instance in &ty.instances {
-            if let InstanceKind::Value { expr, if_expr, .. } = &instance.kind {
-                exprs.push(expr);
-                exprs.extend(if_expr.as_ref());
-            }
-        }
-        if let EndianRule::Switch(switch) = &ty.endian_rule {
-            exprs.push(&switch.on);
-            exprs.extend(switch.cases.iter().map(|(key, _)| key));
-        }
         let entry = uses.entry(name.as_str()).or_default();
-        let mut stack = exprs;
-        while let Some(node) = stack.pop() {
-            match node {
-                Expr::Field(parts) => {
-                    let up = parts.iter().take_while(|p| *p == "_parent").count();
-                    if up > 0
-                        && let Some(used) = parts.get(up)
-                    {
-                        entry.insert((up, used.clone()));
-                    }
-                }
-                Expr::Array(items) => stack.extend(items.iter()),
-                Expr::Member(inner, _) | Expr::Unary(_, inner) => stack.push(inner),
-                Expr::Call(recv, _, args) => {
-                    stack.extend(args.iter());
-                    stack.push(recv);
-                }
-                Expr::Index(a, b) | Expr::Binary(_, a, b) => {
-                    stack.push(a);
-                    stack.push(b);
-                }
-                Expr::Ternary(a, b, c) => {
-                    stack.push(a);
-                    stack.push(b);
-                    stack.push(c);
-                }
-                Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) | Expr::Enum(_) => {}
+        for parts in field_paths(type_exprs(ty)) {
+            let up = parts.iter().take_while(|p| *p == "_parent").count();
+            if up > 0
+                && let Some(used) = parts.get(up)
+            {
+                entry.insert((up, used.clone()));
             }
         }
     }
@@ -1529,10 +1640,77 @@ fn compile_expr(text: &str, ctx: &FieldCtx<'_>) -> Result<expr::Expr> {
                 stack.push(b);
                 stack.push(c);
             }
-            Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) | Expr::Field(_) => {}
+            Expr::Field(parts) => {
+                if let Some(replacement) = sizeof_marker(parts, ctx)? {
+                    *node = replacement;
+                }
+            }
+            Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) => {}
         }
     }
     Ok(ast)
+}
+
+/// What `_sizeof`, `sizeof<type>` and `bitsizeof<type>` stand for: the size of
+/// a primitive, or a reference to the size of a type, which is known once all
+/// types are compiled (see [`TypeRegistry::static_sizes`]).
+fn sizeof_marker(parts: &[String], ctx: &FieldCtx<'_>) -> Result<Option<expr::Expr>> {
+    use expr::{BinaryOp, Expr};
+    let [only] = parts else {
+        return Ok(None);
+    };
+    let size_of = |fqn: &str| Expr::Field(vec!["_root".to_owned(), format!("sizeof<{fqn}>")]);
+    if only == "_sizeof" {
+        // The size of the type the expression is in.
+        return Ok(Some(size_of(ctx.parent_fqn)));
+    }
+    let (bits, rest) = match (
+        only.strip_prefix("bitsizeof<"),
+        only.strip_prefix("sizeof<"),
+    ) {
+        (Some(rest), _) => (true, rest),
+        (None, Some(rest)) => (false, rest),
+        _ => return Ok(None),
+    };
+    let Some(name) = rest.strip_suffix('>') else {
+        return Ok(None);
+    };
+    let primitive_bits = if let Some(kind) = numeric_type(name) {
+        match kind {
+            FieldKind::UInt { width, .. } | FieldKind::SInt { width, .. } => Some(match width {
+                IntWidth::W8 => 8,
+                IntWidth::W16 => 16,
+                IntWidth::W32 => 32,
+                IntWidth::W64 => 64,
+            }),
+            FieldKind::Float { width, .. } => Some(match width {
+                FloatWidth::F32 => 32,
+                FloatWidth::F64 => 64,
+            }),
+            _ => None,
+        }
+    } else {
+        bit_type(name).map(|(bits, _)| i128::from(bits))
+    };
+    if let Some(primitive_bits) = primitive_bits {
+        let n = if bits {
+            primitive_bits
+        } else {
+            (primitive_bits + 7) / 8
+        };
+        return Ok(Some(Expr::Int(n)));
+    }
+    let fqn =
+        resolve_in(ctx.registry, name, ctx.parent_fqn).ok_or_else(|| DoeError::UnknownType {
+            type_name: name.to_owned(),
+            context: ctx.parent_fqn.to_owned(),
+        })?;
+    let bytes = size_of(&fqn);
+    Ok(Some(if bits {
+        Expr::Binary(BinaryOp::Mul, Box::new(bytes), Box::new(Expr::Int(8)))
+    } else {
+        bytes
+    }))
 }
 
 /// The value of the enum member `path` names (`["kind_t", "data"]`).
@@ -1839,13 +2017,17 @@ fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx<'_>, src: &str) -> Re
             // parse time
             if matches!(
                 parts.first().map(String::as_str),
-                Some("_parent" | "_root" | "_io")
+                Some("_parent" | "_root" | "_io" | "_index")
             ) {
                 return Ok(());
             }
             let Some(name) = parts.first() else {
                 return Ok(());
             };
+            // `sizeof<type>`, `bitsizeof<type>` and `_sizeof` are not fields.
+            if name == "_sizeof" || name.starts_with("sizeof<") || name.starts_with("bitsizeof<") {
+                return Ok(());
+            }
             if !ctx.seen_ids.iter().any(|id| id == name)
                 && !ctx.instances.contains(name)
                 && !ctx.params.contains(name)
