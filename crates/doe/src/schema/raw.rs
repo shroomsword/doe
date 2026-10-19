@@ -315,6 +315,12 @@ pub struct RawParam {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawField {
+    /// The `_parent` of the type the field reads: `_parent` (once or more:
+    /// `_parent._parent`) makes it that of the type the field is in, and not
+    /// that type itself.
+    #[serde(default)]
+    pub parent: Option<String>,
+
     /// The `-orig-id` key of the Kaitai Struct tools. Accepted and ignored.
     #[serde(rename = "-orig-id", default)]
     pub orig_id: Option<serde_json::Value>,
@@ -527,6 +533,19 @@ impl<'de> Deserialize<'de> for RawValid {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawInstance {
+    /// The `_parent` of the type the field reads: `_parent` (once or more:
+    /// `_parent._parent`) makes it that of the type the field is in, and not
+    /// that type itself.
+    #[serde(default)]
+    pub parent: Option<String>,
+
+    /// The stream to read from, an expression whose value is the `_io` of the
+    /// input (`_root._io`) or of a value parsed earlier (`chunk.data_slot._io`);
+    /// `pos` and `size-eos` are relative to it. By default the stream of the
+    /// type.
+    #[serde(default)]
+    pub io: Option<String>,
+
     /// The `-orig-id` key of the Kaitai Struct tools. Accepted and ignored.
     #[serde(rename = "-orig-id", default)]
     pub orig_id: Option<serde_json::Value>,
@@ -646,6 +665,7 @@ impl RawInstance {
     /// The instance as a `seq` field named `id`, ignoring `value`.
     pub fn to_field(&self, id: &str) -> RawField {
         RawField {
+            parent: self.parent.clone(),
             orig_id: self.orig_id.clone(),
             affected_by: self.affected_by.clone(),
             id: id.to_owned(),
@@ -675,7 +695,9 @@ impl RawInstance {
 
     /// Whether the instance has any attribute that reads data.
     pub fn reads(&self) -> bool {
-        self.type_ref.is_some()
+        self.io.is_some()
+            || self.parent.is_some()
+            || self.type_ref.is_some()
             || self.contents.is_some()
             || self.size.is_some()
             || self.size_eos.is_some()

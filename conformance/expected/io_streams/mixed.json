@@ -1,0 +1,17 @@
+{
+  "head": 7,
+  "slot": {},
+  "slotfirstviatype": 1,
+  "slotrest": "0203",
+  "slotsecond": 2,
+  "tail": 12,
+  "wrapper": {
+    "sized": {
+      "fromparentstream": 7,
+      "fromroot": 7,
+      "headviaparent": 7,
+      "s": 10
+    },
+    "w": 9
+  }
+}

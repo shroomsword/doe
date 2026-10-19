@@ -167,6 +167,7 @@ it the integer 0 or 1 and names it; the wider ones are unsigned integers. As in 
 | `repeat: until` + `repeat-until:` | Repeat until an expression is true; `_` is the last parsed value |
 | `if:` | Skip the field when the expression is false |
 | `size-eos` | `true` to take the rest of the enclosing window or the input as the size; for `bytes`, `str` and user types |
+| `parent` | `_parent` (or `_parent._parent`): the type the field reads gets the parent of the type the field is in, as its `_parent` (see [Instances](#instances)) |
 | `process` | Transform the bytes of the field's `size` window before they are parsed: `xor(key)` (an integer or a byte sequence, repeated), `rol(n)`, `ror(n)` (rotate each byte) or `zlib`. For `bytes`, `str` and user types that have a `size` or `size-eos`. `zlib` decompresses into memory up to 256 MiB; a larger result, or data that is not zlib data, is an error that names the field |
 | `pos:` | Read the field at this byte offset instead of the current position; see [Seeking](#seeking) |
 | `valid:` | Fail the parse unless the value read satisfies the rules; see [Validating values](#validating-values) |
@@ -630,6 +631,31 @@ can use an instance of an enclosing type as `_parent.name`: the field of the
 enclosing type that reads the sub-type computes the instance first, against
 the stream of its own type, so it may only depend on what has been read by
 then. An instance that reads a type that uses it is an error.
+
+`io:` makes an instance read from another stream than the one of its type,
+which `pos:` and `size-eos:` are then relative to. It is an expression whose
+value is the stream of the whole input, `_root._io`, of the type around,
+`_parent._io`, or of a value that was parsed earlier, `slot._io` (the window of
+a sub-type with a `size`, or the stream it shared with its parent):
+
+```yaml
+seq:
+  - id: slot
+    type: slot
+    size: len              # `slot` is an empty type that keeps its window
+instances:
+  inside:
+    io: slot._io           # read inside that window again, later
+    pos: 4
+    type: u2
+types:
+  slot: {}
+```
+
+`parent: _parent` (or `_parent._parent`) on a field makes the `_parent` of the
+type it reads that of the type the field is in instead of that type itself,
+as in Kaitai Struct. Other values of `parent:` are not supported. The stream
+of a value is not in the output.
 
 A field with a `size` and no `type` is `bytes`, as in Kaitai Struct.
 

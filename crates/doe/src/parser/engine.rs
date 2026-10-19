@@ -15,9 +15,9 @@ use crate::parser::process::{self, MAX_PROCESSED_LEN};
 use crate::schema::expr;
 use crate::schema::expr::ExprValue;
 use crate::schema::ir::{
-    CompiledField, CompiledInstance, CompiledType, CompiledValid, Cut, Encoding, Endian,
-    EndianOverride, EndianRule, EndianSwitch, FieldKind, FloatWidth, InstanceKind, IntWidth,
-    Process, RepeatMode, SizeExpr, StrSize, TypeRegistry,
+    CompiledField, CompiledInstance, CompiledIo, CompiledType, CompiledValid, Cut, Encoding,
+    Endian, EndianOverride, EndianRule, EndianSwitch, FieldKind, FloatWidth, InstanceKind,
+    IntWidth, Process, RepeatMode, SizeExpr, StrSize, TypeRegistry,
 };
 use crate::value::Value;
 
@@ -120,6 +120,10 @@ impl<'reg> Engine<'reg> {
         let mut fields: Vec<(String, Value)> = Vec::new();
         let endian = Self::type_endian(ty, cursor, ctx)?;
         ctx.set_endian(endian);
+        if self.registry.uses_io {
+            // `_parent._io` and `_root._io` are looked up in the scope.
+            ctx.eval_ctx.bind("_io", stream_expr(cursor));
+        }
 
         for field in &ty.fields {
             let start = cursor.absolute_pos();
@@ -140,6 +144,10 @@ impl<'reg> Engine<'reg> {
 
         if !ty.instances.is_empty() {
             self.finish_instances(ty, cursor, ctx, &mut fields)?;
+        }
+        if self.registry.uses_io {
+            // The stream the value was parsed from, for `some_field._io`.
+            fields.push((STREAM_FIELD.to_owned(), stream_value(cursor)));
         }
 
         Ok(Value::Struct {
@@ -457,6 +465,7 @@ impl<'reg> Engine<'reg> {
         cursor: &mut Cursor<'_>,
         ctx: &mut ParseContext,
     ) -> Result<Value> {
+        ctx.set_pending_parent(field.parent_up);
         let raw = match &field.process {
             Some(process) => self.read_processed(field, process, parent_ty, cursor, ctx)?,
             None => self
@@ -808,6 +817,47 @@ impl<'reg> Engine<'reg> {
         Ok(())
     }
 
+    /// The stream that `io:` of an instance names, positioned at its start.
+    fn open_stream<'buf>(
+        &self,
+        io: &CompiledIo,
+        id: &str,
+        ty: &CompiledType,
+        cursor: &mut Cursor<'buf>,
+        ctx: &mut ParseContext,
+    ) -> Result<Cursor<'buf>> {
+        for name in &io.uses_instances {
+            self.ensure_named_instance(ty, name, cursor, ctx)?;
+        }
+        ctx.set_io(cursor);
+        let stream =
+            expr::eval(&io.expr, &ctx.eval_ctx, "<io>").map_err(|e| annotate(&e, id, &ty.name))?;
+        let range = match &stream {
+            ExprValue::Struct(fields) => {
+                let number = |name: &str| {
+                    fields.iter().find(|(field, _)| field == name).and_then(
+                        |(_, value)| match value {
+                            ExprValue::Int(n) => usize::try_from(*n).ok(),
+                            _ => None,
+                        },
+                    )
+                };
+                number("start").zip(number("size"))
+            }
+            _ => None,
+        };
+        let Some((start, size)) = range else {
+            return Err(DoeError::FieldError {
+                field: id.to_owned(),
+                context: ty.name.clone(),
+                message: format!("'io' is not a stream: {stream}"),
+            });
+        };
+        cursor
+            .stream(start, size)
+            .map_err(|e| annotate(&e, id, &ty.name))
+    }
+
     /// The value of an instance and, if it was read, where from.
     fn compute_instance(
         &self,
@@ -819,6 +869,15 @@ impl<'reg> Engine<'reg> {
         let id = &instance.id;
         match &instance.kind {
             InstanceKind::Read(field) => {
+                // `io:` reads from another stream than the one of the type.
+                let mut other;
+                let cursor = match &instance.io {
+                    Some(io) => {
+                        other = self.open_stream(io, id, ty, cursor, ctx)?;
+                        &mut other
+                    }
+                    None => cursor,
+                };
                 let start = cursor.absolute_pos();
                 let value = self.parse_field(field, ty, cursor, ctx)?;
                 if value.is_absent() {
@@ -945,7 +1004,10 @@ impl<'reg> Engine<'reg> {
         } else {
             Self::eval_args(args, &sub_ty.name, parent_ty, cursor, ctx)?
         };
-        ctx.push_scope();
+        match ctx.take_pending_parent() {
+            Some(up) => ctx.push_scope_under(up),
+            None => ctx.push_scope(),
+        }
         ctx.bind_params(&sub_ty.params, values);
         let result = match window {
             None => self.parse_compiled_type(sub_ty, cursor, ctx),
@@ -1090,6 +1152,31 @@ impl<'reg> Engine<'reg> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// The name of the field that records the stream a value was parsed from.
+pub const STREAM_FIELD: &str = "_io";
+
+/// The stream `cursor` reads, as an expression value: where its window starts
+/// in the whole input, and its size.
+fn stream_expr(cursor: &Cursor<'_>) -> ExprValue {
+    let number = |n: usize| ExprValue::Int(i128::try_from(n).unwrap_or(i128::MAX));
+    ExprValue::Struct(vec![
+        ("start".to_owned(), number(cursor.window_start())),
+        ("size".to_owned(), number(cursor.len())),
+    ])
+}
+
+/// The same as a parsed value.
+fn stream_value(cursor: &Cursor<'_>) -> Value {
+    let number = |n: usize| Value::UInt(u64::try_from(n).unwrap_or(u64::MAX));
+    Value::Struct {
+        type_name: STREAM_FIELD.to_owned(),
+        fields: vec![
+            ("start".to_owned(), number(cursor.window_start())),
+            ("size".to_owned(), number(cursor.len())),
+        ],
+    }
+}
 
 fn resolve_endian(field_override: EndianOverride, type_default: Endian) -> Endian {
     match field_override {
