@@ -702,7 +702,9 @@ are the `ks-*` options, `to-string` and the keys of the Kaitai Struct tools that
 start with `-` (`-orig-id`, `-webide-representation`, ...). A field without an
 `id` is read, and named `_unnamed` and its position in `seq`. [`conformance/`](https://github.com/shroomsword/doe/tree/main/conformance) checks that doe and the
 reference compiler's parser produce the same result for a set of formats and
-samples.
+samples, among them definitions from the Kaitai Struct gallery, which it keeps
+as a git submodule (`git clone --recurse-submodules`, or `git submodule update --init`
+to run the tests in a clone without it).
 
 What is supported is what this README describes, with Kaitai's names and syntax:
 `seq`, `types`, `enums`, `instances`, `params`, `imports`, `valid`,

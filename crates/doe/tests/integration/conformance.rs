@@ -97,10 +97,34 @@ fn samples(format: &str) -> Vec<String> {
     names
 }
 
+/// The definitions of the Kaitai Struct gallery, a git submodule.
+fn gallery_dir() -> PathBuf {
+    conformance_dir().join("kaitai_struct_formats")
+}
+
+/// The definition of `format`: a file of `formats/`, or, for `gallery/<path>`,
+/// `<path>.ksy` in the gallery.
+fn definition(format: &str) -> PathBuf {
+    match format.strip_prefix("gallery/") {
+        Some(path) => {
+            let ksy = gallery_dir().join(format!("{path}.ksy"));
+            assert!(
+                ksy.exists(),
+                "{} does not exist; the gallery is a git submodule: run `git submodule update --init`",
+                ksy.display()
+            );
+            ksy
+        }
+        None => conformance_dir()
+            .join("formats")
+            .join(format!("{format}.ksy")),
+    }
+}
+
 /// Parse every sample of `format` and report all the ways it differs.
 fn check(format: &str) {
     let dir = conformance_dir();
-    let ksy = dir.join("formats").join(format!("{format}.ksy"));
+    let ksy = definition(format);
     let names = samples(format);
     assert!(!names.is_empty(), "{format} has no samples");
     let mut failures = Vec::new();
@@ -117,7 +141,7 @@ fn check(format: &str) {
         .expect("the expected output is JSON");
         // The gallery definitions import each other from the root of the gallery.
         let include: Vec<PathBuf> = if format.starts_with("gallery/") {
-            vec![dir.join("formats").join("gallery")]
+            vec![gallery_dir()]
         } else {
             Vec::new()
         };
