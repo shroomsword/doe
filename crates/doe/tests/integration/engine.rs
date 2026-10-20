@@ -5060,6 +5060,56 @@ fn sizes_of_types_and_fields() {
 }
 
 #[test]
+fn the_size_of_a_later_field_with_a_fixed_size_can_be_used_before_it() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: total
+            type: u1
+          - id: body
+            size: total - total._sizeof - stop._sizeof - count._sizeof
+          - id: stop
+            contents: [0x0d, 0x0a]
+          - id: count
+            type: u2le
+    "};
+    // 8 bytes in all: the length, 3 of body, the 2-byte stop, the 2-byte count.
+    let v = parse(yaml, "t", &[8, 1, 2, 3, 0x0d, 0x0a, 7, 0]);
+    assert_eq!(get_field(&v, "body"), &Value::Bytes(vec![1, 2, 3]));
+    assert_eq!(get_field(&v, "count").as_int(), Some(7));
+}
+
+#[test]
+fn the_size_of_a_later_field_without_a_fixed_size_is_an_error() {
+    let by_size = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: first
+            size: later._sizeof
+          - id: later
+            size: 2
+    "};
+    let repeated = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: first
+            size: later._sizeof
+          - id: later
+            type: u1
+            repeat: expr
+            repeat-expr: 2
+    "};
+    for yaml in [by_size, repeated] {
+        let schema = doe::schema::raw::RawSchema::from_yaml_str(yaml).unwrap();
+        let err = compile_schema(&schema).unwrap_err().to_string();
+        assert!(err.contains("not been defined yet"), "{err}");
+    }
+}
+
+#[test]
 fn the_size_of_a_type_without_a_fixed_size_is_an_error() {
     let yaml = indoc! {"
         meta:

@@ -1,0 +1,62 @@
+{
+  "header1": {
+    "dbaselevel": 3,
+    "lastupdated": 17,
+    "lastupdatem": 5,
+    "lastupdatey": 120,
+    "lenheader": 97,
+    "lenrecord": 12,
+    "numrecords": 2,
+    "version": 3
+  },
+  "header2": {
+    "fields": [
+      {
+        "dataaddress": 0,
+        "datatype": 67,
+        "decimalcount": 0,
+        "length": 8,
+        "name": "NAME",
+        "reserved1": "0000",
+        "reserved2": "0000",
+        "reserved3": "0000000000000000",
+        "setfieldsflag": 0,
+        "workareaid": 0
+      },
+      {
+        "dataaddress": 0,
+        "datatype": 78,
+        "decimalcount": 0,
+        "length": 3,
+        "name": "AGE",
+        "reserved1": "0000",
+        "reserved2": "0000",
+        "reserved3": "0000000000000000",
+        "setfieldsflag": 0,
+        "workareaid": 0
+      }
+    ],
+    "headerdbase3": {
+      "reserved1": "000000",
+      "reserved2": "00000000000000000000000000",
+      "reserved3": "00000000"
+    }
+  },
+  "headerterminator": "0d",
+  "records": [
+    {
+      "deleted": 42,
+      "recordfields": [
+        "4164612020202020",
+        "333620"
+      ]
+    },
+    {
+      "deleted": 32,
+      "recordfields": [
+        "4772616365202020",
+        "383520"
+      ]
+    }
+  ]
+}
