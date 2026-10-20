@@ -18,6 +18,7 @@ mod elf;
 mod encoding;
 mod engine;
 mod expr;
+mod gallery_update;
 mod ir;
 mod raw;
 mod render_json;
