@@ -395,6 +395,7 @@ impl Compiler {
                     enums: &compiled_enums,
                     instances: &HashSet::new(),
                     params: &param_names,
+                    fixed_sizes: &HashMap::new(),
                     encoding,
                     registry: &self.registry,
                 };
@@ -415,6 +416,7 @@ impl Compiler {
         // Compile each field
         let mut fields = Vec::with_capacity(seq.len());
         let mut seen_ids: Vec<String> = Vec::new(); // for forward-ref validation
+        let fixed_sizes = fixed_field_sizes(seq);
 
         for raw_field in seq {
             let ctx = FieldCtx {
@@ -423,6 +425,7 @@ impl Compiler {
                 enums: &compiled_enums,
                 instances: &instance_names,
                 params: &param_names,
+                fixed_sizes: &fixed_sizes,
                 encoding,
                 registry: &self.registry,
             };
@@ -440,6 +443,7 @@ impl Compiler {
                 enums: &compiled_enums,
                 instances: &instance_names,
                 params: &param_names,
+                fixed_sizes: &fixed_sizes,
                 encoding,
                 registry: &self.registry,
             };
@@ -958,6 +962,9 @@ struct FieldCtx<'a> {
     instances: &'a HashSet<String>,
     /// The names of the type's parameters, which any expression may use.
     params: &'a HashSet<String>,
+    /// The size in bytes of the fields of the sequence that always take the
+    /// same, so `later_field._sizeof` can be used before the field is read.
+    fixed_sizes: &'a HashMap<String, i128>,
     /// The encoding of strings that do not give one.
     encoding: Option<RawEncoding>,
     /// The types compiled so far, and the names of the others in the schema
@@ -1694,11 +1701,56 @@ fn compile_expr(text: &str, ctx: &FieldCtx<'_>) -> Result<expr::Expr> {
     Ok(ast)
 }
 
+/// The fields of a sequence that always take the same number of bytes: fixed
+/// `contents` and numbers, read once.
+fn fixed_field_sizes(seq: &[RawField]) -> HashMap<String, i128> {
+    let mut sizes = HashMap::new();
+    for field in seq {
+        if field.repeat.is_some() || field.if_expr.is_some() {
+            continue;
+        }
+        let size = if let Some(contents) = &field.contents {
+            match compile_contents(contents, &field.id, "") {
+                Ok(FieldKind::Contents(bytes)) => i128::try_from(bytes.len()).ok(),
+                _ => None,
+            }
+        } else if let (Some(RawType::Name(name)), None) = (&field.type_ref, &field.size) {
+            match numeric_type(name) {
+                Some(FieldKind::UInt { width, .. } | FieldKind::SInt { width, .. }) => {
+                    Some(match width {
+                        IntWidth::W8 => 1,
+                        IntWidth::W16 => 2,
+                        IntWidth::W32 => 4,
+                        IntWidth::W64 => 8,
+                    })
+                }
+                Some(FieldKind::Float { width, .. }) => Some(match width {
+                    FloatWidth::F32 => 4,
+                    FloatWidth::F64 => 8,
+                }),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        if let Some(size) = size {
+            sizes.insert(field.id.clone(), size);
+        }
+    }
+    sizes
+}
+
 /// What `_sizeof`, `sizeof<type>` and `bitsizeof<type>` stand for: the size of
 /// a primitive, or a reference to the size of a type, which is known once all
 /// types are compiled (see [`TypeRegistry::static_sizes`]).
 fn sizeof_marker(parts: &[String], ctx: &FieldCtx<'_>) -> Result<Option<expr::Expr>> {
     use expr::{BinaryOp, Expr};
+    if let [field, suffix] = parts
+        && suffix == "_sizeof"
+        && let Some(size) = ctx.fixed_sizes.get(field)
+    {
+        return Ok(Some(Expr::Int(*size)));
+    }
     let [only] = parts else {
         return Ok(None);
     };
@@ -2069,6 +2121,10 @@ fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx<'_>, src: &str) -> Re
             };
             // `sizeof<type>`, `bitsizeof<type>` and `_sizeof` are not fields.
             if name == "_sizeof" || name.starts_with("sizeof<") || name.starts_with("bitsizeof<") {
+                return Ok(());
+            }
+            if matches!(parts.as_slice(), [field, suffix] if suffix == "_sizeof" && ctx.fixed_sizes.contains_key(field))
+            {
                 return Ok(());
             }
             if !ctx.seen_ids.iter().any(|id| id == name)

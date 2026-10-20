@@ -211,3 +211,22 @@ write("image/jpeg", "baseline", b"".join([
     bytes([0x12, 0x34, 0xFF, 0x00, 0x56, 0xFF, 0xD0, 0x78]),
     b"\xff\xd9",
 ]))
+
+# ── dbf ──────────────────────────────────────────────────────────────────────
+
+def dbf(columns, rows):
+    header = struct.pack("<BBBBIHH", 3, 120, 5, 17, len(rows), 32 + 32 * len(columns) + 1,
+                         1 + sum(length for _, _, length in columns))
+    header += bytes(20)
+    for name, kind, length in columns:
+        header += name.encode().ljust(11, b"\x00") + kind + struct.pack("<IBB", 0, length, 0) + bytes(14)
+    header += b"\x0d"
+    records = b"".join(b" " + b"".join(value.ljust(length) for value, (_, _, length) in zip(row, columns))
+                       for row in rows)
+    return header + records + b"\x1a"
+
+
+write("database/dbf", "people", dbf(
+    [("NAME", b"C", 8), ("AGE", b"N", 3)],
+    [(b"Ada", b"36"), (b"Grace", b"85")],
+).replace(b" Ada", b"*Ada", 1))

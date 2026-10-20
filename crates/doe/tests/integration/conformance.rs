@@ -273,6 +273,7 @@ macro_rules! gallery {
 gallery!(
     gallery_archive_gzip = "gallery/archive/gzip",
     gallery_archive_zip = "gallery/archive/zip",
+    gallery_database_dbf = "gallery/database/dbf",
     gallery_executable_elf = "gallery/executable/elf",
     gallery_image_bmp = "gallery/image/bmp",
     gallery_image_gif = "gallery/image/gif",
