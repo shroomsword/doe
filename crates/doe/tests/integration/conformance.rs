@@ -98,8 +98,35 @@ fn samples(format: &str) -> Vec<String> {
 }
 
 /// The definitions of the Kaitai Struct gallery, a git submodule.
+///
+/// A clone made without `--recurse-submodules` has the directory empty: it is
+/// checked out here, once, so that `cargo test` works in any clone. When that
+/// cannot be done (not a git checkout, no network), the tests that need the
+/// definitions say so.
 fn gallery_dir() -> PathBuf {
-    conformance_dir().join("kaitai_struct_formats")
+    static CHECKED_OUT: std::sync::Once = std::sync::Once::new();
+    let dir = conformance_dir().join("kaitai_struct_formats");
+    CHECKED_OUT.call_once(|| {
+        if dir.join("README.md").exists() {
+            return;
+        }
+        let root = conformance_dir();
+        // A failure shows as the missing definitions, which the tests report.
+        drop(
+            std::process::Command::new("git")
+                .args([
+                    "submodule",
+                    "update",
+                    "--init",
+                    "--",
+                    "kaitai_struct_formats",
+                ])
+                .current_dir(&root)
+                .env("GIT_TERMINAL_PROMPT", "0")
+                .output(),
+        );
+    });
+    dir
 }
 
 /// The definition of `format`: a file of `formats/`, or, for `gallery/<path>`,
