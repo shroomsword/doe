@@ -84,15 +84,25 @@ committing it.
 
 ## Gallery definitions
 
-`formats/gallery/` holds copies of definitions from the Kaitai Struct format
-gallery (all `CC0-1.0`; see its README), in the layout of the gallery so that
-they import each other as they do there. The ones that have samples in
-`samples/gallery/<dir>/<name>/` are tested like the other formats: `gzip`, `zip`
-(with `dos_datetime`), `elf`, `bmp`, `gif` and `png` (with `icc_4` and `exif`).
+`kaitai_struct_formats/` is the [Kaitai Struct format gallery](https://github.com/kaitai-io/kaitai_struct_formats)
+as a git submodule, at the commit the submodule points to, so that the suite
+needs no network to run once it is checked out (`git clone --recurse-submodules`,
+or `git submodule update --init` in a clone without it). Each definition says in
+its `meta.license` how it is licensed; the ones used here are `CC0-1.0`. Nothing
+of the gallery is copied into this repository.
+
+The definitions that have samples in `samples/gallery/<dir>/<name>/` are tested
+like the other formats, named `gallery/<dir>/<name>`: `gzip`, `zip` (with
+`dos_datetime`), `elf`, `bmp`, `gif` and `png` (with `icc_4` and `exif`).
 `make_gallery_samples.py` writes the samples, small files that it makes up (the
 ELF ones with the C compiler of the machine); the expected output comes from the
 reference compiler with `npm run generate`, or `npm run generate -- gallery/archive/zip`
 for one of them.
+
+To use a newer gallery, move the submodule (`git -C conformance/kaitai_struct_formats
+checkout <commit>`), run `npm run generate`, and review the diff of `expected/`
+with the one of the gallery. The gallery has no release tags, so the submodule
+points at a commit.
 
 ## What it does not cover yet
 

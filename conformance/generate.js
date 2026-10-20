@@ -18,6 +18,8 @@ const formatsDir = path.join(root, 'formats');
 const samplesDir = path.join(root, 'samples');
 const expectedDir = path.join(root, 'expected');
 const generatedDir = path.join(root, '.generated');
+// The definitions of the Kaitai Struct gallery, a git submodule.
+const galleryDir = path.join(root, 'kaitai_struct_formats');
 
 // Keys are compared without case and underscores, because the JavaScript
 // runtime renames `file_size` to `fileSize`.
@@ -73,6 +75,26 @@ function listFormats(dir, prefix) {
   });
 }
 
+// The gallery definitions that have samples: `gallery/<dir>/<name>` for each
+// directory of samples/gallery that holds `.bin` files.
+function galleryFormats() {
+  const found = [];
+  const walk = (dir, prefix) => {
+    if (!fs.existsSync(dir)) return;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const here = path.join(dir, entry.name);
+      if (fs.readdirSync(here).some((f) => f.endsWith('.bin'))) {
+        found.push(`${galleryPrefix}/${prefix}${entry.name}`);
+      } else {
+        walk(here, `${prefix}${entry.name}/`);
+      }
+    }
+  };
+  walk(path.join(samplesDir, galleryPrefix), '');
+  return found;
+}
+
 function className(id) {
   return id
     .split('_')
@@ -84,23 +106,26 @@ async function main() {
   fs.rmSync(generatedDir, { recursive: true, force: true });
   fs.mkdirSync(generatedDir, { recursive: true });
   const only = process.argv[2];
-  const formats = listFormats(formatsDir, '')
+  const formats = [...listFormats(formatsDir, ''), ...galleryFormats()]
     .filter((name) => !only || name === only)
     .sort();
   if (formats.length === 0) throw new Error('no formats found');
 
   for (const name of formats) {
     const dir = path.join(samplesDir, name);
-    const hasSamples = fs.existsSync(dir);
-    // A gallery definition without samples is only there for others to import.
-    if (!hasSamples && name.startsWith(`${galleryPrefix}/`) && !only) continue;
-    const ksy = YAML.parse(fs.readFileSync(path.join(formatsDir, `${name}.ksy`), 'utf8'));
+    const inGallery = name.startsWith(`${galleryPrefix}/`);
     // The gallery definitions import each other the way the gallery does: a
     // name with a leading slash from the root of the gallery, any other next
     // to the definition.
-    const inGallery = name.startsWith(`${galleryPrefix}/`);
-    const importRoot = inGallery ? path.join(formatsDir, galleryPrefix) : formatsDir;
-    const here = path.dirname(path.join(formatsDir, `${name}.ksy`));
+    const ksyPath = inGallery
+      ? path.join(galleryDir, `${name.slice(galleryPrefix.length + 1)}.ksy`)
+      : path.join(formatsDir, `${name}.ksy`);
+    if (!fs.existsSync(ksyPath)) {
+      throw new Error(`${ksyPath} does not exist; run: git submodule update --init`);
+    }
+    const ksy = YAML.parse(fs.readFileSync(ksyPath, 'utf8'));
+    const importRoot = inGallery ? galleryDir : formatsDir;
+    const here = path.dirname(ksyPath);
     const importer = {
       importYaml: (importName) => {
         const candidates = [
@@ -122,7 +147,7 @@ async function main() {
     const KaitaiStream = require('kaitai-struct/KaitaiStream');
 
     const params = collectParams(ksy);
-    const samples = hasSamples
+    const samples = fs.existsSync(dir)
       ? fs.readdirSync(dir).filter((f) => f.endsWith('.bin')).sort()
       : [];
     if (samples.length === 0) throw new Error(`${name} has no samples`);
