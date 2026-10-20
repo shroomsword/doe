@@ -1,0 +1,80 @@
+{
+  "segments": [
+    {
+      "magic": "ff",
+      "marker": 216
+    },
+    {
+      "data": {
+        "densityunits": 0,
+        "densityx": 72,
+        "densityy": 72,
+        "magic": "JFIF\u0000",
+        "thumbnail": "",
+        "thumbnailx": 0,
+        "thumbnaily": 0,
+        "versionmajor": 1,
+        "versionminor": 1
+      },
+      "length": 16,
+      "magic": "ff",
+      "marker": 224
+    },
+    {
+      "data": "6d6164652062792068616e64",
+      "length": 14,
+      "magic": "ff",
+      "marker": 254
+    },
+    {
+      "data": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40",
+      "length": 67,
+      "magic": "ff",
+      "marker": 219
+    },
+    {
+      "data": {
+        "bitspersample": 8,
+        "components": [
+          {
+            "id": 1,
+            "quantizationtableid": 0,
+            "samplingfactors": 17,
+            "samplingx": 1,
+            "samplingy": 1
+          }
+        ],
+        "imageheight": 8,
+        "imagewidth": 8,
+        "numcomponents": 1
+      },
+      "length": 11,
+      "magic": "ff",
+      "marker": 192
+    },
+    {
+      "data": "000001000000000000000000000000000000",
+      "length": 20,
+      "magic": "ff",
+      "marker": 196
+    },
+    {
+      "data": {
+        "apprbitpos": 0,
+        "components": [
+          {
+            "huffmantable": 0,
+            "id": 1
+          }
+        ],
+        "endspectral": 63,
+        "numcomponents": 1,
+        "startspectralselection": 0
+      },
+      "imagedata": "1234ff0056ffd078ffd9",
+      "length": 8,
+      "magic": "ff",
+      "marker": 218
+    }
+  ]
+}

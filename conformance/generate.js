@@ -124,6 +124,8 @@ async function main() {
       throw new Error(`${ksyPath} does not exist; run: git submodule update --init`);
     }
     const ksy = YAML.parse(fs.readFileSync(ksyPath, 'utf8'));
+    // The parameters of this type and of every type it imports.
+    const params = collectParams(ksy);
     const importRoot = inGallery ? galleryDir : formatsDir;
     const here = path.dirname(ksyPath);
     const importer = {
@@ -134,19 +136,25 @@ async function main() {
         ];
         const found = candidates.find((candidate) => fs.existsSync(candidate));
         if (!found) throw new Error(`cannot find the import ${importName} of ${name}`);
-        return Promise.resolve(YAML.parse(fs.readFileSync(found, 'utf8')));
+        const imported = YAML.parse(fs.readFileSync(found, 'utf8'));
+        collectParams(imported, params);
+        return Promise.resolve(imported);
       },
     };
     const files = await compiler.compile('javascript', ksy, importer, false);
+    // One directory per format: two formats can define classes of the same
+    // name (the gallery's ipv4_packet and the one in formats/), and `require`
+    // caches by path.
+    const outDir = path.join(generatedDir, name.replace(/\//g, '__'));
+    fs.mkdirSync(outDir, { recursive: true });
     for (const [file, code] of Object.entries(files)) {
-      fs.writeFileSync(path.join(generatedDir, file), code);
+      fs.writeFileSync(path.join(outDir, file), code);
     }
-    const Parser = require(path.join(generatedDir, `${className(ksy.meta.id)}.js`))[
+    const Parser = require(path.join(outDir, `${className(ksy.meta.id)}.js`))[
       className(ksy.meta.id)
     ];
     const KaitaiStream = require('kaitai-struct/KaitaiStream');
 
-    const params = collectParams(ksy);
     const samples = fs.existsSync(dir)
       ? fs.readdirSync(dir).filter((f) => f.endsWith('.bin')).sort()
       : [];

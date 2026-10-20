@@ -134,3 +134,80 @@ with tempfile.TemporaryDirectory() as work:
                     "-fno-ident", "-Wl,--build-id=none", "-Wl,-z,norelro", "-Wl,-z,noseparate-code",
                     "-o", exe, start], check=True)
     write("executable/elf", "static_exe", Path(exe).read_bytes())
+
+# ── wav ──────────────────────────────────────────────────────────────────────
+
+def riff(chunks):
+    body = b"WAVE" + b"".join(chunks)
+    return b"RIFF" + struct.pack("<I", len(body)) + body
+
+
+def riff_chunk(kind, body):
+    return kind + struct.pack("<I", len(body)) + body + (b"\x00" if len(body) % 2 else b"")
+
+
+def wav_format(tag, channels, rate, bits):
+    align = channels * bits // 8
+    return riff_chunk(b"fmt ", struct.pack("<HHIIHH", tag, channels, rate, rate * align, align, bits))
+
+
+samples16 = struct.pack("<8h", 0, 1000, 2000, 1000, 0, -1000, -2000, -1000)
+write("media/wav", "pcm16", riff([wav_format(1, 1, 8000, 16), riff_chunk(b"data", samples16)]))
+write("media/wav", "stereo8_list", riff([
+    wav_format(1, 2, 11025, 8),
+    riff_chunk(b"LIST", b"INFO" + riff_chunk(b"ISFT", b"doe\x00")),
+    riff_chunk(b"data", bytes([128, 130, 132, 134, 136, 138, 140])),
+]))
+
+# ── pcap and the network layers ──────────────────────────────────────────────
+
+def ipv4(protocol, payload, source=(10, 0, 0, 1), destination=(10, 0, 0, 2)):
+    header = struct.pack(">BBHHHBBH4s4s", 0x45, 0, 20 + len(payload), 0x1234, 0x4000, 64,
+                         protocol, 0, bytes(source), bytes(destination))
+    return header + payload
+
+
+def udp(source, destination, payload):
+    return struct.pack(">HHHH", source, destination, 8 + len(payload), 0) + payload
+
+
+def tcp(source, destination, flags, payload=b""):
+    return struct.pack(">HHIIBBHHH", source, destination, 1000, 2000, 5 << 4, flags, 8192, 0, 0) + payload
+
+
+def ethernet(payload, ether_type=0x0800):
+    return bytes.fromhex("0a0b0c0d0e0f") + bytes.fromhex("010203040506") + struct.pack(">H", ether_type) + payload
+
+
+frame_udp = ethernet(ipv4(17, udp(5353, 53, b"query")))
+frame_tcp = ethernet(ipv4(6, tcp(40000, 80, 0x18, b"GET / HTTP/1.0\r\n\r\n")))
+write("network/ethernet_frame", "udp", frame_udp)
+write("network/ethernet_frame", "tcp", frame_tcp)
+
+
+def pcap(linktype, packets):
+    out = struct.pack("<IHHiIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, linktype)
+    for number, packet in enumerate(packets):
+        out += struct.pack("<IIII", 1589723130 + number, 250000 * number, len(packet), len(packet)) + packet
+    return out
+
+
+write("network/pcap", "ethernet", pcap(1, [frame_udp, frame_tcp]))
+
+# ── jpeg ─────────────────────────────────────────────────────────────────────
+
+def segment(marker, body):
+    return bytes([0xFF, marker]) + struct.pack(">H", len(body) + 2) + body
+
+
+write("image/jpeg", "baseline", b"".join([
+    b"\xff\xd8",
+    segment(0xE0, b"JFIF\x00" + struct.pack(">BBBHHBB", 1, 1, 0, 72, 72, 0, 0)),
+    segment(0xFE, b"made by hand"),
+    segment(0xDB, bytes([0]) + bytes(range(1, 65))),
+    segment(0xC0, struct.pack(">BHHB", 8, 8, 8, 1) + bytes([1, 0x11, 0])),
+    segment(0xC4, bytes([0x00]) + bytes([0, 1] + [0] * 14) + bytes([0])),
+    segment(0xDA, bytes([1, 1, 0x00, 0, 63, 0])),
+    bytes([0x12, 0x34, 0xFF, 0x00, 0x56, 0xFF, 0xD0, 0x78]),
+    b"\xff\xd9",
+]))
