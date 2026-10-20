@@ -3,9 +3,11 @@
 #
 # usage: scripts/pr-merge <pr-number>
 #
-# Refuses unless every check passed. Afterwards switches to an up-to-date main
-# and deletes the PR's local branch and, if GitHub did not already, its remote
-# branch.
+# Refuses unless every check passed. Afterwards brings main up to date and
+# deletes the PR's local branch and, if GitHub did not already, its remote
+# branch. The checkout is only touched when it is on the PR's branch (then it
+# is switched to main); on any other branch, with work in progress, it is left
+# alone.
 set -euo pipefail
 
 [[ $# -eq 1 ]] || { echo "usage: $0 <pr-number>" >&2; exit 2; }
@@ -23,11 +25,20 @@ gh pr merge "$pr" --rebase
 state=$(gh pr view "$pr" --json state -q .state)
 [[ $state == MERGED ]] || { echo "PR $pr is $state, not MERGED" >&2; exit 1; }
 
-git fetch -q origin main
-git switch -q main
-git pull -q origin main
+current=$(git symbolic-ref --short HEAD 2>/dev/null || true)
+if [[ $current == "$branch" ]]; then
+  [[ -z $(git status --porcelain --untracked-files=no) ]] ||
+    { echo "merged, but $branch has uncommitted changes: leaving the checkout alone" >&2; exit 1; }
+  git fetch -q origin main
+  git switch -q main
+  git pull -q origin main
+else
+  # main is not checked out here, or the work in progress is on another branch.
+  git fetch -q origin main
+  [[ $current == main ]] && git merge -q --ff-only origin/main || git fetch -q origin main:main 2>/dev/null || true
+fi
 git branch -D "$branch" 2>/dev/null || true
 if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
-  git push -q origin --delete "$branch" || true
+  git push -q origin --delete "$branch" 2>/dev/null || true
 fi
 git log --oneline -3
