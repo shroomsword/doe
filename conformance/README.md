@@ -82,6 +82,18 @@ and parses the samples with the result. If the reference rejects a definition or
 a sample, so does the generator. Review the diff of `expected/` before
 committing it.
 
+## Gallery definitions
+
+`formats/gallery/` holds copies of definitions from the Kaitai Struct format
+gallery (all `CC0-1.0`; see its README), in the layout of the gallery so that
+they import each other as they do there. The ones that have samples in
+`samples/gallery/<dir>/<name>/` are tested like the other formats: `gzip`, `zip`
+(with `dos_datetime`), `elf`, `bmp`, `gif` and `png` (with `icc_4` and `exif`).
+`make_gallery_samples.py` writes the samples, small files that it makes up (the
+ELF ones with the C compiler of the machine); the expected output comes from the
+reference compiler with `npm run generate`, or `npm run generate -- gallery/archive/zip`
+for one of them.
+
 ## What it does not cover yet
 
 Kaitai Struct features that doe does not have are left out until they exist; the

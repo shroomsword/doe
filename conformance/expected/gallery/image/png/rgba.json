@@ -1,0 +1,103 @@
+{
+  "chunks": [
+    {
+      "body": {
+        "gamma": 0.45455,
+        "gammaint": 45455,
+        "invgamma": 2.199978000219998
+      },
+      "crc": 201089285,
+      "isancillary": true,
+      "isprivate": false,
+      "issafetocopy": false,
+      "len": 4,
+      "reservedbit": false,
+      "type": "gAMA",
+      "typeraw": "67414d41"
+    },
+    {
+      "body": {
+        "dotsperinchx": 72.009,
+        "dotsperinchy": 72.009,
+        "pixelsperunitx": 2835,
+        "pixelsperunity": 2835,
+        "unit": 1
+      },
+      "crc": 10132504,
+      "isancillary": true,
+      "isprivate": false,
+      "issafetocopy": true,
+      "len": 9,
+      "reservedbit": false,
+      "type": "pHYs",
+      "typeraw": "70485973"
+    },
+    {
+      "body": {
+        "day": 17,
+        "hour": 13,
+        "minute": 45,
+        "month": 5,
+        "second": 30,
+        "year": 2020
+      },
+      "crc": 3015293025,
+      "isancillary": true,
+      "isprivate": false,
+      "issafetocopy": false,
+      "len": 7,
+      "reservedbit": false,
+      "type": "tIME",
+      "typeraw": "74494d45"
+    },
+    {
+      "body": {
+        "keyword": "Title",
+        "text": "Two by two"
+      },
+      "crc": 2347262010,
+      "isancillary": true,
+      "isprivate": false,
+      "issafetocopy": true,
+      "len": 16,
+      "reservedbit": false,
+      "type": "tEXt",
+      "typeraw": "74455874"
+    },
+    {
+      "body": "789c63f8cfc0f01f0c81340834000049490978",
+      "crc": 681630583,
+      "isancillary": false,
+      "isprivate": false,
+      "issafetocopy": false,
+      "len": 19,
+      "reservedbit": false,
+      "type": "IDAT",
+      "typeraw": "49444154"
+    },
+    {
+      "body": "",
+      "crc": 2923585666,
+      "isancillary": false,
+      "isprivate": false,
+      "issafetocopy": false,
+      "len": 0,
+      "reservedbit": false,
+      "type": "IEND",
+      "typeraw": "49454e44"
+    }
+  ],
+  "ihdr": {
+    "bitdepth": 8,
+    "colortype": 6,
+    "compressionmethod": 0,
+    "filtermethod": 0,
+    "height": 2,
+    "interlacemethod": 0,
+    "width": 2
+  },
+  "ihdrcrc": 1924533540,
+  "ihdrlen": 13,
+  "ihdrtype": "49484452",
+  "magic": "89504e470d0a1a0a"
+}

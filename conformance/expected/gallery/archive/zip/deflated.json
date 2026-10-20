@@ -1,0 +1,336 @@
+{
+  "sections": [
+    {
+      "body": {
+        "body": "cb48cdc9c957c84027b93044a82c0e00",
+        "header": {
+          "compressionmethod": 8,
+          "crc32": 2466648950,
+          "extra": {
+            "entries": []
+          },
+          "filemodtime": {
+            "date": {
+              "day": 17,
+              "month": 5,
+              "paddedday": "17",
+              "paddedmonth": "05",
+              "paddedyear": "2020",
+              "year": 2020,
+              "yearminus1980": 40
+            },
+            "time": {
+              "hour": 13,
+              "minute": 45,
+              "paddedhour": "13",
+              "paddedminute": "45",
+              "paddedsecond": "30",
+              "second": 30,
+              "seconddiv2": 15
+            }
+          },
+          "filename": "hello.txt",
+          "flags": {
+            "compoptionsraw": 0,
+            "comppatcheddata": false,
+            "deflatedmode": 0,
+            "fileencrypted": false,
+            "hasdatadescriptor": false,
+            "implodeddictbytesize": null,
+            "implodednumsftrees": null,
+            "langencoding": false,
+            "lzmahaseosmarker": null,
+            "maskheadervalues": false,
+            "reserved1": false,
+            "reserved2": 0,
+            "reserved3": false,
+            "reserved4": 0,
+            "strongencrypt": false
+          },
+          "lenbodycompressed": 16,
+          "lenbodyuncompressed": 120,
+          "lenextra": 0,
+          "lenfilename": 9,
+          "version": 20
+        }
+      },
+      "magic": "504b",
+      "sectiontype": 1027
+    },
+    {
+      "body": {
+        "body": "010001fffe000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+        "header": {
+          "compressionmethod": 8,
+          "crc32": 688229491,
+          "extra": {
+            "entries": []
+          },
+          "filemodtime": {
+            "date": {
+              "day": 17,
+              "month": 5,
+              "paddedday": "17",
+              "paddedmonth": "05",
+              "paddedyear": "2020",
+              "year": 2020,
+              "yearminus1980": 40
+            },
+            "time": {
+              "hour": 13,
+              "minute": 45,
+              "paddedhour": "13",
+              "paddedminute": "45",
+              "paddedsecond": "30",
+              "second": 30,
+              "seconddiv2": 15
+            }
+          },
+          "filename": "dir/bytes.bin",
+          "flags": {
+            "compoptionsraw": 0,
+            "comppatcheddata": false,
+            "deflatedmode": 0,
+            "fileencrypted": false,
+            "hasdatadescriptor": false,
+            "implodeddictbytesize": null,
+            "implodednumsftrees": null,
+            "langencoding": false,
+            "lzmahaseosmarker": null,
+            "maskheadervalues": false,
+            "reserved1": false,
+            "reserved2": 0,
+            "reserved3": false,
+            "reserved4": 0,
+            "strongencrypt": false
+          },
+          "lenbodycompressed": 261,
+          "lenbodyuncompressed": 256,
+          "lenextra": 0,
+          "lenfilename": 13,
+          "version": 20
+        }
+      },
+      "magic": "504b",
+      "sectiontype": 1027
+    },
+    {
+      "body": {
+        "comment": "",
+        "compressionmethod": 8,
+        "crc32": 2466648950,
+        "disknumberstart": 0,
+        "extfileattr": 27525120,
+        "extra": {
+          "entries": []
+        },
+        "filemodtime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2020",
+            "year": 2020,
+            "yearminus1980": 40
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "30",
+            "second": 30,
+            "seconddiv2": 15
+          }
+        },
+        "filename": "hello.txt",
+        "flags": 0,
+        "intfileattr": 0,
+        "lenbodycompressed": 16,
+        "lenbodyuncompressed": 120,
+        "lencomment": 0,
+        "lenextra": 0,
+        "lenfilename": 9,
+        "localheader": {
+          "body": {
+            "body": "cb48cdc9c957c84027b93044a82c0e00",
+            "header": {
+              "compressionmethod": 8,
+              "crc32": 2466648950,
+              "extra": {
+                "entries": []
+              },
+              "filemodtime": {
+                "date": {
+                  "day": 17,
+                  "month": 5,
+                  "paddedday": "17",
+                  "paddedmonth": "05",
+                  "paddedyear": "2020",
+                  "year": 2020,
+                  "yearminus1980": 40
+                },
+                "time": {
+                  "hour": 13,
+                  "minute": 45,
+                  "paddedhour": "13",
+                  "paddedminute": "45",
+                  "paddedsecond": "30",
+                  "second": 30,
+                  "seconddiv2": 15
+                }
+              },
+              "filename": "hello.txt",
+              "flags": {
+                "compoptionsraw": 0,
+                "comppatcheddata": false,
+                "deflatedmode": 0,
+                "fileencrypted": false,
+                "hasdatadescriptor": false,
+                "implodeddictbytesize": null,
+                "implodednumsftrees": null,
+                "langencoding": false,
+                "lzmahaseosmarker": null,
+                "maskheadervalues": false,
+                "reserved1": false,
+                "reserved2": 0,
+                "reserved3": false,
+                "reserved4": 0,
+                "strongencrypt": false
+              },
+              "lenbodycompressed": 16,
+              "lenbodyuncompressed": 120,
+              "lenextra": 0,
+              "lenfilename": 9,
+              "version": 20
+            }
+          },
+          "magic": "504b",
+          "sectiontype": 1027
+        },
+        "ofslocalheader": 0,
+        "versionmadeby": 788,
+        "versionneededtoextract": 20
+      },
+      "magic": "504b",
+      "sectiontype": 513
+    },
+    {
+      "body": {
+        "comment": "",
+        "compressionmethod": 8,
+        "crc32": 688229491,
+        "disknumberstart": 0,
+        "extfileattr": 27525120,
+        "extra": {
+          "entries": []
+        },
+        "filemodtime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2020",
+            "year": 2020,
+            "yearminus1980": 40
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "30",
+            "second": 30,
+            "seconddiv2": 15
+          }
+        },
+        "filename": "dir/bytes.bin",
+        "flags": 0,
+        "intfileattr": 0,
+        "lenbodycompressed": 261,
+        "lenbodyuncompressed": 256,
+        "lencomment": 0,
+        "lenextra": 0,
+        "lenfilename": 13,
+        "localheader": {
+          "body": {
+            "body": "010001fffe000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+            "header": {
+              "compressionmethod": 8,
+              "crc32": 688229491,
+              "extra": {
+                "entries": []
+              },
+              "filemodtime": {
+                "date": {
+                  "day": 17,
+                  "month": 5,
+                  "paddedday": "17",
+                  "paddedmonth": "05",
+                  "paddedyear": "2020",
+                  "year": 2020,
+                  "yearminus1980": 40
+                },
+                "time": {
+                  "hour": 13,
+                  "minute": 45,
+                  "paddedhour": "13",
+                  "paddedminute": "45",
+                  "paddedsecond": "30",
+                  "second": 30,
+                  "seconddiv2": 15
+                }
+              },
+              "filename": "dir/bytes.bin",
+              "flags": {
+                "compoptionsraw": 0,
+                "comppatcheddata": false,
+                "deflatedmode": 0,
+                "fileencrypted": false,
+                "hasdatadescriptor": false,
+                "implodeddictbytesize": null,
+                "implodednumsftrees": null,
+                "langencoding": false,
+                "lzmahaseosmarker": null,
+                "maskheadervalues": false,
+                "reserved1": false,
+                "reserved2": 0,
+                "reserved3": false,
+                "reserved4": 0,
+                "strongencrypt": false
+              },
+              "lenbodycompressed": 261,
+              "lenbodyuncompressed": 256,
+              "lenextra": 0,
+              "lenfilename": 13,
+              "version": 20
+            }
+          },
+          "magic": "504b",
+          "sectiontype": 1027
+        },
+        "ofslocalheader": 55,
+        "versionmadeby": 788,
+        "versionneededtoextract": 20
+      },
+      "magic": "504b",
+      "sectiontype": 513
+    },
+    {
+      "body": {
+        "comment": "",
+        "diskofcentraldir": 0,
+        "diskofendofcentraldir": 0,
+        "lencentraldir": 114,
+        "lencomment": 0,
+        "numcentraldirentriesondisk": 2,
+        "numcentraldirentriestotal": 2,
+        "ofscentraldir": 359
+      },
+      "magic": "504b",
+      "sectiontype": 1541
+    }
+  ]
+}

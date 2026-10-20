@@ -100,10 +100,7 @@ struct InstanceFrame {
 /// instance that is computed later.
 pub const DEFERRED_TYPE: &str = "$deferred";
 
-/// The start of the name of a field that holds a parameter of the type, which
-/// expressions read as a field of the struct (`color_mask_given.has_alpha_mask`)
-/// and the output leaves out.
-pub const PARAM_PREFIX: &str = "$param:";
+pub use crate::schema::expr::PARAM_PREFIX;
 
 /// The most values one binding copies into the expression context; a larger
 /// array or sub-type is bound as [`ExprValue::Omitted`].
@@ -487,9 +484,7 @@ fn to_expr_value(value: &Value, budget: &mut usize) -> Option<ExprValue> {
                 fields
                     .iter()
                     .filter_map(|(name, field)| {
-                        // A parameter is a field to expressions.
-                        let name = name.strip_prefix(PARAM_PREFIX).unwrap_or(name);
-                        to_expr_value(field, budget).map(|v| (name.to_owned(), v))
+                        to_expr_value(field, budget).map(|v| (name.clone(), v))
                     })
                     .collect(),
             )

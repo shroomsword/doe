@@ -1372,7 +1372,9 @@ fn apply_members<'a>(
             Cow::Owned(ExprValue::Struct(fields)) => Cow::Owned(
                 fields
                     .into_iter()
-                    .find(|(name, _)| name == member)
+                    .find(|(name, _)| {
+                        name == member || name.strip_prefix(PARAM_PREFIX) == Some(member)
+                    })
                     .map(|(_, v)| v)
                     .ok_or_else(|| fail(src, &format!("a struct has no field '{member}'")))?,
             ),
@@ -1384,7 +1386,7 @@ fn apply_members<'a>(
 
 /// The number of the instance that `value` stands for, if it is the marker of
 /// one that is computed later.
-fn deferred_id(value: &ExprValue) -> Option<u64> {
+pub fn deferred_id(value: &ExprValue) -> Option<u64> {
     match value {
         ExprValue::Struct(fields) => match fields.as_slice() {
             [(name, ExprValue::Int(id))] if name == DEFERRED_FIELD => u64::try_from(*id).ok(),
@@ -1411,10 +1413,15 @@ fn settled<'a>(
     }
 }
 
+/// The start of the name of a field that holds a parameter of a type, which
+/// expressions read as a field of the struct (`color_mask_given.has_alpha_mask`)
+/// and the output leaves out.
+pub const PARAM_PREFIX: &str = "$param:";
+
 fn find_field<'a>(fields: &'a [(String, ExprValue)], name: &str) -> Option<&'a ExprValue> {
-    fields
-        .iter()
-        .find_map(|(field, value)| (field == name).then_some(value))
+    fields.iter().find_map(|(field, value)| {
+        (field == name || field.strip_prefix(PARAM_PREFIX) == Some(name)).then_some(value)
+    })
 }
 
 impl Default for EvalContext {

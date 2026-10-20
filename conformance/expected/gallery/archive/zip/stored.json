@@ -1,0 +1,177 @@
+{
+  "sections": [
+    {
+      "body": {
+        "body": "616263",
+        "header": {
+          "compressionmethod": 0,
+          "crc32": 891568578,
+          "extra": {
+            "entries": []
+          },
+          "filemodtime": {
+            "date": {
+              "day": 17,
+              "month": 5,
+              "paddedday": "17",
+              "paddedmonth": "05",
+              "paddedyear": "2020",
+              "year": 2020,
+              "yearminus1980": 40
+            },
+            "time": {
+              "hour": 13,
+              "minute": 45,
+              "paddedhour": "13",
+              "paddedminute": "45",
+              "paddedsecond": "30",
+              "second": 30,
+              "seconddiv2": 15
+            }
+          },
+          "filename": "a.txt",
+          "flags": {
+            "compoptionsraw": 0,
+            "comppatcheddata": false,
+            "deflatedmode": null,
+            "fileencrypted": false,
+            "hasdatadescriptor": false,
+            "implodeddictbytesize": null,
+            "implodednumsftrees": null,
+            "langencoding": false,
+            "lzmahaseosmarker": null,
+            "maskheadervalues": false,
+            "reserved1": false,
+            "reserved2": 0,
+            "reserved3": false,
+            "reserved4": 0,
+            "strongencrypt": false
+          },
+          "lenbodycompressed": 3,
+          "lenbodyuncompressed": 3,
+          "lenextra": 0,
+          "lenfilename": 5,
+          "version": 20
+        }
+      },
+      "magic": "504b",
+      "sectiontype": 1027
+    },
+    {
+      "body": {
+        "comment": "",
+        "compressionmethod": 0,
+        "crc32": 891568578,
+        "disknumberstart": 0,
+        "extfileattr": 27525120,
+        "extra": {
+          "entries": []
+        },
+        "filemodtime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2020",
+            "year": 2020,
+            "yearminus1980": 40
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "30",
+            "second": 30,
+            "seconddiv2": 15
+          }
+        },
+        "filename": "a.txt",
+        "flags": 0,
+        "intfileattr": 0,
+        "lenbodycompressed": 3,
+        "lenbodyuncompressed": 3,
+        "lencomment": 0,
+        "lenextra": 0,
+        "lenfilename": 5,
+        "localheader": {
+          "body": {
+            "body": "616263",
+            "header": {
+              "compressionmethod": 0,
+              "crc32": 891568578,
+              "extra": {
+                "entries": []
+              },
+              "filemodtime": {
+                "date": {
+                  "day": 17,
+                  "month": 5,
+                  "paddedday": "17",
+                  "paddedmonth": "05",
+                  "paddedyear": "2020",
+                  "year": 2020,
+                  "yearminus1980": 40
+                },
+                "time": {
+                  "hour": 13,
+                  "minute": 45,
+                  "paddedhour": "13",
+                  "paddedminute": "45",
+                  "paddedsecond": "30",
+                  "second": 30,
+                  "seconddiv2": 15
+                }
+              },
+              "filename": "a.txt",
+              "flags": {
+                "compoptionsraw": 0,
+                "comppatcheddata": false,
+                "deflatedmode": null,
+                "fileencrypted": false,
+                "hasdatadescriptor": false,
+                "implodeddictbytesize": null,
+                "implodednumsftrees": null,
+                "langencoding": false,
+                "lzmahaseosmarker": null,
+                "maskheadervalues": false,
+                "reserved1": false,
+                "reserved2": 0,
+                "reserved3": false,
+                "reserved4": 0,
+                "strongencrypt": false
+              },
+              "lenbodycompressed": 3,
+              "lenbodyuncompressed": 3,
+              "lenextra": 0,
+              "lenfilename": 5,
+              "version": 20
+            }
+          },
+          "magic": "504b",
+          "sectiontype": 1027
+        },
+        "ofslocalheader": 0,
+        "versionmadeby": 788,
+        "versionneededtoextract": 20
+      },
+      "magic": "504b",
+      "sectiontype": 513
+    },
+    {
+      "body": {
+        "comment": "",
+        "diskofcentraldir": 0,
+        "diskofendofcentraldir": 0,
+        "lencentraldir": 51,
+        "lencomment": 0,
+        "numcentraldirentriesondisk": 1,
+        "numcentraldirentriestotal": 1,
+        "ofscentraldir": 38
+      },
+      "magic": "504b",
+      "sectiontype": 1541
+    }
+  ]
+}

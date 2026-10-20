@@ -14,7 +14,7 @@ use crate::parser::cursor::{BitOrder, Cursor, MAX_TERMINATED_LEN};
 use crate::parser::encoding;
 use crate::parser::process::{self, MAX_PROCESSED_LEN};
 use crate::schema::expr;
-use crate::schema::expr::ExprValue;
+use crate::schema::expr::{ExprValue, deferred_id};
 use crate::schema::ir::{
     CompiledField, CompiledInstance, CompiledIo, CompiledType, CompiledValid, Cut, Encoding,
     Endian, EndianOverride, EndianRule, EndianSwitch, FieldKind, FloatWidth, InstanceKind,
@@ -162,7 +162,7 @@ impl<'reg> Engine<'reg> {
             }
             ctx.put_back_deferred(still);
         }
-        substitute_deferred(&mut value, &mut results);
+        substitute_deferred(&mut value, &results);
         Ok(value)
     }
 
@@ -1291,23 +1291,36 @@ fn placeholder_id(value: &Value) -> Option<u64> {
 }
 
 /// Put the instances that were computed later in the places that stand for
-/// them in `value`.
-fn substitute_deferred(value: &mut Value, results: &mut HashMap<u64, Value>) {
+/// them in `value`. One can stand in several places (a value that was copied
+/// from a struct that had it), and can contain places that stand for others.
+fn substitute_deferred(value: &mut Value, results: &HashMap<u64, Value>) {
+    fill_deferred(value, results, 0);
+}
+
+fn fill_deferred(value: &mut Value, results: &HashMap<u64, Value>, depth: usize) {
+    if let Some(id) = placeholder_id(value) {
+        // Instances can contain each other, through the values that copy them.
+        *value = match results.get(&id) {
+            Some(found) if depth < MAX_TYPE_DEPTH => found.clone(),
+            _ => Value::Absent,
+        };
+        if matches!(value, Value::Absent) {
+            return;
+        }
+        return fill_deferred(value, results, depth + 1);
+    }
     match value {
         Value::Struct { fields, .. } => {
             for (_, field) in fields.iter_mut() {
-                if let Some(id) = placeholder_id(field) {
-                    *field = results.remove(&id).unwrap_or(Value::Absent);
-                }
-                substitute_deferred(field, results);
+                fill_deferred(field, results, depth);
             }
         }
         Value::Array(items) => {
             for item in items {
-                substitute_deferred(item, results);
+                fill_deferred(item, results, depth);
             }
         }
-        Value::Instance { value, .. } => substitute_deferred(value, results),
+        Value::Instance { value, .. } => fill_deferred(value, results, depth),
         _ => {}
     }
 }
@@ -1402,6 +1415,10 @@ fn apply_enum(value: Value, enum_name: Option<&str>, ty: &CompiledType) -> Value
 
 /// The parsed value an expression result stands for, for an instance.
 fn to_value(computed: &ExprValue) -> std::result::Result<Value, String> {
+    // An instance that is computed later stands for itself until it is.
+    if let Some(id) = deferred_id(computed) {
+        return Ok(deferred_placeholder(id));
+    }
     Ok(match computed {
         ExprValue::Int(n) => {
             if let Ok(n) = u64::try_from(*n) {

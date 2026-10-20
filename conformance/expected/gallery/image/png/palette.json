@@ -1,0 +1,99 @@
+{
+  "chunks": [
+    {
+      "body": {
+        "entries": [
+          {
+            "b": 0,
+            "g": 0,
+            "r": 255
+          },
+          {
+            "b": 0,
+            "g": 255,
+            "r": 0
+          },
+          {
+            "b": 255,
+            "g": 0,
+            "r": 0
+          }
+        ]
+      },
+      "crc": 759877002,
+      "isancillary": false,
+      "isprivate": false,
+      "issafetocopy": false,
+      "len": 9,
+      "reservedbit": false,
+      "type": "PLTE",
+      "typeraw": "504c5445"
+    },
+    {
+      "body": {
+        "palettealphas": [
+          255,
+          128,
+          0
+        ],
+        "samplemask": 255
+      },
+      "crc": 2137876600,
+      "isancillary": true,
+      "isprivate": false,
+      "issafetocopy": false,
+      "len": 3,
+      "reservedbit": false,
+      "type": "tRNS",
+      "typeraw": "74524e53"
+    },
+    {
+      "body": {
+        "renderintent": 0
+      },
+      "crc": 2932743401,
+      "isancillary": true,
+      "isprivate": false,
+      "issafetocopy": false,
+      "len": 1,
+      "reservedbit": false,
+      "type": "sRGB",
+      "typeraw": "73524742"
+    },
+    {
+      "body": "789c63606064620400000d0005",
+      "crc": 617385252,
+      "isancillary": false,
+      "isprivate": false,
+      "issafetocopy": false,
+      "len": 13,
+      "reservedbit": false,
+      "type": "IDAT",
+      "typeraw": "49444154"
+    },
+    {
+      "body": "",
+      "crc": 2923585666,
+      "isancillary": false,
+      "isprivate": false,
+      "issafetocopy": false,
+      "len": 0,
+      "reservedbit": false,
+      "type": "IEND",
+      "typeraw": "49454e44"
+    }
+  ],
+  "ihdr": {
+    "bitdepth": 8,
+    "colortype": 3,
+    "compressionmethod": 0,
+    "filtermethod": 0,
+    "height": 1,
+    "interlacemethod": 0,
+    "width": 4
+  },
+  "ihdrcrc": 3470983167,
+  "ihdrlen": 13,
+  "ihdrtype": "49484452",
+  "magic": "89504e470d0a1a0a"
+}

@@ -1,0 +1,43 @@
+{
+  "bitmap": {},
+  "dibinfo": {
+    "colormaskalpha": 0,
+    "colormaskblue": 31,
+    "colormaskgiven": null,
+    "colormaskgreen": 992,
+    "colormaskred": 31744,
+    "header": {
+      "bitmapinfoext": {
+        "compression": 0,
+        "lenimage": 0,
+        "numcolorsimportant": 0,
+        "numcolorsused": 0,
+        "xresolution": 2835,
+        "yresolution": 2835
+      },
+      "bitsperpixel": 16,
+      "bottomup": false,
+      "extendsbitmapinfo": true,
+      "extendsbitmapv4": false,
+      "extendsbitmapv5": false,
+      "extendsos22xbitmap": false,
+      "imageheight": 2,
+      "imageheightraw": -2,
+      "imagewidth": 2,
+      "iscolormaskhere": false,
+      "iscoreheader": false,
+      "numplanes": 1,
+      "usesfixedpalette": false
+    },
+    "iscolormaskgiven": false,
+    "iscolormaskhere": false,
+    "lenheader": 40
+  },
+  "filehdr": {
+    "filetype": "424d",
+    "lenfile": 62,
+    "ofsbitmap": 54,
+    "reserved1": 0,
+    "reserved2": 0
+  }
+}

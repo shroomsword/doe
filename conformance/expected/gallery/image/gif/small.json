@@ -1,0 +1,97 @@
+{
+  "blocks": [
+    {
+      "blocktype": 0
+    },
+    {
+      "blocktype": 0
+    },
+    {
+      "blocktype": 44,
+      "body": {
+        "colortablesize": 2,
+        "flags": 0,
+        "hascolortable": false,
+        "hasinterlace": false,
+        "hassortedcolortable": false,
+        "height": 2,
+        "imagedata": {
+          "lzwmincodesize": 2,
+          "subblocks": {
+            "entries": [
+              {
+                "bytes": "4401",
+                "lenbytes": 2
+              },
+              {
+                "bytes": "",
+                "lenbytes": 0
+              }
+            ]
+          }
+        },
+        "left": 0,
+        "top": 0,
+        "width": 2
+      }
+    },
+    {
+      "blocktype": 33,
+      "body": {
+        "body": {
+          "entries": [
+            {
+              "bytes": "74657374",
+              "lenbytes": 4
+            },
+            {
+              "bytes": "",
+              "lenbytes": 0
+            }
+          ]
+        },
+        "label": 254
+      }
+    },
+    {
+      "blocktype": 59
+    }
+  ],
+  "globalcolortable": {
+    "entries": [
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 255,
+        "green": 255,
+        "red": 255
+      },
+      {
+        "blue": 4,
+        "green": 249,
+        "red": 33
+      },
+      {
+        "blue": 0,
+        "green": 10,
+        "red": 1
+      }
+    ]
+  },
+  "hdr": {
+    "magic": "474946",
+    "version": "89a"
+  },
+  "logicalscreendescriptor": {
+    "bgcolorindex": 0,
+    "colortablesize": 4,
+    "flags": 129,
+    "hascolortable": true,
+    "pixelaspectratio": 0,
+    "screenheight": 2,
+    "screenwidth": 2
+  }
+}

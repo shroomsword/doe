@@ -5486,3 +5486,36 @@ fn bytes_to_s_decodes_with_an_encoding() {
         Value::Instance { value, .. } if **value == Value::Str("IH\0\0".into())));
     parse_err(&yaml.replace("'ASCII'", "'NOPE'"), "t", b"IHDR");
 }
+
+#[test]
+fn a_value_copied_from_a_struct_has_the_instances_that_are_computed_later() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: header
+            type: header
+          - id: item
+            type: item
+        instances:
+          copy:
+            value: header
+        types:
+          header:
+            seq:
+              - id: n
+                type: u1
+            instances:
+              late:
+                value: _root.header.n * 10
+          item:
+            seq:
+              - id: x
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[3, 4]);
+    let Value::Instance { value, .. } = get_field(&v, "copy") else {
+        panic!("not an instance")
+    };
+    assert_eq!(get_field(value, "late").as_int(), Some(30));
+}

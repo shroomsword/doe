@@ -115,10 +115,16 @@ fn check(format: &str) {
                 .unwrap_or_else(|e| panic!("{}: {e}", expected_path.display())),
         )
         .expect("the expected output is JSON");
+        // The gallery definitions import each other from the root of the gallery.
+        let include: Vec<PathBuf> = if format.starts_with("gallery/") {
+            vec![dir.join("formats").join("gallery")]
+        } else {
+            Vec::new()
+        };
         let actual = match parse_file(
             &sample,
             ksy.to_str().expect("the path is UTF-8"),
-            &[],
+            &include,
             Some(Path::new("/nonexistent/config.toml")),
             OutputFormat::Json,
         ) {
@@ -196,4 +202,55 @@ formats!(
     terminated,
     tlv_stream,
     value_instance_enum,
+);
+
+/// The definitions of the Kaitai Struct gallery in `conformance/formats/gallery/`
+/// that have samples; the others are only there to be imported.
+macro_rules! gallery {
+    ($($name:ident = $path:literal),* $(,)?) => {
+        $(
+            #[test]
+            fn $name() {
+                check($path);
+            }
+        )*
+
+        /// Every gallery definition that has samples has a test above.
+        #[test]
+        fn every_gallery_format_with_samples_is_tested() {
+            let mut with_samples = Vec::new();
+            let samples = conformance_dir().join("samples").join("gallery");
+            let mut stack = vec![(samples.clone(), String::new())];
+            while let Some((dir, prefix)) = stack.pop() {
+                for entry in std::fs::read_dir(&dir).expect("samples/gallery exists").flatten() {
+                    let name = entry.file_name().into_string().expect("UTF-8 names");
+                    if entry.path().is_dir() {
+                        let has_bins = std::fs::read_dir(entry.path())
+                            .expect("a directory")
+                            .flatten()
+                            .any(|f| f.file_name().to_string_lossy().ends_with(".bin"));
+                        let path = format!("{prefix}{name}");
+                        if has_bins {
+                            with_samples.push(format!("gallery/{path}"));
+                        } else {
+                            stack.push((entry.path(), format!("{path}/")));
+                        }
+                    }
+                }
+            }
+            with_samples.sort();
+            let mut tested = vec![$($path.to_owned()),*];
+            tested.sort();
+            assert_eq!(with_samples, tested);
+        }
+    };
+}
+
+gallery!(
+    gallery_archive_gzip = "gallery/archive/gzip",
+    gallery_archive_zip = "gallery/archive/zip",
+    gallery_executable_elf = "gallery/executable/elf",
+    gallery_image_bmp = "gallery/image/bmp",
+    gallery_image_gif = "gallery/image/gif",
+    gallery_image_png = "gallery/image/png",
 );

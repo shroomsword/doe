@@ -1,0 +1,21 @@
+{
+  "body": "cb48cdc9c957c84027b932682c0e00",
+  "bodycrc32": 2466648950,
+  "compressionmethod": 8,
+  "extraflags": {
+    "compressionstrength": 2
+  },
+  "flags": {
+    "hascomment": false,
+    "hasextra": false,
+    "hasheadercrc": false,
+    "hasname": true,
+    "istext": false,
+    "reserved1": 0
+  },
+  "lenuncompressed": 120,
+  "magic": "1f8b",
+  "modtime": 1589723130,
+  "name": "68656c6c6f2e747874",
+  "os": 255
+}

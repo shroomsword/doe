@@ -63,6 +63,16 @@ function dump(value, params) {
   throw new Error(`cannot dump a ${typeof value}`);
 }
 
+const galleryPrefix = 'gallery';
+
+// The names of the formats under `dir`: the path without `.ksy`, with `/`.
+function listFormats(dir, prefix) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory()) return listFormats(path.join(dir, entry.name), `${prefix}${entry.name}/`);
+    return entry.name.endsWith('.ksy') ? [`${prefix}${entry.name.slice(0, -4)}`] : [];
+  });
+}
+
 function className(id) {
   return id
     .split('_')
@@ -74,21 +84,33 @@ async function main() {
   fs.rmSync(generatedDir, { recursive: true, force: true });
   fs.mkdirSync(generatedDir, { recursive: true });
   const only = process.argv[2];
-  const formats = fs
-    .readdirSync(formatsDir)
-    .filter((name) => name.endsWith('.ksy'))
-    .map((name) => name.slice(0, -4))
+  const formats = listFormats(formatsDir, '')
     .filter((name) => !only || name === only)
     .sort();
   if (formats.length === 0) throw new Error('no formats found');
 
   for (const name of formats) {
+    const dir = path.join(samplesDir, name);
+    const hasSamples = fs.existsSync(dir);
+    // A gallery definition without samples is only there for others to import.
+    if (!hasSamples && name.startsWith(`${galleryPrefix}/`) && !only) continue;
     const ksy = YAML.parse(fs.readFileSync(path.join(formatsDir, `${name}.ksy`), 'utf8'));
+    // The gallery definitions import each other the way the gallery does: a
+    // name with a leading slash from the root of the gallery, any other next
+    // to the definition.
+    const inGallery = name.startsWith(`${galleryPrefix}/`);
+    const importRoot = inGallery ? path.join(formatsDir, galleryPrefix) : formatsDir;
+    const here = path.dirname(path.join(formatsDir, `${name}.ksy`));
     const importer = {
-      importYaml: (importName) =>
-        Promise.resolve(
-          YAML.parse(fs.readFileSync(path.join(formatsDir, `${importName}.ksy`), 'utf8')),
-        ),
+      importYaml: (importName) => {
+        const candidates = [
+          path.join(importRoot, `${importName}.ksy`),
+          path.join(here, `${importName}.ksy`),
+        ];
+        const found = candidates.find((candidate) => fs.existsSync(candidate));
+        if (!found) throw new Error(`cannot find the import ${importName} of ${name}`);
+        return Promise.resolve(YAML.parse(fs.readFileSync(found, 'utf8')));
+      },
     };
     const files = await compiler.compile('javascript', ksy, importer, false);
     for (const [file, code] of Object.entries(files)) {
@@ -100,8 +122,7 @@ async function main() {
     const KaitaiStream = require('kaitai-struct/KaitaiStream');
 
     const params = collectParams(ksy);
-    const dir = path.join(samplesDir, name);
-    const samples = fs.existsSync(dir)
+    const samples = hasSamples
       ? fs.readdirSync(dir).filter((f) => f.endsWith('.bin')).sort()
       : [];
     if (samples.length === 0) throw new Error(`${name} has no samples`);
