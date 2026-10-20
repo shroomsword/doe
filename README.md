@@ -333,7 +333,7 @@ byte sequence, so `magic == [0x49, 0x49]` works for a `bytes` field.
 | On | Member |
 |----|--------|
 | string | `.length`, `.size`, `.reverse`, `.to_i`, `.to_i(radix)`, `.substring(from, to)`, `.to_s` |
-| bytes | `.length`, `.size`, `[i]`, `.first`, `.last`, `.min`, `.max` |
+| bytes | `.length`, `.size`, `[i]`, `.first`, `.last`, `.min`, `.max`, `.to_s(encoding)` (see [Encodings](#encodings)) |
 | array | `.length`, `.size`, `[i]`, `.first`, `.last`, `.min`, `.max` |
 | integer | `.to_s` |
 | float | `.to_i`, `.to_s` |
@@ -439,6 +439,10 @@ declared in a sub-type is not visible in its parent or its siblings.
 
 An enum member is written `1: name`, or as a mapping with the name as `id`
 (`1: {id: name, doc: ...}`); `doc`, `doc-ref` and `-orig-id` are ignored.
+
+The parameters of a type are fields of its values to expressions:
+`color_mask_given.has_alpha_mask` is the `has_alpha_mask` that `color_mask`
+was given. They are not in the output.
 
 #### Choosing the byte order by a value
 
@@ -626,7 +630,14 @@ offset for a computed value), and in JSON inline, with the offsets of the ones
 that were read in a `$offsets` object next to them. Any error aborts the parse.
 `--no-instances` leaves them out of the output (those that fields use are still
 computed), and so does `ParseOptions { instances: false }` with
-`parse_file_with`. A name cannot be both a field and an instance. A sub-type
+`parse_file_with`. An instance that cannot be computed where its type ends,
+because it uses something that is read later (`_parent.method` of a field after
+it, or `_root.header.names` while `header` is still being parsed), is computed
+once the whole input is read, as Kaitai Struct computes instances on first use,
+and still appears in its place in the output; one that still cannot be computed
+then, or two that need each other, abort the parse. A value that was copied from
+a struct (`linked: value: _root.sections[3]`) has its instances too. A name
+cannot be both a field and an instance. A sub-type
 can use an instance of an enclosing type as `_parent.name`: the field of the
 enclosing type that reads the sub-type computes the instance first, against
 the stream of its own type, so it may only depend on what has been read by
