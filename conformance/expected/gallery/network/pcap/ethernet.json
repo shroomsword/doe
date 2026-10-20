@@ -1,0 +1,108 @@
+{
+  "hdr": {
+    "network": 1,
+    "sigfigs": 0,
+    "snaplen": 65535,
+    "thiszone": 0,
+    "versionmajor": 2,
+    "versionminor": 4
+  },
+  "magicnumber": 3569595041,
+  "packets": [
+    {
+      "body": {
+        "body": {
+          "b1": 69,
+          "b2": 0,
+          "b67": 16384,
+          "body": {
+            "body": {
+              "body": "7175657279",
+              "checksum": 0,
+              "dstport": 53,
+              "length": 13,
+              "srcport": 5353
+            },
+            "protocol": 17
+          },
+          "dstipaddr": "0a000002",
+          "headerchecksum": 0,
+          "identification": 4660,
+          "ihl": 5,
+          "ihlbytes": 20,
+          "options": {
+            "entries": []
+          },
+          "protocol": 17,
+          "srcipaddr": "0a000001",
+          "totallength": 33,
+          "ttl": 64,
+          "version": 4
+        },
+        "dstmac": "0a0b0c0d0e0f",
+        "ethertype": 2048,
+        "ethertype1": 2048,
+        "srcmac": "010203040506"
+      },
+      "incllen": 47,
+      "origlen": 47,
+      "tssec": 1589723130,
+      "tsusec": 0
+    },
+    {
+      "body": {
+        "body": {
+          "b1": 69,
+          "b2": 0,
+          "b67": 16384,
+          "body": {
+            "body": {
+              "acknum": 2000,
+              "body": "474554202f20485454502f312e300d0a0d0a",
+              "checksum": 0,
+              "dataoffset": 5,
+              "dstport": 80,
+              "flags": {
+                "ack": true,
+                "cwr": false,
+                "ece": false,
+                "fin": false,
+                "psh": true,
+                "rst": false,
+                "syn": false,
+                "urg": false
+              },
+              "reserved": 0,
+              "seqnum": 1000,
+              "srcport": 40000,
+              "urgentpointer": 0,
+              "windowsize": 8192
+            },
+            "protocol": 6
+          },
+          "dstipaddr": "0a000002",
+          "headerchecksum": 0,
+          "identification": 4660,
+          "ihl": 5,
+          "ihlbytes": 20,
+          "options": {
+            "entries": []
+          },
+          "protocol": 6,
+          "srcipaddr": "0a000001",
+          "totallength": 58,
+          "ttl": 64,
+          "version": 4
+        },
+        "dstmac": "0a0b0c0d0e0f",
+        "ethertype": 2048,
+        "ethertype1": 2048,
+        "srcmac": "010203040506"
+      },
+      "incllen": 72,
+      "origlen": 72,
+      "tssec": 1589723131,
+      "tsusec": 250000
+    }
+  ]
+}

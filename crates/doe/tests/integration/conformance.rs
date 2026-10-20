@@ -276,5 +276,9 @@ gallery!(
     gallery_executable_elf = "gallery/executable/elf",
     gallery_image_bmp = "gallery/image/bmp",
     gallery_image_gif = "gallery/image/gif",
+    gallery_image_jpeg = "gallery/image/jpeg",
     gallery_image_png = "gallery/image/png",
+    gallery_media_wav = "gallery/media/wav",
+    gallery_network_ethernet_frame = "gallery/network/ethernet_frame",
+    gallery_network_pcap = "gallery/network/pcap",
 );

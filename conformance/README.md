@@ -93,7 +93,9 @@ of the gallery is copied into this repository.
 
 The definitions that have samples in `samples/gallery/<dir>/<name>/` are tested
 like the other formats, named `gallery/<dir>/<name>`: `gzip`, `zip` (with
-`dos_datetime`), `elf`, `bmp`, `gif` and `png` (with `icc_4` and `exif`).
+`dos_datetime`), `elf`, `bmp`, `gif`, `jpeg`, `png` (with `icc_4` and `exif`), `wav`, and the network
+formats `ethernet_frame` (with `ipv4_packet`, `tcp_segment`, `udp_datagram` and the
+other formats it imports) and `pcap`.
 `make_gallery_samples.py` writes the samples, small files that it makes up (the
 ELF ones with the C compiler of the machine); the expected output comes from the
 reference compiler with `npm run generate`, or `npm run generate -- gallery/archive/zip`

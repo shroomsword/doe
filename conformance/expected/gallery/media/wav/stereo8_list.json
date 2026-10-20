@@ -1,0 +1,78 @@
+{
+  "chunk": {
+    "dataslot": {},
+    "id": 1179011410,
+    "len": 68,
+    "padbyte": ""
+  },
+  "chunkid": 1179011410,
+  "formtype": 1163280727,
+  "isformtypewave": true,
+  "isriffchunk": true,
+  "parentchunkdata": {
+    "formtype": 1163280727,
+    "subchunksslot": {}
+  },
+  "subchunks": [
+    {
+      "chunk": {
+        "dataslot": {},
+        "id": 544501094,
+        "len": 16,
+        "padbyte": ""
+      },
+      "chunkdata": {
+        "isbasicfloat": false,
+        "isbasicpcm": true,
+        "iscbsizemeaningful": false,
+        "isextensible": false,
+        "navgbytespersec": 22050,
+        "nblockalign": 2,
+        "nchannels": 2,
+        "nsamplespersec": 11025,
+        "wbitspersample": 8,
+        "wformattag": 1
+      },
+      "chunkid": 544501094
+    },
+    {
+      "chunk": {
+        "dataslot": {},
+        "id": 1414744396,
+        "len": 16,
+        "padbyte": ""
+      },
+      "chunkdata": {
+        "formtype": 1330007625,
+        "parentchunkdata": {
+          "formtype": 1330007625,
+          "subchunksslot": {}
+        },
+        "subchunks": [
+          {
+            "chunk": {
+              "dataslot": {},
+              "id": 1413894985,
+              "len": 4,
+              "padbyte": ""
+            },
+            "chunkdata": "doe"
+          }
+        ]
+      },
+      "chunkid": 1414744396
+    },
+    {
+      "chunk": {
+        "dataslot": {},
+        "id": 1635017060,
+        "len": 7,
+        "padbyte": "00"
+      },
+      "chunkdata": {
+        "data": "80828486888a8c"
+      },
+      "chunkid": 1635017060
+    }
+  ]
+}
