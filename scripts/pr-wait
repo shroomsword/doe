@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Wait for the CI checks of a pull request to finish.
+#
+# usage: scripts/pr-wait <pr-number> [timeout-seconds]
+#
+# Prints the checks that are not passing each round. Exits 0 when every check
+# passed, 1 when one failed, 3 on timeout (default 1500 s) so it can be called
+# again.
+set -euo pipefail
+
+[[ $# -ge 1 ]] || { echo "usage: $0 <pr-number> [timeout-seconds]" >&2; exit 2; }
+pr=$1
+deadline=$((SECONDS + ${2:-1500}))
+
+while :; do
+  checks=$(gh pr checks "$pr" 2>&1 || true)
+  failed=$(grep -E $'\t(fail|cancel)' <<<"$checks" || true)
+  pending=$(grep -E $'\t(pending|queued|in_progress)' <<<"$checks" || true)
+  if [[ -n $failed ]]; then
+    echo "FAILED:"; echo "$failed"
+    exit 1
+  fi
+  if [[ -n $checks && -z $pending && $checks != *"no checks reported"* ]]; then
+    echo "all checks passed"
+    exit 0
+  fi
+  if ((SECONDS >= deadline)); then
+    echo "timed out; still pending:"; echo "${pending:-$checks}"
+    exit 3
+  fi
+  sleep 20
+done
