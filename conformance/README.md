@@ -87,7 +87,8 @@ committing it.
 `kaitai_struct_formats/` is the [Kaitai Struct format gallery](https://github.com/kaitai-io/kaitai_struct_formats)
 as a git submodule, at the commit the submodule points to, so that the suite
 needs no network to run once it is checked out (`git clone --recurse-submodules`,
-or `git submodule update --init` in a clone without it). Each definition says in
+or `git submodule update --init` in a clone without it; the tests do that
+themselves when the directory is empty and git can reach the remote). Each definition says in
 its `meta.license` how it is licensed; the ones used here are `CC0-1.0`. Nothing
 of the gallery is copied into this repository.
 
