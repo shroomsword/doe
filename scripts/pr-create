@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Open a pull request for the current branch.
+#
+# usage: scripts/pr-create [--breaking] <title> <body-file>
+#
+# Fails if the branch is behind origin/main. Pushes the branch, and adds the
+# `breaking` label at creation (the semver CI job reads labels when it starts,
+# so adding it afterwards races the job).
+set -euo pipefail
+
+labels=()
+if [[ ${1:-} == --breaking ]]; then
+  labels=(--label breaking)
+  shift
+fi
+[[ $# -eq 2 ]] || { echo "usage: $0 [--breaking] <title> <body-file>" >&2; exit 2; }
+title=$1
+body=$2
+[[ -f $body ]] || { echo "no such body file: $body" >&2; exit 2; }
+
+branch=$(git symbolic-ref --short HEAD)
+[[ $branch != main ]] || { echo "refusing to open a PR from main" >&2; exit 1; }
+
+git fetch -q origin main
+git merge-base --is-ancestor origin/main HEAD ||
+  { echo "$branch is behind origin/main; rebase it first" >&2; exit 1; }
+
+git push -q -u origin "$branch"
+gh pr create --base main --head "$branch" --title "$title" --body-file "$body" "${labels[@]}"

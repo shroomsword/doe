@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Read or replace the body of a GitHub issue or pull request.
+#
+# usage: scripts/issue-body get <number>          # body on stdout
+#        scripts/issue-body set <number> <file>   # replace body with file
+#
+# Uses the REST API: `gh pr edit` / `gh issue edit --body` fail in this
+# repository because of the Projects (classic) deprecation.
+set -euo pipefail
+
+repo=shroomsword/doe
+case ${1:-} in
+  get)
+    [[ $# -eq 2 ]] || { echo "usage: $0 get <number>" >&2; exit 2; }
+    gh api "repos/$repo/issues/$2" -q .body
+    ;;
+  set)
+    [[ $# -eq 3 && -f $3 ]] || { echo "usage: $0 set <number> <file>" >&2; exit 2; }
+    gh api -X PATCH "repos/$repo/issues/$2" -F "body=@$3" -q .html_url
+    ;;
+  *)
+    echo "usage: $0 get <number> | set <number> <file>" >&2
+    exit 2
+    ;;
+esac

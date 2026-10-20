@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Rebase-merge a pull request whose checks all passed, then clean up.
+#
+# usage: scripts/pr-merge <pr-number>
+#
+# Refuses unless every check passed. Afterwards switches to an up-to-date main
+# and deletes the PR's local branch and, if GitHub did not already, its remote
+# branch.
+set -euo pipefail
+
+[[ $# -eq 1 ]] || { echo "usage: $0 <pr-number>" >&2; exit 2; }
+pr=$1
+
+checks=$(gh pr checks "$pr" 2>&1 || true)
+if [[ -z $checks ]] || grep -qvE $'\tpass' <<<"$checks"; then
+  echo "not every check has passed:" >&2
+  echo "$checks" >&2
+  exit 1
+fi
+
+branch=$(gh pr view "$pr" --json headRefName -q .headRefName)
+gh pr merge "$pr" --rebase
+state=$(gh pr view "$pr" --json state -q .state)
+[[ $state == MERGED ]] || { echo "PR $pr is $state, not MERGED" >&2; exit 1; }
+
+git fetch -q origin main
+git switch -q main
+git pull -q origin main
+git branch -D "$branch" 2>/dev/null || true
+if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+  git push -q origin --delete "$branch" || true
+fi
+git log --oneline -3
