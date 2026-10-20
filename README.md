@@ -706,6 +706,29 @@ samples, among them definitions from the Kaitai Struct gallery, which it keeps
 as a git submodule (`git clone --recurse-submodules`, or `git submodule update --init`
 to run the tests in a clone without it).
 
+### The Kaitai Struct gallery
+
+All 190 definitions of the [format gallery](https://github.com/kaitai-io/kaitai_struct_formats)
+compile. The conformance suite parses real files with these definitions and
+checks the result against the reference compiler's:
+
+| Directory | Formats |
+| --- | --- |
+| `archive` | `gzip`, `zip` |
+| `database` | `dbf` |
+| `executable` | `elf` |
+| `image` | `bmp`, `gif`, `jpeg`, `png` |
+| `media` | `wav` |
+| `network` | `ethernet_frame` (with `ipv4_packet`, `tcp_segment`, `udp_datagram` and the other formats it imports), `pcap` |
+
+The others compile, but no file has been compared to the reference yet, so one
+of them may still fail on a file, or read it differently. Give the gallery as an
+include path, so that the imports between its definitions resolve:
+
+```sh
+doe -I kaitai_struct_formats image.png kaitai_struct_formats/image/png.ksy
+```
+
 What is supported is what this README describes, with Kaitai's names and syntax:
 `seq`, `types`, `enums`, `instances`, `params`, `imports`, `valid`,
 `switch-on`/`cases`, `repeat`, `if`, `contents`, `size`, `size-eos` and `pos`;
