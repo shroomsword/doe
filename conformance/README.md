@@ -99,6 +99,12 @@ ELF ones with the C compiler of the machine); the expected output comes from the
 reference compiler with `npm run generate`, or `npm run generate -- gallery/archive/zip`
 for one of them.
 
+When the tests run locally (`CI` is not set), `cargo test` also checks that the
+submodule is at the latest commit of the `master` branch of the gallery, by
+asking its remote (`git ls-remote`), and fails with the commands to update it if
+it is not. It is skipped in CI, if the remote cannot be reached, and with
+`DOE_SKIP_GALLERY_CHECK=1`.
+
 To use a newer gallery, move the submodule (`git -C conformance/kaitai_struct_formats
 checkout <commit>`), run `npm run generate`, and review the diff of `expected/`
 with the one of the gallery. The gallery has no release tags, so the submodule
