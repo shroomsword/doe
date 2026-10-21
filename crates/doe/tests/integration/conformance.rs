@@ -627,3 +627,41 @@ fn imports_from_memory_give_the_same_result_as_from_files() {
     }
     assert!(parsed > 40, "only {parsed} samples were compared");
 }
+
+// ── positions in the text ────────────────────────────────────────────────────
+
+/// Every schema of the suite, and every definition of the gallery, can be read
+/// into a map of where things are written, and the field ids it finds are at
+/// the place the text has them.
+#[test]
+fn every_definition_can_be_mapped() {
+    use doe::schema::locate::SchemaMap;
+
+    let mut unmapped = Vec::new();
+    let mut checked = 0usize;
+    let mut dirs = vec![conformance_dir().join("formats"), gallery_dir()];
+    while let Some(dir) = dirs.pop() {
+        for entry in std::fs::read_dir(&dir).expect("readable").flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if path.file_name().is_some_and(|name| name != ".git") {
+                    dirs.push(path);
+                }
+                continue;
+            }
+            if !path
+                .extension()
+                .is_some_and(|ext| ext == "ksy" || ext == "yaml")
+            {
+                continue;
+            }
+            let text = std::fs::read_to_string(&path).expect("readable");
+            if SchemaMap::parse(&text).is_none() {
+                unmapped.push(path.display().to_string());
+            }
+            checked += 1;
+        }
+    }
+    assert!(checked > 190, "only {checked} files");
+    assert!(unmapped.is_empty(), "no map for: {unmapped:#?}");
+}

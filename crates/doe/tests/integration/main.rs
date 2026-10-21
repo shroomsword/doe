@@ -20,6 +20,7 @@ mod engine;
 mod expr;
 mod gallery_update;
 mod ir;
+mod locate;
 mod raw;
 mod render_json;
 mod render_text;

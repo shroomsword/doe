@@ -1054,6 +1054,14 @@ assert!(compiler.registry.contains("common"));
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+An error from loading or compiling a schema names what is wrong (a field, a
+type, an expression) but not where it is written. `locate_error(text, &error)`
+gives the position in the text of the schema (line, column, byte offset and
+length) of the field, `type:`, `enum:`, expression, import or type declaration
+that the error is about, for an editor to underline; a `SchemaMap` made once from
+the text with `SchemaMap::parse` answers for any number of errors. An error from
+another schema than the one in `text` has no position.
+
 To know where in the input every value came from (to select the bytes of a
 field, or the field of a byte), parse with `parse_type_traced`. It returns the
 same value and a tree of `TraceNode`s with the bit range of each field, element
