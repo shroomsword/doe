@@ -10,12 +10,16 @@
 
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::panic::{RefUnwindSafe, UnwindSafe};
 use std::path::{Component, Path, PathBuf};
 
 use crate::error::{DoeError, Result};
 
 /// A place that schema files can be looked for and read.
-pub trait SchemaSource: Debug + Send + Sync {
+///
+/// The bounds keep [`Compiler`](crate::schema::compiler::Compiler) `Send`, `Sync`
+/// and unwind safe, as it was before it could take a source.
+pub trait SchemaSource: Debug + Send + Sync + UnwindSafe + RefUnwindSafe {
     /// Whether there is a file at `path`.
     fn exists(&self, path: &Path) -> bool;
 

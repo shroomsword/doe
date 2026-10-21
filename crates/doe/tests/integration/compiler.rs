@@ -2646,3 +2646,11 @@ mod memory {
         assert_eq!(path, Path::new("bad.ksy"));
     }
 }
+
+#[test]
+fn a_compiler_keeps_its_auto_traits() {
+    fn all<T: Send + Sync + std::panic::UnwindSafe + std::panic::RefUnwindSafe>() {}
+    all::<Compiler>();
+    all::<doe::schema::source::MemorySource>();
+    all::<doe::schema::source::FsSource>();
+}
