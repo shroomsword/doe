@@ -15,6 +15,14 @@ set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 
+# Optimised, as a library that is shipped to a browser is. WebAssembly has a
+# stack of 1 MiB, and unoptimised frames of the YAML reader are large enough
+# that a schema nested as deeply as the reader allows (64 levels) overflows it
+# (`memory access out of bounds`); optimised, it is a small part of the stack.
+# Set the variable to 0 to see it.
+export CARGO_PROFILE_DEV_OPT_LEVEL="${CARGO_PROFILE_DEV_OPT_LEVEL:-2}"
+export CARGO_PROFILE_DEV_DEBUG="${CARGO_PROFILE_DEV_DEBUG:-0}"
+
 echo "== build for wasm32-unknown-unknown (no default features)"
 cargo build -p doe --no-default-features --target wasm32-unknown-unknown --locked
 
