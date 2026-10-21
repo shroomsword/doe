@@ -2499,3 +2499,150 @@ fn meta_encoding_is_the_default_of_the_strings_that_give_none() {
     assert_eq!(encoding("t", 2), Encoding::Ascii);
     assert_eq!(encoding("t::inner", 0), Encoding::Ascii);
 }
+
+// ── imports from memory ──────────────────────────────────────────────────────
+
+mod memory {
+    use std::path::{Path, PathBuf};
+
+    use doe::DoeError;
+    use doe::schema::compiler::Compiler;
+    use doe::schema::source::{MemorySource, SchemaSource};
+
+    fn schema(id: &str) -> String {
+        format!("meta:\n  id: {id}\nseq: []\n")
+    }
+
+    fn schema_importing(id: &str, imports: &[&str]) -> String {
+        let list = imports
+            .iter()
+            .fold(String::new(), |list, i| list + "  - " + i + "\n");
+        format!("meta:\n  id: {id}\n  imports:\n{list}seq: []\n")
+    }
+
+    /// Compile `main` from `files`, with `include` as the include paths.
+    fn compile(
+        files: MemorySource,
+        include: &[&str],
+        main: &str,
+    ) -> Result<doe::schema::ir::TypeRegistry, DoeError> {
+        let include = include.iter().map(PathBuf::from).collect();
+        let mut compiler = Compiler::with_source(include, Box::new(files));
+        let root = compiler.read_schema(Path::new(main))?;
+        compiler.process_schema(&root)?;
+        Ok(compiler.registry)
+    }
+
+    #[test]
+    fn paths_are_compared_as_a_filesystem_would() {
+        let mut files = MemorySource::new();
+        files.insert("a/b.ksy", "x");
+        assert!(files.exists(Path::new("a/b.ksy")));
+        assert!(files.exists(Path::new("./a/b.ksy")));
+        assert!(files.exists(Path::new("a/./b.ksy")));
+        assert!(files.exists(Path::new("a/c/../b.ksy")));
+        assert!(!files.exists(Path::new("b.ksy")));
+        assert!(!files.exists(Path::new("../a/b.ksy")));
+        assert_eq!(files.read(Path::new("a/c/../b.ksy")).unwrap(), "x");
+        assert!(matches!(
+            files.read(Path::new("nope")),
+            Err(DoeError::Io { .. })
+        ));
+        assert_eq!((files.len(), files.is_empty()), (1, false));
+    }
+
+    #[test]
+    fn a_name_is_looked_for_beside_the_importing_file_then_in_the_include_paths() {
+        let files = MemorySource::new()
+            .with_file("proj/main.ksy", schema_importing("main", &["near", "far"]))
+            .with_file("proj/near.ksy", schema("near"))
+            .with_file("lib/far.ksy", schema("far"));
+        let registry = compile(files, &["lib"], "proj/main.ksy").unwrap();
+        assert!(registry.contains("near") && registry.contains("far"));
+    }
+
+    #[test]
+    fn a_relative_name_is_relative_to_the_importing_file() {
+        let files = MemorySource::new()
+            .with_file(
+                "proj/sub/main.ksy",
+                schema_importing("main", &["./sibling.ksy", "../up/other.ksy"]),
+            )
+            .with_file("proj/sub/sibling.ksy", schema("sibling"))
+            .with_file("proj/up/other.ksy", schema("other"));
+        let registry = compile(files, &[], "proj/sub/main.ksy").unwrap();
+        assert!(registry.contains("sibling") && registry.contains("other"));
+    }
+
+    #[test]
+    fn a_leading_slash_means_the_include_paths_only() {
+        let files = MemorySource::new()
+            .with_file("proj/main.ksy", schema_importing("main", &["/common/riff"]))
+            .with_file("lib/common/riff.ksy", schema("riff"))
+            .with_file("proj/common/riff.ksy", schema("wrong"));
+        let registry = compile(files, &["lib"], "proj/main.ksy").unwrap();
+        assert!(registry.contains("riff"));
+        assert!(!registry.contains("wrong"));
+    }
+
+    #[test]
+    fn the_extension_is_tried_and_a_given_one_is_kept() {
+        let files = MemorySource::new()
+            .with_file("main.ksy", schema_importing("main", &["a", "b.yaml"]))
+            .with_file("a.yaml", schema("a"))
+            .with_file("b.yaml", schema("b"));
+        let registry = compile(files, &[], "main.ksy").unwrap();
+        assert!(registry.contains("a") && registry.contains("b"));
+    }
+
+    #[test]
+    fn schemas_may_import_each_other() {
+        let files = MemorySource::new()
+            .with_file("a.ksy", schema_importing("a", &["b"]))
+            .with_file("b.ksy", schema_importing("b", &["a"]));
+        let registry = compile(files, &[], "a.ksy").unwrap();
+        assert!(registry.contains("a") && registry.contains("b"));
+    }
+
+    #[test]
+    fn a_missing_import_names_it_and_what_was_searched() {
+        let files =
+            MemorySource::new().with_file("proj/main.ksy", schema_importing("main", &["gone"]));
+        let err = compile(files, &["lib"], "proj/main.ksy").unwrap_err();
+        let DoeError::SchemaNotFound { name, searched } = err else {
+            panic!("not SchemaNotFound: {err:?}");
+        };
+        assert_eq!(name, "gone");
+        let searched: Vec<String> = searched.iter().map(|p| p.display().to_string()).collect();
+        assert!(
+            searched
+                .iter()
+                .any(|p| p.contains("proj") && p.contains("gone.ksy"))
+        );
+        assert!(
+            searched
+                .iter()
+                .any(|p| p.contains("lib") && p.contains("gone.ksy"))
+        );
+    }
+
+    #[test]
+    fn the_same_id_from_two_files_is_still_an_error() {
+        let files = MemorySource::new()
+            .with_file("main.ksy", schema_importing("main", &["x", "y"]))
+            .with_file("x.ksy", schema("same"))
+            .with_file("y.ksy", schema("same"));
+        let err = compile(files, &[], "main.ksy").unwrap_err();
+        assert!(matches!(err, DoeError::DuplicateType { .. }), "{err:?}");
+    }
+
+    #[test]
+    fn a_file_that_is_not_a_schema_names_its_path() {
+        let files = MemorySource::new().with_file("bad.ksy", "seq: [unclosed");
+        let err = compile(files, &[], "bad.ksy").unwrap_err();
+        let DoeError::Yaml { path, .. } = err else {
+            panic!("not Yaml: {err:?}");
+        };
+        assert_eq!(path, Path::new("bad.ksy"));
+    }
+}

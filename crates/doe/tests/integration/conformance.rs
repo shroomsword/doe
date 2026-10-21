@@ -544,3 +544,86 @@ fn a_truncated_sample_gives_what_was_read_before_the_cut() {
     assert!(problems.is_empty(), "\n{}", problems.join("\n"));
     assert!(failures > 50, "only {failures} cut parses failed");
 }
+
+// ── imports from memory ──────────────────────────────────────────────────────
+
+/// Put every schema file under `dir` in `files`, by the path it has on disk.
+fn read_tree(dir: &Path, files: &mut doe::schema::source::MemorySource) {
+    for entry in std::fs::read_dir(dir)
+        .expect("the directory is readable")
+        .flatten()
+    {
+        let path = entry.path();
+        if path.is_dir() {
+            if path.file_name().is_some_and(|name| name != ".git") {
+                read_tree(&path, files);
+            }
+        } else if path
+            .extension()
+            .is_some_and(|ext| ext == "ksy" || ext == "yaml")
+        {
+            let text = std::fs::read_to_string(&path).expect("the file is readable");
+            files.insert(&path, text);
+        }
+    }
+}
+
+/// Compiling from files held in memory, with the same include paths, gives the
+/// same parse of every conformance sample as compiling from the filesystem:
+/// the rules of lookup do not depend on where the files are.
+#[test]
+fn imports_from_memory_give_the_same_result_as_from_files() {
+    use doe::parser::{cursor::Cursor, engine::Engine};
+    use doe::schema::compiler::Compiler;
+    use doe::schema::source::MemorySource;
+
+    let mut files = MemorySource::new();
+    read_tree(&conformance_dir().join("formats"), &mut files);
+    read_tree(&gallery_dir(), &mut files);
+    assert!(
+        files.len() > 150,
+        "only {} schema files were found",
+        files.len()
+    );
+
+    let mut parsed = 0usize;
+    for format in formats_with_samples() {
+        let ksy = definition(&format);
+        let include: Vec<PathBuf> = if format.starts_with("gallery/") {
+            vec![gallery_dir()]
+        } else {
+            Vec::new()
+        };
+        let mut from_disk = Compiler::new(include.clone());
+        let schema = doe::load_schema_file(&ksy).expect("the schema loads");
+        let id = schema.id.clone();
+        from_disk
+            .process_schema(&schema)
+            .expect("compiles from files");
+
+        let mut from_memory = Compiler::with_source(include, Box::new(files.clone()));
+        let schema = from_memory
+            .read_schema(&ksy)
+            .expect("the schema is in memory");
+        from_memory
+            .process_schema(&schema)
+            .expect("compiles from memory");
+
+        for name in samples(&format) {
+            let path = conformance_dir()
+                .join("samples")
+                .join(&format)
+                .join(format!("{name}.bin"));
+            let data = std::fs::read(&path).expect("the sample is readable");
+            let on_disk = Engine::new(&from_disk.registry)
+                .parse_type(&id, &mut Cursor::new(&data))
+                .expect("parses");
+            let in_memory = Engine::new(&from_memory.registry)
+                .parse_type(&id, &mut Cursor::new(&data))
+                .expect("parses");
+            assert_eq!(on_disk, in_memory, "{format}/{name}");
+            parsed += 1;
+        }
+    }
+    assert!(parsed > 40, "only {parsed} samples were compared");
+}
