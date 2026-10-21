@@ -1048,6 +1048,34 @@ A field placed with `pos:` has the range it was read from. What is read from the
 result of a `process:` transform has offsets in the transformed bytes, and its
 nodes have `processed` set.
 
+To keep what was read when a parse fails (to show a schema's author how far it
+got), use `parse_type_partial`. It returns a `ParseOutcome` with the value read
+so far, the trace and the error:
+
+```rust,no_run
+# use doe::schema::compiler::Compiler;
+# use doe::parser::{cursor::Cursor, engine::Engine};
+# let mut compiler = Compiler::new(vec![]);
+# compiler.load("my_format", None)?;
+# let data = std::fs::read("file.bin")?;
+# let engine = Engine::new(&compiler.registry);
+let outcome = engine.parse_type_partial("my_format", &mut Cursor::new(&data))?;
+if let Some(error) = &outcome.error {
+    eprintln!("failed: {error}");
+}
+// The fields read before the failure, and the node of the one that failed.
+let partial = outcome.value;
+let failed = outcome.trace.children.iter().find(|node| node.failed);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+A type that failed has the fields before the failing one, a repeated field the
+elements before it, and a field that fails a `valid:` rule keeps the value it
+read. The value being read when the parse failed has `failed` set in the trace,
+and the ones around it end where it started to fail. `parse_type_partial` fails
+(as an `Err`) only when nothing could be tried: the type is unknown, or takes
+parameters.
+
 ## License
 
 MIT

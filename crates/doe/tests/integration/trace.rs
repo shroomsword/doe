@@ -317,3 +317,259 @@ fn a_parse_without_a_trace_is_the_same() {
         .unwrap();
     assert_eq!(plain, traced);
 }
+
+// ── a parse that fails ───────────────────────────────────────────────────────
+
+use doe::Value;
+use doe::parser::engine::ParseOutcome;
+
+fn partial(yaml: &str, data: &[u8]) -> ParseOutcome {
+    let schema = RawSchema::from_yaml_str(yaml).unwrap();
+    let registry = compile_schema(&schema).unwrap();
+    Engine::new(&registry)
+        .parse_type_partial(&schema.id, &mut Cursor::new(data))
+        .unwrap()
+}
+
+fn field_names(value: &Value) -> Vec<&str> {
+    let Value::Struct { fields, .. } = value else {
+        panic!("not a struct: {value:?}")
+    };
+    fields.iter().map(|(name, _)| name.as_str()).collect()
+}
+
+fn failed_paths(node: &TraceNode, path: &mut Vec<String>, found: &mut Vec<String>) {
+    path.push(node.name.clone());
+    if node.failed {
+        found.push(path.join("/"));
+    }
+    for child in &node.children {
+        failed_paths(child, path, found);
+    }
+    path.pop();
+}
+
+fn failed(root: &TraceNode) -> Vec<String> {
+    let mut found = Vec::new();
+    failed_paths(root, &mut Vec::new(), &mut found);
+    found
+}
+
+#[test]
+fn a_parse_that_works_has_no_error() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            type: u1
+    "};
+    let outcome = partial(yaml, &[5]);
+    assert!(outcome.error.is_none());
+    assert_eq!(field_names(outcome.value.as_ref().unwrap()), ["a"]);
+    assert_eq!(failed(&outcome.trace), Vec::<String>::new());
+    assert_eq!(bits(&outcome.trace), Some((0, 8)));
+}
+
+#[test]
+fn the_fields_before_the_failing_one_are_kept() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            type: u1
+          - id: b
+            type: u2le
+          - id: c
+            type: u1
+    "};
+    // `b` needs two bytes and has one.
+    let outcome = partial(yaml, &[1, 2]);
+    assert!(outcome.error.is_some());
+    assert_eq!(field_names(outcome.value.as_ref().unwrap()), ["a"]);
+    assert_eq!(failed(&outcome.trace), ["t/b"]);
+    assert_eq!(bits(child(&outcome.trace, "a")), Some((0, 8)));
+    // The failing field starts where it was read and the type ends there.
+    assert_eq!(bits(child(&outcome.trace, "b")), Some((8, 8)));
+    assert_eq!(bits(&outcome.trace), Some((0, 8)));
+}
+
+#[test]
+fn a_type_that_fails_is_kept_as_far_as_it_got() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: head
+            type: u1
+          - id: body
+            type: body
+          - id: tail
+            type: u1
+        types:
+          body:
+            seq:
+              - id: x
+                type: u1
+              - id: y
+                type: u4le
+    "};
+    let outcome = partial(yaml, &[1, 2, 3, 4]);
+    let value = outcome.value.unwrap();
+    assert_eq!(field_names(&value), ["head", "body"]);
+    let Value::Struct { fields, .. } = &value else {
+        panic!()
+    };
+    assert_eq!(field_names(&fields[1].1), ["x"]);
+    assert_eq!(failed(&outcome.trace), ["t/body/y"]);
+    assert_eq!(bits(child(&outcome.trace, "body")), Some((8, 16)));
+}
+
+#[test]
+fn a_repeated_field_keeps_the_elements_before_the_failing_one() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: items
+            type: item
+            repeat: expr
+            repeat-expr: 3
+        types:
+          item:
+            seq:
+              - id: a
+                type: u1
+              - id: b
+                type: u1
+    "};
+    // The second element has one byte.
+    let outcome = partial(yaml, &[1, 2, 3]);
+    let value = outcome.value.unwrap();
+    let Value::Struct { fields, .. } = &value else {
+        panic!()
+    };
+    let Value::Array(items) = &fields[0].1 else {
+        panic!("not an array")
+    };
+    assert_eq!(items.len(), 2);
+    assert_eq!(field_names(&items[1]), ["a"]);
+    assert_eq!(failed(&outcome.trace), ["t/items/[1]/b"]);
+}
+
+#[test]
+fn a_value_that_fails_valid_keeps_what_it_read() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: magic
+            type: u1
+            valid: 7
+          - id: next
+            type: u1
+    "};
+    let outcome = partial(yaml, &[9, 1]);
+    assert!(outcome.error.is_some());
+    let value = outcome.value.unwrap();
+    assert_eq!(field_names(&value), ["magic"]);
+    assert_eq!(failed(&outcome.trace), ["t/magic"]);
+}
+
+#[test]
+fn an_instance_that_fails_is_left_out_with_the_fields_kept() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            type: u1
+        instances:
+          far:
+            pos: 100
+            type: u1
+    "};
+    let outcome = partial(yaml, &[1]);
+    assert!(outcome.error.is_some());
+    // The instance is absent, like a field whose `if:` is false.
+    let Value::Struct { fields, .. } = outcome.value.as_ref().unwrap() else {
+        panic!()
+    };
+    let present: Vec<&str> = fields
+        .iter()
+        .filter(|(_, value)| !value.is_absent())
+        .map(|(name, _)| name.as_str())
+        .collect();
+    assert_eq!(present, ["a"]);
+    // The root is the value that was being read.
+    assert_eq!(failed(&outcome.trace), ["t"]);
+    assert_eq!(outcome.trace.children.len(), 1);
+}
+
+#[test]
+fn an_instance_that_can_never_be_computed_leaves_the_rest() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            type: u1
+          - id: b
+            type: header
+        types:
+          header:
+            seq:
+              - id: n
+                type: u1
+            instances:
+              never:
+                value: _root.missing
+    "};
+    let outcome = partial(yaml, &[1, 2]);
+    assert!(outcome.error.is_some());
+    let value = outcome.value.unwrap();
+    assert_eq!(field_names(&value), ["a", "b"]);
+    let json = doe::render::json::render(&value);
+    assert!(!json.contains("deferred"), "{json}");
+}
+
+#[test]
+fn a_type_that_cannot_be_parsed_at_all_is_an_error() {
+    let yaml = "meta:\n  id: t\nseq:\n  - id: a\n    type: u1\n";
+    let schema = RawSchema::from_yaml_str(yaml).unwrap();
+    let registry = compile_schema(&schema).unwrap();
+    let engine = Engine::new(&registry);
+    assert!(
+        engine
+            .parse_type_partial("nothing", &mut Cursor::new(&[1]))
+            .is_err()
+    );
+}
+
+#[test]
+fn nothing_of_a_failed_parse_leaks_into_the_next() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            type: u1
+          - id: b
+            type: u4le
+    "};
+    let schema = RawSchema::from_yaml_str(yaml).unwrap();
+    let registry = compile_schema(&schema).unwrap();
+    let engine = Engine::new(&registry);
+    let first = engine
+        .parse_type_partial("t", &mut Cursor::new(&[1]))
+        .unwrap();
+    assert!(first.error.is_some());
+    let second = engine
+        .parse_type_partial("t", &mut Cursor::new(&[1, 2, 0, 0, 0]))
+        .unwrap();
+    assert!(second.error.is_none());
+    assert_eq!(field_names(second.value.as_ref().unwrap()), ["a", "b"]);
+    // The plain parse still returns the error alone.
+    assert!(engine.parse_type("t", &mut Cursor::new(&[1])).is_err());
+}

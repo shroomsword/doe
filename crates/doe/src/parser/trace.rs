@@ -63,6 +63,10 @@ pub struct TraceNode {
     pub span: Option<Span>,
     /// Whether this is an instance and not a field.
     pub is_instance: bool,
+    /// Whether the parse failed while reading this value. Only the innermost
+    /// value being read when it failed has it; the ones around it end where it
+    /// started to fail.
+    pub failed: bool,
     /// Whether the offsets are in bytes that a transform produced
     /// (`process:`), not in the input. The field with the `process:` itself has
     /// the offsets of the input; what is read from its result does not.
@@ -72,6 +76,19 @@ pub struct TraceNode {
 }
 
 impl TraceNode {
+    /// A root that records nothing, for a parse that was not traced.
+    pub(crate) fn untraced(name: &str) -> Self {
+        TraceNode {
+            name: name.to_owned(),
+            type_name: None,
+            span: None,
+            is_instance: false,
+            failed: false,
+            processed: false,
+            children: Vec::new(),
+        }
+    }
+
     /// The innermost node whose range holds the byte at `offset`, with the path
     /// of indexes of children that leads to it. Nodes inside a transformed
     /// field are not looked in, as their offsets are of other bytes.
@@ -146,6 +163,7 @@ impl TraceBuilder {
                 type_name: None,
                 span: None,
                 is_instance,
+                failed: false,
                 processed: self.processed > 0,
                 children: Vec::new(),
             },
@@ -328,6 +346,55 @@ impl TraceBuilder {
                 entry.placed = None;
             }
             self.reuse = Some(index);
+        }
+    }
+
+    /// The parse failed: close every node that is being read. The innermost is
+    /// the one that failed; each ends where the last thing read inside it
+    /// ended, as it was never finished.
+    pub(crate) fn close_failed(&mut self) {
+        // An instance that was waiting and never was computed is not there.
+        let never: Vec<usize> = self
+            .waiting
+            .values()
+            .copied()
+            .filter(|&index| {
+                self.entries
+                    .get(index)
+                    .is_some_and(|e| e.node.span.is_none())
+            })
+            .collect();
+        for index in never {
+            let parent = self.entries.get(index).and_then(|entry| entry.parent);
+            if let Some(parent) = parent.and_then(|parent| self.entries.get_mut(parent)) {
+                parent.children.retain(|&child| child != index);
+            }
+        }
+        let mut innermost = true;
+        while let Some(index) = self.open.pop() {
+            let end = self
+                .entries
+                .get(index)
+                .map(|entry| {
+                    entry
+                        .children
+                        .iter()
+                        .filter_map(|&child| self.entries.get(child))
+                        .filter(|child| !child.moved && !child.node.is_instance)
+                        .filter_map(|child| child.node.span.map(|span| span.end))
+                        .max()
+                        .unwrap_or(entry.start)
+                        .max(entry.start)
+                })
+                .unwrap_or_default();
+            if let Some(entry) = self.entries.get_mut(index) {
+                entry.node.span = Some(Span {
+                    start: entry.start,
+                    end,
+                });
+                entry.node.failed = innermost;
+            }
+            innermost = false;
         }
     }
 
