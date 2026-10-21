@@ -63,6 +63,12 @@ terminator when it takes the bytes and again when it consumes). doe follows the
 documented behavior, so `terminated.ksy` does not combine the two on a field
 without a `size`.
 
+It is reported upstream as
+[kaitai_struct#783](https://github.com/kaitai-io/kaitai_struct/issues/783), and
+the fix is in the (still open) pull request
+[kaitai_struct_javascript_runtime#26](https://github.com/kaitai-io/kaitai_struct_javascript_runtime/pull/26).
+When a runtime release has it, the combination can be added to `terminated.ksy`.
+
 ## Changing the suite
 
 To add a format, put its `.ksy` in `formats/`, its samples in `samples/<name>/`
