@@ -1,0 +1,301 @@
+{
+  "accessflags": 33,
+  "attributes": [
+    {
+      "attributelength": 2,
+      "info": {
+        "sourcefileasstr": "Hello.java",
+        "sourcefileindex": 19
+      },
+      "nameasstr": "SourceFile",
+      "nameindex": 18
+    }
+  ],
+  "attributescount": 1,
+  "constantpool": [
+    {
+      "cpinfo": {
+        "strlen": 5,
+        "value": "Hello"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "nameasinfo": {
+          "strlen": 5,
+          "value": "Hello"
+        },
+        "nameasstr": "Hello",
+        "nameindex": 1
+      },
+      "istwoentries": false,
+      "tag": 7
+    },
+    {
+      "cpinfo": {
+        "strlen": 16,
+        "value": "java/lang/Object"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "nameasinfo": {
+          "strlen": 16,
+          "value": "java/lang/Object"
+        },
+        "nameasstr": "java/lang/Object",
+        "nameindex": 3
+      },
+      "istwoentries": false,
+      "tag": 7
+    },
+    {
+      "cpinfo": {
+        "strlen": 1,
+        "value": "x"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "strlen": 1,
+        "value": "I"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "strlen": 3,
+        "value": "get"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "strlen": 3,
+        "value": "()I"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "strlen": 4,
+        "value": "Code"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "strlen": 15,
+        "value": "LineNumberTable"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "strlen": 3,
+        "value": "BIG"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "strlen": 1,
+        "value": "J"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "value": 5
+      },
+      "istwoentries": true,
+      "tag": 5
+    },
+    {
+      "istwoentries": false
+    },
+    {
+      "cpinfo": {
+        "strlen": 13,
+        "value": "ConstantValue"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "descriptorasinfo": {
+          "strlen": 1,
+          "value": "I"
+        },
+        "descriptorasstr": "I",
+        "descriptorindex": 6,
+        "nameasinfo": {
+          "strlen": 1,
+          "value": "x"
+        },
+        "nameasstr": "x",
+        "nameindex": 5
+      },
+      "istwoentries": false,
+      "tag": 12
+    },
+    {
+      "cpinfo": {
+        "classasinfo": {
+          "nameasinfo": {
+            "strlen": 5,
+            "value": "Hello"
+          },
+          "nameasstr": "Hello",
+          "nameindex": 1
+        },
+        "classindex": 2,
+        "nameandtypeasinfo": {
+          "descriptorasinfo": {
+            "strlen": 1,
+            "value": "I"
+          },
+          "descriptorasstr": "I",
+          "descriptorindex": 6,
+          "nameasinfo": {
+            "strlen": 1,
+            "value": "x"
+          },
+          "nameasstr": "x",
+          "nameindex": 5
+        },
+        "nameandtypeindex": 16
+      },
+      "istwoentries": false,
+      "tag": 9
+    },
+    {
+      "cpinfo": {
+        "strlen": 10,
+        "value": "SourceFile"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "strlen": 10,
+        "value": "Hello.java"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "strlen": 5,
+        "value": "hello"
+      },
+      "istwoentries": false,
+      "tag": 1
+    },
+    {
+      "cpinfo": {
+        "stringindex": 20
+      },
+      "istwoentries": false,
+      "tag": 8
+    },
+    {
+      "cpinfo": {
+        "value": 1.5
+      },
+      "istwoentries": false,
+      "tag": 4
+    }
+  ],
+  "constantpoolcount": 23,
+  "fields": [
+    {
+      "accessflags": 0,
+      "attributes": [],
+      "attributescount": 0,
+      "descriptorindex": 6,
+      "nameasstr": "x",
+      "nameindex": 5
+    },
+    {
+      "accessflags": 24,
+      "attributes": [
+        {
+          "attributelength": 2,
+          "info": "000d",
+          "nameasstr": "ConstantValue",
+          "nameindex": 15
+        }
+      ],
+      "attributescount": 1,
+      "descriptorindex": 12,
+      "nameasstr": "BIG",
+      "nameindex": 11
+    }
+  ],
+  "fieldscount": 2,
+  "interfaces": [],
+  "interfacescount": 0,
+  "magic": "cafebabe",
+  "methods": [
+    {
+      "accessflags": 1,
+      "attributes": [
+        {
+          "attributelength": 29,
+          "info": {
+            "attributes": [
+              {
+                "attributelength": 6,
+                "info": {
+                  "linenumbertable": [
+                    {
+                      "linenumber": 3,
+                      "startpc": 0
+                    }
+                  ],
+                  "linenumbertablelength": 1
+                },
+                "nameasstr": "LineNumberTable",
+                "nameindex": 10
+              }
+            ],
+            "attributescount": 1,
+            "code": "2ab40011ac",
+            "codelength": 5,
+            "exceptiontable": [],
+            "exceptiontablelength": 0,
+            "maxlocals": 1,
+            "maxstack": 1
+          },
+          "nameasstr": "Code",
+          "nameindex": 9
+        }
+      ],
+      "attributescount": 1,
+      "descriptorindex": 8,
+      "nameasstr": "get",
+      "nameindex": 7
+    }
+  ],
+  "methodscount": 1,
+  "superclass": 4,
+  "thisclass": 2,
+  "versionmajor": 52,
+  "versionminor": 0
+}

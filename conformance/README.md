@@ -94,7 +94,7 @@ of the gallery is copied into this repository.
 
 The definitions that have samples in `samples/gallery/<dir>/<name>/` are tested
 like the other formats, named `gallery/<dir>/<name>`: `gzip`, `zip` (with
-`dos_datetime`), `dbf`, `elf`, `bmp`, `gif`, `jpeg`, `png` (with `icc_4` and `exif`), `wav`, and the network
+`dos_datetime`), `dbf`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `bmp`, `gif`, `jpeg`, `png` (with `icc_4` and `exif`), `wav`, and the network
 formats `ethernet_frame` (with `ipv4_packet`, `tcp_segment`, `udp_datagram` and the
 other formats it imports) and `pcap`.
 `make_gallery_samples.py` writes the samples, small files that it makes up (the

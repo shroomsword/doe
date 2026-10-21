@@ -1406,6 +1406,56 @@ fn repeat_expr_of_zero_size_bytes_is_an_error() {
 }
 
 #[test]
+fn repeat_expr_allows_elements_that_take_no_bytes_among_others() {
+    // Like the constant pool of a Java class: the entry after a long is empty.
+    let yaml = indoc! {r"
+        meta:
+          id: t
+        seq:
+          - id: n
+            type: u1
+          - id: entries
+            type: 'entry(_index != 0 ? entries[_index - 1].wide : false)'
+            repeat: expr
+            repeat-expr: n
+        types:
+          entry:
+            params:
+              - id: after_wide
+                type: bool
+            seq:
+              - id: tag
+                type: u1
+                if: not after_wide
+            instances:
+              wide:
+                value: not after_wide and tag == 5
+    "};
+    // 4 entries: 1, 5 (wide), then the empty slot, then 2
+    let v = parse(yaml, "t", &[4, 1, 5, 2]);
+    let Value::Array(entries) = get_field(&v, "entries") else {
+        panic!("not an array");
+    };
+    assert_eq!(entries.len(), 4);
+}
+
+#[test]
+fn repeat_expr_stops_a_run_of_empty_elements_that_outgrows_the_bytes_read() {
+    let yaml = indoc! {r"
+        meta:
+          id: t
+        seq:
+          - id: head
+            type: u1
+          - id: x
+            size: 0
+            repeat: expr
+            repeat-expr: 1000000000
+    "};
+    assert_field_error(&parse_err(yaml, "t", &[1, 2, 3]), "consumed no bytes");
+}
+
+#[test]
 fn repeat_eos_over_one_byte_elements_still_works() {
     let yaml = "id: t\nseq:\n  - id: x\n    type: u1\n    repeat: eos\n";
     let v = parse(yaml, "t", &[1, 2, 3]);

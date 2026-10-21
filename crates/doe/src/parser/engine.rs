@@ -483,9 +483,23 @@ impl<'reg> Engine<'reg> {
         // large input and a large count could make unreasonable.
         let mut items =
             Vec::with_capacity(count.min(cursor.remaining()).min(MAX_RESERVED_ELEMENTS));
+        // An element may take no bytes (the entry after a `long` in a Java
+        // constant pool), but not more often than there are bytes read in this
+        // repeat, so that an enormous count of empty elements is an error
+        // instead of an endless loop.
+        let start = cursor.bit_position();
+        let mut empty = 0usize;
         for index in 0..count {
             Self::expose_elements(field, &items, ctx);
-            let v = self.parse_repeated_element(index, field, parent_ty, cursor, ctx)?;
+            let before = cursor.bit_position();
+            let v = self.parse_element(index, field, parent_ty, cursor, ctx)?;
+            if cursor.bit_position() == before {
+                empty += 1;
+                let read_bytes = cursor.bit_position().saturating_sub(start).div_ceil(8);
+                if usize::try_from(read_bytes).is_ok_and(|read| empty > read) {
+                    return Err(Self::no_bytes_error(field, parent_ty));
+                }
+            }
             items.push(v);
         }
         Self::hide_elements(field, ctx);
@@ -541,8 +555,8 @@ impl<'reg> Engine<'reg> {
     /// consume input.
     ///
     /// An element that consumes nothing (an empty type, a zero-size `bytes`)
-    /// would repeat forever under `eos` or `until` and, with a large count,
-    /// effectively forever under `repeat-expr`, so it is an error.
+    /// would repeat forever under `eos` or `until`, so it is an error. Under
+    /// `repeat-expr` see [`Self::repeat_count`].
     fn parse_repeated_element(
         &self,
         index: usize,
@@ -552,21 +566,37 @@ impl<'reg> Engine<'reg> {
         ctx: &mut ParseContext,
     ) -> Result<Value> {
         let before = cursor.bit_position();
+        let value = self.parse_element(index, field, parent_ty, cursor, ctx)?;
+        if cursor.bit_position() == before {
+            return Err(Self::no_bytes_error(field, parent_ty));
+        }
+        Ok(value)
+    }
+
+    fn no_bytes_error(field: &CompiledField, parent_ty: &CompiledType) -> DoeError {
+        DoeError::FieldError {
+            field: field.id.clone(),
+            context: parent_ty.name.clone(),
+            message: "repeated element consumed no bytes".to_owned(),
+        }
+    }
+
+    /// Parse element number `index` of a repeated field, whatever it consumes.
+    fn parse_element(
+        &self,
+        index: usize,
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
         // `_index` is the position of the element, for the expressions of the
         // field and of the arguments and `until` that go with it.
         ctx.eval_ctx.bind(
             "_index",
             ExprValue::Int(i128::try_from(index).unwrap_or(i128::MAX)),
         );
-        let value = self.parse_field_once(field, parent_ty, cursor, ctx)?;
-        if cursor.bit_position() == before {
-            return Err(DoeError::FieldError {
-                field: field.id.clone(),
-                context: parent_ty.name.clone(),
-                message: "repeated element consumed no bytes".to_owned(),
-            });
-        }
-        Ok(value)
+        self.parse_field_once(field, parent_ty, cursor, ctx)
     }
 
     /// Parse a single (non-repeated) instance of a field.

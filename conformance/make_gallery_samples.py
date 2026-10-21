@@ -4,7 +4,10 @@ samples/gallery/<dir>/<name>/.
 
 The samples are small and made up; they are committed, so this script only has
 to be run to change them. The ELF files are built with the C compiler of the
-machine it runs on (`cc`), so running it again gives other bytes there.
+machine it runs on (`cc`), so running it again gives other bytes there. The
+Mach-O files are made with `clang` for the macOS targets (it needs no linker for
+objects); the Java class and the PE files are built by hand, as no compiler for
+them is needed.
 """
 
 import gzip
@@ -230,3 +233,97 @@ write("database/dbf", "people", dbf(
     [("NAME", b"C", 8), ("AGE", b"N", 3)],
     [(b"Ada", b"36"), (b"Grace", b"85")],
 ).replace(b" Ada", b"*Ada", 1))
+
+# ── mach_o ───────────────────────────────────────────────────────────────────
+
+with tempfile.TemporaryDirectory() as work:
+    source = os.path.join(work, "x.c")
+    Path(source).write_text(
+        "int counter = 3;\n"
+        "static int helper(int a) { return a * 2; }\n"
+        "int add(int a, int b) { return helper(a) + b + counter; }\n"
+    )
+    for arch, target in (("x86_64", "x86_64-apple-macos11"), ("arm64", "arm64-apple-macos11")):
+        obj = os.path.join(work, f"{arch}.o")
+        subprocess.run(["clang", "-target", target, "-c", "-O0", "-fno-asynchronous-unwind-tables",
+                        "-o", obj, source], check=True)
+        write("executable/mach_o", f"object_{arch}", Path(obj).read_bytes())
+
+# ── java_class ───────────────────────────────────────────────────────────────
+
+def utf8(text):
+    data = text.encode()
+    return b"\x01" + struct.pack(">H", len(data)) + data
+
+
+def java_attribute(name_index, body):
+    return struct.pack(">HI", name_index, len(body)) + body
+
+
+# class Hello { int x; static final long BIG = 5L; public int get() { return x; } }
+pool = [
+    utf8("Hello"),                                    # 1
+    b"\x07" + struct.pack(">H", 1),                   # 2 Class Hello
+    utf8("java/lang/Object"),                         # 3
+    b"\x07" + struct.pack(">H", 3),                   # 4 Class Object
+    utf8("x"),                                        # 5
+    utf8("I"),                                        # 6
+    utf8("get"),                                      # 7
+    utf8("()I"),                                      # 8
+    utf8("Code"),                                     # 9
+    utf8("LineNumberTable"),                          # 10
+    utf8("BIG"),                                      # 11
+    utf8("J"),                                        # 12
+    b"\x05" + struct.pack(">q", 5),                   # 13 Long (takes two entries: 13, 14)
+    utf8("ConstantValue"),                            # 15
+    b"\x0c" + struct.pack(">HH", 5, 6),               # 16 NameAndType x:I
+    b"\x09" + struct.pack(">HH", 2, 16),              # 17 Fieldref Hello.x
+    utf8("SourceFile"),                               # 18
+    utf8("Hello.java"),                               # 19
+    utf8("hello"),                                    # 20
+    b"\x08" + struct.pack(">H", 20),                  # 21 String
+    b"\x04" + struct.pack(">f", 1.5),                 # 22 Float
+]
+code = bytes([0x2A, 0xB4, 0x00, 0x11, 0xAC])          # aload_0, getfield #17, ireturn
+code_attribute = java_attribute(9, b"".join([
+    struct.pack(">HHI", 1, 1, len(code)), code,
+    struct.pack(">H", 0),                              # no exception table
+    struct.pack(">H", 1),
+    java_attribute(10, struct.pack(">HHH", 1, 0, 3)),
+]))
+write("executable/java_class", "hello", b"".join([
+    b"\xca\xfe\xba\xbe", struct.pack(">HHH", 0, 52, len(pool) + 2),   # the long takes two entries
+    *pool,
+    struct.pack(">HHHH", 0x0021, 2, 4, 0),             # public super; this, super, no interfaces
+    struct.pack(">H", 2),
+    struct.pack(">HHHH", 0x0000, 5, 6, 0),
+    struct.pack(">HHHH", 0x0018, 11, 12, 1) + java_attribute(15, struct.pack(">H", 13)),
+    struct.pack(">H", 1),
+    struct.pack(">HHHH", 0x0001, 7, 8, 1) + code_attribute,
+    struct.pack(">H", 1),
+    java_attribute(18, struct.pack(">H", 19)),
+]))
+
+# ── microsoft_pe ─────────────────────────────────────────────────────────────
+
+def pe(plus):
+    code = bytes([0x31, 0xC0, 0xC3]) + bytes(13)       # xor eax, eax; ret
+    headers_size = 0x200
+    optional = struct.pack("<HBBIIIII", 0x20B if plus else 0x10B, 14, 0, 0x200, 0, 0, 0x1000, 0x1000)
+    if not plus:
+        optional += struct.pack("<I", 0x2000)           # base_of_data
+    optional += struct.pack("<Q" if plus else "<I", 0x140000000 if plus else 0x400000)
+    optional += struct.pack("<IIHHHHHHIIIIHH", 0x1000, 0x200, 6, 0, 0, 0, 6, 0, 0, 0x2000, headers_size, 0, 3, 0x8160)
+    optional += struct.pack("<QQQQ" if plus else "<IIII", 0x100000, 0x1000, 0x100000, 0x1000)
+    optional += struct.pack("<II", 0, 16) + bytes(16 * 8)
+    coff = struct.pack("<HHIIIHH", 0x8664 if plus else 0x14C, 1, 1589723130, 0, 0, len(optional),
+                       0x0022 if plus else 0x0102)
+    section = b".text".ljust(8, b"\x00") + struct.pack("<IIIIIIHHI", len(code), 0x1000, 0x200, headers_size,
+                                                        0, 0, 0, 0, 0x60000020)
+    mz = b"MZ" + bytes(0x3A) + struct.pack("<I", 0x40)
+    header = mz + b"PE\x00\x00" + coff + optional + section
+    return header.ljust(headers_size, b"\x00") + code.ljust(0x200, b"\x00")
+
+
+write("executable/microsoft_pe", "pe32_plus", pe(True))
+write("executable/microsoft_pe", "pe32", pe(False))

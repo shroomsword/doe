@@ -1,0 +1,136 @@
+{
+  "mz": {
+    "data1": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "magic": "4d5a",
+    "ofspe": 64
+  },
+  "pe": {
+    "certificatetable": null,
+    "coffhdr": {
+      "characteristics": 34,
+      "machine": 34404,
+      "numberofsections": 1,
+      "numberofsymbols": 0,
+      "pointertosymboltable": 0,
+      "sizeofoptionalheader": 240,
+      "symbolnametableoffset": 0,
+      "symbolnametablesize": 23117,
+      "symboltable": [],
+      "symboltablesize": 0,
+      "timedatestamp": 1589723130
+    },
+    "optionalhdr": {
+      "datadirs": {
+        "architecture": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "baserelocationtable": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "boundimport": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "certificatetable": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "clrruntimeheader": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "debug": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "delayimportdescriptor": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "exceptiontable": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "exporttable": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "globalptr": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "iat": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "importtable": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "loadconfigtable": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "resourcetable": {
+          "size": 0,
+          "virtualaddress": 0
+        },
+        "tlstable": {
+          "size": 0,
+          "virtualaddress": 0
+        }
+      },
+      "std": {
+        "addressofentrypoint": 4096,
+        "baseofcode": 4096,
+        "format": 523,
+        "majorlinkerversion": 14,
+        "minorlinkerversion": 0,
+        "sizeofcode": 512,
+        "sizeofinitializeddata": 0,
+        "sizeofuninitializeddata": 0
+      },
+      "windows": {
+        "checksum": 0,
+        "dllcharacteristics": 33120,
+        "filealignment": 512,
+        "imagebase64": 5368709120,
+        "loaderflags": 0,
+        "majorimageversion": 0,
+        "majoroperatingsystemversion": 6,
+        "majorsubsystemversion": 6,
+        "minorimageversion": 0,
+        "minoroperatingsystemversion": 0,
+        "minorsubsystemversion": 0,
+        "numberofrvaandsizes": 16,
+        "sectionalignment": 4096,
+        "sizeofheaders": 512,
+        "sizeofheapcommit64": 4096,
+        "sizeofheapreserve64": 1048576,
+        "sizeofimage": 8192,
+        "sizeofstackcommit64": 4096,
+        "sizeofstackreserve64": 1048576,
+        "subsystem": 3,
+        "win32versionvalue": 0
+      }
+    },
+    "pesignature": "50450000",
+    "sections": [
+      {
+        "body": "31c0c30000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "characteristics": 1610612768,
+        "name": ".text",
+        "numberoflinenumbers": 0,
+        "numberofrelocations": 0,
+        "pointertolinenumbers": 0,
+        "pointertorawdata": 512,
+        "pointertorelocations": 0,
+        "sizeofrawdata": 512,
+        "virtualaddress": 4096,
+        "virtualsize": 16
+      }
+    ]
+  }
+}

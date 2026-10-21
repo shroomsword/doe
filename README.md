@@ -262,6 +262,12 @@ type, then in the types around it).
   repeat-expr: header.record_count
 ```
 
+An element of a repeated field has to consume input under `repeat: eos` and
+`repeat: until`, or the field would repeat forever. Under `repeat: expr` it may
+take no bytes (the entry after a `long` in the constant pool of a Java class
+does not), as long as such elements are not more numerous than the bytes the
+repeat has read.
+
 ```yaml
 # a string compared with a literal
 - id: tag
@@ -716,10 +722,15 @@ checks the result against the reference compiler's:
 | --- | --- |
 | `archive` | `gzip`, `zip` |
 | `database` | `dbf` |
-| `executable` | `elf` |
+| `executable` | `elf`, `java_class`, `mach_o`, `microsoft_pe` |
 | `image` | `bmp`, `gif`, `jpeg`, `png` |
 | `media` | `wav` |
 | `network` | `ethernet_frame` (with `ipv4_packet`, `tcp_segment`, `udp_datagram` and the other formats it imports), `pcap` |
+
+`sqlite3` is left out on purpose: its definition reads every column as a string
+(the `if` that should limit `as_str` to text columns is commented out), which
+only works in the JavaScript runtime of the reference, where a missing size reads
+as an empty string; doe reports the missing size as an error.
 
 The others compile, but no file has been compared to the reference yet, so one
 of them may still fail on a file, or read it differently. Give the gallery as an
