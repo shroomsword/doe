@@ -12,7 +12,7 @@
 //!   serde's error model.
 //!
 //! You generally do not need to construct these types directly; use
-//! [`crate::load_schema_file`] to parse a YAML file into a [`RawSchema`].
+//! `crate::load_schema_file` to parse a YAML file into a [`RawSchema`].
 
 use std::collections::HashMap;
 use std::path::PathBuf;

@@ -108,7 +108,7 @@ impl Compiler {
     }
 
     /// Read and parse the schema file at `path` from this compiler's source,
-    /// as [`load_yaml`] does from the filesystem. Pass the result to
+    /// as `load_yaml` does from the filesystem. Pass the result to
     /// [`process_schema`](Self::process_schema).
     ///
     /// # Errors
