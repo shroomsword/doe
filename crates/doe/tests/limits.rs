@@ -116,11 +116,12 @@ fn a_schema_nested_without_bound_is_an_error() {
 /// Type declarations inside type declarations, `depth` deep: `types: {a: {types:
 /// {a: ...}}}`. The text is small, however deep it goes.
 fn nested_declarations(depth: usize) -> String {
-    format!(
-        "id: t\ntypes: {}{}\n",
-        "{a: {types: ".repeat(depth),
-        format!("{{}}{}", "}}".repeat(depth))
-    )
+    let mut text = String::from("id: t\ntypes: ");
+    text.push_str(&"{a: {types: ".repeat(depth));
+    text.push_str("{}");
+    text.push_str(&"}}".repeat(depth));
+    text.push('\n');
+    text
 }
 
 #[test]
