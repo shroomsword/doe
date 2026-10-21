@@ -8,15 +8,18 @@ use clap::CommandFactory;
 use doe::OutputFormat;
 use doe::config::{Config, discover_types, resolve_include_paths};
 
-use crate::cli::{Cli, Command};
+use crate::cli::Cli;
 
 /// Run whatever `cli` asks for. Logging has already been set up.
 pub(crate) fn dispatch(cli: &Cli, config: &Config) -> anyhow::Result<()> {
-    match &cli.command {
-        Some(Command::Completions { shell }) => completions(*shell),
-        Some(Command::Man) => man(),
-        None if cli.help => print_help(&cli.include_paths, config),
-        None => run(cli),
+    if let Some(shell) = cli.completions {
+        completions(shell)
+    } else if cli.man {
+        man()
+    } else if cli.help {
+        print_help(&cli.include_paths, config)
+    } else {
+        run(cli)
     }
 }
 
@@ -42,7 +45,7 @@ fn man() -> anyhow::Result<()> {
 
 fn run(cli: &Cli) -> anyhow::Result<()> {
     let (Some(file), Some(type_or_schema)) = (&cli.file, &cli.type_or_schema) else {
-        // clap requires both unless `--help` or a subcommand was given.
+        // clap requires both unless `--help`, `--completions` or `--man` was given.
         anyhow::bail!("a FILE and a TYPE_OR_SCHEMA are required");
     };
 

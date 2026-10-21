@@ -19,24 +19,24 @@ cargo install --path crates/doe-cli
 
 ### Shell completions
 
-`doe completions <SHELL>` prints a completion script to stdout for `bash`,
+`doe --completions <SHELL>` prints a completion script to stdout for `bash`,
 `zsh`, `fish`, `powershell` or `elvish`. Install it for your shell:
 
 ```sh
 # bash
-doe completions bash > ~/.local/share/bash-completion/completions/doe
+doe --completions bash > ~/.local/share/bash-completion/completions/doe
 
 # zsh (any directory on $fpath, then restart the shell or run compinit)
-doe completions zsh > ~/.zfunc/_doe
+doe --completions zsh > ~/.zfunc/_doe
 
 # fish
-doe completions fish > ~/.config/fish/completions/doe.fish
+doe --completions fish > ~/.config/fish/completions/doe.fish
 
 # PowerShell: add this line to your $PROFILE
-doe completions powershell | Out-String | Invoke-Expression
+doe --completions powershell | Out-String | Invoke-Expression
 
 # elvish: add this line to ~/.config/elvish/rc.elv
-eval (doe completions elvish | slurp)
+eval (doe --completions elvish | slurp)
 ```
 
 ### Man page
@@ -44,7 +44,7 @@ eval (doe completions elvish | slurp)
 The man page is generated from the same definition:
 
 ```sh
-doe man > ~/.local/share/man/man1/doe.1
+doe --man > ~/.local/share/man/man1/doe.1
 ```
 
 ## Quick start
@@ -841,30 +841,27 @@ doe header.bin elf.yaml --pretty
 doe — binary file parser
 
 Usage: doe [OPTIONS] [FILE] [TYPE_OR_SCHEMA]
-       doe <COMMAND>
-
-Commands:
-  completions  Print a shell completion script to stdout
-  help         Print this message or the help of the given subcommand(s)
 
 Arguments:
   [FILE]            Binary file to parse
   [TYPE_OR_SCHEMA]  Type name (e.g. `png`) or path to a YAML schema file
 
 Options:
-  -I, --include-path <DIR>  Add a directory to the schema search path (repeatable)
-  -c, --config <FILE>       Config file path [default: ~/.config/doe/config.toml]
-      --json                Emit compact JSON output
-      --pretty              Emit pretty-printed JSON output
-      --no-instances        Leave out the values a schema's `instances` compute or read elsewhere
-      --indent <STR>        Indentation string for text output [default: "  "]
-  -h, --help                Print help, including available types from the include paths
-      --color <WHEN>        When to use color on stderr [default: auto] [possible values: auto, always, never]
-      --log-level <LEVEL>   Verbosity of the log file [default: debug] [possible values: off, error, warn, info, debug, trace]
-      --log-file <FILE>     Write the log file here [default: the XDG state directory]
-  -v, --verbose...          Increase logging verbosity
-  -q, --quiet...            Decrease logging verbosity
-  -V, --version             Print version
+  -I, --include-path <DIR>   Add a directory to the schema search path (repeatable)
+  -c, --config <FILE>        Config file path [default: ~/.config/doe/config.toml]
+      --json                 Emit compact JSON output
+      --pretty               Emit pretty-printed JSON output
+      --no-instances         Leave out the values a schema's `instances` compute or read elsewhere
+      --indent <STR>         Indentation string for text output [default: "  "]
+  -h, --help                 Print help, including available types from the include paths
+      --color <WHEN>         When to use color on stderr [default: auto] [possible values: auto, always, never]
+      --log-level <LEVEL>    Verbosity of the log file [default: debug] [possible values: off, error, warn, info, debug, trace]
+      --log-file <FILE>      Write the log file here [default: the XDG state directory]
+  -v, --verbose...           Increase logging verbosity
+  -q, --quiet...             Decrease logging verbosity
+      --completions <SHELL>  Print a shell completion script to stdout and exit [possible values: bash, elvish, fish, powershell, zsh]
+      --man                  Print the manual page (roff) to stdout and exit
+  -V, --version              Print version
 ```
 
 `FILE` is the binary to parse. `TYPE_OR_SCHEMA` is treated as a schema path if
@@ -872,8 +869,10 @@ it starts with `.`, `/` or `~`, or ends with `.yaml`/`.yml`. Otherwise it is a
 bare type name resolved through the configured include paths.
 
 Results go to stdout; everything else (errors, warnings, progress) goes to
-stderr. Global flags (`--color`, `-v`, `-q`, `--log-level`, `--log-file`) go
-after a subcommand, as in `doe completions bash --color never`.
+stderr. `--completions` and `--man` print and exit; they cannot be combined with
+a file, a type or the options that only matter when parsing (`-I`, `-c`,
+`--json`, `--pretty`, `--no-instances`), but `--color`, `-v`, `-q`, `--log-level`
+and `--log-file` can go with them, as in `doe --completions bash --color never`.
 
 ### Color
 

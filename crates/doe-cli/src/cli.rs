@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use clap::{ColorChoice, Parser, Subcommand, ValueEnum};
+use clap::{ColorChoice, Parser, ValueEnum};
 use clap_complete::Shell;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 
@@ -17,9 +17,7 @@ use clap_verbosity_flag::{Verbosity, WarnLevel};
     version,
     about,
     long_about = None,
-    disable_help_flag = true,
-    args_conflicts_with_subcommands = true,
-    subcommand_negates_reqs = true
+    disable_help_flag = true
 )]
 #[allow(
     clippy::struct_excessive_bools,
@@ -27,11 +25,11 @@ use clap_verbosity_flag::{Verbosity, WarnLevel};
 )]
 pub(crate) struct Cli {
     /// Binary file to parse.
-    #[arg(required_unless_present = "help")]
+    #[arg(required_unless_present_any = ["help", "completions", "man"])]
     pub(crate) file: Option<PathBuf>,
 
     /// Type name (e.g. `png`) or path to a YAML schema file.
-    #[arg(required_unless_present = "help")]
+    #[arg(required_unless_present_any = ["help", "completions", "man"])]
     pub(crate) type_or_schema: Option<String>,
 
     /// Add a directory to the schema search path (repeatable).
@@ -78,23 +76,33 @@ pub(crate) struct Cli {
     #[command(flatten)]
     pub(crate) verbosity: Verbosity<WarnLevel>,
 
-    /// Subcommand; without one, FILE is parsed.
-    #[command(subcommand)]
-    pub(crate) command: Option<Command>,
+    /// Print a shell completion script to stdout and exit.
+    #[arg(
+        long,
+        value_enum,
+        value_name = "SHELL",
+        conflicts_with_all = PARSING_ARGS
+    )]
+    pub(crate) completions: Option<Shell>,
+
+    /// Print the manual page (roff) to stdout and exit.
+    #[arg(long, conflicts_with_all = PARSING_ARGS, conflicts_with = "completions")]
+    pub(crate) man: bool,
 }
 
-/// Subcommands other than parsing a file.
-#[derive(Subcommand, Debug)]
-pub(crate) enum Command {
-    /// Print a shell completion script to stdout.
-    Completions {
-        /// The shell to generate the script for.
-        shell: Shell,
-    },
-    /// Print the roff man page to stdout.
-    #[command(hide = true)]
-    Man,
-}
+/// The arguments that only mean something when a file is parsed: they conflict
+/// with `--completions` and `--man`. The global ones (`--color`, the logging
+/// options) are left out, so they can be given with either.
+const PARSING_ARGS: [&str; 8] = [
+    "file",
+    "type_or_schema",
+    "include_paths",
+    "config",
+    "json",
+    "pretty",
+    "no_instances",
+    "help",
+];
 
 /// Log verbosity as spelled on the command line.
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]

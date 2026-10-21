@@ -31,7 +31,7 @@ fn main() -> ExitCode {
 
 fn try_main(cli: &Cli) -> anyhow::Result<()> {
     // Generating completions or the man page needs neither config nor logs.
-    if cli.command.is_some() {
+    if cli.completions.is_some() || cli.man {
         return commands::dispatch(cli, &Config::default());
     }
 
