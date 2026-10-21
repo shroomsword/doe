@@ -1,4 +1,12 @@
-#![doc = include_str!("../../../README.md")]
+#![cfg_attr(feature = "fs", doc = include_str!("../../../README.md"))]
+#![cfg_attr(
+    not(feature = "fs"),
+    doc = "Binary file parser driven by YAML type definitions, built without the `fs` feature: \
+           no filesystem and no configuration file. Schemas come from a \
+           [`schema::source::MemorySource`], the input from a byte slice, and the parse is \
+           run with [`parser::engine::Engine`]. The full documentation is in the README and \
+           in the docs of the default build."
+)]
 //!
 //! ---
 //!
@@ -6,11 +14,11 @@
 //!
 //! Key types and functions mentioned in the documentation above:
 //!
-//! - [`parse_file`] — the primary high-level entry point.
+//! - `parse_file` — the primary high-level entry point.
 //! - [`OutputFormat`] — selects text, compact JSON, or pretty JSON output.
 //! - [`Value`] — the parsed value tree produced by the engine.
 //! - [`DoeError`] / [`Result`] — the unified error and result types.
-//! - [`config::Config`] — configuration file structure.
+//! - `config::Config` — configuration file structure.
 //! - [`schema::compiler::Compiler`] — stateful schema compiler.
 //! - [`schema::ir::TypeRegistry`] — the compiled type registry consumed by the parser.
 //! - [`parser::engine::Engine`] — the binary parse engine.
@@ -39,7 +47,7 @@ pub use value::Value;
 // High-level API
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Selects the output format produced by [`parse_file`].
+/// Selects the output format produced by `parse_file`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OutputFormat {
     /// Indented human-readable text.
@@ -124,7 +132,7 @@ pub fn parse_file(
     )
 }
 
-/// What [`parse_file_with`] does beyond [`parse_file`].
+/// What `parse_file_with` does beyond `parse_file`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ParseOptions {
     /// Whether the `instances` of a type are part of the output (the
@@ -138,11 +146,11 @@ impl Default for ParseOptions {
     }
 }
 
-/// Like [`parse_file`], with options.
+/// Like `parse_file`, with options.
 ///
 /// # Errors
 ///
-/// Returns the same errors as [`parse_file`].
+/// Returns the same errors as `parse_file`.
 #[cfg(feature = "fs")]
 pub fn parse_file_with(
     binary_file: &Path,

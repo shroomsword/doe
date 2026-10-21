@@ -1,7 +1,7 @@
 //! Where schema files come from.
 //!
 //! The compiler follows `imports` by looking for files. What a file is, and
-//! where it is looked for, is the job of a [`SchemaSource`]: [`FsSource`] reads
+//! where it is looked for, is the job of a [`SchemaSource`]: `FsSource` reads
 //! the filesystem, as doe always did; [`MemorySource`] holds the files in a map,
 //! for a program that has no filesystem (WebAssembly in a browser) or whose
 //! schemas are not files. The rules of lookup (next to the importing file, then

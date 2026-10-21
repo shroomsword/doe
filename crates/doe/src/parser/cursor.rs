@@ -8,7 +8,7 @@
 //!
 //! The parser holds one top-level `Cursor`, which reads either from a byte
 //! slice already in memory ([`Cursor::new`]) or from a file on demand
-//! ([`Cursor::from_file`]), so that parsing a few structures in a very large
+//! (`Cursor::from_file`), so that parsing a few structures in a very large
 //! file does not load the whole file. It may create sub-cursors with
 //! restricted windows for size-limited sub-structures.
 

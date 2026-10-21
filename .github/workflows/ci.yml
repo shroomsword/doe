@@ -254,6 +254,12 @@ jobs:
       - name: Build and test for WebAssembly
         run: scripts/wasm-test
 
+      # The documentation has links to what the fs feature adds; without it they must not be broken.
+      - name: Documentation without the fs feature
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc -p doe --no-default-features --no-deps --locked
+
   # Aggregate result. This is the only check the ruleset requires.
   ci:
     if: always()
