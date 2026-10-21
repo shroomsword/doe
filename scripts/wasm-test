@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Build the library for WebAssembly without the filesystem, and run the tests
+# that need no files (crates/doe/tests/limits.rs) in a WebAssembly runtime.
+#
+# usage: scripts/wasm-test
+#
+# Needs the targets wasm32-unknown-unknown and wasm32-wasip1 (`rustup target
+# add`) and Node.js (its built-in WASI runs the tests; no other tool).
+#
+# The browser target cannot run tests without extra tools, so the tests run as
+# wasm32-wasip1, which has the same 1 MiB stack. A stack overflow in the
+# library fails them.
+set -euo pipefail
+
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+cd "$root"
+
+echo "== build for wasm32-unknown-unknown (no default features)"
+cargo build -p doe --no-default-features --target wasm32-unknown-unknown --locked
+
+echo "== tests on wasm32-wasip1"
+CARGO_TARGET_WASM32_WASIP1_RUNNER="node $root/scripts/wasm-runner.mjs" \
+  cargo test -p doe --no-default-features --test limits --target wasm32-wasip1 --locked

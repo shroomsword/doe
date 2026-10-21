@@ -8,3 +8,4 @@ Helpers for the pull request workflow (they need the `gh` CLI):
 | `pr-wait <pr> [seconds]` | Waits for the PR's checks. Exit 0: all passed, 1: a check failed, 3: timed out. |
 | `pr-merge <pr>` | Rebase-merges a PR whose checks all passed, updates `main`, deletes the local and remote branch. It only moves the checkout when it is on the PR's branch with no uncommitted changes. |
 | `issue-body get <n>` / `set <n> <file>` | Reads or replaces an issue or PR body through the REST API (`gh pr edit` fails here). |
+| `wasm-test` | Builds the library for `wasm32-unknown-unknown` without the filesystem and runs `tests/limits.rs` as `wasm32-wasip1` in Node's WASI (`wasm-runner.mjs`); the `wasm` CI job runs it. |

@@ -8,17 +8,32 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 
+[features]
+default = ["fs"]
+# Everything that reads the filesystem or the user's configuration: the
+# configuration file, `parse_file`, a file as the input of a parse, and the
+# filesystem as the place schemas are imported from. Off, the library is for a
+# program that has none (WebAssembly in a browser) and takes schemas from a
+# `MemorySource` and input from a byte slice.
+fs = ["dep:etcetera", "dep:toml"]
+
 [dependencies]
 serde = { workspace = true, features = ["std", "derive"] }
 serde-saphyr = { workspace = true, features = ["deserialize"] }
 serde_json = { workspace = true, features = ["std"] }
 thiserror = { workspace = true, features = ["std"] }
-etcetera.workspace = true
+etcetera = { workspace = true, optional = true }
 log.workspace = true
-toml = { workspace = true, features = ["std", "parse", "serde"] }
+toml = { workspace = true, optional = true, features = ["std", "parse", "serde"] }
 indexmap = { workspace = true, features = ["std", "serde"] }
 encoding_rs = { workspace = true, features = ["alloc"] }
 flate2 = { workspace = true, features = ["rust_backend"] }
+
+# The tests read files, the configuration and file-backed input.
+[[test]]
+name = "integration"
+path = "tests/integration/main.rs"
+required-features = ["fs"]
 
 [dev-dependencies]
 indoc.workspace = true

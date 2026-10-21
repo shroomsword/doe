@@ -1026,6 +1026,14 @@ println!("{}", json::render_pretty(&value));
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+The library has a default feature, `fs`, for everything that reads the filesystem
+or the user's configuration: `parse_file`, `load_schema_file`, `doe::config`,
+`Cursor::from_file` and `FsSource`. Built with `default-features = false` it has
+none of them, and none of their dependencies, and builds for
+`wasm32-unknown-unknown`; schemas then come from a `MemorySource` and the input
+from a byte slice. CI builds it that way and runs the tests that need no files
+under WebAssembly.
+
 Schemas do not have to be files. A compiler reads them from a `SchemaSource`:
 the filesystem by default, or a `MemorySource` that holds files by path, for a
 program with no filesystem (such as WebAssembly in a browser). Imports are found

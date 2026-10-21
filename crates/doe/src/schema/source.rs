@@ -32,9 +32,11 @@ pub trait SchemaSource: Debug + Send + Sync + UnwindSafe + RefUnwindSafe {
 }
 
 /// The files of the filesystem.
+#[cfg(feature = "fs")]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FsSource;
 
+#[cfg(feature = "fs")]
 impl SchemaSource for FsSource {
     fn exists(&self, path: &Path) -> bool {
         path.exists()

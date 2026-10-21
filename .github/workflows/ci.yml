@@ -240,10 +240,24 @@ jobs:
             cargo +nightly fuzz run --target x86_64-unknown-linux-gnu "${target}" "fuzz/corpus/${target}" "fuzz/seeds/${target}" -- -runs=2000
           done
 
+  # The library for WebAssembly, without the filesystem (the web IDE runs it in a browser). The tests that need no files
+  # run in Node's WASI runtime; Node is on the runner.
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: wasm32-unknown-unknown,wasm32-wasip1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Build and test for WebAssembly
+        run: scripts/wasm-test
+
   # Aggregate result. This is the only check the ruleset requires.
   ci:
     if: always()
-    needs: [lint, test, build, doc, semver, fuzz]
+    needs: [lint, test, build, doc, semver, fuzz, wasm]
     runs-on: ubuntu-latest
     steps:
       - name: Check results
