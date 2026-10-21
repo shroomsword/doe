@@ -101,8 +101,8 @@ fn types_that_contain_themselves_are_errors() {
 
 #[test]
 fn a_schema_nested_without_bound_is_an_error() {
-    // Flow sequences and mappings, and inline types, nested far deeper than a
-    // schema ever is.
+    // Flow sequences and mappings nested far deeper than a schema ever is:
+    // the YAML reader refuses them, without a stack that grows with the input.
     let flow = format!("id: t\nseq: {}{}\n", "[".repeat(50_000), "]".repeat(50_000));
     assert!(RawSchema::from_yaml_str(&flow).is_err());
     let map = format!(
@@ -111,12 +111,25 @@ fn a_schema_nested_without_bound_is_an_error() {
         "}".repeat(50_000)
     );
     assert!(RawSchema::from_yaml_str(&map).is_err());
-    let mut nested = String::from("id: t\n");
-    for i in 0..5_000 {
-        writeln!(nested, "{}types:", " ".repeat(2 * i)).unwrap();
-        writeln!(nested, "{}t{i}:", " ".repeat(2 * i + 2)).unwrap();
-    }
-    // Indentation nests the mappings: either the YAML reader or the schema
-    // refuses it; what matters is that it returns.
-    let _ = RawSchema::from_yaml_str(&nested);
+}
+
+/// Type declarations inside type declarations, `depth` deep: `types: {a: {types:
+/// {a: ...}}}`. The text is small, however deep it goes.
+fn nested_declarations(depth: usize) -> String {
+    format!(
+        "id: t\ntypes: {}{}\n",
+        "{a: {types: ".repeat(depth),
+        format!("{{}}{}", "}}".repeat(depth))
+    )
+}
+
+#[test]
+fn type_declarations_nest_as_far_as_the_reader_allows_and_no_further() {
+    // A declaration takes two levels of the YAML (a mapping in a mapping), and
+    // the reader refuses more than 64: the compiler recurses once per
+    // declaration, so its depth is bounded by that.
+    let schema = RawSchema::from_yaml_str(&nested_declarations(30)).unwrap();
+    compile_schema(&schema).unwrap();
+    assert!(RawSchema::from_yaml_str(&nested_declarations(1_000)).is_err());
+    assert!(RawSchema::from_yaml_str(&nested_declarations(100_000)).is_err());
 }
