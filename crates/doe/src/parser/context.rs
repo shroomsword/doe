@@ -7,6 +7,7 @@
 //! references their meaning.
 
 use crate::parser::cursor::Cursor;
+use crate::parser::trace::TraceBuilder;
 use crate::schema::expr::{EvalContext, ExprValue};
 use crate::schema::ir::{CompiledParam, Endian};
 use crate::value::Value;
@@ -42,6 +43,8 @@ pub struct ParseContext {
     /// The size of the whole input that the parse started from, which tells
     /// the cursors over it from those over other bytes (a `process:` result).
     root_len: usize,
+    /// Where the values come from, when the parse is traced.
+    trace: Option<TraceBuilder>,
 }
 
 /// Where an instance is in being computed.
@@ -126,7 +129,23 @@ impl ParseContext {
             reread_bytes: 0,
             input_len: 0,
             root_len: 0,
+            trace: None,
         }
+    }
+
+    /// Record where every value comes from.
+    pub(crate) fn enable_trace(&mut self) {
+        self.trace = Some(TraceBuilder::new());
+    }
+
+    /// The record of where values come from, when there is one.
+    pub(crate) fn trace(&mut self) -> Option<&mut TraceBuilder> {
+        self.trace.as_mut()
+    }
+
+    /// Take the record of where values come from.
+    pub(crate) fn take_trace(&mut self) -> Option<TraceBuilder> {
+        self.trace.take()
     }
 
     /// Record the size of the whole input, which the `pos:` budget scales with

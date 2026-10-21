@@ -1021,6 +1021,33 @@ println!("{}", json::render_pretty(&value));
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+To know where in the input every value came from (to select the bytes of a
+field, or the field of a byte), parse with `parse_type_traced`. It returns the
+same value and a tree of `TraceNode`s with the bit range of each field, element
+of a repeated field and instance:
+
+```rust,no_run
+# use doe::schema::compiler::Compiler;
+# use doe::parser::{cursor::Cursor, engine::Engine};
+# let mut compiler = Compiler::new(vec![]);
+# compiler.load("my_format", None)?;
+# let data = std::fs::read("file.bin")?;
+# let engine = Engine::new(&compiler.registry);
+let (value, root) = engine.parse_type_traced("my_format", &mut Cursor::new(&data))?;
+for field in &root.children {
+    if let Some(span) = field.span {
+        println!("{}: bytes {}..{}", field.name, span.start_byte(), span.end_byte());
+    }
+}
+// The path of children to the innermost field that holds byte 12.
+let path = root.find_byte(12);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+A field placed with `pos:` has the range it was read from. What is read from the
+result of a `process:` transform has offsets in the transformed bytes, and its
+nodes have `processed` set.
+
 ## License
 
 MIT

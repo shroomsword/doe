@@ -23,4 +23,5 @@ mod ir;
 mod raw;
 mod render_json;
 mod render_text;
+mod trace;
 mod value;
