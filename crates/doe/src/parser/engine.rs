@@ -13,6 +13,7 @@ use crate::parser::context::{DEFERRED_TYPE, Deferred, InstanceStart, PARAM_PREFI
 use crate::parser::cursor::{BitOrder, Cursor, MAX_TERMINATED_LEN};
 use crate::parser::encoding;
 use crate::parser::process::{self, MAX_PROCESSED_LEN};
+use crate::parser::trace::TraceNode;
 use crate::schema::expr;
 use crate::schema::expr::{ExprValue, deferred_id};
 use crate::schema::ir::{
@@ -79,6 +80,38 @@ impl<'reg> Engine<'reg> {
     /// Returns an error if the type is unknown, the buffer is too short, or
     /// the data does not match the schema.
     pub fn parse_type(&self, type_name: &str, cursor: &mut Cursor<'_>) -> Result<Value> {
+        self.parse_with(type_name, cursor, false)
+            .map(|(value, _)| value)
+    }
+
+    /// Parse `type_name` as [`parse_type`](Self::parse_type) does, and also
+    /// return where in the input every value was read from.
+    ///
+    /// The root of the [`TraceNode`] tree is the type itself. Offsets are in
+    /// bits from the start of the input the cursor was made over, so the tree
+    /// is that of the whole input even when the cursor is a window of it.
+    ///
+    /// # Errors
+    ///
+    /// The same as [`parse_type`](Self::parse_type).
+    pub fn parse_type_traced(
+        &self,
+        type_name: &str,
+        cursor: &mut Cursor<'_>,
+    ) -> Result<(Value, TraceNode)> {
+        let (value, trace) = self.parse_with(type_name, cursor, true)?;
+        let root = trace.ok_or_else(|| {
+            DoeError::Schema("the parse left no record of where its values came from".to_owned())
+        })?;
+        Ok((value, root))
+    }
+
+    fn parse_with(
+        &self,
+        type_name: &str,
+        cursor: &mut Cursor<'_>,
+        traced: bool,
+    ) -> Result<(Value, Option<TraceNode>)> {
         let ty = self
             .registry
             .get(type_name)
@@ -108,11 +141,23 @@ impl<'reg> Engine<'reg> {
                 ExprValue::Int(i128::from(*size)),
             );
         }
-        let value = self.parse_compiled_type(ty, cursor, &mut ctx)?;
-        if ctx.has_deferred() {
-            return self.settle_deferred(cursor, &mut ctx, value);
+        if traced {
+            ctx.enable_trace();
+            let start = cursor.bit_position();
+            if let Some(trace) = ctx.trace() {
+                trace.begin(type_name, start);
+            }
         }
-        Ok(value)
+        let mut value = self.parse_compiled_type(ty, cursor, &mut ctx)?;
+        if ctx.has_deferred() {
+            value = self.settle_deferred(cursor, &mut ctx, value)?;
+        }
+        let end = cursor.bit_position();
+        let trace = ctx.take_trace().and_then(|mut builder| {
+            builder.finish(end);
+            builder.into_tree()
+        });
+        Ok((value, trace))
     }
 
     // ── Instances that wait ───────────────────────────────────────────────────
@@ -184,6 +229,9 @@ impl<'reg> Engine<'reg> {
             DoeError::Schema(format!("{} has no instance {}", ty.name, item.instance))
         })?;
         let saved = ctx.eval_ctx.enter_frame(item.frame);
+        if let Some(trace) = ctx.trace() {
+            trace.resume(item.id);
+        }
         let (start, size, end) = item.stream;
         let outcome = cursor.stream(start, size).and_then(|mut own| {
             own.seek(end)?;
@@ -209,6 +257,9 @@ impl<'reg> Engine<'reg> {
         let mut fields: Vec<(String, Value)> = Vec::new();
         let endian = Self::type_endian(ty, cursor, ctx)?;
         ctx.set_endian(endian);
+        if let Some(trace) = ctx.trace() {
+            trace.enter_type(&ty.name);
+        }
         if self.registry.uses_io {
             // `_parent._io` and `_root._io` are looked up in the scope.
             ctx.eval_ctx.bind("_io", stream_expr(cursor));
@@ -216,7 +267,22 @@ impl<'reg> Engine<'reg> {
 
         for field in &ty.fields {
             let start = cursor.absolute_pos();
+            let start_bits = Self::trace_start(&field.kind, cursor);
+            let depth = ctx.trace().map(|trace| {
+                let depth = trace.depth();
+                trace.begin(&field.id, start_bits);
+                depth
+            });
             let value = self.parse_field(field, ty, cursor, ctx)?;
+            if let Some(depth) = depth
+                && let Some(trace) = ctx.trace()
+            {
+                if value.is_absent() {
+                    trace.discard(depth);
+                } else {
+                    trace.finish(cursor.bit_position());
+                }
+            }
 
             // Bind into the context so subsequent fields can reference this one
             ctx.bind(&field.id, value.clone());
@@ -245,6 +311,9 @@ impl<'reg> Engine<'reg> {
         if self.registry.uses_io {
             // The stream the value was parsed from, for `some_field._io`.
             fields.push((STREAM_FIELD.to_owned(), stream_value(cursor)));
+        }
+        if let Some(trace) = ctx.trace() {
+            trace.leave_type();
         }
 
         Ok(Value::Struct {
@@ -318,7 +387,12 @@ impl<'reg> Engine<'reg> {
                 }
                 ctx.truncate_deferred(mark);
                 let stream = (cursor.window_start(), cursor.len(), cursor.pos());
-                waiting.insert(index, ctx.defer(&ty.name, index, stream));
+                let id = ctx.defer(&ty.name, index, stream);
+                waiting.insert(index, id);
+                if let Some(trace) = ctx.trace() {
+                    // Its node stays, empty, until it is computed.
+                    trace.keep_for(id, &instance.id);
+                }
             }
         }
         for (index, instance) in ty.instances.iter().enumerate() {
@@ -407,7 +481,12 @@ impl<'reg> Engine<'reg> {
         cursor
             .seek(target)
             .map_err(|e| annotate(&e, &field.id, &parent_ty.name))?;
+        let placed_at = cursor.bit_position();
         let value = self.parse_repeats(field, parent_ty, cursor, ctx)?;
+        let placed_end = cursor.bit_position();
+        if let Some(trace) = ctx.trace() {
+            trace.place(placed_at, placed_end);
+        }
         ctx.charge_reread(cursor.pos().saturating_sub(target))
             .map_err(|message| DoeError::FieldError {
                 field: field.id.clone(),
@@ -581,6 +660,17 @@ impl<'reg> Engine<'reg> {
         }
     }
 
+    /// Where a field of `kind` starts, in bits: a field that is not a bit
+    /// field starts on a byte boundary, and one made of other fields starts
+    /// where its first does (which the trace sees when it is finished).
+    fn trace_start(kind: &FieldKind, cursor: &Cursor<'_>) -> u64 {
+        let here = cursor.bit_position();
+        match kind {
+            FieldKind::Bits { .. } | FieldKind::TypeRef { .. } | FieldKind::Switch { .. } => here,
+            _ => here.next_multiple_of(8),
+        }
+    }
+
     /// Parse element number `index` of a repeated field, whatever it consumes.
     fn parse_element(
         &self,
@@ -596,7 +686,16 @@ impl<'reg> Engine<'reg> {
             "_index",
             ExprValue::Int(i128::try_from(index).unwrap_or(i128::MAX)),
         );
-        self.parse_field_once(field, parent_ty, cursor, ctx)
+        let start = Self::trace_start(&field.kind, cursor);
+        if let Some(trace) = ctx.trace() {
+            trace.begin(&format!("[{index}]"), start);
+        }
+        let value = self.parse_field_once(field, parent_ty, cursor, ctx)?;
+        let end = cursor.bit_position();
+        if let Some(trace) = ctx.trace() {
+            trace.finish(end);
+        }
+        Ok(value)
     }
 
     /// Parse a single (non-repeated) instance of a field.
@@ -691,10 +790,35 @@ impl<'reg> Engine<'reg> {
             }
         }
         let mut inner = Cursor::new(&data);
+        if let Some(trace) = ctx.trace() {
+            trace.enter_processed();
+        }
+        let read = self.read_processed_value(field, parent_ty, &data, offset, &mut inner, ctx);
+        if let Some(trace) = ctx.trace() {
+            trace.leave_processed();
+        }
+        read
+    }
+
+    /// The value of a `process:` field, read from the bytes the transform made.
+    fn read_processed_value(
+        &self,
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        data: &[u8],
+        offset: usize,
+        inner: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<Value> {
+        let fail = |message: String| DoeError::FieldError {
+            field: field.id.clone(),
+            context: parent_ty.name.clone(),
+            message,
+        };
         match &field.kind {
             FieldKind::Bytes { .. } => {
                 if data.len() <= MAX_INLINE_BYTES {
-                    return Ok(Value::Bytes(data));
+                    return Ok(Value::Bytes(data.to_vec()));
                 }
                 let preview = data.get(..BLOB_PREVIEW_LEN).unwrap_or_default().to_vec();
                 Ok(Value::Blob {
@@ -704,7 +828,7 @@ impl<'reg> Engine<'reg> {
                 })
             }
             FieldKind::Str { encoding, .. } => {
-                Self::read_str(&StrSize::Fixed(SizeExpr::Eos), *encoding, &mut inner, ctx)
+                Self::read_str(&StrSize::Fixed(SizeExpr::Eos), *encoding, inner, ctx)
             }
             FieldKind::TypeRef {
                 type_name, args, ..
@@ -714,7 +838,7 @@ impl<'reg> Engine<'reg> {
                     size: None,
                     args: args.clone(),
                 };
-                self.read_kind(&whole, parent_ty, &mut inner, ctx)
+                self.read_kind(&whole, parent_ty, inner, ctx)
             }
             _ => Err(fail("process: the field has no size".to_owned())),
         }
@@ -946,15 +1070,38 @@ impl<'reg> Engine<'reg> {
             InstanceStart::Compute => {}
         }
         let mark = cursor.mark();
+        let start_bits = cursor.bit_position();
+        let depth = ctx.trace().map(|trace| {
+            let depth = trace.depth();
+            trace.begin_instance(&instance.id, start_bits);
+            depth
+        });
         let computed = self.compute_instance(ty, instance, cursor, ctx);
         cursor.reset(mark);
         let (value, offset) = match computed {
             Ok(done) => done,
             Err(e) => {
+                if let Some(depth) = depth
+                    && let Some(trace) = ctx.trace()
+                {
+                    trace.abandon(depth);
+                }
                 ctx.abandon_instance(&instance.id);
                 return Err(e);
             }
         };
+        if let Some(depth) = depth
+            && let Some(trace) = ctx.trace()
+        {
+            if value.is_absent() {
+                trace.discard(depth);
+            } else if offset.is_some() {
+                // Already told where, by `compute_instance`.
+                trace.finish_placed();
+            } else {
+                trace.finish_without_span();
+            }
+        }
         ctx.finish_instance(
             &instance.id,
             Value::Instance {
@@ -1027,9 +1174,15 @@ impl<'reg> Engine<'reg> {
                     None => cursor,
                 };
                 let start = cursor.absolute_pos();
+                let start_bits = cursor.bit_position();
                 let value = self.parse_field(field, ty, cursor, ctx)?;
                 if value.is_absent() {
                     return Ok((value, None));
+                }
+                let end_bits = cursor.bit_position();
+                if let Some(trace) = ctx.trace() {
+                    // Unless `pos:` placed it, it was read from here.
+                    trace.place_unless_placed(start_bits, end_bits);
                 }
                 // `pos:` moved the cursor and put it back; where it went is
                 // the expression's value again.

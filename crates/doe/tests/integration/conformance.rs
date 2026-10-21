@@ -313,3 +313,132 @@ gallery!(
     gallery_network_ethernet_frame = "gallery/network/ethernet_frame",
     gallery_network_pcap = "gallery/network/pcap",
 );
+
+// ── the trace ────────────────────────────────────────────────────────────────
+
+/// Every format that has samples: those of `formats/` and the gallery ones.
+fn formats_with_samples() -> Vec<String> {
+    let samples_dir = conformance_dir().join("samples");
+    let mut formats = Vec::new();
+    for entry in std::fs::read_dir(&samples_dir)
+        .expect("samples exists")
+        .flatten()
+    {
+        let name = entry.file_name().into_string().expect("UTF-8");
+        if name != "gallery" {
+            formats.push(name);
+            continue;
+        }
+        for dir in std::fs::read_dir(entry.path())
+            .expect("gallery samples")
+            .flatten()
+        {
+            let dir_name = dir.file_name().into_string().expect("UTF-8");
+            for format in std::fs::read_dir(dir.path())
+                .expect("gallery dir")
+                .flatten()
+            {
+                let format_name = format.file_name().into_string().expect("UTF-8");
+                formats.push(format!("gallery/{dir_name}/{format_name}"));
+            }
+        }
+    }
+    formats.sort();
+    formats
+}
+
+/// The spans of a tree lie in the input, in order, and a node's children that
+/// are fields are inside it unless they were placed with `pos:`.
+fn check_spans(
+    node: &doe::parser::trace::TraceNode,
+    input_bits: u64,
+    path: &str,
+    problems: &mut Vec<String>,
+) {
+    let here = format!("{path}/{}", node.name);
+    if let Some(span) = node.span {
+        if span.end < span.start {
+            problems.push(format!("{here}: ends before it starts: {span:?}"));
+        }
+        if !node.processed && span.end > input_bits {
+            problems.push(format!("{here}: ends after the input: {span:?}"));
+        }
+    } else if !node.is_instance {
+        problems.push(format!("{here}: a field without a span"));
+    }
+    for child in &node.children {
+        check_spans(child, input_bits, &here, problems);
+    }
+}
+
+/// A traced parse of every conformance sample gives the value of an untraced
+/// one, with spans inside the input, and a byte finds the field it is in.
+#[test]
+fn tracing_changes_nothing_and_the_spans_are_in_the_input() {
+    use doe::parser::{cursor::Cursor, engine::Engine};
+    use doe::schema::compiler::Compiler;
+
+    let mut problems = Vec::new();
+    let mut traced_nodes = 0usize;
+    for format in formats_with_samples() {
+        let ksy = definition(&format);
+        let include: Vec<PathBuf> = if format.starts_with("gallery/") {
+            vec![gallery_dir()]
+        } else {
+            Vec::new()
+        };
+        let mut compiler = Compiler::new(include);
+        let schema = doe::load_schema_file(&ksy).expect("the schema loads");
+        let id = schema.id.clone();
+        compiler
+            .process_schema(&schema)
+            .expect("the schema compiles");
+        let engine = Engine::new(&compiler.registry);
+        for name in samples(&format) {
+            let path = conformance_dir()
+                .join("samples")
+                .join(&format)
+                .join(format!("{name}.bin"));
+            let data = std::fs::read(&path).expect("the sample is readable");
+            let plain = engine
+                .parse_type(&id, &mut Cursor::new(&data))
+                .expect("parses");
+            let (traced, root) = engine
+                .parse_type_traced(&id, &mut Cursor::new(&data))
+                .expect("parses with a trace");
+            if plain != traced {
+                problems.push(format!("{format}/{name}: the trace changed the value"));
+            }
+            let input_bits = u64::try_from(data.len()).expect("fits") * 8;
+            if root.span.map(|span| span.start) != Some(0) {
+                problems.push(format!("{format}/{name}: the root does not start at 0"));
+            }
+            check_spans(
+                &root,
+                input_bits,
+                &format!("{format}/{name}"),
+                &mut problems,
+            );
+            // The byte at the start of the first field is found in it.
+            if let Some(first) = root
+                .children
+                .iter()
+                .find(|c| !c.is_instance && c.span.is_some_and(|s| !s.is_empty()))
+            {
+                let offset = first.span.map_or(0, |span| span.start_byte());
+                if root.find_byte(offset).is_none() {
+                    problems.push(format!("{format}/{name}: byte {offset} is in no node"));
+                }
+            }
+            let mut count = 0usize;
+            let mut stack = vec![&root];
+            while let Some(node) = stack.pop() {
+                count += 1;
+                stack.extend(node.children.iter());
+            }
+            traced_nodes += count;
+        }
+    }
+    assert!(problems.is_empty(), "\n{}", problems.join("\n"));
+    assert!(traced_nodes > 1000, "only {traced_nodes} nodes were traced");
+}

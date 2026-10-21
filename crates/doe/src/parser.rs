@@ -18,3 +18,4 @@ pub mod cursor;
 pub mod encoding;
 pub mod engine;
 pub mod process;
+pub mod trace;
