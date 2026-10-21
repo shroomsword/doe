@@ -33,6 +33,7 @@ use crate::schema::raw::{
     RawEnum, RawField, RawInstance, RawMeta, RawParam, RawRepeat, RawSchema, RawSwitch, RawType,
     RawTypeDecl, RawValid, RawValidRules, StringOrInt,
 };
+use crate::schema::source::{FsSource, SchemaSource};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Compiler entry points
@@ -69,19 +70,40 @@ pub struct Compiler {
     /// Maps schema id → the source path it was loaded from, for duplicate
     /// detection across separately loaded schemas.
     source_paths: HashMap<String, String>,
+    /// Where the schema files are looked for and read.
+    source: Box<dyn SchemaSource>,
 }
 
 impl Compiler {
     /// Create a compiler that resolves bare schema names against
-    /// `include_paths`, in priority order.
+    /// `include_paths`, in priority order, in the files of the filesystem.
     pub fn new(include_paths: Vec<PathBuf>) -> Self {
+        Compiler::with_source(include_paths, Box::new(FsSource))
+    }
+
+    /// Create a compiler that looks for schema files in `source` instead of
+    /// the filesystem, for example a [`MemorySource`](crate::schema::source::MemorySource).
+    /// The rules of lookup are the same.
+    pub fn with_source(include_paths: Vec<PathBuf>, source: Box<dyn SchemaSource>) -> Self {
         Compiler {
             include_paths,
             registry: TypeRegistry::new(),
             loading_stack: Vec::new(),
             processed: HashSet::new(),
             source_paths: HashMap::new(),
+            source,
         }
+    }
+
+    /// Read and parse the schema file at `path` from this compiler's source,
+    /// as [`load_yaml`] does from the filesystem. Pass the result to
+    /// [`process_schema`](Self::process_schema).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be read or is not a valid schema.
+    pub fn read_schema(&self, path: &Path) -> Result<RawSchema> {
+        load_yaml_from(self.source.as_ref(), path)
     }
 
     // ── Public API ───────────────────────────────────────────────────────────
@@ -95,7 +117,7 @@ impl Compiler {
     pub fn load(&mut self, name_or_path: &str, relative_to: Option<&Path>) -> Result<()> {
         let path = self.resolve_path(name_or_path, relative_to)?;
         log::debug!("loading schema {name_or_path} from {}", path.display());
-        let schema = load_yaml(&path)?;
+        let schema = self.read_schema(&path)?;
         self.process_schema(&schema)
     }
 
@@ -881,7 +903,7 @@ impl Compiler {
         if name_or_path.starts_with("./") || name_or_path.starts_with("../") {
             let base = relative_to.unwrap_or_else(|| Path::new("."));
             let candidate = base.join(name_or_path);
-            if candidate.exists() {
+            if self.source.exists(&candidate) {
                 return Ok(candidate);
             }
             return Err(DoeError::SchemaNotFound {
@@ -892,7 +914,7 @@ impl Compiler {
 
         // Bare name (or absolute path): search the include paths.
         let dirs: Vec<&Path> = self.include_paths.iter().map(PathBuf::as_path).collect();
-        find_schema(name_or_path, name_or_path, &dirs)
+        find_schema(self.source.as_ref(), name_or_path, name_or_path, &dirs)
     }
 
     /// Where an import is. A name that starts with `./` or `../` is relative
@@ -902,7 +924,7 @@ impl Compiler {
     fn resolve_import(&self, import: &str, importing_dir: Option<&Path>) -> Result<PathBuf> {
         if let Some(rest) = import.strip_prefix('/') {
             let dirs: Vec<&Path> = self.include_paths.iter().map(PathBuf::as_path).collect();
-            return find_schema(import, rest, &dirs);
+            return find_schema(self.source.as_ref(), import, rest, &dirs);
         }
         if import.starts_with("./") || import.starts_with("../") {
             return self.resolve_path(import, importing_dir);
@@ -911,13 +933,13 @@ impl Compiler {
             .into_iter()
             .chain(self.include_paths.iter().map(PathBuf::as_path))
             .collect();
-        find_schema(import, import, &dirs)
+        find_schema(self.source.as_ref(), import, import, &dirs)
     }
 
     fn load_import(&mut self, import: &str, importing_dir: Option<&Path>) -> Result<()> {
         let path = self.resolve_import(import, importing_dir)?;
         log::debug!("loading imported schema {import} from {}", path.display());
-        let schema = load_yaml(&path)?;
+        let schema = self.read_schema(&path)?;
         self.process_schema(&schema)
     }
 }
@@ -928,7 +950,12 @@ impl Compiler {
 
 /// Find the schema file `name` in `dirs`, trying the extensions of schemas
 /// when it has none. `shown` is the name in the error.
-fn find_schema(shown: &str, name: &str, dirs: &[&Path]) -> Result<PathBuf> {
+fn find_schema(
+    source: &dyn SchemaSource,
+    shown: &str,
+    name: &str,
+    dirs: &[&Path],
+) -> Result<PathBuf> {
     let names: Vec<String> = if crate::has_schema_extension(name) {
         vec![name.to_owned()]
     } else {
@@ -942,7 +969,7 @@ fn find_schema(shown: &str, name: &str, dirs: &[&Path]) -> Result<PathBuf> {
         for file in &names {
             let candidate = dir.join(file);
             searched.push(candidate.clone());
-            if candidate.exists() {
+            if source.exists(&candidate) {
                 return Ok(candidate);
             }
         }
@@ -2156,10 +2183,17 @@ fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx<'_>, src: &str) -> Re
 /// Returns [`DoeError::Io`] if the file cannot be read, or [`DoeError::Yaml`]
 /// if it is not a valid schema.
 pub fn load_yaml(path: &Path) -> Result<RawSchema> {
-    let text = std::fs::read_to_string(path).map_err(|e| DoeError::Io {
-        path: path.to_owned(),
-        source: e,
-    })?;
+    load_yaml_from(&FsSource, path)
+}
+
+/// Read and parse the schema file at `path` from `source`, and record the path
+/// as the file the schema came from.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read or is not a valid schema.
+pub fn load_yaml_from(source: &dyn SchemaSource, path: &Path) -> Result<RawSchema> {
+    let text = source.read(path)?;
     let mut schema: RawSchema = RawSchema::from_yaml_str(&text).map_err(|e| DoeError::Yaml {
         path: path.to_owned(),
         source: Box::new(e),

@@ -1026,6 +1026,26 @@ println!("{}", json::render_pretty(&value));
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+Schemas do not have to be files. A compiler reads them from a `SchemaSource`:
+the filesystem by default, or a `MemorySource` that holds files by path, for a
+program with no filesystem (such as WebAssembly in a browser). Imports are found
+by the same rules, next to the importing file and then in the include paths:
+
+```rust
+use std::path::{Path, PathBuf};
+use doe::schema::compiler::Compiler;
+use doe::schema::source::MemorySource;
+
+let files = MemorySource::new()
+    .with_file("main.ksy", "meta:\n  id: main\n  imports:\n    - common\nseq: []\n")
+    .with_file("lib/common.ksy", "meta:\n  id: common\nseq: []\n");
+let mut compiler = Compiler::with_source(vec![PathBuf::from("lib")], Box::new(files));
+let main = compiler.read_schema(Path::new("main.ksy"))?;
+compiler.process_schema(&main)?;
+assert!(compiler.registry.contains("common"));
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
 To know where in the input every value came from (to select the bytes of a
 field, or the field of a byte), parse with `parse_type_traced`. It returns the
 same value and a tree of `TraceNode`s with the bit range of each field, element
