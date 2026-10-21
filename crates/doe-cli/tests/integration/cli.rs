@@ -528,7 +528,7 @@ fn old_yaml_config_in_the_default_location_is_ignored() {
 #[test]
 fn completions_are_generated_for_every_shell() {
     for shell in ["bash", "zsh", "fish", "powershell", "elvish"] {
-        let assert = doe().args(["completions", shell]).assert().success();
+        let assert = doe().args(["--completions", shell]).assert().success();
         let out = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
         assert!(out.contains("doe"), "{shell}: {out}");
         assert!(out.contains("completions"), "{shell}");
@@ -539,7 +539,7 @@ fn completions_are_generated_for_every_shell() {
 #[test]
 fn completions_for_an_unknown_shell_is_a_usage_error() {
     doe()
-        .args(["completions", "nushell"])
+        .args(["--completions", "nushell"])
         .assert()
         .code(2)
         .stderr(predicate::str::contains("invalid value"));
@@ -547,21 +547,40 @@ fn completions_for_an_unknown_shell_is_a_usage_error() {
 
 #[test]
 fn completions_without_a_shell_is_a_usage_error() {
-    doe().arg("completions").assert().code(2);
+    doe().arg("--completions").assert().code(2);
 }
 
 #[test]
 fn completions_work_with_global_flags() {
     doe()
-        .args(["completions", "bash", "--color", "never", "-q"])
+        .args(["--completions", "bash", "--color", "never", "-q"])
         .assert()
         .success();
 }
 
 #[test]
-fn man_page_is_roff_and_hidden_from_help() {
+fn completions_and_man_do_not_go_with_parsing_or_each_other() {
+    for args in [
+        &["--completions", "bash", "file.bin", "t"][..],
+        &["--completions", "bash", "--json"],
+        &["--completions", "bash", "-I", "dir"],
+        &["--completions", "bash", "--man"],
+        &["--man", "file.bin"],
+        &["--man", "--pretty"],
+        &["--man", "--help"],
+    ] {
+        doe()
+            .args(args)
+            .assert()
+            .code(2)
+            .stderr(predicate::str::contains("cannot be used with"));
+    }
+}
+
+#[test]
+fn man_page_is_roff_and_listed_in_help() {
     doe()
-        .arg("man")
+        .arg("--man")
         .assert()
         .success()
         .stdout(predicate::str::contains(".TH doe 1"))
@@ -570,20 +589,38 @@ fn man_page_is_roff_and_hidden_from_help() {
         .args(["-c", NO_CONFIG, "--help"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("completions"))
-        .stdout(predicate::str::contains("\n  man ").not());
+        .stdout(predicate::str::contains("--completions <SHELL>"))
+        .stdout(predicate::str::contains("--man"))
+        .stdout(predicate::str::contains("Commands:").not());
 }
 
 #[test]
 fn completions_and_man_do_not_create_a_log_file() {
     let state = TempDir::new().unwrap();
-    for args in [["completions", "bash"], ["man", ""]] {
+    for args in [&["--completions", "bash"][..], &["--man"]] {
         let mut command = Command::cargo_bin("doe").unwrap();
         command.env("XDG_STATE_HOME", state.path());
-        command.args(args.iter().filter(|a| !a.is_empty()));
+        command.args(args);
         command.assert().success();
     }
     assert!(!state.path().join("doe").exists());
+}
+
+#[test]
+fn a_file_called_completions_or_man_is_parsed() {
+    let dir = TempDir::new().unwrap();
+    let (_, binary) = simple_fixture(dir.path());
+    for name in ["completions", "man"] {
+        let renamed = dir.path().join(name);
+        std::fs::copy(&binary, &renamed).unwrap();
+        doe()
+            .args(["-c", NO_CONFIG, "-I"])
+            .arg(dir.path())
+            .arg(&renamed)
+            .arg("simple")
+            .assert()
+            .success();
+    }
 }
 
 #[test]

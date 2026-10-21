@@ -137,12 +137,12 @@ jobs:
           host="bins/bin-x86_64-unknown-linux-gnu/${BIN}"
           chmod +x "$host"
           mkdir -p extras/complete extras/doc
-          "$host" completions bash > "extras/complete/${BIN}.bash"
-          "$host" completions zsh > "extras/complete/_${BIN}"
-          "$host" completions fish > "extras/complete/${BIN}.fish"
-          "$host" completions powershell > "extras/complete/_${BIN}.ps1"
-          "$host" completions elvish > "extras/complete/${BIN}.elv"
-          "$host" man > "extras/doc/${BIN}.1"
+          "$host" --completions bash > "extras/complete/${BIN}.bash"
+          "$host" --completions zsh > "extras/complete/_${BIN}"
+          "$host" --completions fish > "extras/complete/${BIN}.fish"
+          "$host" --completions powershell > "extras/complete/_${BIN}.ps1"
+          "$host" --completions elvish > "extras/complete/${BIN}.elv"
+          "$host" --man > "extras/doc/${BIN}.1"
 
       - name: Package
         run: |
