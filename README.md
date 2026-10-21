@@ -39,13 +39,19 @@ doe --completions powershell | Out-String | Invoke-Expression
 eval (doe --completions elvish | slurp)
 ```
 
-### Man page
+### Man pages
 
-The man page is generated from the same definition:
+Two manual pages are generated from this README and the command-line
+definition: `doe(1)`, the command (options, output formats, configuration), and
+`doe-schema(5)`, the schema format and the Kaitai Struct compatibility notes.
+Install them where `man` looks:
 
 ```sh
 doe --man > ~/.local/share/man/man1/doe.1
+doe --man=schema > ~/.local/share/man/man5/doe-schema.5
 ```
+
+The release archives contain both in `doc/`.
 
 ## Quick start
 
@@ -860,7 +866,7 @@ Options:
   -v, --verbose...           Increase logging verbosity
   -q, --quiet...             Decrease logging verbosity
       --completions <SHELL>  Print a shell completion script to stdout and exit [possible values: bash, elvish, fish, powershell, zsh]
-      --man                  Print the manual page (roff) to stdout and exit
+      --man[=<PAGE>]         Print a manual page (roff) to stdout and exit: `doe` (the default) or `schema`, the schema format [possible values: doe, schema]
   -V, --version              Print version
 ```
 

@@ -142,7 +142,8 @@ jobs:
           "$host" --completions fish > "extras/complete/${BIN}.fish"
           "$host" --completions powershell > "extras/complete/_${BIN}.ps1"
           "$host" --completions elvish > "extras/complete/${BIN}.elv"
-          "$host" --man > "extras/doc/${BIN}.1"
+          "$host" --man=doe > "extras/doc/${BIN}.1"
+          "$host" --man=schema > "extras/doc/${BIN}-schema.5"
 
       - name: Package
         run: |

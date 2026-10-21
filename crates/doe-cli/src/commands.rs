@@ -9,13 +9,14 @@ use doe::OutputFormat;
 use doe::config::{Config, discover_types, resolve_include_paths};
 
 use crate::cli::Cli;
+use crate::manpage::{self, Page};
 
 /// Run whatever `cli` asks for. Logging has already been set up.
 pub(crate) fn dispatch(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     if let Some(shell) = cli.completions {
         completions(shell)
-    } else if cli.man {
-        man()
+    } else if let Some(page) = cli.man {
+        man(page)
     } else if cli.help {
         print_help(&cli.include_paths, config)
     } else {
@@ -37,10 +38,8 @@ fn completions(shell: clap_complete::Shell) -> anyhow::Result<()> {
     write_stdout(&script)
 }
 
-fn man() -> anyhow::Result<()> {
-    let mut page = Vec::new();
-    clap_mangen::Man::new(Cli::command()).render(&mut page)?;
-    write_stdout(&page)
+fn man(page: Page) -> anyhow::Result<()> {
+    write_stdout(&manpage::render(page)?)
 }
 
 fn run(cli: &Cli) -> anyhow::Result<()> {

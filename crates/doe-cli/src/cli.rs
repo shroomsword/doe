@@ -4,6 +4,8 @@ use std::path::PathBuf;
 
 use clap::{ColorChoice, Parser, ValueEnum};
 use clap_complete::Shell;
+
+use crate::manpage::Page;
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 
 /// doe — binary file parser
@@ -85,9 +87,19 @@ pub(crate) struct Cli {
     )]
     pub(crate) completions: Option<Shell>,
 
-    /// Print the manual page (roff) to stdout and exit.
-    #[arg(long, conflicts_with_all = PARSING_ARGS, conflicts_with = "completions")]
-    pub(crate) man: bool,
+    /// Print a manual page (roff) to stdout and exit: `doe` (the default) or
+    /// `schema`, the schema format.
+    #[arg(
+        long,
+        value_enum,
+        value_name = "PAGE",
+        num_args = 0..=1,
+        require_equals = true,
+        default_missing_value = "doe",
+        conflicts_with_all = PARSING_ARGS,
+        conflicts_with = "completions"
+    )]
+    pub(crate) man: Option<Page>,
 }
 
 /// The arguments that only mean something when a file is parsed: they conflict
