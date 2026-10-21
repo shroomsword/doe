@@ -29,6 +29,7 @@ anstream = { version = "1", default-features = false }
 anstyle = { version = "1", default-features = false }
 clap_complete = "4"
 clap_mangen = "0.3"
+pulldown-cmark = { version = "0.13", default-features = false }
 clap-verbosity-flag = { version = "3", default-features = false }
 indexmap = { version = "2", default-features = false }
 flate2 = { version = "1", default-features = false }

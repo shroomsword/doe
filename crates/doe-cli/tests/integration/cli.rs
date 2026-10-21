@@ -595,6 +595,63 @@ fn man_page_is_roff_and_listed_in_help() {
 }
 
 #[test]
+fn the_schema_page_is_a_page_of_its_own() {
+    doe()
+        .arg("--man=schema")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(".TH doe\\-schema 5"))
+        .stdout(predicate::str::contains(".SH \"SCHEMA FORMAT\""))
+        .stdout(predicate::str::contains(
+            ".SH \"KAITAI STRUCT COMPATIBILITY\"",
+        ))
+        .stdout(predicate::str::contains(".SH \"OUTPUT\"").not());
+    doe()
+        .arg("--man=doe")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(".SH \"OUTPUT\""))
+        .stdout(predicate::str::contains(".SH \"SCHEMA FORMAT\"").not())
+        .stdout(predicate::str::contains("doe\\-schema"));
+    doe()
+        .arg("--man=nonsense")
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("possible values: doe, schema"));
+}
+
+/// The pages are valid roff: `groff` with every warning on says nothing. Skipped
+/// where `groff` is not installed.
+#[test]
+fn the_pages_render_without_warnings() {
+    use std::io::Write as _;
+    use std::process::{Command as Process, Stdio};
+
+    for page in ["doe", "schema"] {
+        let output = doe().arg(format!("--man={page}")).output().unwrap();
+        assert!(output.status.success());
+        let Ok(mut groff) = Process::new("groff")
+            .args(["-k", "-t", "-man", "-ww", "-z"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+        else {
+            return;
+        };
+        groff
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(&output.stdout)
+            .unwrap();
+        let result = groff.wait_with_output().unwrap();
+        let warnings = String::from_utf8_lossy(&result.stderr);
+        assert!(warnings.is_empty(), "{page}: {warnings}");
+    }
+}
+
+#[test]
 fn completions_and_man_do_not_create_a_log_file() {
     let state = TempDir::new().unwrap();
     for args in [&["--completions", "bash"][..], &["--man"]] {

@@ -7,6 +7,7 @@
 mod cli;
 mod commands;
 mod logging;
+mod manpage;
 
 use std::io::{self, Write};
 use std::process::ExitCode;
@@ -31,7 +32,7 @@ fn main() -> ExitCode {
 
 fn try_main(cli: &Cli) -> anyhow::Result<()> {
     // Generating completions or the man page needs neither config nor logs.
-    if cli.completions.is_some() || cli.man {
+    if cli.completions.is_some() || cli.man.is_some() {
         return commands::dispatch(cli, &Config::default());
     }
 
