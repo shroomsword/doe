@@ -13,9 +13,13 @@
 //! restricted windows for size-limited sub-structures.
 
 use std::borrow::Cow;
+#[cfg(feature = "fs")]
 use std::fs::File;
+#[cfg(feature = "fs")]
 use std::io::{self, Read, Seek, SeekFrom};
+#[cfg(feature = "fs")]
 use std::path::PathBuf;
+#[cfg(feature = "fs")]
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use crate::error::{DoeError, Result};
@@ -27,9 +31,11 @@ use crate::error::{DoeError, Result};
 pub const MAX_TERMINATED_LEN: usize = 16 * 1024 * 1024;
 
 /// How much of a file is read at a time when a small read misses the cache.
+#[cfg(feature = "fs")]
 const FILE_CACHE_LEN: usize = 64 * 1024;
 
 /// How much `read_until` examines per step on a file.
+#[cfg(feature = "fs")]
 const SCAN_CHUNK_LEN: usize = 4096;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,10 +94,12 @@ enum Source<'buf> {
     Memory(&'buf [u8]),
     /// A file shared by the root cursor and its sub-cursors; `base` locates
     /// the window in it.
+    #[cfg(feature = "fs")]
     File(Arc<Mutex<FileSource>>),
 }
 
 /// A file read on demand through a one-block cache.
+#[cfg(feature = "fs")]
 #[derive(Debug)]
 struct FileSource {
     file: File,
@@ -101,6 +109,7 @@ struct FileSource {
     cache_start: usize,
 }
 
+#[cfg(feature = "fs")]
 impl FileSource {
     fn cached(&self, start: usize, end: usize) -> Option<&[u8]> {
         let from = start.checked_sub(self.cache_start)?;
@@ -171,6 +180,7 @@ impl<'buf> Cursor<'buf> {
     ///
     /// Returns an error if the file's size cannot be read or does not fit in
     /// `usize`.
+    #[cfg(feature = "fs")]
     pub fn from_file(file: File, path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
         let size = file.metadata().map_err(|source| DoeError::Io {
@@ -216,6 +226,7 @@ impl<'buf> Cursor<'buf> {
                 let buf: &'buf [u8] = buf;
                 Source::Memory(buf.get(start..end).ok_or_else(|| self.overrun_error(len))?)
             }
+            #[cfg(feature = "fs")]
             Source::File(shared) => Source::File(Arc::clone(shared)),
         };
         Ok(Cursor {
@@ -249,6 +260,7 @@ impl<'buf> Cursor<'buf> {
                     .get(start..end)
                     .ok_or_else(|| self.overrun_error(len))?,
             ),
+            #[cfg(feature = "fs")]
             Source::File(shared) => Source::File(Arc::clone(shared)),
         };
         Ok(Cursor {
@@ -451,6 +463,7 @@ impl<'buf> Cursor<'buf> {
                     .map(Cow::Borrowed)
                     .ok_or_else(|| self.overrun_error(n))
             }
+            #[cfg(feature = "fs")]
             Source::File(_) => {
                 let mut bytes = vec![0; n];
                 self.fill(self.pos, &mut bytes)?;
@@ -525,6 +538,7 @@ impl<'buf> Cursor<'buf> {
                     .saturating_add(usize::from(found.is_some() && consume));
                 Ok(Cow::Borrowed(rest.get(..len).unwrap_or_default()))
             }
+            #[cfg(feature = "fs")]
             Source::File(_) => {
                 let mut out = Vec::new();
                 let mut chunk = [0u8; SCAN_CHUNK_LEN];
@@ -585,6 +599,7 @@ impl<'buf> Cursor<'buf> {
                 out.copy_from_slice(bytes);
                 Ok(())
             }
+            #[cfg(feature = "fs")]
             Source::File(shared) => {
                 let mut file = lock(shared);
                 let absolute = self.base.saturating_add(offset);
@@ -657,6 +672,7 @@ impl<'buf> Cursor<'buf> {
     }
 }
 
+#[cfg(feature = "fs")]
 fn lock(shared: &Mutex<FileSource>) -> MutexGuard<'_, FileSource> {
     // A panic while the lock was held cannot leave the cache half-updated in a
     // way that matters: every read starts by checking what the cache covers.

@@ -18,6 +18,7 @@
 //! - [`render::text::render_with_indent`] — indented text renderer.
 //! - [`render::json::render_pretty`] — pretty-printed JSON renderer.
 
+#[cfg(feature = "fs")]
 pub mod config;
 pub mod error;
 pub mod parser;
@@ -25,8 +26,11 @@ pub mod render;
 pub mod schema;
 pub mod value;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(feature = "fs")]
+use std::path::PathBuf;
 
+#[cfg(feature = "fs")]
 pub use config::{AvailableType, DuplicateTypeError, discover_types};
 pub use error::{DoeError, Result};
 pub use value::Value;
@@ -102,6 +106,7 @@ pub enum OutputFormat {
 ///
 /// print!("{}", text);
 /// ```
+#[cfg(feature = "fs")]
 pub fn parse_file(
     binary_file: &Path,
     type_or_schema: &str,
@@ -138,6 +143,7 @@ impl Default for ParseOptions {
 /// # Errors
 ///
 /// Returns the same errors as [`parse_file`].
+#[cfg(feature = "fs")]
 pub fn parse_file_with(
     binary_file: &Path,
     type_or_schema: &str,
@@ -255,6 +261,7 @@ pub(crate) fn has_schema_extension(s: &str) -> bool {
 /// Returns [`DoeError::Io`] if the file cannot be read, or
 /// [`DoeError::Yaml`] if the content is not valid YAML or does not conform
 /// to the schema format.
+#[cfg(feature = "fs")]
 pub fn load_schema_file(path: &Path) -> Result<schema::raw::RawSchema> {
     let text = std::fs::read_to_string(path).map_err(|e| DoeError::Io {
         path: path.to_owned(),

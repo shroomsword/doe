@@ -50,6 +50,7 @@ pub enum DoeError {
     // ── TOML ─────────────────────────────────────────────────────────────────
     /// A configuration file exists but is not valid TOML or has unknown or
     /// mistyped keys. The message includes the line and column.
+    #[cfg(feature = "fs")]
     #[error("invalid configuration in {path}")]
     Toml {
         /// The configuration file that triggered the error.

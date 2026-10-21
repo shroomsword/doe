@@ -33,7 +33,9 @@ use crate::schema::raw::{
     RawEnum, RawField, RawInstance, RawMeta, RawParam, RawRepeat, RawSchema, RawSwitch, RawType,
     RawTypeDecl, RawValid, RawValidRules, StringOrInt,
 };
-use crate::schema::source::{FsSource, SchemaSource};
+#[cfg(feature = "fs")]
+use crate::schema::source::FsSource;
+use crate::schema::source::SchemaSource;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Compiler entry points
@@ -77,8 +79,18 @@ pub struct Compiler {
 impl Compiler {
     /// Create a compiler that resolves bare schema names against
     /// `include_paths`, in priority order, in the files of the filesystem.
+    ///
+    /// Without the `fs` feature there is no filesystem: the compiler has an
+    /// empty [`MemorySource`](crate::schema::source::MemorySource), so only
+    /// schemas given to [`process_schema`](Self::process_schema) are compiled,
+    /// and imports are not found. Use [`with_source`](Self::with_source) with the
+    /// files.
     pub fn new(include_paths: Vec<PathBuf>) -> Self {
-        Compiler::with_source(include_paths, Box::new(FsSource))
+        #[cfg(feature = "fs")]
+        let source: Box<dyn SchemaSource> = Box::new(FsSource);
+        #[cfg(not(feature = "fs"))]
+        let source: Box<dyn SchemaSource> = Box::new(crate::schema::source::MemorySource::new());
+        Compiler::with_source(include_paths, source)
     }
 
     /// Create a compiler that looks for schema files in `source` instead of
@@ -2182,6 +2194,7 @@ fn check_field_refs_in_expr(e: &expr::Expr, ctx: &FieldCtx<'_>, src: &str) -> Re
 ///
 /// Returns [`DoeError::Io`] if the file cannot be read, or [`DoeError::Yaml`]
 /// if it is not a valid schema.
+#[cfg(feature = "fs")]
 pub fn load_yaml(path: &Path) -> Result<RawSchema> {
     load_yaml_from(&FsSource, path)
 }
