@@ -18,6 +18,22 @@ cd "$root"
 echo "== build for wasm32-unknown-unknown (no default features)"
 cargo build -p doe --no-default-features --target wasm32-unknown-unknown --locked
 
-echo "== tests on wasm32-wasip1"
-CARGO_TARGET_WASM32_WASIP1_RUNNER="node $root/scripts/wasm-runner.mjs" \
-  cargo test -p doe --no-default-features --test limits --target wasm32-wasip1 --locked
+echo "== tests on wasm32-wasip1 (node $(node --version))"
+export CARGO_TARGET_WASM32_WASIP1_RUNNER="node $root/scripts/wasm-runner.mjs"
+test_cmd=(cargo test -p doe --no-default-features --test limits --target wasm32-wasip1 --locked)
+
+# Each test runs in a process of its own, so that one that crashes the runtime
+# (a stack overflow in the library) is named, and the others still run.
+mapfile -t tests < <("${test_cmd[@]}" -- --list --format terse 2>/dev/null | sed -n 's/: test$//p')
+[[ ${#tests[@]} -gt 0 ]] || { echo "no tests were found" >&2; exit 1; }
+failed=0
+for name in "${tests[@]}"; do
+  if output=$("${test_cmd[@]}" -- --exact "$name" 2>&1); then
+    echo "ok   $name"
+  else
+    echo "FAIL $name"
+    echo "$output" | tail -15
+    failed=1
+  fi
+done
+exit "$failed"
