@@ -45,6 +45,11 @@ pub struct ParseContext {
     root_len: usize,
     /// Where the values come from, when the parse is traced.
     trace: Option<TraceBuilder>,
+    /// Whether to keep what was read when the parse fails.
+    keep_partial: bool,
+    /// What the value that was being read had got as far as when the parse
+    /// failed, until the one around it takes it in.
+    partial: Option<Value>,
 }
 
 /// Where an instance is in being computed.
@@ -130,7 +135,29 @@ impl ParseContext {
             input_len: 0,
             root_len: 0,
             trace: None,
+            keep_partial: false,
+            partial: None,
         }
+    }
+
+    /// Keep what was read when the parse fails.
+    pub(crate) fn enable_partial(&mut self) {
+        self.keep_partial = true;
+    }
+
+    /// Whether what was read is kept when the parse fails.
+    pub(crate) fn keeps_partial(&self) -> bool {
+        self.keep_partial
+    }
+
+    /// Record what the value being read had got as far as.
+    pub(crate) fn set_partial(&mut self, value: Value) {
+        self.partial = Some(value);
+    }
+
+    /// Take what the value that failed had got as far as.
+    pub(crate) fn take_partial(&mut self) -> Option<Value> {
+        self.partial.take()
     }
 
     /// Record where every value comes from.

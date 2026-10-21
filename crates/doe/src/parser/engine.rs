@@ -47,6 +47,22 @@ pub const BLOB_PREVIEW_LEN: usize = 256;
 /// from the input and can be far larger than the input.
 const MAX_RESERVED_ELEMENTS: usize = 1024;
 
+/// What [`Engine::parse_type_partial`] got as far as.
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct ParseOutcome {
+    /// The value, or, when the parse failed, as much of it as was read. `None`
+    /// when nothing was read before the failure, or when it was not kept
+    /// (a failure that is not in a type or a repeated field).
+    pub value: Option<Value>,
+    /// Where the values came from. When the parse failed, the value that was
+    /// being read is [`failed`](TraceNode::failed) and the ones around it end
+    /// where it did. It is only the root when a parse is not traced.
+    pub trace: TraceNode,
+    /// Why the parse failed; `None` when it did not.
+    pub error: Option<DoeError>,
+}
+
 /// Walks a compiled [`TypeRegistry`] over a byte buffer to produce a [`Value`] tree.
 #[derive(Debug)]
 pub struct Engine<'reg> {
@@ -80,8 +96,12 @@ impl<'reg> Engine<'reg> {
     /// Returns an error if the type is unknown, the buffer is too short, or
     /// the data does not match the schema.
     pub fn parse_type(&self, type_name: &str, cursor: &mut Cursor<'_>) -> Result<Value> {
-        self.parse_with(type_name, cursor, false)
-            .map(|(value, _)| value)
+        let outcome = self.parse_with(type_name, cursor, false, false)?;
+        match (outcome.error, outcome.value) {
+            (Some(e), _) => Err(e),
+            (None, Some(value)) => Ok(value),
+            (None, None) => Err(DoeError::Schema("the parse left no value".to_owned())),
+        }
     }
 
     /// Parse `type_name` as [`parse_type`](Self::parse_type) does, and also
@@ -99,11 +119,37 @@ impl<'reg> Engine<'reg> {
         type_name: &str,
         cursor: &mut Cursor<'_>,
     ) -> Result<(Value, TraceNode)> {
-        let (value, trace) = self.parse_with(type_name, cursor, true)?;
-        let root = trace.ok_or_else(|| {
-            DoeError::Schema("the parse left no record of where its values came from".to_owned())
-        })?;
-        Ok((value, root))
+        let outcome = self.parse_with(type_name, cursor, true, false)?;
+        if let Some(e) = outcome.error {
+            return Err(e);
+        }
+        outcome
+            .value
+            .ok_or_else(|| DoeError::Schema("the parse left no value".to_owned()))
+            .map(|value| (value, outcome.trace))
+    }
+
+    /// Parse `type_name`, and when the parse fails keep what was read before
+    /// it did: the [`ParseOutcome`] has the value and the trace of every field
+    /// read until then, and the error.
+    ///
+    /// A value that was being read when the parse failed is there as far as it
+    /// got: a type with the fields before the failing one, a repeated field
+    /// with the elements before it. In the trace, the value that was being read
+    /// is marked [`failed`](TraceNode::failed). A field whose value fails a
+    /// `valid:` rule keeps the value it read.
+    ///
+    /// # Errors
+    ///
+    /// Only when nothing could be tried: the type is unknown, or takes
+    /// parameters and cannot be parsed on its own. A failed parse is a
+    /// [`ParseOutcome`] with an `error`.
+    pub fn parse_type_partial(
+        &self,
+        type_name: &str,
+        cursor: &mut Cursor<'_>,
+    ) -> Result<ParseOutcome> {
+        self.parse_with(type_name, cursor, true, true)
     }
 
     fn parse_with(
@@ -111,7 +157,8 @@ impl<'reg> Engine<'reg> {
         type_name: &str,
         cursor: &mut Cursor<'_>,
         traced: bool,
-    ) -> Result<(Value, Option<TraceNode>)> {
+        partial: bool,
+    ) -> Result<ParseOutcome> {
         let ty = self
             .registry
             .get(type_name)
@@ -148,16 +195,46 @@ impl<'reg> Engine<'reg> {
                 trace.begin(type_name, start);
             }
         }
-        let mut value = self.parse_compiled_type(ty, cursor, &mut ctx)?;
-        if ctx.has_deferred() {
-            value = self.settle_deferred(cursor, &mut ctx, value)?;
+        if partial {
+            ctx.enable_partial();
         }
+        let result = self
+            .parse_compiled_type(ty, cursor, &mut ctx)
+            .and_then(|value| {
+                if ctx.has_deferred() {
+                    self.settle_deferred(cursor, &mut ctx, value)
+                } else {
+                    Ok(value)
+                }
+            });
         let end = cursor.bit_position();
-        let trace = ctx.take_trace().and_then(|mut builder| {
-            builder.finish(end);
+        let (value, error) = match result {
+            Ok(value) => (Some(value), None),
+            Err(e) => {
+                // What the values that failed had read, with the instances that
+                // were waiting for later left out.
+                let mut value = ctx.take_partial();
+                if let Some(value) = value.as_mut() {
+                    substitute_deferred(value, &HashMap::new());
+                }
+                if let Some(trace) = ctx.trace() {
+                    trace.close_failed();
+                }
+                (value, Some(e))
+            }
+        };
+        let tree = ctx.take_trace().and_then(|mut builder| {
+            if error.is_none() {
+                builder.finish(end);
+            }
             builder.into_tree()
         });
-        Ok((value, trace))
+        let trace = tree.unwrap_or_else(|| TraceNode::untraced(type_name));
+        Ok(ParseOutcome {
+            value,
+            trace,
+            error,
+        })
     }
 
     // ── Instances that wait ───────────────────────────────────────────────────
@@ -193,6 +270,7 @@ impl<'reg> Engine<'reg> {
                     }
                     Err(e) => {
                         // What the failed attempt put off belongs to nothing.
+                        ctx.take_partial();
                         ctx.truncate_deferred(mark);
                         first_error.get_or_insert(e);
                         still.push(item);
@@ -201,6 +279,10 @@ impl<'reg> Engine<'reg> {
             }
             if still.len() == total {
                 // None could be computed, so none will be.
+                if ctx.keeps_partial() {
+                    substitute_deferred(&mut value, &results);
+                    ctx.set_partial(value);
+                }
                 return Err(first_error.unwrap_or_else(|| {
                     DoeError::Schema("an instance could not be computed".to_owned())
                 }));
@@ -273,7 +355,10 @@ impl<'reg> Engine<'reg> {
                 trace.begin(&field.id, start_bits);
                 depth
             });
-            let value = self.parse_field(field, ty, cursor, ctx)?;
+            let value = match self.parse_field(field, ty, cursor, ctx) {
+                Ok(value) => value,
+                Err(e) => return Err(Self::keep_struct(ty, fields, Some(&field.id), ctx, e)),
+            };
             if let Some(depth) = depth
                 && let Some(trace) = ctx.trace()
             {
@@ -297,8 +382,10 @@ impl<'reg> Engine<'reg> {
             fields.push((field.id.clone(), value));
         }
 
-        if !ty.instances.is_empty() {
-            self.finish_instances(ty, cursor, ctx, &mut fields)?;
+        if !ty.instances.is_empty()
+            && let Err(e) = self.finish_instances(ty, cursor, ctx, &mut fields)
+        {
+            return Err(Self::keep_struct(ty, fields, None, ctx, e));
         }
         if !ty.params.is_empty() {
             // The parameters, which expressions can read as fields of the value.
@@ -320,6 +407,41 @@ impl<'reg> Engine<'reg> {
             type_name: ty.name.clone(),
             fields,
         })
+    }
+
+    /// A type failed to parse: when partial results are kept, record the type
+    /// as far as it got, with what the failing field had read of itself, and
+    /// pass the error on.
+    fn keep_struct(
+        ty: &CompiledType,
+        mut fields: Vec<(String, Value)>,
+        failing: Option<&str>,
+        ctx: &mut ParseContext,
+        error: DoeError,
+    ) -> DoeError {
+        if ctx.keeps_partial() {
+            let inner = ctx.take_partial();
+            if let (Some(name), Some(inner)) = (failing, inner) {
+                fields.push((name.to_owned(), inner));
+            }
+            ctx.set_partial(Value::Struct {
+                type_name: ty.name.clone(),
+                fields,
+            });
+        }
+        error
+    }
+
+    /// A repeated field failed: record the elements read, and the one that
+    /// failed as far as it got.
+    fn keep_array(mut items: Vec<Value>, ctx: &mut ParseContext, error: DoeError) -> DoeError {
+        if ctx.keeps_partial() {
+            if let Some(inner) = ctx.take_partial() {
+                items.push(inner);
+            }
+            ctx.set_partial(Value::Array(items));
+        }
+        error
     }
 
     /// The byte order of `ty` for this parse: its own, or the one a value
@@ -385,6 +507,7 @@ impl<'reg> Engine<'reg> {
                 if !ctx.is_input(cursor) {
                     return Err(e);
                 }
+                ctx.take_partial();
                 ctx.truncate_deferred(mark);
                 let stream = (cursor.window_start(), cursor.len(), cursor.pos());
                 let id = ctx.defer(&ty.name, index, stream);
@@ -527,8 +650,10 @@ impl<'reg> Engine<'reg> {
         let mut items = Vec::new();
         while !cursor.is_eof() {
             Self::expose_elements(field, &items, ctx);
-            let v = self.parse_repeated_element(items.len(), field, parent_ty, cursor, ctx)?;
-            items.push(v);
+            match self.parse_repeated_element(items.len(), field, parent_ty, cursor, ctx) {
+                Ok(v) => items.push(v),
+                Err(e) => return Err(Self::keep_array(items, ctx, e)),
+            }
         }
         Self::hide_elements(field, ctx);
         Ok(Value::Array(items))
@@ -571,12 +696,20 @@ impl<'reg> Engine<'reg> {
         for index in 0..count {
             Self::expose_elements(field, &items, ctx);
             let before = cursor.bit_position();
-            let v = self.parse_element(index, field, parent_ty, cursor, ctx)?;
+            let v = match self.parse_element(index, field, parent_ty, cursor, ctx) {
+                Ok(v) => v,
+                Err(e) => return Err(Self::keep_array(items, ctx, e)),
+            };
             if cursor.bit_position() == before {
                 empty += 1;
                 let read_bytes = cursor.bit_position().saturating_sub(start).div_ceil(8);
                 if usize::try_from(read_bytes).is_ok_and(|read| empty > read) {
-                    return Err(Self::no_bytes_error(field, parent_ty));
+                    items.push(v);
+                    return Err(Self::keep_array(
+                        items,
+                        ctx,
+                        Self::no_bytes_error(field, parent_ty),
+                    ));
                 }
             }
             items.push(v);
@@ -596,7 +729,10 @@ impl<'reg> Engine<'reg> {
         let mut items = Vec::new();
         loop {
             Self::expose_elements(field, &items, ctx);
-            let v = self.parse_repeated_element(items.len(), field, parent_ty, cursor, ctx)?;
+            let v = match self.parse_repeated_element(items.len(), field, parent_ty, cursor, ctx) {
+                Ok(v) => v,
+                Err(e) => return Err(Self::keep_array(items, ctx, e)),
+            };
             // Bind the most recently parsed value to `_` so the
             // until-expression can reference it, matching the convention
             // used by KaitaiStruct.
@@ -719,8 +855,14 @@ impl<'reg> Engine<'reg> {
                     (_, e) => e,
                 })?,
         };
-        if let Some(valid) = &field.valid {
-            Self::check_valid(valid, field, parent_ty, &raw, cursor, ctx)?;
+        if let Some(valid) = &field.valid
+            && let Err(e) = Self::check_valid(valid, field, parent_ty, &raw, cursor, ctx)
+        {
+            // The value was read; it is the rule that it fails.
+            if ctx.keeps_partial() {
+                ctx.set_partial(raw);
+            }
+            return Err(e);
         }
         Ok(apply_enum(raw, field.enum_ref.as_deref(), parent_ty))
     }
@@ -1086,6 +1228,8 @@ impl<'reg> Engine<'reg> {
                 {
                     trace.abandon(depth);
                 }
+                // What the instance read belongs to no field.
+                ctx.take_partial();
                 ctx.abandon_instance(&instance.id);
                 return Err(e);
             }

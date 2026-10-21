@@ -10,6 +10,7 @@
 
 use std::path::{Path, PathBuf};
 
+use doe::Value;
 use doe::{OutputFormat, parse_file};
 use serde_json::{Map, Value as Json};
 
@@ -441,4 +442,105 @@ fn tracing_changes_nothing_and_the_spans_are_in_the_input() {
     }
     assert!(problems.is_empty(), "\n{}", problems.join("\n"));
     assert!(traced_nodes > 1000, "only {traced_nodes} nodes were traced");
+}
+
+/// Parse every conformance sample cut short in several places: it never
+/// panics, and a failure has one failed value in the trace and spans in the
+/// input, and what was read agrees with the whole parse for the fields before
+/// the cut.
+#[test]
+fn a_truncated_sample_gives_what_was_read_before_the_cut() {
+    use doe::parser::{cursor::Cursor, engine::Engine};
+    use doe::schema::compiler::Compiler;
+
+    let mut problems = Vec::new();
+    let mut failures = 0usize;
+    for format in formats_with_samples() {
+        let ksy = definition(&format);
+        let include: Vec<PathBuf> = if format.starts_with("gallery/") {
+            vec![gallery_dir()]
+        } else {
+            Vec::new()
+        };
+        let mut compiler = Compiler::new(include);
+        let schema = doe::load_schema_file(&ksy).expect("the schema loads");
+        let id = schema.id.clone();
+        compiler
+            .process_schema(&schema)
+            .expect("the schema compiles");
+        let engine = Engine::new(&compiler.registry);
+        for name in samples(&format) {
+            let path = conformance_dir()
+                .join("samples")
+                .join(&format)
+                .join(format!("{name}.bin"));
+            let data = std::fs::read(&path).expect("the sample is readable");
+            let whole = engine
+                .parse_type(&id, &mut Cursor::new(&data))
+                .expect("parses");
+            let mut cuts = vec![
+                0,
+                1,
+                data.len() / 3,
+                data.len() / 2,
+                data.len().saturating_sub(1),
+            ];
+            cuts.sort_unstable();
+            cuts.dedup();
+            for cut in cuts {
+                let Some(head) = data.get(..cut) else {
+                    continue;
+                };
+                let label = format!("{format}/{name} cut at {cut}");
+                let outcome = engine
+                    .parse_type_partial(&id, &mut Cursor::new(head))
+                    .expect("something was tried");
+                let input_bits = u64::try_from(cut).expect("fits") * 8;
+                let mut found = Vec::new();
+                let mut stack = vec![&outcome.trace];
+                while let Some(node) = stack.pop() {
+                    if node.failed {
+                        found.push(node.name.clone());
+                    }
+                    if let Some(span) = node.span
+                        && !node.processed
+                        && span.end > input_bits
+                    {
+                        problems.push(format!("{label}: {} ends after the input", node.name));
+                    }
+                    stack.extend(node.children.iter());
+                }
+                if outcome.error.is_none() {
+                    if !found.is_empty() {
+                        problems.push(format!("{label}: it worked, with a failed value"));
+                    }
+                    if outcome.value.as_ref() != Some(&whole) && cut == data.len() {
+                        problems.push(format!("{label}: the whole input gave another value"));
+                    }
+                } else {
+                    failures += 1;
+                    if found.len() != 1 {
+                        problems.push(format!("{label}: {} failed values, not one", found.len()));
+                    }
+                    // The fields that were read are those of the whole parse.
+                    if let (
+                        Some(Value::Struct { fields: got, .. }),
+                        Value::Struct { fields: all, .. },
+                    ) = (&outcome.value, &whole)
+                    {
+                        for (field, value) in got {
+                            let in_whole = all.iter().find(|(n, _)| n == field);
+                            if in_whole.is_none() && !value.is_absent() {
+                                problems.push(format!(
+                                    "{label}: field {field} is not in the whole parse"
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert!(problems.is_empty(), "\n{}", problems.join("\n"));
+    assert!(failures > 50, "only {failures} cut parses failed");
 }
