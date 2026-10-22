@@ -35,6 +35,12 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
+      - name: Clippy without the web IDE server
+        run: cargo clippy -p doe-cli --all-targets --no-default-features --locked -- -D warnings
+
+      - name: Test without the web IDE server
+        run: cargo test -p doe-cli --no-default-features --locked
+
       - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
         with:
           tool: cargo-deny
