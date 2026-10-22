@@ -188,3 +188,31 @@ test('the panes sit side by side when there is room and stack when there is not'
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(editorN.width).toBeGreaterThan(300);
 });
+
+test('a file of tens of megabytes scrolls, with only the rows in view in the page', async ({ page }) => {
+  const size = 64 * 1024 * 1024;
+  await page.evaluate(async (bytes) => {
+    const data = new Uint8Array(bytes);
+    // something recognisable at both ends
+    data.set([0x44, 0x4f, 0x45, 0], 0);
+    data.set([0xde, 0xad, 0xbe, 0xef], bytes - 4);
+    await window.doeApp!.openInput(new File([data], 'big.bin'));
+  }, size);
+  await expect(page.locator('#status')).toContainText('big.bin, 67108864 bytes');
+  // a few dozen rows for 4 million
+  const rows = await page.locator('.hex-row').count();
+  expect(rows).toBeGreaterThan(5);
+  expect(rows).toBeLessThan(100);
+  await expect(page.locator('.hex-row').first().locator('.hex-off')).toHaveText('00000000');
+
+  // the scroll bar reaches the end of the file
+  await page.locator('.hex').evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  const last = page.locator('.hex-row').last();
+  await expect(last.locator('.hex-off')).toHaveText('03fffff0');
+  await expect(last.locator('.hex-bytes')).toContainText('deadbeef');
+  // and a byte there can be clicked
+  await page.locator('.hex .b[data-i="67108863"]').click();
+  await expect(page.locator('.hex .b.sel')).toHaveCount(0);
+});
