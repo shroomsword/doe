@@ -18,6 +18,7 @@ seq:
 declare global {
   interface Window {
     doe?: Doe & { ready: true };
+    doeApp?: import('../src/app.js').App;
   }
 }
 
@@ -26,9 +27,9 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => window.doe?.ready === true);
 });
 
-test('the module is loaded and the editor shows the schema is fine', async ({ page }) => {
+test('the module is loaded and the page shows the example', async ({ page }) => {
   await expect(page.locator('#version')).not.toBeEmpty();
-  await expect(page.locator('#status')).toHaveText('ok: sample');
+  await expect(page.locator('#status')).toContainText('parsed as example');
   await expect(page.locator('.cm-editor')).toBeVisible();
 });
 

@@ -4,19 +4,38 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>doe</title>
-    <style>
-      :root { color-scheme: light dark; --gutter: 16px; }
-      body { margin: 0; padding: var(--gutter); font: 15px/1.5 system-ui, sans-serif; }
-      h1 { font-size: 1.1rem; margin: 0 0 .5rem; }
-      #editor { border: 1px solid color-mix(in srgb, currentColor 25%, transparent); min-height: 10rem; }
-      #status, #diagnostics { font-family: ui-monospace, monospace; white-space: pre-wrap; margin: .5rem 0 0; }
-    </style>
+    <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <h1>doe <small id="version"></small></h1>
-    <div id="editor"></div>
-    <p id="status">loading…</p>
-    <pre id="diagnostics"></pre>
+    <header>
+      <h1>doe <small id="version"></small></h1>
+      <div class="actions">
+        <label class="button">Open schema<input id="open-schema" type="file" accept=".ksy,.yaml,.yml" /></label>
+        <label class="button">Add imports<input id="add-files" type="file" accept=".ksy,.yaml,.yml" multiple /></label>
+        <label class="button">Open file<input id="open-input" type="file" /></label>
+        <button id="example" type="button">Example</button>
+      </div>
+      <p id="status" role="status">loading…</p>
+    </header>
+    <main>
+      <section id="pane-editor" aria-labelledby="h-schema">
+        <h2 id="h-schema">Schema</h2>
+        <div id="editor"></div>
+        <ul id="files" aria-label="imported files"></ul>
+      </section>
+      <section id="pane-tree" aria-labelledby="h-parsed">
+        <h2 id="h-parsed">Parsed</h2>
+        <div id="tree-box"><div id="tree"></div></div>
+      </section>
+      <section id="pane-hex" aria-labelledby="h-bytes">
+        <h2 id="h-bytes">Bytes <small id="selection"></small></h2>
+        <div id="hex"></div>
+      </section>
+      <section id="pane-problems" aria-labelledby="h-problems">
+        <h2 id="h-problems">Problems</h2>
+        <div id="problems"></div>
+      </section>
+    </main>
     <script type="module" src="./main.js"></script>
   </body>
 </html>
