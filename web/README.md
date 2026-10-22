@@ -30,8 +30,8 @@ WebAssembly on the deepest schemas the YAML reader allows), makes the glue with
 
 ```sh
 npm run typecheck                              # after a build: it reads the glue the build makes
-npx playwright install --with-deps chromium    # once
-npm test                                       # a headless Chromium calls the module
+npx playwright install --with-deps chromium firefox   # once
+npm test                                       # the tests, in headless Chromium and Firefox
 ```
 
 `tests/smoke.spec.ts` loads the page and calls the module with a schema and a
@@ -40,15 +40,49 @@ and a parse that fails. The Rust side of the same calls is tested without a
 browser in `crates/doe-wasm/tests/api.rs`; the shape of the JSON is in
 `crates/doe-wasm/API.md`.
 
-`--with-deps` installs the system libraries that Chromium needs and needs root.
-Without it, the libraries have to be on `LD_LIBRARY_PATH`.
+`--with-deps` installs the system libraries that the browsers need and needs root.
+Without it, the libraries have to be on `LD_LIBRARY_PATH`, and Playwright's check
+of the host skipped with `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1`.
+
+## Using it
+
+The page shows an example at first. Four panes stay in step:
+
+- **Schema**: an editor (CodeMirror 6, YAML) for a doe schema or a Kaitai Struct
+  `.ksy`. What is wrong with it is underlined where it is, and the schema is
+  checked again a moment after the last change. *Open schema* loads a file into
+  it; *Add imports* adds files that it imports (they are found next to the schema,
+  and in the include paths as Kaitai Struct does); a dropped `.ksy` or `.yaml` is
+  an import.
+- **Parsed**: the value as a tree, each field with its type, its value, its enum
+  name and the bytes it was read from; instances are in italics. When a parse
+  fails, the tree is what was read until then, and the node where it stopped is
+  marked and open.
+- **Bytes**: the input, 16 to a row. Only the rows in view are made, so a file of
+  hundreds of megabytes scrolls (for a very long file one pixel of the scroll bar
+  is many rows).
+- **Problems**: what is wrong with the schema (with its line and column; a click
+  goes there) and why a parse failed (a click selects the node).
+
+A click on a field of the tree marks its bytes, and a click on a byte selects the
+innermost field that holds it and opens the way to it; the arrow keys move in the
+tree. *Open file* (or a dropped file that is not a schema) is the input. A file of
+more than 256 MiB is refused, as WebAssembly has 4 GiB of memory at most; the
+local version (`doe --ide`) has no such limit.
+
+Everything runs in the page; nothing is sent anywhere. The checks run on the
+main thread for now, so a schema that takes very long freezes the page (a worker,
+with a time limit, is issue #90).
 
 ## Layout
 
 | Path | What |
 | --- | --- |
 | `src/doe.ts` | Typed wrapper over the module: `loadDoe(url)` gives `check`, `parse`, `version` |
-| `src/main.ts` | The page: an editor for a schema and what `check` says about it |
+| `src/main.ts`, `src/app.ts` | The page, and the app that keeps the panes in step |
+| `src/editor.ts`, `src/tree.ts`, `src/hex.ts`, `src/problems.ts` | The four panes |
+| `src/model.ts` | The logic that needs no DOM: nodes and bytes, the size limit, positions |
+| `src/example.ts`, `src/style.css` | The example shown at first; the styles |
 | `src/wasm/` | The module and its glue, made by the build (not committed) |
 | `build.mjs`, `serve.mjs` | The build, and a static server for `dist/` |
-| `tests/` | Playwright tests |
+| `tests/` | Playwright tests: `model.spec.ts` (no browser), `smoke.spec.ts` (the module), `ide.spec.ts` (the page) |

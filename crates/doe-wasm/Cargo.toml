@@ -21,3 +21,7 @@ wasm-bindgen = "=0.2.129"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+# The tests compare with what the command line gives, which reads files.
+doe = { version = "0.2.0", path = "../doe", features = ["fs"] }
