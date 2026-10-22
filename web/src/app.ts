@@ -2,7 +2,8 @@
 // that stay in step. Everything runs here, in the browser; nothing is sent
 // anywhere.
 
-import { type Doe, type Diagnostic, type ParseResponse, type Request, type TraceNode, loadDoe } from './doe.js';
+import { CallEnded, DoeClient } from './client.js';
+import type { Diagnostic, ParseResponse, Request, TraceNode } from './doe.js';
 import { SchemaEditor } from './editor.js';
 import { EXAMPLE_BYTES, EXAMPLE_SCHEMA } from './example.js';
 import { HexView } from './hex.js';
@@ -24,7 +25,8 @@ function element<T extends HTMLElement>(id: string): T {
 const isSchemaFile = (name: string): boolean => SCHEMA_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
 
 export class App {
-  private doe!: Doe;
+  readonly client: DoeClient;
+  private generation = 0;
   private readonly files = new Map<string, string>();
   private schemaPath = 'main.ksy';
   private bytes: Uint8Array | null = null;
@@ -39,7 +41,8 @@ export class App {
   private readonly hex: HexView;
   private readonly problems: ProblemsView;
 
-  constructor(private readonly wasmUrl: URL) {
+  constructor(workerUrl: URL, wasmUrl: URL) {
+    this.client = new DoeClient(workerUrl, wasmUrl);
     this.editor = new SchemaEditor(element('editor'), EXAMPLE_SCHEMA, () => this.later());
     this.tree = new TreeView(element('tree'), (path) => this.select(path, 'tree'));
     this.hex = new HexView(element('hex'), (byte) => this.pickByte(byte));
@@ -48,14 +51,19 @@ export class App {
   }
 
   /** Load the module and show the example. */
-  async start(): Promise<Doe> {
-    this.doe = await loadDoe(this.wasmUrl);
-    element('version').textContent = this.doe.version();
-    this.bytes = EXAMPLE_BYTES;
-    this.inputName = 'example.bin';
-    this.hex.setBytes(this.bytes);
+  async start(): Promise<DoeClient> {
+    await this.client.start();
+    element('version').textContent = this.client.version;
+    this.setInput(EXAMPLE_BYTES, 'example.bin');
     this.refresh();
-    return this.doe;
+    return this.client;
+  }
+
+  private setInput(bytes: Uint8Array, name: string): void {
+    this.bytes = bytes;
+    this.inputName = name;
+    this.client.setInput(bytes);
+    this.hex.setBytes(bytes);
   }
 
   // ── the controls ───────────────────────────────────────────────────────────
@@ -71,6 +79,7 @@ export class App {
     input('open-schema', (files) => void this.openSchema(files[0]));
     input('add-files', (files) => void this.addFiles(files));
     input('open-input', (files) => void this.openInput(files[0]));
+    element('cancel').addEventListener('click', () => this.client.cancel());
     element('example').addEventListener('click', () => this.loadExample());
     element('files').addEventListener('click', (event) => {
       const name = (event.target as HTMLElement).closest<HTMLElement>('[data-remove]')?.dataset.remove;
@@ -118,10 +127,8 @@ export class App {
       return;
     }
     this.notice = null;
-    this.bytes = new Uint8Array(await file.arrayBuffer());
-    this.inputName = file.name;
     this.selection = null;
-    this.hex.setBytes(this.bytes);
+    this.setInput(new Uint8Array(await file.arrayBuffer()), file.name);
     this.refreshNow();
   }
 
@@ -130,10 +137,8 @@ export class App {
     this.showFiles();
     this.schemaPath = 'main.ksy';
     this.notice = null;
-    this.bytes = EXAMPLE_BYTES;
-    this.inputName = 'example.bin';
     this.selection = null;
-    this.hex.setBytes(this.bytes);
+    this.setInput(EXAMPLE_BYTES, 'example.bin');
     this.editor.setText(EXAMPLE_SCHEMA);
     this.refreshNow();
   }
@@ -165,19 +170,39 @@ export class App {
     return { schema: this.editor.text, files: Object.fromEntries(this.files), path: this.schemaPath };
   }
 
+  /** Run the schema on the input. Only the newest run shows its result. */
   private refresh(): void {
-    let response: ParseResponse;
-    try {
-      response = this.bytes
-        ? this.doe.parse(this.request(), this.bytes)
-        : { ...this.doe.check(this.request()), value: null, trace: null, error: null };
-    } catch (error) {
-      // The module stopped (a bug in it, or input it could not take). The page
-      // stays as it is, and says so.
-      this.notice = { severity: 'error', kind: 'input', message: `doe stopped: ${String(error)}`, position: null };
-      this.problems.show([this.notice]);
-      return;
-    }
+    const mine = ++this.generation;
+    const cancel = element('cancel');
+    cancel.hidden = false;
+    element('status').textContent = 'parsing…';
+    const request = this.request();
+    const run: Promise<ParseResponse> = this.bytes
+      ? this.client.parse(request)
+      : this.client.check(request).then((checked) => ({ ...checked, value: null, trace: null, error: null }));
+    run.then(
+      (response) => {
+        if (mine !== this.generation) return;
+        cancel.hidden = true;
+        this.show(response);
+      },
+      (error: unknown) => {
+        // Ended by a newer run: that one will show.
+        if (mine !== this.generation) return;
+        cancel.hidden = true;
+        this.ended(error);
+      },
+    );
+  }
+
+  /** A run that gave no answer: the page keeps what it showed, and says why. */
+  private ended(error: unknown): void {
+    const message = error instanceof CallEnded ? (error.reason === 'timeout' ? `Stopped: ${error.message}.` : error.message) : `doe stopped: ${String(error)}`;
+    this.problems.show([{ severity: 'error', kind: 'input', message, position: null }]);
+    element('status').textContent = error instanceof CallEnded && error.reason === 'cancelled' ? 'cancelled' : 'stopped';
+  }
+
+  private show(response: ParseResponse): void {
     const problems: Diagnostic[] = [...response.diagnostics];
     if (response.error) problems.push(response.error);
     if (this.notice) problems.push(this.notice);
