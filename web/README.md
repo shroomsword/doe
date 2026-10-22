@@ -29,7 +29,7 @@ WebAssembly on the deepest schemas the YAML reader allows), makes the glue with
 ## Test
 
 ```sh
-npm run typecheck
+npm run typecheck                              # after a build: it reads the glue the build makes
 npx playwright install --with-deps chromium    # once
 npm test                                       # a headless Chromium calls the module
 ```
