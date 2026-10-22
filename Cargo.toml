@@ -67,6 +67,14 @@ dbg_macro = "warn"
 exit = "warn"
 allow_attributes_without_reason = "warn"
 
+# The WebAssembly build of the web IDE: small, without the whole-program
+# optimisation that the release binaries use.
+[profile.web]
+inherits = "release"
+opt-level = "s"
+lto = false
+codegen-units = 16
+
 [profile.release]
 lto = true
 codegen-units = 1
