@@ -1,0 +1,23 @@
+[package]
+name = "doe-wasm"
+version = "0.2.0"
+description = "doe for WebAssembly: the library behind the web IDE"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+doe = { version = "0.2.0", path = "../doe", default-features = false }
+serde = { workspace = true, features = ["std", "derive"] }
+serde_json = { workspace = true, features = ["std"] }
+# The version must be the one of the wasm-bindgen CLI that makes the glue (web/README.md).
+wasm-bindgen = "=0.2.129"
+
+[lints]
+workspace = true

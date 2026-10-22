@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# made by the build from crates/doe-wasm
+src/wasm/
+test-results/
+playwright-report/

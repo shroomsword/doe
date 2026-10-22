@@ -260,10 +260,42 @@ jobs:
           RUSTDOCFLAGS: -D warnings
         run: cargo doc -p doe --no-default-features --no-deps --locked
 
+  # The web IDE: the library built for WebAssembly, the page, and a headless Chromium that calls the module. The
+  # wasm-bindgen CLI must be the version of the wasm-bindgen crate (crates/doe-wasm/Cargo.toml).
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: wasm-bindgen@0.2.129
+
+      - name: Install the dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Install the browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Test in the browser
+        run: npm test
+
   # Aggregate result. This is the only check the ruleset requires.
   ci:
     if: always()
-    needs: [lint, test, build, doc, semver, fuzz, wasm]
+    needs: [lint, test, build, doc, semver, fuzz, wasm, web]
     runs-on: ubuntu-latest
     steps:
       - name: Check results

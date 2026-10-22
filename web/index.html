@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>doe</title>
+    <style>
+      :root { color-scheme: light dark; --gutter: 16px; }
+      body { margin: 0; padding: var(--gutter); font: 15px/1.5 system-ui, sans-serif; }
+      h1 { font-size: 1.1rem; margin: 0 0 .5rem; }
+      #editor { border: 1px solid color-mix(in srgb, currentColor 25%, transparent); min-height: 10rem; }
+      #status, #diagnostics { font-family: ui-monospace, monospace; white-space: pre-wrap; margin: .5rem 0 0; }
+    </style>
+  </head>
+  <body>
+    <h1>doe <small id="version"></small></h1>
+    <div id="editor"></div>
+    <p id="status">loading…</p>
+    <pre id="diagnostics"></pre>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
