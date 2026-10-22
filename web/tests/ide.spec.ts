@@ -216,3 +216,73 @@ test('a file of tens of megabytes scrolls, with only the rows in view in the pag
   await page.locator('.hex .b[data-i="67108863"]').click();
   await expect(page.locator('.hex .b.sel')).toHaveCount(0);
 });
+
+// ── a parse that takes long ─────────────────────────────────────────────────
+
+// One element for each byte: with 1 MiB of input, far more than the limit
+// that these tests set.
+const SLOW_SCHEMA = 'meta:\n  id: slow\nseq:\n  - id: all\n    type: u1\n    repeat: eos\n';
+
+/** Open the page with a short limit, a slow schema and an input to match. */
+async function slowPage(page: Page, limit: number): Promise<void> {
+  await page.goto(`/?limit=${limit}`);
+  await page.waitForFunction(() => window.doe?.ready === true);
+  await page.evaluate(async () => {
+    await window.doeApp!.openInput(new File([new Uint8Array(1024 * 1024)], 'slow.bin'));
+  });
+}
+
+test('a parse that takes too long is stopped, said so, and the next edit works', async ({ page }) => {
+  await slowPage(page, 40);
+  await typeSchema(page, SLOW_SCHEMA);
+  await expect(page.locator('.problems')).toContainText('took longer than', { timeout: 20_000 });
+  await expect(page.locator('#status')).toHaveText('stopped');
+  // The worker was replaced: a schema with nothing to read is parsed.
+  await typeSchema(page, 'meta:\n  id: small\nseq:\n  - id: a\n    type: u1\n');
+  await expect(page.locator('#status')).toContainText('parsed as small', { timeout: 20_000 });
+});
+
+test('the page stays responsive while a parse runs', async ({ page }) => {
+  await slowPage(page, 3000);
+  await typeSchema(page, SLOW_SCHEMA);
+  await expect(page.locator('#cancel')).toBeVisible();
+  // Timers on the page's thread run during the parse.
+  const ticks = await page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        let count = 0;
+        const timer = setInterval(() => count++, 10);
+        setTimeout(() => {
+          clearInterval(timer);
+          resolve(count);
+        }, 500);
+      }),
+  );
+  expect(ticks).toBeGreaterThan(20);
+});
+
+test('a parse can be cancelled', async ({ page }) => {
+  await slowPage(page, 60_000);
+  await typeSchema(page, SLOW_SCHEMA);
+  await expect(page.locator('#cancel')).toBeVisible();
+  await page.locator('#cancel').click();
+  await expect(page.locator('#status')).toHaveText('cancelled');
+  await expect(page.locator('#cancel')).toBeHidden();
+  await typeSchema(page, 'meta:\n  id: small\nseq:\n  - id: a\n    type: u1\n');
+  await expect(page.locator('#status')).toContainText('parsed as small', { timeout: 20_000 });
+});
+
+test('only the newest parse is shown', async ({ page }) => {
+  await page.evaluate(async () => {
+    const app = window.doeApp!;
+    // Two runs started one after the other: the first is ended by the second.
+    const client = app.client;
+    const first = client.parse({ schema: 'meta:\n  id: first\nseq:\n  - id: a\n    type: u1\n' }).then(
+      () => 'answered',
+      (e: { reason: string }) => e.reason,
+    );
+    const second = await client.parse({ schema: 'meta:\n  id: second\nseq:\n  - id: a\n    type: u1\n' });
+    (window as unknown as { out: unknown }).out = { first: await first, second: second.id };
+  });
+  expect(await page.evaluate(() => (window as unknown as { out: unknown }).out)).toEqual({ first: 'cancelled', second: 'second' });
+});

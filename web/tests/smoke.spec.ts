@@ -2,7 +2,7 @@
 // binary with the tree and the diagnostics, in a real browser.
 
 import { expect, test } from '@playwright/test';
-import type { Doe } from '../src/doe.js';
+import type { DoeClient } from '../src/client.js';
 
 const SCHEMA = `meta:
   id: pairs
@@ -17,7 +17,7 @@ seq:
 
 declare global {
   interface Window {
-    doe?: Doe & { ready: true };
+    doe?: DoeClient & { ready: true };
     doeApp?: import('../src/app.js').App;
   }
 }
@@ -35,7 +35,10 @@ test('the module is loaded and the page shows the example', async ({ page }) => 
 
 test('parse gives the value and the ranges of its parts', async ({ page }) => {
   const answer = await page.evaluate(
-    ([schema]) => window.doe!.parse({ schema: schema! }, new Uint8Array([2, 1, 0, 2, 0])),
+    ([schema]) => {
+      window.doe!.setInput(new Uint8Array([2, 1, 0, 2, 0]));
+      return window.doe!.parse({ schema: schema! });
+    },
     [SCHEMA],
   );
   expect(answer.ok).toBe(true);
@@ -60,7 +63,10 @@ test('a schema with a mistake has a diagnostic with a position', async ({ page }
 
 test('a parse that fails keeps what was read and marks where', async ({ page }) => {
   const answer = await page.evaluate(
-    ([schema]) => window.doe!.parse({ schema: schema! }, new Uint8Array([3, 1, 0])),
+    ([schema]) => {
+      window.doe!.setInput(new Uint8Array([3, 1, 0]));
+      return window.doe!.parse({ schema: schema! });
+    },
     [SCHEMA],
   );
   expect(answer.ok).toBe(false);

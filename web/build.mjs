@@ -33,8 +33,8 @@ if (!process.argv.includes('--js-only')) {
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 await build({
-  entryPoints: [join(web, 'src', 'main.ts')],
-  outfile: join(dist, 'main.js'),
+  entryPoints: [join(web, 'src', 'main.ts'), join(web, 'src', 'worker.ts')],
+  outdir: dist,
   bundle: true,
   format: 'esm',
   target: 'es2022',

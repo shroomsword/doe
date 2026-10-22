@@ -70,15 +70,19 @@ tree. *Open file* (or a dropped file that is not a schema) is the input. A file 
 more than 256 MiB is refused, as WebAssembly has 4 GiB of memory at most; the
 local version (`doe --ide`) has no such limit.
 
-Everything runs in the page; nothing is sent anywhere. The checks run on the
-main thread for now, so a schema that takes very long freezes the page (a worker,
-with a time limit, is issue #90).
+Everything runs in the page; nothing is sent anywhere. The checks run in a Web
+Worker, so the editor stays responsive. Each edit starts a new run and drops the
+one before; a run that takes longer than 5 s, or that **Cancel parse** ends, is
+stopped by replacing the worker, and the problems pane says so. A worker that
+runs out of memory is reported the same way. For the tests, `?limit=<ms>` sets
+the time limit.
 
 ## Layout
 
 | Path | What |
 | --- | --- |
 | `src/doe.ts` | Typed wrapper over the module: `loadDoe(url)` gives `check`, `parse`, `version` |
+| `src/worker.ts`, `src/client.ts` | The worker that holds the module, and the page's calls to it with time limit and cancel |
 | `src/main.ts`, `src/app.ts` | The page, and the app that keeps the panes in step |
 | `src/editor.ts`, `src/tree.ts`, `src/hex.ts`, `src/problems.ts` | The four panes |
 | `src/model.ts` | The logic that needs no DOM: nodes and bytes, the size limit, positions |

@@ -1,20 +1,24 @@
 import { App } from './app.js';
-import type { Doe } from './doe.js';
+import type { DoeClient } from './client.js';
 
 declare global {
   interface Window {
     /** For the tests: set when the module is loaded. */
-    doe?: Doe & { ready: true };
+    doe?: DoeClient & { ready: true };
     /** For the tests. */
     doeApp?: App;
   }
 }
 
-const app = new App(new URL('./doe_wasm_bg.wasm', import.meta.url));
+const app = new App(new URL('./worker.js', import.meta.url), new URL('./doe_wasm_bg.wasm', import.meta.url));
+// ?limit=<ms> sets how long a parse may take (for the tests).
+const limit = Number(new URLSearchParams(location.search).get('limit'));
+if (limit > 0) app.client.limitMs = limit;
+
 app
   .start()
   .then((doe) => {
-    window.doe = { ...doe, ready: true };
+    window.doe = Object.assign(doe, { ready: true as const });
     window.doeApp = app;
   })
   .catch((error: unknown) => {
