@@ -269,6 +269,9 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A test opens a definition of the Kaitai Struct gallery.
+          submodules: true
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           targets: wasm32-unknown-unknown
@@ -287,10 +290,10 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Install the browser
-        run: npx playwright install --with-deps chromium
+      - name: Install the browsers
+        run: npx playwright install --with-deps chromium firefox
 
-      - name: Test in the browser
+      - name: Test in the browsers
         run: npm test
 
   # Aggregate result. This is the only check the ruleset requires.
