@@ -44,3 +44,4 @@ await build({
 });
 cpSync(join(web, 'src', 'wasm', 'doe_wasm_bg.wasm'), join(dist, 'doe_wasm_bg.wasm'));
 cpSync(join(web, 'index.html'), join(dist, 'index.html'));
+cpSync(join(web, 'src', 'style.css'), join(dist, 'style.css'));
