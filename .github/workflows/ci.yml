@@ -280,11 +280,12 @@ jobs:
       - name: Install the dependencies
         run: npm ci
 
-      - name: Type check
-        run: npm run typecheck
-
+      # The type check needs the build: it reads the glue that the build makes.
       - name: Build
         run: npm run build
+
+      - name: Type check
+        run: npm run typecheck
 
       - name: Install the browser
         run: npx playwright install --with-deps chromium
