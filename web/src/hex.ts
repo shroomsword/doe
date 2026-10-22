@@ -25,11 +25,67 @@ function printable(byte: number): string {
   return char === '&' ? '&amp;' : char === '<' ? '&lt;' : char === '>' ? '&gt;' : char;
 }
 
+/** Bytes that the view reads; `want` says which it is about to show. */
+export interface ByteSource {
+  readonly length: number;
+  /** The byte, or undefined when it is not here yet. */
+  byteAt(index: number): number | undefined;
+  /** The bytes from `from` up to `to` are about to be shown. */
+  want(from: number, to: number): void;
+}
+
+class MemoryBytes implements ByteSource {
+  constructor(private readonly bytes: Uint8Array) {}
+  get length(): number {
+    return this.bytes.length;
+  }
+  byteAt(index: number): number | undefined {
+    return this.bytes[index];
+  }
+  want(): void {}
+}
+
+const CHUNK = 64 * 1024;
+const CACHED_CHUNKS = 32;
+
+/** Bytes of a file that stays where it is (on the machine of `doe --ide`) and comes in chunks. */
+export class RemoteBytes implements ByteSource {
+  private readonly chunks = new Map<number, Uint8Array>();
+  private readonly loading = new Set<number>();
+
+  constructor(
+    readonly length: number,
+    private readonly fetchRange: (offset: number, len: number) => Promise<Uint8Array>,
+    private readonly onLoad: () => void,
+  ) {}
+
+  byteAt(index: number): number | undefined {
+    return this.chunks.get(Math.floor(index / CHUNK))?.[index % CHUNK];
+  }
+
+  want(from: number, to: number): void {
+    for (let chunk = Math.floor(from / CHUNK); chunk * CHUNK < Math.min(to, this.length); chunk += 1) {
+      if (this.chunks.has(chunk) || this.loading.has(chunk)) continue;
+      this.loading.add(chunk);
+      this.fetchRange(chunk * CHUNK, CHUNK).then(
+        (data) => {
+          this.loading.delete(chunk);
+          this.chunks.set(chunk, data);
+          // Keep the newest few.
+          while (this.chunks.size > CACHED_CHUNKS) this.chunks.delete(this.chunks.keys().next().value as number);
+          this.onLoad();
+        },
+        () => this.loading.delete(chunk),
+      );
+    }
+  }
+}
+
 export class HexView {
   private readonly scroller: HTMLElement;
   private readonly spacer: HTMLElement;
   private readonly rows: HTMLElement;
-  private bytes: Uint8Array = new Uint8Array(0);
+  private bytes: ByteSource = new MemoryBytes(new Uint8Array(0));
   private selection: HexSelection | null = null;
   private pending = false;
 
@@ -71,12 +127,17 @@ export class HexView {
   }
 
   /** Replace the bytes; the view goes back to the top. */
-  setBytes(bytes: Uint8Array | null): void {
-    this.bytes = bytes ?? new Uint8Array(0);
+  setBytes(bytes: Uint8Array | ByteSource | null): void {
+    this.bytes = bytes instanceof Uint8Array ? new MemoryBytes(bytes) : (bytes ?? new MemoryBytes(new Uint8Array(0)));
     this.selection = null;
     this.spacer.style.height = `${this.scrollHeight}px`;
     this.scroller.scrollTop = 0;
     this.scroller.dataset.length = String(this.bytes.length);
+    this.render();
+  }
+
+  /** Draw again, when bytes have arrived. */
+  repaint(): void {
     this.render();
   }
 
@@ -120,6 +181,7 @@ export class HexView {
     const first = Math.max(0, Math.floor(top) - OVERSCAN_ROWS);
     const last = Math.min(this.totalRows, Math.floor(top) + Math.ceil(this.viewRows) + OVERSCAN_ROWS + 1);
     const selection = this.selection;
+    this.bytes.want(first * BYTES_PER_ROW, last * BYTES_PER_ROW);
     const parts: string[] = [];
     for (let row = first; row < last; row += 1) {
       const from = row * BYTES_PER_ROW;
@@ -127,14 +189,14 @@ export class HexView {
       let cells = '';
       let text = '';
       for (let i = from; i < to; i += 1) {
-        const value = this.bytes[i] ?? 0;
+        const value = this.bytes.byteAt(i);
         let marked = '';
         if (selection && i >= selection.first && i < selection.end) {
           const whole = selection.startBit <= i * 8 && selection.endBit >= i * 8 + 8;
           marked = whole ? ' sel' : ' sel part';
         }
-        cells += `<span class="b${marked}" data-i="${i}">${hex(value, 2)}</span>`;
-        text += `<span class="a${marked}" data-i="${i}">${printable(value)}</span>`;
+        cells += `<span class="b${marked}" data-i="${i}">${value === undefined ? '··' : hex(value, 2)}</span>`;
+        text += `<span class="a${marked}" data-i="${i}">${value === undefined ? ' ' : printable(value)}</span>`;
       }
       parts.push(`<div class="hex-row"><span class="hex-off">${hex(from, 8)}</span><span class="hex-bytes">${cells}</span><span class="hex-text">${text}</span></div>`);
     }

@@ -33,6 +33,11 @@ test('the module is loaded and the page shows the example', async ({ page }) => 
   await expect(page.locator('.cm-editor')).toBeVisible();
 });
 
+test('a hosted page has no types of a machine and no file to use', async ({ page }) => {
+  await expect(page.locator('#types-box')).toBeHidden();
+  await expect(page.locator('#use-input')).toBeHidden();
+});
+
 test('parse gives the value and the ranges of its parts', async ({ page }) => {
   const answer = await page.evaluate(
     ([schema]) => {

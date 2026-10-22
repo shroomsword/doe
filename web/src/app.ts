@@ -6,7 +6,8 @@ import { CallEnded, DoeClient } from './client.js';
 import type { Diagnostic, ParseResponse, Request, TraceNode } from './doe.js';
 import { SchemaEditor } from './editor.js';
 import { EXAMPLE_BYTES, EXAMPLE_SCHEMA } from './example.js';
-import { HexView } from './hex.js';
+import { HexView, RemoteBytes } from './hex.js';
+import { type LocalApi, detectLocal } from './local.js';
 import { type Path, byteRange, checkSize, describeRange, findByte, nodeAt, pathName } from './model.js';
 import { ProblemsView } from './problems.js';
 import { TreeView } from './tree.js';
@@ -27,6 +28,11 @@ const isSchemaFile = (name: string): boolean => SCHEMA_EXTENSIONS.some((ext) => 
 export class App {
   readonly client: DoeClient;
   private generation = 0;
+  private local: LocalApi | null = null;
+  /** The file named on the command line, when it is the input: it stays on the machine of the server. */
+  private serverInput: { name: string; size: number } | null = null;
+  private abort: AbortController | null = null;
+  private includePaths: string[] | undefined;
   private readonly files = new Map<string, string>();
   private schemaPath = 'main.ksy';
   private bytes: Uint8Array | null = null;
@@ -54,12 +60,66 @@ export class App {
   async start(): Promise<DoeClient> {
     await this.client.start();
     element('version').textContent = this.client.version;
+    this.local = await detectLocal();
+    if (this.local) await this.showLocal(this.local);
     this.setInput(EXAMPLE_BYTES, 'example.bin');
     this.refresh();
     return this.client;
   }
 
+  /** The page is served by `doe --ide`: offer its types and the file named on the command line. */
+  private async showLocal(local: LocalApi): Promise<void> {
+    const input = local.info.input;
+    if (input) {
+      const button = element('use-input');
+      button.hidden = false;
+      button.textContent = `Use ${input.name}`;
+      button.title = `${input.size} bytes, read on this machine`;
+      button.addEventListener('click', () => this.useServerInput(local, input));
+    }
+    try {
+      const types = await local.types();
+      if (types.length === 0) return;
+      const select = element<HTMLSelectElement>('types');
+      select.innerHTML = '<option value="">choose…</option>';
+      for (const type of types) {
+        const option = document.createElement('option');
+        option.value = type.path;
+        option.textContent = type.doc ? `${type.id} — ${type.doc}` : type.id;
+        select.append(option);
+      }
+      element('types-box').hidden = false;
+      select.addEventListener('change', () => {
+        if (select.value) void this.openType(local, select.value);
+      });
+    } catch (error) {
+      this.problems.show([{ severity: 'error', kind: 'request', message: `could not list the types: ${String(error)}`, position: null }]);
+    }
+  }
+
+  /** Put a type of this machine, with the files it imports, in the editor. */
+  async openType(local: LocalApi, path: string): Promise<void> {
+    const schema = await local.schema(path);
+    this.files.clear();
+    for (const [name, text] of Object.entries(schema.files)) this.files.set(name, text);
+    this.showFiles();
+    this.schemaPath = schema.path;
+    this.includePaths = schema.include_paths;
+    this.editor.setText(schema.text);
+    this.refreshNow();
+  }
+
+  private useServerInput(local: LocalApi, input: { name: string; size: number }): void {
+    this.serverInput = input;
+    this.bytes = null;
+    this.inputName = input.name;
+    this.selection = null;
+    this.hex.setBytes(new RemoteBytes(input.size, (offset, len) => local.range(offset, len), () => this.hex.repaint()));
+    this.refreshNow();
+  }
+
   private setInput(bytes: Uint8Array, name: string): void {
+    this.serverInput = null;
     this.bytes = bytes;
     this.inputName = name;
     this.client.setInput(bytes);
@@ -79,7 +139,10 @@ export class App {
     input('open-schema', (files) => void this.openSchema(files[0]));
     input('add-files', (files) => void this.addFiles(files));
     input('open-input', (files) => void this.openInput(files[0]));
-    element('cancel').addEventListener('click', () => this.client.cancel());
+    element('cancel').addEventListener('click', () => {
+      this.client.cancel();
+      this.abort?.abort();
+    });
     element('example').addEventListener('click', () => this.loadExample());
     element('files').addEventListener('click', (event) => {
       const name = (event.target as HTMLElement).closest<HTMLElement>('[data-remove]')?.dataset.remove;
@@ -167,7 +230,9 @@ export class App {
   }
 
   private request(): Request {
-    return { schema: this.editor.text, files: Object.fromEntries(this.files), path: this.schemaPath };
+    const request: Request = { schema: this.editor.text, files: Object.fromEntries(this.files), path: this.schemaPath };
+    if (this.includePaths) request.include_paths = this.includePaths;
+    return request;
   }
 
   /** Run the schema on the input. Only the newest run shows its result. */
@@ -177,9 +242,19 @@ export class App {
     cancel.hidden = false;
     element('status').textContent = 'parsing…';
     const request = this.request();
-    const run: Promise<ParseResponse> = this.bytes
-      ? this.client.parse(request)
-      : this.client.check(request).then((checked) => ({ ...checked, value: null, trace: null, error: null }));
+    this.abort?.abort();
+    this.abort = null;
+    let run: Promise<ParseResponse>;
+    if (this.serverInput && this.local) {
+      // The file is read by the server, as large as it is. A new run drops
+      // this one's answer; the server finishes it, and answers "busy" to
+      // anything that comes meanwhile, which is said and retried below.
+      const abort = new AbortController();
+      this.abort = abort;
+      this.client.cancel();
+      run = this.local.parse(request, abort.signal);
+    } else if (this.bytes) run = this.client.parse(request);
+    else run = this.client.check(request).then((checked) => ({ ...checked, value: null, trace: null, error: null }));
     run.then(
       (response) => {
         if (mine !== this.generation) return;
@@ -189,6 +264,11 @@ export class App {
       (error: unknown) => {
         // Ended by a newer run: that one will show.
         if (mine !== this.generation) return;
+        if (error instanceof Error && error.message.includes('already running')) {
+          // The server is still on an earlier run of the same file.
+          setTimeout(() => mine === this.generation && this.refresh(), 500);
+          return;
+        }
         cancel.hidden = true;
         this.ended(error);
       },
@@ -197,9 +277,10 @@ export class App {
 
   /** A run that gave no answer: the page keeps what it showed, and says why. */
   private ended(error: unknown): void {
-    const message = error instanceof CallEnded ? (error.reason === 'timeout' ? `Stopped: ${error.message}.` : error.message) : `doe stopped: ${String(error)}`;
+    const aborted = error instanceof DOMException && error.name === 'AbortError';
+    const message = aborted ? 'the parse was cancelled' : error instanceof CallEnded ? (error.reason === 'timeout' ? `Stopped: ${error.message}.` : error.message) : `doe stopped: ${String(error)}`;
     this.problems.show([{ severity: 'error', kind: 'input', message, position: null }]);
-    element('status').textContent = error instanceof CallEnded && error.reason === 'cancelled' ? 'cancelled' : 'stopped';
+    element('status').textContent = aborted || (error instanceof CallEnded && error.reason === 'cancelled') ? 'cancelled' : 'stopped';
   }
 
   private show(response: ParseResponse): void {
@@ -258,7 +339,8 @@ export class App {
 
   private status(response: ParseResponse, problems: number): void {
     const parts: string[] = [];
-    if (this.inputName && this.bytes) parts.push(`${this.inputName}, ${this.bytes.length} bytes`);
+    const size = this.serverInput?.size ?? this.bytes?.length;
+    if (this.inputName && size !== undefined) parts.push(`${this.inputName}, ${size} bytes${this.serverInput ? ' (on this machine)' : ''}`);
     parts.push(response.diagnostics.length > 0 ? 'the schema has problems' : response.ok ? `parsed as ${response.id ?? '?'}` : problems > 0 ? 'the parse failed' : 'ok');
     element('status').textContent = parts.join(' · ');
   }

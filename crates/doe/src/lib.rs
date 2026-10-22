@@ -26,6 +26,7 @@
 //! - [`render::text::render_with_indent`] — indented text renderer.
 //! - [`render::json::render_pretty`] — pretty-printed JSON renderer.
 
+pub mod api;
 #[cfg(feature = "fs")]
 pub mod config;
 pub mod error;

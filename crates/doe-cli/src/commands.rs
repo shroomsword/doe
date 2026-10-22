@@ -18,7 +18,7 @@ pub(crate) fn dispatch(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     } else if let Some(page) = cli.man {
         man(page)
     } else if cli.ide {
-        ide(cli)
+        ide(cli, config)
     } else if cli.help {
         print_help(&cli.include_paths, config)
     } else {
@@ -45,7 +45,9 @@ fn man(page: Page) -> anyhow::Result<()> {
 }
 
 #[cfg(feature = "ide")]
-fn ide(cli: &Cli) -> anyhow::Result<()> {
+fn ide(cli: &Cli, config: &Config) -> anyhow::Result<()> {
+    let include_paths = resolve_include_paths(&cli.include_paths, config);
+    let local = crate::ide_api::Local::new(&include_paths, cli.file.as_deref())?;
     let requested = cli.port.unwrap_or(crate::cli::DEFAULT_IDE_PORT);
     let (listener, port) = crate::ide::bind(requested)
         .with_context(|| format!("could not listen on 127.0.0.1:{requested}"))?;
@@ -54,12 +56,12 @@ fn ide(cli: &Cli) -> anyhow::Result<()> {
     if cli.open {
         crate::ide::open_browser(&url);
     }
-    crate::ide::serve(&listener, port);
+    crate::ide::serve(&listener, port, local);
     Ok(())
 }
 
 #[cfg(not(feature = "ide"))]
-fn ide(_cli: &Cli) -> anyhow::Result<()> {
+fn ide(_cli: &Cli, _config: &Config) -> anyhow::Result<()> {
     anyhow::bail!("--ide is not in this build of doe: it was built without the `ide` feature")
 }
 
