@@ -296,6 +296,11 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      # doe --ide, with the page just built in it, for tests/local.spec.ts.
+      - name: Build doe with the page
+        working-directory: .
+        run: cargo build -p doe-cli --locked
+
       - name: Install the browsers
         run: npx playwright install --with-deps chromium firefox
 

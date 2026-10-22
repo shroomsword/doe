@@ -853,11 +853,25 @@ doe --ide --port 0 --open # any free port, and open the browser
 The page is built into the binary, so nothing else is needed, and it works
 offline. It shows a schema, the tree of what it parses, the bytes and the
 problems, in step with each other; parsing runs in the browser (WebAssembly) and
-nothing is sent anywhere. Files are opened in the page, up to 256 MiB.
+nothing is sent anywhere. Files are opened in the page, up to 256 MiB (but see below).
+
+`doe --ide` also offers what a page in a browser cannot see on this machine:
+
+- the **types** found through the include paths (`-I`) and the config, in a
+  list in the header; choosing one opens its schema with the files it imports;
+- a **file named on the command line** (`doe --ide big.bin`), as the input of
+  the page (the button *Use big.bin*), however large it is. It is read and
+  parsed here, as `doe` reads files, and the page gets the bytes it shows in
+  pieces, so the limit of 256 MiB does not apply. A parse of it cannot be
+  stopped by a time limit, only by **Cancel parse**, which drops its answer.
+
+A browser does not tell a page the path of a file it opens, so a file can only
+be named on the command line, not chosen in the page.
 
 The server answers on `127.0.0.1` only, serves only the files of the page, and
 refuses a request whose `Host` or `Origin` is not itself, so another web page
-cannot use it. `--port` and `--open` are only valid with `--ide`. The server is
+cannot use it. It reads only the schemas that the include paths list, and the
+one file named on the command line; no request can name another path. `--port` and `--open` are only valid with `--ide`. The server is
 behind the `ide` cargo feature, which is on by default; build with
 `--no-default-features` for a `doe` without it, where `--ide` says so. A binary
 built without the files of the page (`web/dist`, see `web/README.md`) serves a
@@ -889,7 +903,7 @@ Options:
   -q, --quiet...             Decrease logging verbosity
       --completions <SHELL>  Print a shell completion script to stdout and exit [possible values: bash, elvish, fish, powershell, zsh]
       --man[=<PAGE>]         Print a manual page (roff) to stdout and exit: `doe` (the default) or `schema`, the schema format [possible values: doe, schema]
-      --ide                  Serve the web IDE on this machine and print its address, instead of parsing a file. Only the loopback address is used
+      --ide                  Serve the web IDE on this machine and print its address, instead of parsing a file. Only the loopback address is used. A FILE is offered to the page as the input, however large it is; the types found through the include paths and the config are offered too
       --port <PORT>          With `--ide`: the port to serve on (0 for any free one) [default: 8765]
       --open                 With `--ide`: open the page in the browser
   -V, --version              Print version

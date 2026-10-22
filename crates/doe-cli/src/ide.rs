@@ -8,11 +8,14 @@
 //! standard library: a thread for each connection, which is plenty for a page
 //! used by one person.
 
+use std::borrow::Cow;
 use std::io::{self, Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
+
+use crate::ide_api::Local;
 
 include!(concat!(env!("OUT_DIR"), "/ide_assets.rs"));
 
@@ -28,7 +31,7 @@ const MAX_HEAD: usize = 16 * 1024;
 pub(crate) struct Response {
     pub(crate) status: u16,
     pub(crate) content_type: &'static str,
-    pub(crate) body: &'static [u8],
+    pub(crate) body: Cow<'static, [u8]>,
     /// For `HEAD`: say how long the body is but do not send it.
     pub(crate) head_only: bool,
 }
@@ -40,6 +43,9 @@ fn reason(status: u16) -> &'static str {
         403 => "Forbidden",
         404 => "Not Found",
         405 => "Method Not Allowed",
+        413 => "Content Too Large",
+        415 => "Unsupported Media Type",
+        500 => "Internal Server Error",
         503 => "Service Unavailable",
         _ => "Error",
     }
@@ -59,11 +65,11 @@ fn content_type(name: &str) -> &'static str {
     }
 }
 
-fn error(status: u16, body: &'static str) -> Response {
+pub(crate) fn error(status: u16, body: &'static str) -> Response {
     Response {
         status,
         content_type: "text/plain; charset=utf-8",
-        body: body.as_bytes(),
+        body: Cow::Borrowed(body.as_bytes()),
         head_only: false,
     }
 }
@@ -74,8 +80,9 @@ fn host_is_ours(host: &str, port: u16) -> bool {
     host == format!("127.0.0.1:{port}") || host == format!("localhost:{port}")
 }
 
-/// The answer to the head of a request (the request line and the headers).
-pub(crate) fn respond(head: &str, port: u16) -> Response {
+/// The answer to a request: its head (the request line and the headers) and
+/// its body.
+pub(crate) fn respond(head: &str, body: &[u8], port: u16, local: &Local) -> Response {
     let mut lines = head.split("\r\n");
     let mut request_line = lines.next().unwrap_or("").split(' ');
     let (Some(method), Some(target), Some(version), None) = (
@@ -90,7 +97,7 @@ pub(crate) fn respond(head: &str, port: u16) -> Response {
         return error(400, "bad request\n");
     }
 
-    let (mut host, mut origin) = (None, None);
+    let (mut host, mut origin, mut json) = (None, None, false);
     for line in lines {
         if let Some((name, value)) = line.split_once(':') {
             let value = value.trim();
@@ -100,6 +107,11 @@ pub(crate) fn respond(head: &str, port: u16) -> Response {
                 }
             } else if name.eq_ignore_ascii_case("origin") {
                 origin = Some(value);
+            } else if name.eq_ignore_ascii_case("content-type") {
+                json = value
+                    .split(';')
+                    .next()
+                    .is_some_and(|t| t.trim().eq_ignore_ascii_case("application/json"));
             }
         }
     }
@@ -117,10 +129,24 @@ pub(crate) fn respond(head: &str, port: u16) -> Response {
         }
     }
 
+    let (path, query) = target
+        .split('#')
+        .next()
+        .unwrap_or("")
+        .split_once('?')
+        .unwrap_or((target, ""));
+    if let Some(api) = path.strip_prefix("/api/") {
+        // JSON only for what is posted: a form on another site cannot send it
+        // without the browser asking this server first (and the Origin is refused).
+        return match (method, json) {
+            ("GET" | "HEAD", _) | ("POST", true) => local.handle(method, api, query, body),
+            ("POST", false) => error(415, "send application/json\n"),
+            _ => error(405, "only GET, HEAD and POST\n"),
+        };
+    }
     if method != "GET" && method != "HEAD" {
         return error(405, "only GET and HEAD\n");
     }
-    let path = target.split(['?', '#']).next().unwrap_or("");
     let name = if path == "/" {
         "index.html"
     } else {
@@ -130,7 +156,7 @@ pub(crate) fn respond(head: &str, port: u16) -> Response {
         Some((asset, body)) => Response {
             status: 200,
             content_type: content_type(asset),
-            body,
+            body: Cow::Borrowed(body),
             head_only: method == "HEAD",
         },
         None => error(404, "not found\n"),
@@ -155,34 +181,65 @@ Cross-Origin-Resource-Policy: same-origin\r\nContent-Security-Policy: {POLICY}\r
     );
     stream.write_all(head.as_bytes())?;
     if !response.head_only {
-        stream.write_all(response.body)?;
+        stream.write_all(&response.body)?;
     }
     stream.flush()
 }
 
-/// Read up to the blank line that ends the head of a request.
-fn read_head(stream: &mut TcpStream) -> io::Result<Option<String>> {
-    let mut head = Vec::new();
-    let mut chunk = [0_u8; 1024];
-    while !head.windows(4).any(|w| w == b"\r\n\r\n") {
-        if head.len() > MAX_HEAD {
-            return Ok(None);
+/// The most bytes of a request body that are read.
+const MAX_BODY: usize = 4 * 1024 * 1024;
+
+/// Read a request: its head (up to the blank line), and its body when the head
+/// says there is one. `None` when it is not a request.
+fn read_request(stream: &mut TcpStream) -> io::Result<Result<(String, Vec<u8>), Response>> {
+    let mut data = Vec::new();
+    let mut chunk = [0_u8; 4096];
+    let end = loop {
+        if let Some(at) = data.windows(4).position(|w| w == b"\r\n\r\n") {
+            break at + 4;
+        }
+        if data.len() > MAX_HEAD {
+            return Ok(Err(error(400, "bad request\n")));
         }
         let n = stream.read(&mut chunk)?;
         if n == 0 {
-            return Ok(None);
+            return Ok(Err(error(400, "bad request\n")));
         }
-        head.extend_from_slice(chunk.get(..n).unwrap_or(&[]));
+        data.extend_from_slice(chunk.get(..n).unwrap_or(&[]));
+    };
+    let Ok(head) = std::str::from_utf8(data.get(..end).unwrap_or(&[])) else {
+        return Ok(Err(error(400, "bad request\n")));
+    };
+    let head = head.to_owned();
+    let declared = head
+        .split("\r\n")
+        .filter_map(|line| line.split_once(':'))
+        .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+        .map(|(_, value)| value.trim().parse::<usize>());
+    let length = match declared {
+        None => 0,
+        Some(Ok(length)) if length <= MAX_BODY => length,
+        Some(Ok(_)) => return Ok(Err(error(413, "the body is too large\n"))),
+        Some(Err(_)) => return Ok(Err(error(400, "bad request\n"))),
+    };
+    let mut body = data.get(end..).unwrap_or(&[]).to_vec();
+    while body.len() < length {
+        let n = stream.read(&mut chunk)?;
+        if n == 0 {
+            return Ok(Err(error(400, "bad request\n")));
+        }
+        body.extend_from_slice(chunk.get(..n).unwrap_or(&[]));
     }
-    Ok(String::from_utf8(head).ok())
+    body.truncate(length);
+    Ok(Ok((head, body)))
 }
 
-fn serve_connection(mut stream: TcpStream, port: u16) -> io::Result<()> {
+fn serve_connection(mut stream: TcpStream, port: u16, local: &Local) -> io::Result<()> {
     stream.set_read_timeout(Some(IO_TIMEOUT))?;
     stream.set_write_timeout(Some(IO_TIMEOUT))?;
-    let response = match read_head(&mut stream)? {
-        Some(head) => respond(&head, port),
-        None => error(400, "bad request\n"),
+    let response = match read_request(&mut stream)? {
+        Ok((head, body)) => respond(&head, &body, port, local),
+        Err(response) => response,
     };
     write_response(&mut stream, &response)
 }
@@ -195,7 +252,8 @@ pub(crate) fn bind(port: u16) -> io::Result<(TcpListener, u16)> {
 }
 
 /// Answer connections on `listener` for ever.
-pub(crate) fn serve(listener: &TcpListener, port: u16) {
+pub(crate) fn serve(listener: &TcpListener, port: u16, local: Local) {
+    let local = Arc::new(local);
     let active = Arc::new(AtomicUsize::new(0));
     for stream in listener.incoming() {
         let Ok(mut stream) = stream else { continue };
@@ -206,8 +264,9 @@ pub(crate) fn serve(listener: &TcpListener, port: u16) {
             continue;
         }
         let active = Arc::clone(&active);
+        let local = Arc::clone(&local);
         std::thread::spawn(move || {
-            if let Err(e) = serve_connection(stream, port) {
+            if let Err(e) = serve_connection(stream, port, &local) {
                 log::debug!("connection ended: {e}");
             }
             active.fetch_sub(1, Ordering::SeqCst);
@@ -241,8 +300,17 @@ mod tests {
 
     use super::*;
 
+    fn local() -> Local {
+        Local::new(&[], None).unwrap()
+    }
+
     fn get(path: &str, headers: &str) -> Response {
-        respond(&format!("GET {path} HTTP/1.1\r\n{headers}\r\n\r\n"), 9000)
+        respond(
+            &format!("GET {path} HTTP/1.1\r\n{headers}\r\n\r\n"),
+            b"",
+            9000,
+            &local(),
+        )
     }
 
     #[test]
@@ -251,7 +319,7 @@ mod tests {
             let r = get("/", &format!("Host: {host}"));
             assert_eq!(r.status, 200);
             assert!(r.content_type.starts_with("text/html"));
-            assert_ne!(r.body, b"");
+            assert_ne!(&r.body[..], &b""[..]);
         }
         assert_eq!(get("/?limit=5", "Host: 127.0.0.1:9000").status, 200);
     }
@@ -311,21 +379,23 @@ mod tests {
         let head = |method: &str| {
             respond(
                 &format!("{method} / HTTP/1.1\r\nHost: 127.0.0.1:9000\r\n\r\n"),
+                b"",
                 9000,
+                &local(),
             )
         };
         assert_eq!(head("POST").status, 405);
         assert_eq!(head("PUT").status, 405);
         let r = head("HEAD");
         assert_eq!((r.status, r.head_only), (200, true));
-        assert_eq!(respond("garbage\r\n\r\n", 9000).status, 400);
+        assert_eq!(respond("garbage\r\n\r\n", b"", 9000, &local()).status, 400);
     }
 
     #[test]
     fn the_server_binds_to_loopback_only_and_answers() {
         let (listener, port) = bind(0).unwrap();
         assert!(listener.local_addr().unwrap().ip().is_loopback());
-        std::thread::spawn(move || serve(&listener, port));
+        std::thread::spawn(move || serve(&listener, port, local()));
         let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).unwrap();
         write!(stream, "GET / HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n").unwrap();
         let mut text = String::new();

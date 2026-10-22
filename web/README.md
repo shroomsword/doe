@@ -68,7 +68,7 @@ A click on a field of the tree marks its bytes, and a click on a byte selects th
 innermost field that holds it and opens the way to it; the arrow keys move in the
 tree. *Open file* (or a dropped file that is not a schema) is the input. A file of
 more than 256 MiB is refused, as WebAssembly has 4 GiB of memory at most; the
-local version (`doe --ide`) has no such limit.
+local version (`doe --ide FILE`) has no such limit: it reads the file itself. Its tests (`tests/local.spec.ts`) run against `target/debug/doe`, so build the page first and then `cargo build -p doe-cli`.
 
 Everything runs in the page; nothing is sent anywhere. The checks run in a Web
 Worker, so the editor stays responsive. Each edit starts a new run and drops the
@@ -82,6 +82,7 @@ the time limit.
 | Path | What |
 | --- | --- |
 | `src/doe.ts` | Typed wrapper over the module: `loadDoe(url)` gives `check`, `parse`, `version` |
+| `src/local.ts` | The calls of `doe --ide`: its types and the input file that stays on the machine |
 | `src/worker.ts`, `src/client.ts` | The worker that holds the module, and the page's calls to it with time limit and cancel |
 | `src/main.ts`, `src/app.ts` | The page, and the app that keeps the panes in step |
 | `src/editor.ts`, `src/tree.ts`, `src/hex.ts`, `src/problems.ts` | The four panes |

@@ -8,7 +8,7 @@
 //! The Rust side of the calls is in [`api`], which has no dependency on
 //! `wasm-bindgen` and is tested natively.
 
-pub mod api;
+pub use doe::api;
 
 use serde::Serialize;
 use wasm_bindgen::prelude::wasm_bindgen;

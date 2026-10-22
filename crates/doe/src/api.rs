@@ -1,4 +1,6 @@
-//! The calls of the web IDE, in plain Rust: JSON in, JSON out.
+//! The calls of the web IDE, in plain Rust: JSON in, JSON out. They are used by
+//! `doe-wasm` (in the browser) and by `doe --ide` (on the machine, for files too
+//! big for a browser).
 //!
 //! Everything the page needs is one of two calls, [`check`] (compile a schema
 //! and say what is wrong with it, with the positions in its text) and [`parse`]
@@ -9,14 +11,14 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use doe::DoeError;
-use doe::Value;
-use doe::parser::cursor::Cursor;
-use doe::parser::engine::Engine;
-use doe::parser::trace::TraceNode;
-use doe::schema::compiler::Compiler;
-use doe::schema::locate::{Position, locate_error};
-use doe::schema::source::MemorySource;
+use crate::DoeError;
+use crate::Value;
+use crate::parser::cursor::Cursor;
+use crate::parser::engine::Engine;
+use crate::parser::trace::TraceNode;
+use crate::schema::compiler::Compiler;
+use crate::schema::locate::{Position, locate_error};
+use crate::schema::source::MemorySource;
 use serde::{Deserialize, Serialize};
 
 /// The most bytes [`parse`] takes: the memory of a WebAssembly module is 4 GiB
@@ -221,6 +223,33 @@ pub fn check(request: &str) -> CheckResponse {
 
 /// Compile the schema of a request and parse `bytes` with it.
 pub fn parse(request: &str, bytes: &[u8]) -> ParseResponse {
+    if bytes.len() > MAX_INPUT_BYTES {
+        let message = format!(
+            "the input is {} bytes; the most that can be parsed here is {MAX_INPUT_BYTES}",
+            bytes.len()
+        );
+        return parse_with(request, || Err(Diagnostic::new("input", message)));
+    }
+    parse_with(request, || Ok(Cursor::new(bytes)))
+}
+
+/// Compile the schema of a request and parse the file at `path` with it, read
+/// as the schema asks for it: there is no limit on its size.
+#[cfg(feature = "fs")]
+pub fn parse_file(request: &str, path: &Path) -> ParseResponse {
+    parse_with(request, || {
+        let input = |e: &dyn std::fmt::Display| {
+            Diagnostic::new("input", format!("could not read {}: {e}", path.display()))
+        };
+        let file = std::fs::File::open(path).map_err(|e| input(&e))?;
+        Cursor::from_file(file, path).map_err(|e| input(&e))
+    })
+}
+
+fn parse_with<'a>(
+    request: &str,
+    input: impl FnOnce() -> Result<Cursor<'a>, Diagnostic>,
+) -> ParseResponse {
     let failed = |diagnostics: Vec<Diagnostic>, id: Option<String>| ParseResponse {
         ok: false,
         id,
@@ -238,19 +267,18 @@ pub fn parse(request: &str, bytes: &[u8]) -> ParseResponse {
         Err(diagnostics) => return failed(diagnostics, None),
     };
     let id = Some(compiled.id.clone());
-    if bytes.len() > MAX_INPUT_BYTES {
-        let message = format!(
-            "the input is {} bytes; the most that can be parsed here is {MAX_INPUT_BYTES}",
-            bytes.len()
-        );
-        return ParseResponse {
-            error: Some(Diagnostic::new("input", message)),
-            ..failed(Vec::new(), id)
-        };
-    }
     let type_name = request.type_name.as_deref().unwrap_or(&compiled.id);
+    let mut cursor = match input() {
+        Ok(cursor) => cursor,
+        Err(error) => {
+            return ParseResponse {
+                error: Some(error),
+                ..failed(Vec::new(), id)
+            };
+        }
+    };
     let engine = Engine::new(&compiled.compiler.registry);
-    let outcome = match engine.parse_type_partial(type_name, &mut Cursor::new(bytes)) {
+    let outcome = match engine.parse_type_partial(type_name, &mut cursor) {
         Ok(outcome) => outcome,
         Err(error) => {
             return ParseResponse {
@@ -262,7 +290,7 @@ pub fn parse(request: &str, bytes: &[u8]) -> ParseResponse {
     let value_json = outcome
         .value
         .as_ref()
-        .and_then(|value| serde_json::from_str(&doe::render::json::render(value)).ok());
+        .and_then(|value| serde_json::from_str(&crate::render::json::render(value)).ok());
     let mut trace = trace_out(&outcome.trace);
     annotate(&mut trace, outcome.value.as_ref());
     ParseResponse {

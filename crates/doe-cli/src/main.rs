@@ -8,6 +8,8 @@ mod cli;
 mod commands;
 #[cfg(feature = "ide")]
 mod ide;
+#[cfg(feature = "ide")]
+mod ide_api;
 mod logging;
 mod manpage;
 

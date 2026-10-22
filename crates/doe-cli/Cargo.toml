@@ -17,7 +17,7 @@ default = ["ide"]
 # `doe --ide`: a local web server with the web IDE (web/) built into the binary.
 # The page is taken from web/dist (or DOE_IDE_DIST) when the binary is built;
 # without it a page that says so is embedded. No dependencies are needed.
-ide = []
+ide = ["dep:serde_json"]
 
 [dependencies]
 doe = { version = "0.2.0", path = "../doe" }
@@ -34,6 +34,7 @@ etcetera.workspace = true
 fern.workspace = true
 humantime.workspace = true
 log.workspace = true
+serde_json = { workspace = true, features = ["std"], optional = true }
 
 [dev-dependencies]
 assert_cmd.workspace = true

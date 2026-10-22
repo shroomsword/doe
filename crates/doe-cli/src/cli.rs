@@ -102,11 +102,12 @@ pub(crate) struct Cli {
     pub(crate) man: Option<Page>,
 
     /// Serve the web IDE on this machine and print its address, instead of
-    /// parsing a file. Only the loopback address is used.
+    /// parsing a file. Only the loopback address is used. A FILE is offered
+    /// to the page as the input, however large it is; the types found through
+    /// the include paths and the config are offered too.
     #[arg(
         long,
-        conflicts_with_all = PARSING_ARGS,
-        conflicts_with_all = ["completions", "man"]
+        conflicts_with_all = ["type_or_schema", "json", "pretty", "no_instances", "help", "completions", "man"]
     )]
     pub(crate) ide: bool,
 
