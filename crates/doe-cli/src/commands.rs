@@ -17,6 +17,8 @@ pub(crate) fn dispatch(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         completions(shell)
     } else if let Some(page) = cli.man {
         man(page)
+    } else if cli.ide {
+        ide(cli)
     } else if cli.help {
         print_help(&cli.include_paths, config)
     } else {
@@ -40,6 +42,25 @@ fn completions(shell: clap_complete::Shell) -> anyhow::Result<()> {
 
 fn man(page: Page) -> anyhow::Result<()> {
     write_stdout(&manpage::render(page)?)
+}
+
+#[cfg(feature = "ide")]
+fn ide(cli: &Cli) -> anyhow::Result<()> {
+    let requested = cli.port.unwrap_or(crate::cli::DEFAULT_IDE_PORT);
+    let (listener, port) = crate::ide::bind(requested)
+        .with_context(|| format!("could not listen on 127.0.0.1:{requested}"))?;
+    let url = format!("http://127.0.0.1:{port}/");
+    write_stdout(format!("doe IDE: {url}  (Ctrl-C to stop)\n").as_bytes())?;
+    if cli.open {
+        crate::ide::open_browser(&url);
+    }
+    crate::ide::serve(&listener, port);
+    Ok(())
+}
+
+#[cfg(not(feature = "ide"))]
+fn ide(_cli: &Cli) -> anyhow::Result<()> {
+    anyhow::bail!("--ide is not in this build of doe: it was built without the `ide` feature")
 }
 
 fn run(cli: &Cli) -> anyhow::Result<()> {

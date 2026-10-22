@@ -865,3 +865,103 @@ fn no_instances_leaves_them_out_but_fields_still_get_what_they_use() {
         .stdout(predicate::str::contains("entries").not())
         .stdout(predicate::str::contains("total").not());
 }
+
+// ── --ide ────────────────────────────────────────────────────────────────────
+
+#[cfg(feature = "ide")]
+mod ide {
+    use std::io::{BufRead, BufReader, Read, Write};
+    use std::net::TcpStream;
+    use std::process::Child;
+
+    use super::*;
+
+    /// A running `doe --ide`, stopped when dropped.
+    struct Server {
+        child: Child,
+        port: u16,
+    }
+
+    impl Drop for Server {
+        fn drop(&mut self) {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
+    }
+
+    fn start() -> Server {
+        let mut child = std::process::Command::new(assert_cmd::cargo::cargo_bin("doe"))
+            .args(["--ide", "--port", "0"])
+            .env("XDG_STATE_HOME", sandbox().join("state"))
+            .env("XDG_CONFIG_HOME", sandbox().join("config"))
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut line = String::new();
+        BufReader::new(child.stdout.take().unwrap())
+            .read_line(&mut line)
+            .unwrap();
+        let port = line
+            .split("http://127.0.0.1:")
+            .nth(1)
+            .and_then(|rest| rest.split('/').next())
+            .and_then(|port| port.parse().ok())
+            .unwrap_or_else(|| panic!("no address in {line:?}"));
+        Server { child, port }
+    }
+
+    fn request(port: u16, head: &str) -> String {
+        let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        stream.write_all(head.as_bytes()).unwrap();
+        let mut answer = Vec::new();
+        stream.read_to_end(&mut answer).unwrap();
+        String::from_utf8_lossy(&answer).into_owned()
+    }
+
+    #[test]
+    fn serves_the_page_and_refuses_other_hosts_and_origins() {
+        let server = start();
+        let port = server.port;
+        let page = request(
+            port,
+            &format!("GET / HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n"),
+        );
+        assert!(page.starts_with("HTTP/1.1 200 OK"), "{page}");
+        assert!(
+            page.contains("<!doctype html>") || page.contains("<!DOCTYPE html>"),
+            "{page}"
+        );
+
+        let wrong_host = request(port, "GET / HTTP/1.1\r\nHost: evil.example\r\n\r\n");
+        assert!(wrong_host.starts_with("HTTP/1.1 403"), "{wrong_host}");
+        let wrong_origin = request(
+            port,
+            &format!(
+                "GET / HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nOrigin: http://evil.example\r\n\r\n"
+            ),
+        );
+        assert!(wrong_origin.starts_with("HTTP/1.1 403"), "{wrong_origin}");
+    }
+
+    #[test]
+    fn the_ide_flag_does_not_mix_with_parsing() {
+        doe().args(["--ide", "file", "type"]).assert().failure();
+        doe().args(["--ide", "--json"]).assert().failure();
+        doe().args(["--ide", "--man"]).assert().failure();
+        doe()
+            .args(["--port", "80", "file", "type"])
+            .assert()
+            .failure();
+        doe().args(["--open", "file", "type"]).assert().failure();
+    }
+}
+
+#[cfg(not(feature = "ide"))]
+#[test]
+fn ide_says_it_is_not_in_this_build() {
+    doe()
+        .arg("--ide")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not in this build"));
+}

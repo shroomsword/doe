@@ -34,7 +34,7 @@ enum Home {
 }
 
 /// Every `##` section of the README, in the page it belongs to.
-const SECTIONS: [(&str, Home); 12] = [
+const SECTIONS: [(&str, Home); 13] = [
     (
         "Installation",
         Home::Left("about getting doe, not using it"),
@@ -44,6 +44,7 @@ const SECTIONS: [(&str, Home); 12] = [
     ("Schema format", Home::Schema),
     ("Kaitai Struct compatibility", Home::Schema),
     ("Output", Home::Doe),
+    ("Web IDE", Home::Doe),
     (
         "CLI reference",
         Home::Doe, // without the `--help` listing, which is the OPTIONS section

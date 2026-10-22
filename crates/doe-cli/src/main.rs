@@ -6,6 +6,8 @@
 
 mod cli;
 mod commands;
+#[cfg(feature = "ide")]
+mod ide;
 mod logging;
 mod manpage;
 

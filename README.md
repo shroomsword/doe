@@ -841,6 +841,28 @@ doe header.bin elf.yaml --pretty
 }
 ```
 
+## Web IDE
+
+`doe --ide` serves the web IDE on this machine and prints its address:
+
+```sh
+doe --ide                 # http://127.0.0.1:8765/
+doe --ide --port 0 --open # any free port, and open the browser
+```
+
+The page is built into the binary, so nothing else is needed, and it works
+offline. It shows a schema, the tree of what it parses, the bytes and the
+problems, in step with each other; parsing runs in the browser (WebAssembly) and
+nothing is sent anywhere. Files are opened in the page, up to 256 MiB.
+
+The server answers on `127.0.0.1` only, serves only the files of the page, and
+refuses a request whose `Host` or `Origin` is not itself, so another web page
+cannot use it. `--port` and `--open` are only valid with `--ide`. The server is
+behind the `ide` cargo feature, which is on by default; build with
+`--no-default-features` for a `doe` without it, where `--ide` says so. A binary
+built without the files of the page (`web/dist`, see `web/README.md`) serves a
+page that says that instead.
+
 ## CLI reference
 
 ```text
@@ -867,6 +889,9 @@ Options:
   -q, --quiet...             Decrease logging verbosity
       --completions <SHELL>  Print a shell completion script to stdout and exit [possible values: bash, elvish, fish, powershell, zsh]
       --man[=<PAGE>]         Print a manual page (roff) to stdout and exit: `doe` (the default) or `schema`, the schema format [possible values: doe, schema]
+      --ide                  Serve the web IDE on this machine and print its address, instead of parsing a file. Only the loopback address is used
+      --port <PORT>          With `--ide`: the port to serve on (0 for any free one) [default: 8765]
+      --open                 With `--ide`: open the page in the browser
   -V, --version              Print version
 ```
 

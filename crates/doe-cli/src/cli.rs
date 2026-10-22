@@ -27,11 +27,11 @@ use clap_verbosity_flag::{Verbosity, WarnLevel};
 )]
 pub(crate) struct Cli {
     /// Binary file to parse.
-    #[arg(required_unless_present_any = ["help", "completions", "man"])]
+    #[arg(required_unless_present_any = ["help", "completions", "man", "ide"])]
     pub(crate) file: Option<PathBuf>,
 
     /// Type name (e.g. `png`) or path to a YAML schema file.
-    #[arg(required_unless_present_any = ["help", "completions", "man"])]
+    #[arg(required_unless_present_any = ["help", "completions", "man", "ide"])]
     pub(crate) type_or_schema: Option<String>,
 
     /// Add a directory to the schema search path (repeatable).
@@ -100,7 +100,28 @@ pub(crate) struct Cli {
         conflicts_with = "completions"
     )]
     pub(crate) man: Option<Page>,
+
+    /// Serve the web IDE on this machine and print its address, instead of
+    /// parsing a file. Only the loopback address is used.
+    #[arg(
+        long,
+        conflicts_with_all = PARSING_ARGS,
+        conflicts_with_all = ["completions", "man"]
+    )]
+    pub(crate) ide: bool,
+
+    /// With `--ide`: the port to serve on (0 for any free one) [default: 8765].
+    #[arg(long, value_name = "PORT", requires = "ide")]
+    pub(crate) port: Option<u16>,
+
+    /// With `--ide`: open the page in the browser.
+    #[arg(long, requires = "ide")]
+    pub(crate) open: bool,
 }
+
+/// The port that `--ide` serves on when `--port` is not given.
+#[cfg(feature = "ide")]
+pub(crate) const DEFAULT_IDE_PORT: u16 = 8765;
 
 /// The arguments that only mean something when a file is parsed: they conflict
 /// with `--completions` and `--man`. The global ones (`--color`, the logging
