@@ -181,8 +181,9 @@ pub(crate) mod tests {
         key(&mut app, KeyCode::Home);
         assert_eq!(name(&app), "t");
         key(&mut app, KeyCode::Char('G'));
+        // the view has not been drawn, so a page is one row
         key(&mut app, KeyCode::PageUp);
-        assert_eq!(name(&app), "t");
+        assert_eq!(name(&app), "a");
         key(&mut app, KeyCode::PageDown);
         assert_eq!(name(&app), "inner");
         key(&mut app, KeyCode::Char('g'));
