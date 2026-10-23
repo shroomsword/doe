@@ -8,14 +8,7 @@
 //! The Rust side of the calls is in [`api`], which has no dependency on
 //! `wasm-bindgen` and is tested natively.
 
-/// The calls, in plain Rust (they live in `doe::api`, so that `doe --ide` can use
-/// them too).
-pub mod api {
-    pub use doe::api::{
-        CheckResponse, Diagnostic, MAX_INPUT_BYTES, ParseResponse, PositionOut, Request, TraceOut,
-        check, parse,
-    };
-}
+pub use doe::api;
 
 use serde::Serialize;
 use wasm_bindgen::prelude::wasm_bindgen;
