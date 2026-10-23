@@ -1176,6 +1176,24 @@ mod tui_in_a_terminal {
         assert!(session.finish().0);
     }
 
+    #[test]
+    fn the_bytes_are_shown_next_to_the_tree_and_tab_moves_the_keys_to_them() {
+        let mut session = Session::start(&[], &[]);
+        // a terminal of 24 lines by 80 columns: the bytes are below the tree
+        session.wait_for("07");
+        session.wait_for("34");
+        session.send(b"\t");
+        session.send(b"l");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success);
+        assert_screen_restored(&seen);
+        // the hex pane's offset column and the bytes of the fixture file are on the screen
+        assert!(seen.contains("00000000"), "{seen:?}");
+        // the cursor moved to byte 1, which is the field `b`: the title of the bytes says so
+        assert!(seen.contains("bytes"), "{seen:?}");
+    }
+
     /// What `doe --tui` printed with these options until it showed its first screen.
     fn first_screen(extra: &[&str], env: &[(&str, &str)]) -> String {
         let mut session = Session::start(extra, env);

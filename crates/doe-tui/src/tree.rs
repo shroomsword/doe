@@ -244,6 +244,14 @@ impl TreeModel {
         Some(node)
     }
 
+    /// The path of the innermost field (not an instance) that holds the byte
+    /// at `offset` of the file; nothing inside a transformed field is looked
+    /// at, as its offsets are of other bytes.
+    #[must_use]
+    pub fn find_byte(&self, offset: u64) -> Option<Vec<usize>> {
+        self.root.find_byte(offset)
+    }
+
     // ── building the rows ────────────────────────────────────────────────────
 
     fn rebuild(&mut self) {

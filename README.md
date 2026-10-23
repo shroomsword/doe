@@ -963,15 +963,28 @@ and `--log-file` can go with them, as in `doe --completions bash --color never`.
 `doe --tui FILE TYPE_OR_SCHEMA` opens the file in an interactive viewer in the
 terminal instead of printing it. It needs a terminal on stdin and stdout (with a
 pipe it stops with an error), and it parses with the same schema rules as the
-rest of the command, also showing what was read when the parse fails. For now it
-shows the tree of the parsed value (the hex view follows, issue #98): each
-field with its type and value (integers in decimal with the hex next to them,
-enum names with their number, strings quoted, byte sequences with a hex
-preview), instances dimmed, and the field where a parse failed marked with a cross in the first column.
+rest of the command, also showing what was read when the parse fails. It shows
+two panes. The **tree** of the parsed value: each field with its type and value
+(integers in decimal with the hex next to them, enum names with their number,
+strings quoted, byte sequences with a hex preview), instances dimmed, and the
+field where a parse failed marked with a cross in the first column. The
+**bytes** of the file next to it (below it on a narrow terminal): offsets, hex
+and text, with as many bytes per line as fit. The bytes of the selected field are
+highlighted down to the bit: a byte that is only partly the field's (a bit field
+that shares it with a neighbour) is underlined instead. The title of the pane
+says which bytes and bits they are; a field that is read from the result of a
+`process:` is not in the file's bytes, and the title says so. Only the lines in
+view are read, so a file of many gigabytes opens and scrolls at once.
 Strings from the file are shown with control characters escaped, so nothing in a
-file can send commands to the terminal. Move with the arrow keys or `j`/`k`,
-`PgUp`/`PgDn`, `Home`/`End`; `→`/`l` opens a node, `←`/`h` closes it or goes to its
-parent, `Enter` or `Space` toggles it. `q`, `Esc` and Ctrl-C leave it, and the terminal is put back also if the
+file can send commands to the terminal.
+
+In the tree, move with the arrow keys or `j`/`k`, `PgUp`/`PgDn`, `Home`/`End`;
+`→`/`l` opens a node, `←`/`h` closes it or goes to its parent, `Enter` or `Space`
+toggles it; the bytes scroll to the selected field. `Tab` moves the keys to the
+bytes: `←`/`→` (or `h`/`l`) move by a byte, `↑`/`↓` (`k`/`j`) by a line, `PgUp`/`PgDn`
+by a page, `Home`/`End` to the start and end of the line, `g`/`G` to the start and
+end of the file, and the tree selects the innermost field that holds the byte.
+`q`, `Esc` and Ctrl-C leave it, and the terminal is put back also if the
 program panics or is stopped by `SIGTERM` or `SIGHUP`. It uses colour unless
 `NO_COLOR` is set or `--color never` is given. It is behind the `tui` cargo
 feature, which is on by default: `--no-default-features` leaves it out, and
