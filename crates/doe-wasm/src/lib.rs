@@ -11,7 +11,10 @@
 /// The calls, in plain Rust (they live in `doe::api`, so that `doe --ide` can use
 /// them too).
 pub mod api {
-    pub use doe::api::*;
+    pub use doe::api::{
+        CheckResponse, Diagnostic, MAX_INPUT_BYTES, ParseResponse, PositionOut, Request, TraceOut,
+        check, parse,
+    };
 }
 
 use serde::Serialize;
