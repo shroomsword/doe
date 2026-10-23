@@ -1,6 +1,6 @@
 [package]
 name = "doe-cli"
-version = "0.2.0"
+version = "0.3.0"
 description = "doe — binary file parser"
 edition.workspace = true
 rust-version.workspace = true
@@ -20,7 +20,7 @@ default = ["ide"]
 ide = ["dep:serde_json"]
 
 [dependencies]
-doe = { version = "0.2.0", path = "../doe" }
+doe = { version = "0.3.0", path = "../doe" }
 anyhow = { workspace = true, features = ["std"] }
 anstream = { workspace = true, features = ["auto", "wincon"] }
 anstyle = { workspace = true, features = ["std"] }
