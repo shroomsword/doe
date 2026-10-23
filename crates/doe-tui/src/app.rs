@@ -5,15 +5,24 @@ use std::path::PathBuf;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use doe::DoeError;
+
 use crate::load::Loaded;
+use crate::tree::TreeModel;
 
 /// The viewer.
 #[derive(Debug)]
 pub struct App {
     /// The file that is shown.
     pub file: PathBuf,
-    /// What was parsed from it.
-    pub loaded: Loaded,
+    /// The type it was parsed as.
+    pub type_name: String,
+    /// Its size in bytes.
+    pub size: u64,
+    /// Why the parse stopped, if it did.
+    pub error: Option<DoeError>,
+    /// The tree of what was read.
+    pub tree: TreeModel,
     /// Whether the person asked to leave.
     pub quit: bool,
 }
@@ -24,7 +33,10 @@ impl App {
     pub fn new(file: PathBuf, loaded: Loaded) -> Self {
         App {
             file,
-            loaded,
+            type_name: loaded.type_name,
+            size: loaded.size,
+            error: loaded.error,
+            tree: TreeModel::new(loaded.trace, loaded.value),
             quit: false,
         }
     }
@@ -102,8 +114,8 @@ pub(crate) mod tests {
     #[test]
     fn the_file_is_parsed() {
         let (app, _dir) = app();
-        assert_eq!(app.loaded.type_name, "t");
-        assert_eq!(app.loaded.size, 3);
-        assert!(app.loaded.outcome.error.is_none());
+        assert_eq!(app.type_name, "t");
+        assert_eq!(app.size, 3);
+        assert!(app.error.is_none());
     }
 }

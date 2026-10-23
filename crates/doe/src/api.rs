@@ -418,7 +418,7 @@ fn annotate(node: &mut TraceOut, value: Option<&Value>) {
         Some(Value::Instance { value, .. }) => Some(value.as_ref()),
         other => other,
     };
-    node.summary = value.and_then(summary);
+    node.summary = value.and_then(value_summary);
     for child in &mut node.children {
         let inner = match value {
             Some(Value::Struct { fields, .. }) => fields
@@ -437,10 +437,12 @@ fn annotate(node: &mut TraceOut, value: Option<&Value>) {
     }
 }
 
-fn summary(value: &Value) -> Option<String> {
+/// A value as one line of text, for a tree of values: `None` for a type, a
+/// list and an absent value (their parts are shown instead); cut when long.
+pub fn value_summary(value: &Value) -> Option<String> {
     match value {
         Value::Struct { .. } | Value::Array(_) | Value::Absent => None,
-        Value::Instance { value, .. } => summary(value),
+        Value::Instance { value, .. } => value_summary(value),
         other => {
             let text = other.to_string();
             Some(if text.chars().count() > MAX_SUMMARY_CHARS {
