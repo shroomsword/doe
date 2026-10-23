@@ -54,10 +54,21 @@ export interface ParseResponse {
   error: Diagnostic | null;
 }
 
+export interface ExportResponse {
+  ok: boolean;
+  diagnostics: Diagnostic[];
+  output: string | null;
+  error: Diagnostic | null;
+}
+
+/** How the whole value is printed: as `doe` prints text, compact JSON (`--json`) or indented JSON (`--pretty`). */
+export type ExportFormat = 'text' | 'json' | 'pretty';
+
 export interface Doe {
   version(): string;
   check(request: Request): CheckResponse;
   parse(request: Request, bytes: Uint8Array): ParseResponse;
+  export(request: Request, bytes: Uint8Array, format: ExportFormat): ExportResponse;
 }
 
 /** Load the WebAssembly module and return the calls. */
@@ -68,5 +79,7 @@ export async function loadDoe(wasmUrl: URL | string): Promise<Doe> {
     check: (request) => JSON.parse(wasm.check(JSON.stringify(request))) as CheckResponse,
     parse: (request, bytes) =>
       JSON.parse(wasm.parse(JSON.stringify(request), bytes)) as ParseResponse,
+    export: (request, bytes, format) =>
+      JSON.parse(wasm.render(JSON.stringify(request), bytes, format)) as ExportResponse,
   };
 }

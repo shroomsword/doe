@@ -2,18 +2,20 @@
 // that takes longer than the limit, or that is cancelled, ends the worker and
 // starts a new one, which is the only way to stop WebAssembly that is running.
 
-import type { CheckResponse, ParseResponse, Request } from './doe.js';
+import type { CheckResponse, ExportFormat, ExportResponse, ParseResponse, Request } from './doe.js';
 
 export type ToWorker =
   | { op: 'init'; wasmUrl: string }
   | { op: 'input'; bytes: ArrayBuffer }
   | { op: 'check'; id: number; request: Request }
-  | { op: 'parse'; id: number; request: Request };
+  | { op: 'parse'; id: number; request: Request }
+  | { op: 'export'; id: number; request: Request; format: ExportFormat };
 
 export type FromWorker =
   | { op: 'ready'; version: string }
   | { op: 'checked'; id: number; response: CheckResponse }
   | { op: 'parsed'; id: number; response: ParseResponse }
+  | { op: 'exported'; id: number; response: ExportResponse }
   | { op: 'failed'; id: number; message: string };
 
 /** Why a call did not give an answer. */
@@ -95,6 +97,10 @@ export class DoeClient {
     return this.call((id) => ({ op: 'parse', id, request }));
   }
 
+  export(request: Request, format: ExportFormat): Promise<ExportResponse> {
+    return this.call((id) => ({ op: 'export', id, request, format }));
+  }
+
   /** End the call that is running, if there is one. */
   cancel(): void {
     this.end(new CallEnded('cancelled', 'the parse was cancelled'));
@@ -116,7 +122,7 @@ export class DoeClient {
         this.limitMs,
       );
       this.pending = { id, resolve: resolve as (response: never) => void, reject, timer };
-      if (message.op === 'parse' && !this.inputSent) {
+      if ((message.op === 'parse' || message.op === 'export') && !this.inputSent) {
         // A copy: the page keeps its own bytes for the hex view.
         const copy = this.input.slice().buffer;
         worker.postMessage({ op: 'input', bytes: copy } satisfies ToWorker, [copy]);

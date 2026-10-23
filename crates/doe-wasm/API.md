@@ -1,6 +1,6 @@
 # The calls of doe-wasm
 
-Three functions, exported to JavaScript by `wasm-bindgen`. Requests and answers
+Four functions, exported to JavaScript by `wasm-bindgen`. Requests and answers
 are **JSON strings**, so the page, a worker and the tests all call them the same
 way. The Rust side is `src/api.rs`; the tests in `tests/api.rs` check every
 shape below.
@@ -8,6 +8,7 @@ shape below.
 ```ts
 check(request: string): string          // CheckResponse as JSON
 parse(request: string, bytes: Uint8Array): string   // ParseResponse as JSON
+render(request: string, bytes: Uint8Array, format: string): string   // ExportResponse as JSON (`export` is a reserved word in JavaScript)
 version(): string
 ```
 
@@ -52,6 +53,18 @@ When the parse fails, `value` and `trace` are what was read until then, the
 node where it failed has `failed: true`, and `error` says why. When the schema
 does not compile there is a list of `diagnostics` and nothing else. Input
 larger than 256 MiB (`MAX_INPUT_BYTES`) is refused with an `input` error.
+
+## ExportResponse
+
+The whole value, rendered as `doe` prints it on the command line (the same
+text, byte for byte). `format` is `"text"` (two-space indent), `"json"`
+(compact) or `"pretty"` (indented JSON). A parse that fails gives no output.
+
+```jsonc
+{ "ok": true, "diagnostics": [], "output": "...", "error": null }
+{ "ok": false, "diagnostics": [ Diagnostic, ... ], "output": null, "error": null }  // the schema does not compile
+{ "ok": false, "diagnostics": [], "output": null, "error": Diagnostic }  // the parse failed, or the format is unknown
+```
 
 ## Diagnostic
 

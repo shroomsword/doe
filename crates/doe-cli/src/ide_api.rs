@@ -155,6 +155,7 @@ impl Local {
             ("GET" | "HEAD", "schema") => self.schema(query),
             ("GET" | "HEAD", "input") => self.bytes(query),
             ("POST", "parse") => self.parse(body),
+            ("POST", "export") => self.export(query, body),
             _ => error(404, "not found\n"),
         }
     }
@@ -265,6 +266,34 @@ impl Local {
                 log::warn!("could not read the input file: {e}");
                 error(500, "could not read the input file\n")
             }
+        }
+    }
+
+    /// The whole value of the input file as `doe` prints it (`format=text`,
+    /// `json` or `pretty`).
+    fn export(&self, query: &str, body: &[u8]) -> Response {
+        let Some(input) = &self.input else {
+            return error(404, "no input file was named\n");
+        };
+        let Ok(request) = std::str::from_utf8(body) else {
+            return error(400, "the request is not UTF-8\n");
+        };
+        let format = query_param(query, "format").unwrap_or_default();
+        if self.busy.swap(true, Ordering::SeqCst) {
+            return error(503, "a parse is already running\n");
+        }
+        let answer = doe::api::export_file(request, &input.path, &format);
+        self.busy.store(false, Ordering::SeqCst);
+        // The output is the text of the file, which can be large: no cap here
+        // beyond what the machine has, as with the command line.
+        match serde_json::to_vec(&answer) {
+            Ok(bytes) => Response {
+                status: 200,
+                content_type: "application/json",
+                body: Cow::Owned(bytes),
+                head_only: false,
+            },
+            Err(_) => error(500, "could not make the answer\n"),
         }
     }
 
@@ -455,6 +484,47 @@ mod tests {
         assert_eq!(answer["value"]["a"], 1);
         assert_eq!(answer["trace"]["end"], 40);
         assert_eq!(f.local.handle("POST", "parse", "", b"\xff").status, 400);
+    }
+
+    #[test]
+    fn the_input_is_exported_as_the_command_line_prints_it() {
+        let f = Fixture::new();
+        let schema =
+            "meta:\n  id: t\nseq:\n  - id: a\n    type: u1\n  - id: rest\n    size-eos: true\n";
+        let request = json!({ "schema": schema }).to_string();
+        let schema_file = f.path("t.ksy");
+        std::fs::write(&schema_file, schema).unwrap();
+        for (format, wanted) in [
+            (
+                "text",
+                doe::OutputFormat::Text {
+                    indent: "  ".into(),
+                },
+            ),
+            ("json", doe::OutputFormat::Json),
+            ("pretty", doe::OutputFormat::JsonPretty),
+        ] {
+            let r = f.local.handle(
+                "POST",
+                "export",
+                &format!("format={format}"),
+                request.as_bytes(),
+            );
+            assert_eq!(r.status, 200);
+            let cli = doe::parse_file(
+                Path::new(&f.path("input.bin")),
+                schema_file.as_str(),
+                &[],
+                None,
+                wanted,
+            )
+            .unwrap();
+            assert_eq!(json(&r)["output"], cli, "{format}");
+        }
+        let r = f
+            .local
+            .handle("POST", "export", "format=xml", request.as_bytes());
+        assert_eq!(json(&r)["ok"], false);
     }
 
     #[test]

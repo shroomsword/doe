@@ -38,6 +38,15 @@ pub fn parse(request: &str, bytes: &[u8]) -> String {
     to_json(&api::parse(request, bytes))
 }
 
+/// Compile the schema of `request` (JSON), parse `bytes` with it and render the
+/// whole value as the command line does (`export` in [`api`]; that is a reserved
+/// word in JavaScript): `format` is `text`, `json` or
+/// `pretty`. Returns JSON: `{ok, diagnostics, output, error}`.
+#[wasm_bindgen]
+pub fn render(request: &str, bytes: &[u8], format: &str) -> String {
+    to_json(&api::export(request, bytes, format))
+}
+
 /// The version of doe in this module.
 #[wasm_bindgen]
 pub fn version() -> String {

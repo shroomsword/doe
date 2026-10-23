@@ -225,3 +225,58 @@ fn long_values_are_cut_in_the_trace() {
 fn the_version_is_the_crates() {
     assert_eq!(doe_wasm::version(), env!("CARGO_PKG_VERSION"));
 }
+
+const SCHEMA: &str = "meta:\n  id: pairs\nseq:\n  - id: count\n    type: u1\n  - id: values\n    type: u2le\n    repeat: expr\n    repeat-expr: count\n";
+
+#[test]
+fn export_gives_what_the_command_line_prints() {
+    use doe::OutputFormat;
+    let dir = tempfile::tempdir().unwrap();
+    let schema_path = dir.path().join("t.yaml");
+    std::fs::write(&schema_path, SCHEMA).unwrap();
+    let input_path = dir.path().join("t.bin");
+    let bytes = [2_u8, 1, 0, 2, 0];
+    std::fs::write(&input_path, bytes).unwrap();
+    for (format, wanted) in [
+        (
+            "text",
+            OutputFormat::Text {
+                indent: "  ".into(),
+            },
+        ),
+        ("json", OutputFormat::Json),
+        ("pretty", OutputFormat::JsonPretty),
+    ] {
+        let answer =
+            doe_wasm::api::export(&json!({ "schema": SCHEMA }).to_string(), &bytes, format);
+        assert!(answer.ok, "{format}: {answer:?}");
+        let cli = doe::parse_file(
+            &input_path,
+            schema_path.to_str().unwrap(),
+            &[],
+            None,
+            wanted,
+        )
+        .unwrap();
+        assert_eq!(answer.output.as_deref(), Some(cli.as_str()), "{format}");
+    }
+}
+
+#[test]
+fn export_says_why_there_is_no_output() {
+    let request = json!({ "schema": SCHEMA }).to_string();
+    // the parse fails: no output
+    let failed = doe_wasm::api::export(&request, &[3, 1, 0], "json");
+    assert!(!failed.ok && failed.output.is_none());
+    assert_eq!(failed.error.unwrap().kind, "parse");
+    // the schema does not compile
+    let bad = doe_wasm::api::export(
+        &json!({ "schema": "id: t\nseq:\n  - id: a\n    type: nope\n" }).to_string(),
+        &[],
+        "json",
+    );
+    assert!(!bad.ok && !bad.diagnostics.is_empty());
+    // the format is not known
+    let format = doe_wasm::api::export(&request, &[2, 1, 0, 2, 0], "xml");
+    assert_eq!(format.error.unwrap().kind, "request");
+}

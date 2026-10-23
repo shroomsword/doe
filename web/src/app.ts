@@ -3,13 +3,14 @@
 // anywhere.
 
 import { CallEnded, DoeClient } from './client.js';
-import type { Diagnostic, ParseResponse, Request, TraceNode } from './doe.js';
+import type { Diagnostic, ExportFormat, ExportResponse, ParseResponse, Request, TraceNode } from './doe.js';
 import { SchemaEditor } from './editor.js';
 import { EXAMPLE_BYTES, EXAMPLE_SCHEMA } from './example.js';
 import { HexView, RemoteBytes } from './hex.js';
 import { type LocalApi, detectLocal } from './local.js';
 import { type Path, byteRange, checkSize, describeRange, findByte, nodeAt, pathName } from './model.js';
 import { ProblemsView } from './problems.js';
+import { MAX_LINK, type Work, codeOfHash, decodeWork, encodeWork, forget, recall, remember } from './share.js';
 import { TreeView } from './tree.js';
 
 /** How long the schema is left alone before it is checked again. */
@@ -33,6 +34,8 @@ export class App {
   private serverInput: { name: string; size: number } | null = null;
   private abort: AbortController | null = null;
   private includePaths: string[] | undefined;
+  /** The file that the remembered work was last used with, to say which one to open again. */
+  private lastInputName: string | null = null;
   private readonly files = new Map<string, string>();
   private schemaPath = 'main.ksy';
   private bytes: Uint8Array | null = null;
@@ -62,9 +65,155 @@ export class App {
     element('version').textContent = this.client.version;
     this.local = await detectLocal();
     if (this.local) await this.showLocal(this.local);
-    this.setInput(EXAMPLE_BYTES, 'example.bin');
+    await this.showGallery();
+    if (!(await this.restore())) this.setInput(EXAMPLE_BYTES, 'example.bin');
     this.refresh();
     return this.client;
+  }
+
+  // ── share links, saved work, the gallery, export ───────────────────────────
+
+  private work(): Work {
+    const work: Work = { schema: this.editor.text, files: Object.fromEntries(this.files), path: this.schemaPath };
+    if (this.includePaths) work.include_paths = this.includePaths;
+    return work;
+  }
+
+  private applyWork(work: Work): void {
+    this.files.clear();
+    for (const [name, text] of Object.entries(work.files)) this.files.set(name, text);
+    this.showFiles();
+    this.schemaPath = work.path;
+    this.includePaths = work.include_paths;
+    this.editor.setText(work.schema);
+  }
+
+  /** Open the work of a share link, or else the work this browser remembers. No file: the person opens it. */
+  private async restore(): Promise<boolean> {
+    const code = codeOfHash(location.hash);
+    const shared = code ? await decodeWork(code) : null;
+    if (code && !shared) {
+      this.notice = { severity: 'error', kind: 'request', message: 'the link does not hold a schema', position: null };
+    }
+    const saved = shared ? null : recall();
+    const work = shared ?? saved?.work;
+    if (!work) return false;
+    this.applyWork(work);
+    this.lastInputName = saved?.inputName ?? null;
+    this.bytes = null;
+    this.inputName = null;
+    this.hex.setBytes(null);
+    return true;
+  }
+
+  /** Remember the schema and its imports in this browser. */
+  private persist(): void {
+    remember(this.work(), this.inputName ?? this.lastInputName);
+  }
+
+  private async share(): Promise<void> {
+    const code = await encodeWork(this.work());
+    const link = `${location.origin}${location.pathname}#s=${code}`;
+    const status = element('status');
+    if (link.length > MAX_LINK) {
+      status.textContent = `the link would be ${link.length} characters: too long for a link; export or save the schema instead`;
+      return;
+    }
+    history.replaceState(null, '', `#s=${code}`);
+    try {
+      await navigator.clipboard.writeText(link);
+      status.textContent = `link copied (${link.length} characters; it holds the schema and imports, not the file)`;
+    } catch {
+      status.textContent = `the link is in the address bar (${link.length} characters; it holds the schema and imports, not the file)`;
+    }
+  }
+
+  private gallery: { repo: string; commit: string; formats: { path: string; id: string; title: string | null; imports: string[] }[] } | null = null;
+
+  /** The formats of the Kaitai Struct gallery; their definitions are fetched when one is picked. */
+  private async showGallery(): Promise<void> {
+    try {
+      const response = await fetch('gallery.json');
+      if (!response.ok) return;
+      const gallery = (await response.json()) as NonNullable<App['gallery']>;
+      if (!Array.isArray(gallery.formats) || gallery.formats.length === 0 || !gallery.commit) return;
+      this.gallery = gallery;
+      const select = element<HTMLSelectElement>('gallery');
+      select.innerHTML = '<option value="">choose…</option>';
+      const groups = new Map<string, HTMLOptGroupElement>();
+      for (const [index, format] of gallery.formats.entries()) {
+        const category = format.path.split('/')[0] ?? '';
+        let group = groups.get(category);
+        if (!group) {
+          group = document.createElement('optgroup');
+          group.label = category;
+          groups.set(category, group);
+          select.append(group);
+        }
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = format.title ? `${format.id} — ${format.title}` : format.id;
+        group.append(option);
+      }
+      element('gallery-box').hidden = false;
+      select.addEventListener('change', () => {
+        const format = gallery.formats[Number(select.value)];
+        if (select.value && format) void this.openGallery(format);
+        select.value = '';
+      });
+    } catch {
+      // no gallery.json (a build without the submodule): no picker
+    }
+  }
+
+  /** Fetch a format and the files it imports, at the commit the page was built with. */
+  async openGallery(format: { path: string; imports: string[] }): Promise<void> {
+    const gallery = this.gallery;
+    if (!gallery) return;
+    const status = element('status');
+    status.textContent = `fetching ${format.path}…`;
+    try {
+      const get = async (path: string): Promise<string> => {
+        const response = await fetch(`https://raw.githubusercontent.com/${gallery.repo}/${gallery.commit}/${path}`);
+        if (!response.ok) throw new Error(`${path}: ${response.status}`);
+        return response.text();
+      };
+      const [text, ...imports] = await Promise.all([format.path, ...format.imports].map(get));
+      const files: Record<string, string> = {};
+      for (const [index, path] of format.imports.entries()) files[path] = imports[index] ?? '';
+      this.applyWork({ schema: text ?? '', files, path: format.path, include_paths: [''] });
+      this.refreshNow();
+    } catch (error) {
+      this.problems.show([{ severity: 'error', kind: 'request', message: `could not fetch the format: ${String(error)}`, position: null }]);
+      status.textContent = 'could not fetch the format';
+    }
+  }
+
+  /** Save the whole value, rendered as the command line prints it. */
+  private async exportOutput(): Promise<void> {
+    const format = element<HTMLSelectElement>('export-format').value as ExportFormat;
+    const request = this.request();
+    let answer: ExportResponse;
+    try {
+      if (this.serverInput && this.local) answer = await this.local.export(request, format, new AbortController().signal);
+      else if (this.bytes) answer = await this.client.export(request, format);
+      else return;
+    } catch (error) {
+      this.ended(error);
+      return;
+    }
+    if (!answer.ok || answer.output === null) {
+      const problems = [...answer.diagnostics];
+      if (answer.error) problems.push(answer.error);
+      this.problems.show(problems);
+      return;
+    }
+    const extension = format === 'text' ? 'txt' : 'json';
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([answer.output], { type: 'text/plain;charset=utf-8' }));
+    link.download = `${this.inputName ?? 'output'}.${extension}`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
   }
 
   /** The page is served by `doe --ide`: offer its types and the file named on the command line. */
@@ -120,6 +269,7 @@ export class App {
 
   private setInput(bytes: Uint8Array, name: string): void {
     this.serverInput = null;
+    this.lastInputName = null;
     this.bytes = bytes;
     this.inputName = name;
     this.client.setInput(bytes);
@@ -142,6 +292,12 @@ export class App {
     element('cancel').addEventListener('click', () => {
       this.client.cancel();
       this.abort?.abort();
+    });
+    element('share').addEventListener('click', () => void this.share());
+    element('export').addEventListener('click', () => void this.exportOutput());
+    element('forget').addEventListener('click', () => {
+      forget();
+      element('status').textContent = 'the saved schema is forgotten';
     });
     element('example').addEventListener('click', () => this.loadExample());
     element('files').addEventListener('click', (event) => {
@@ -242,6 +398,8 @@ export class App {
     cancel.hidden = false;
     element('status').textContent = 'parsing…';
     const request = this.request();
+    this.persist();
+    element<HTMLButtonElement>('export').disabled = true;
     this.abort?.abort();
     this.abort = null;
     let run: Promise<ParseResponse>;
@@ -259,6 +417,7 @@ export class App {
       (response) => {
         if (mine !== this.generation) return;
         cancel.hidden = true;
+        element<HTMLButtonElement>('export').disabled = !(response.ok && (this.bytes || this.serverInput));
         this.show(response);
       },
       (error: unknown) => {
@@ -339,6 +498,7 @@ export class App {
 
   private status(response: ParseResponse, problems: number): void {
     const parts: string[] = [];
+    if (!this.inputName) parts.push(this.lastInputName ? `open ${this.lastInputName} again` : 'no file opened');
     const size = this.serverInput?.size ?? this.bytes?.length;
     if (this.inputName && size !== undefined) parts.push(`${this.inputName}, ${size} bytes${this.serverInput ? ' (on this machine)' : ''}`);
     parts.push(response.diagnostics.length > 0 ? 'the schema has problems' : response.ok ? `parsed as ${response.id ?? '?'}` : problems > 0 ? 'the parse failed' : 'ok');

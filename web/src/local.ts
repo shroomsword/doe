@@ -2,7 +2,7 @@
 // input file that stays where it is. A hosted page has none of it: asking for
 // /api/local gives no JSON there, and `detectLocal` says so.
 
-import type { ParseResponse, Request } from './doe.js';
+import type { ExportFormat, ExportResponse, ParseResponse, Request } from './doe.js';
 
 export interface LocalInfo {
   version: string;
@@ -50,6 +50,18 @@ export class LocalApi {
     });
     if (!response.ok) throw new Error((await response.text()).trim() || `the server answered ${response.status}`);
     return (await response.json()) as ParseResponse;
+  }
+
+  /** The whole value of the input file as `doe` prints it. */
+  async export(request: Request, format: ExportFormat, signal: AbortSignal): Promise<ExportResponse> {
+    const response = await fetch(`api/export?format=${format}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(request),
+      signal,
+    });
+    if (!response.ok) throw new Error((await response.text()).trim() || `the server answered ${response.status}`);
+    return (await response.json()) as ExportResponse;
   }
 
   private async json(url: string): Promise<unknown> {
