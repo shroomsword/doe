@@ -936,6 +936,7 @@ Options:
   -q, --quiet...             Decrease logging verbosity
       --completions <SHELL>  Print a shell completion script to stdout and exit [possible values: bash, elvish, fish, powershell, zsh]
       --man[=<PAGE>]         Print a manual page (roff) to stdout and exit: `doe` (the default) or `schema`, the schema format [possible values: doe, schema]
+      --tui                  Show FILE decoded with the given type or schema in an interactive viewer in the terminal, instead of printing it. Needs a terminal on stdin and stdout
       --ide                  Serve the web IDE on this machine and print its address, instead of parsing a file. Only the loopback address is used. A FILE is offered to the page as the input, however large it is; the types found through the include paths and the config are offered too
       --port <PORT>          With `--ide`: the port to serve on (0 for any free one) [default: 8765]
       --open                 With `--ide`: open the page in the browser
@@ -951,6 +952,20 @@ stderr. `--completions` and `--man` print and exit; they cannot be combined with
 a file, a type or the options that only matter when parsing (`-I`, `-c`,
 `--json`, `--pretty`, `--no-instances`), but `--color`, `-v`, `-q`, `--log-level`
 and `--log-file` can go with them, as in `doe --completions bash --color never`.
+
+### Terminal viewer
+
+`doe --tui FILE TYPE_OR_SCHEMA` opens the file in an interactive viewer in the
+terminal instead of printing it. It needs a terminal on stdin and stdout (with a
+pipe it stops with an error), and it parses with the same schema rules as the
+rest of the command, also showing what was read when the parse fails. For now it
+shows the type and how the parse went; the tree and the bytes follow (issue
+#98). `q`, `Esc` and Ctrl-C leave it, and the terminal is put back also if the
+program panics or is stopped by `SIGTERM` or `SIGHUP`. It uses colour unless
+`NO_COLOR` is set or `--color never` is given. It is behind the `tui` cargo
+feature, which is on by default: `--no-default-features` leaves it out, and
+`--tui` then says so. It cannot be combined with `--json`, `--pretty`,
+`--no-instances`, `--indent` or `--ide`.
 
 ### Color
 

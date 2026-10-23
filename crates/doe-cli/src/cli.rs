@@ -107,9 +107,17 @@ pub(crate) struct Cli {
     /// the include paths and the config are offered too.
     #[arg(
         long,
-        conflicts_with_all = ["type_or_schema", "json", "pretty", "no_instances", "help", "completions", "man"]
+        conflicts_with_all = ["type_or_schema", "json", "pretty", "no_instances", "help", "completions", "man", "tui"]
     )]
     pub(crate) ide: bool,
+
+    /// Show FILE decoded with the given type or schema in an interactive viewer in the
+    /// terminal, instead of printing it. Needs a terminal on stdin and stdout.
+    #[arg(
+        long,
+        conflicts_with_all = ["json", "pretty", "no_instances", "indent", "help", "completions", "man", "ide"]
+    )]
+    pub(crate) tui: bool,
 
     /// With `--ide`: the port to serve on (0 for any free one) [default: 8765].
     #[arg(long, value_name = "PORT", requires = "ide")]

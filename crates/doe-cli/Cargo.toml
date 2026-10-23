@@ -13,14 +13,17 @@ name = "doe"
 path = "src/main.rs"
 
 [features]
-default = ["ide"]
+default = ["ide", "tui"]
 # `doe --ide`: a local web server with the web IDE (web/) built into the binary.
 # The page is taken from web/dist (or DOE_IDE_DIST) when the binary is built;
 # without it a page that says so is embedded. No dependencies are needed.
 ide = ["dep:serde_json"]
+# `doe --tui`: the viewer in the terminal (crates/doe-tui).
+tui = ["dep:doe-tui"]
 
 [dependencies]
 doe = { version = "0.3.0", path = "../doe" }
+doe-tui = { version = "0.3.0", path = "../doe-tui", optional = true }
 anyhow = { workspace = true, features = ["std"] }
 anstream = { workspace = true, features = ["auto", "wincon"] }
 anstyle = { workspace = true, features = ["std"] }
@@ -37,6 +40,8 @@ log.workspace = true
 serde_json = { workspace = true, features = ["std"], optional = true }
 
 [dev-dependencies]
+# A pseudo-terminal, to run `doe --tui` as a person's terminal would.
+portable-pty.workspace = true
 assert_cmd.workspace = true
 predicates.workspace = true
 tempfile.workspace = true

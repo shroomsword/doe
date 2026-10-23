@@ -19,6 +19,8 @@ pub(crate) fn dispatch(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         man(page)
     } else if cli.ide {
         ide(cli, config)
+    } else if cli.tui {
+        tui(cli, config)
     } else if cli.help {
         print_help(&cli.include_paths, config)
     } else {
@@ -68,6 +70,30 @@ fn ide(cli: &Cli, config: &Config) -> anyhow::Result<()> {
 #[cfg(not(feature = "ide"))]
 fn ide(_cli: &Cli, _config: &Config) -> anyhow::Result<()> {
     anyhow::bail!("--ide is not in this build of doe: it was built without the `ide` feature")
+}
+
+#[cfg(feature = "tui")]
+fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
+    let (Some(file), Some(type_or_schema)) = (&cli.file, &cli.type_or_schema) else {
+        anyhow::bail!("a FILE and a TYPE_OR_SCHEMA are required");
+    };
+    // `--color never`, and `NO_COLOR` unless `--color always`, mean no colour.
+    let color = match cli.color {
+        clap::ColorChoice::Always => true,
+        clap::ColorChoice::Never => false,
+        clap::ColorChoice::Auto => std::env::var_os("NO_COLOR").is_none_or(|v| v.is_empty()),
+    };
+    doe_tui::run(&doe_tui::Options {
+        file: file.clone(),
+        type_or_schema: type_or_schema.clone(),
+        include_paths: resolve_include_paths(&cli.include_paths, config),
+        color,
+    })
+}
+
+#[cfg(not(feature = "tui"))]
+fn tui(_cli: &Cli, _config: &Config) -> anyhow::Result<()> {
+    anyhow::bail!("--tui is not in this build of doe: it was built without the `tui` feature")
 }
 
 fn run(cli: &Cli) -> anyhow::Result<()> {
