@@ -1,6 +1,7 @@
 // The page served by `doe --ide`: the types of the machine, and a file too
 // large for the browser that stays where it is. (local-server.mjs starts it.)
 
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
@@ -35,4 +36,25 @@ test('a file larger than the browser limit is read and parsed by the server', as
     element.scrollTop = element.scrollHeight;
   });
   await expect(page.locator('.hex-row').last().locator('.hex-bytes')).toContainText('deadbeef');
+});
+
+test('the gallery is allowed by the page policy, and export works on the file that stays on the machine', async ({ page }) => {
+  // The request is answered here; what is tested is that the policy of the server lets the page make it.
+  await page.route('https://raw.githubusercontent.com/**', (route) =>
+    route.fulfill({ body: 'meta:\n  id: from_gallery\nseq:\n  - id: a\n    type: u2be\n', contentType: 'text/plain' }),
+  );
+  const gallery = (await (await page.request.get('/gallery.json')).json()) as { formats: unknown[] };
+  if (gallery.formats.length > 0) {
+    await page.locator('#gallery').selectOption('0');
+    await expect(page.locator('.cm-content')).toContainText('from_gallery');
+  }
+
+  await page.locator('#types').selectOption({ label: 'pair' });
+  await page.locator('#use-input').click();
+  await expect(page.locator('#status')).toContainText('parsed as pair', { timeout: 20_000 });
+  await page.locator('#export-format').selectOption('json');
+  await expect(page.locator('#export')).toBeEnabled();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#export').click()]);
+  const text = readFileSync((await download.path()) ?? '', 'utf8');
+  expect(JSON.parse(text)).toMatchObject({ a: 1 });
 });

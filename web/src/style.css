@@ -54,7 +54,8 @@ section { border: 1px solid var(--line); border-radius: 4px; min-width: 0; displ
   #pane-editor { grid-area: editor; } #pane-tree { grid-area: tree; } #pane-hex { grid-area: hex; height: 40vh; } #pane-problems { grid-area: problems; }
 }
 @media (min-width: 1200px) {
-  main { height: calc(100dvh - 3.2rem); grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr auto; grid-template-areas: 'editor tree hex' 'problems problems problems'; }
+  body { height: 100dvh; display: flex; flex-direction: column; }
+  main { flex: 1; min-height: 0; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr auto; grid-template-areas: 'editor tree hex' 'problems problems problems'; }
   #pane-editor, #pane-tree, #pane-hex { height: auto; min-height: 0; }
 }
 
@@ -97,3 +98,12 @@ section { border: 1px solid var(--line); border-radius: 4px; min-width: 0; displ
 .problem .kind { color: var(--bad); font-family: var(--mono); font-size: .85em; min-width: 5em; }
 .problem .where { color: var(--muted); font-family: var(--mono); }
 .problem .message { white-space: pre-wrap; }
+
+#privacy { margin: 0; padding: 6px 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: .85em; }
+#privacy button { margin-left: 6px; padding: 0 8px; }
+select { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; }
+#types-box, #gallery-box { display: inline-flex; gap: 4px; align-items: center; }
+#export:disabled { opacity: .5; cursor: default; }
+[hidden] { display: none !important; }
+header select { max-width: 14rem; text-overflow: ellipsis; }
+header label { display: inline-flex; gap: 4px; align-items: center; max-width: 100%; }

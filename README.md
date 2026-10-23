@@ -873,6 +873,21 @@ offline. It shows a schema, the tree of what it parses, the bytes and the
 problems, in step with each other; parsing runs in the browser (WebAssembly) and
 nothing is sent anywhere. Files are opened in the page, up to 256 MiB (but see below).
 
+Four things make the page pleasant to come back to:
+
+- **Share link:** *Share link* copies a link with the schema and its imports in
+  the part after `#` (compressed; it is never sent to any server, and never holds
+  the file). Opening the link shows the same schema.
+- **Saved work:** the schema, its imports and the name of the last file are kept
+  in this browser (`localStorage`) and come back on reload; *Forget the saved
+  schema* clears them. The file itself is not kept: open it again.
+- **Gallery:** the list of the [Kaitai Struct gallery](https://github.com/kaitai-io/kaitai_struct_formats)
+  formats is in the page; picking one downloads its definition (and what it
+  imports) from GitHub at the commit that the page was built with. The
+  definitions are not part of the page, since not all of them are CC0.
+- **Export:** *Export* saves the whole parsed value as `doe` prints it on the
+  command line: text, indented JSON (`--pretty`) or compact JSON (`--json`).
+
 `doe --ide` also offers what a page in a browser cannot see on this machine:
 
 - the **types** found through the include paths (`-I`) and the config, in a

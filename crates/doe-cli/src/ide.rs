@@ -166,7 +166,7 @@ pub(crate) fn respond(head: &str, body: &[u8], port: u16, local: &Local) -> Resp
 /// What the browser may do with the page: its own files, WebAssembly, and its
 /// worker; no other site, no framing.
 const POLICY: &str = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; \
-style-src 'self' 'unsafe-inline'; worker-src 'self'; connect-src 'self'; img-src 'self' data:; \
+style-src 'self' 'unsafe-inline'; worker-src 'self'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; \
 frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
 fn write_response(stream: &mut TcpStream, response: &Response) -> io::Result<()> {

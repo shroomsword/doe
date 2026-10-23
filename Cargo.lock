@@ -274,6 +274,7 @@ dependencies = [
  "doe",
  "serde",
  "serde_json",
+ "tempfile",
  "wasm-bindgen",
 ]
 

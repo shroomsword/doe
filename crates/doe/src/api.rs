@@ -305,6 +305,98 @@ fn parse_with<'a>(
     }
 }
 
+/// The answer to [`export`].
+#[derive(Debug, Serialize)]
+pub struct ExportResponse {
+    /// Whether there is an output.
+    pub ok: bool,
+    /// What is wrong with the schema.
+    pub diagnostics: Vec<Diagnostic>,
+    /// The value, rendered as `doe` prints it with the format asked for.
+    pub output: Option<String>,
+    /// Why there is none: the parse failed, or the format is not known.
+    pub error: Option<Diagnostic>,
+}
+
+/// Compile the schema of a request and parse `bytes` with it, to print the
+/// whole value as the command line does. `format` is `text` (two-space
+/// indent), `json` (compact) or `pretty` (indented JSON). Unlike [`parse`],
+/// a parse that fails gives no output.
+pub fn export(request: &str, bytes: &[u8], format: &str) -> ExportResponse {
+    if bytes.len() > MAX_INPUT_BYTES {
+        let message = format!(
+            "the input is {} bytes; the most that can be parsed here is {MAX_INPUT_BYTES}",
+            bytes.len()
+        );
+        return export_with(request, format, || Err(Diagnostic::new("input", message)));
+    }
+    export_with(request, format, || Ok(Cursor::new(bytes)))
+}
+
+/// Like [`export`], for the file at `path`, read as the schema asks for it.
+#[cfg(feature = "fs")]
+pub fn export_file(request: &str, path: &Path, format: &str) -> ExportResponse {
+    export_with(request, format, || {
+        let input = |e: &dyn std::fmt::Display| {
+            Diagnostic::new("input", format!("could not read {}: {e}", path.display()))
+        };
+        let file = std::fs::File::open(path).map_err(|e| input(&e))?;
+        Cursor::from_file(file, path).map_err(|e| input(&e))
+    })
+}
+
+fn export_with<'a>(
+    request: &str,
+    format: &str,
+    input: impl FnOnce() -> Result<Cursor<'a>, Diagnostic>,
+) -> ExportResponse {
+    let failed = |diagnostics: Vec<Diagnostic>, error: Option<Diagnostic>| ExportResponse {
+        ok: false,
+        diagnostics,
+        output: None,
+        error,
+    };
+    if !matches!(format, "text" | "json" | "pretty") {
+        return failed(
+            Vec::new(),
+            Some(Diagnostic::new(
+                "request",
+                format!("the format is text, json or pretty, not {format}"),
+            )),
+        );
+    }
+    let request = match request_from(request) {
+        Ok(request) => request,
+        Err(diagnostic) => return failed(vec![diagnostic], None),
+    };
+    let compiled = match compile(&request) {
+        Ok(compiled) => compiled,
+        Err(diagnostics) => return failed(diagnostics, None),
+    };
+    let type_name = request.type_name.as_deref().unwrap_or(&compiled.id);
+    let mut cursor = match input() {
+        Ok(cursor) => cursor,
+        Err(error) => return failed(Vec::new(), Some(error)),
+    };
+    let engine = Engine::new(&compiled.compiler.registry);
+    match engine.parse_type(type_name, &mut cursor) {
+        Ok(value) => ExportResponse {
+            ok: true,
+            diagnostics: Vec::new(),
+            output: Some(match format {
+                "text" => crate::render::text::render_with_indent(&value, "  "),
+                "json" => crate::render::json::render(&value),
+                _ => crate::render::json::render_pretty(&value),
+            }),
+            error: None,
+        },
+        Err(error) => failed(
+            Vec::new(),
+            Some(Diagnostic::new("parse", error.to_string())),
+        ),
+    }
+}
+
 fn trace_out(node: &TraceNode) -> TraceOut {
     TraceOut {
         name: node.name.clone(),

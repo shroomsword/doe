@@ -15,7 +15,17 @@
         <label class="button">Open file<input id="open-input" type="file" /></label>
         <button id="example" type="button">Example</button>
         <label id="types-box" hidden>Types <select id="types"></select></label>
+        <label id="gallery-box" hidden>Gallery <select id="gallery"></select></label>
         <button id="use-input" type="button" hidden></button>
+      </div>
+      <div class="actions">
+        <button id="share" type="button" title="Copy a link to this schema (never the file)">Share link</button>
+        <select id="export-format" aria-label="export format">
+          <option value="text">text</option>
+          <option value="pretty">JSON</option>
+          <option value="json">compact JSON</option>
+        </select>
+        <button id="export" type="button" disabled title="Save the whole parsed value, as doe prints it">Export</button>
       </div>
       <p id="status" role="status">loading…</p>
       <button type="button" id="cancel" hidden>Cancel parse</button>
@@ -37,6 +47,12 @@
       <section id="pane-problems" aria-labelledby="h-problems">
         <h2 id="h-problems">Problems</h2>
         <div id="problems"></div>
+        <p id="privacy">
+          Everything runs in this page; your files are never sent anywhere. The schema and its imports are kept in this browser
+          (not the file) so that a reload brings them back, and a share link holds the schema, never the file. Picking a gallery
+          format downloads its definition from GitHub.
+          <button id="forget" type="button">Forget the saved schema</button>
+        </p>
       </section>
     </main>
     <script type="module" src="./main.js"></script>
