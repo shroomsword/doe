@@ -1,14 +1,18 @@
 //! Drawing the state of the viewer.
 
 use ratatui::Frame;
+use ratatui::layout::Alignment;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Block, Borders};
 
 use crate::app::App;
+use crate::format;
+use crate::tree::Shown;
+use crate::tree_view;
 
 /// The styles of the viewer. Without colour they are the plain terminal
-/// colours with bold and reverse only, which is what `NO_COLOR` asks for.
+/// colours with bold, dim and reverse only, which is what `NO_COLOR` asks for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Theme {
     color: bool,
@@ -41,49 +45,89 @@ impl Theme {
         self.colored(Color::Green)
     }
 
-    /// A parse that failed.
+    /// A parse that failed, and the row where it failed.
     #[must_use]
     pub fn bad(self) -> Style {
         self.colored(Color::Red).add_modifier(Modifier::BOLD)
     }
 
-    /// Hints.
+    /// The mark and the name of the row that failed.
+    #[must_use]
+    pub fn failed(self) -> Style {
+        self.bad()
+    }
+
+    /// Hints, and what is secondary.
     #[must_use]
     pub fn dim(self) -> Style {
         Style::default().add_modifier(Modifier::DIM)
     }
+
+    /// The open/closed marker of a row.
+    #[must_use]
+    pub fn marker(self) -> Style {
+        self.dim()
+    }
+
+    /// The name of a field.
+    #[must_use]
+    pub fn name(self) -> Style {
+        Style::default().add_modifier(Modifier::BOLD)
+    }
+
+    /// The name of an instance (the row is dimmed as a whole as well).
+    #[must_use]
+    pub fn instance(self) -> Style {
+        Style::default().add_modifier(Modifier::ITALIC)
+    }
+
+    /// The type of a field.
+    #[must_use]
+    pub fn type_name(self) -> Style {
+        self.colored(Color::Blue)
+    }
+
+    /// A value, by its kind.
+    #[must_use]
+    pub fn value(self, shown: &Shown) -> Style {
+        match shown {
+            Shown::UInt(_) | Shown::SInt(_) | Shown::Float(_) => self.colored(Color::Yellow),
+            Shown::Enum { .. } => self.colored(Color::Magenta),
+            Shown::Bool(_) => self.colored(Color::Cyan),
+            Shown::Str { .. } => self.colored(Color::Green),
+            Shown::Bytes { .. } => self.colored(Color::Red),
+        }
+    }
+
+    /// The selected row: reversed, which shows without any colour.
+    #[must_use]
+    pub fn selected(self) -> Style {
+        Style::default().add_modifier(Modifier::REVERSED)
+    }
 }
 
-/// Draw the viewer: for now the name of the type, how the parse went, and how to leave.
-pub fn draw(frame: &mut Frame<'_>, app: &App, theme: &Theme) {
+/// Draw the viewer: the tree of what was read in a pane with the type in its
+/// title, and how the parse went.
+pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
+    let status = match &app.error {
+        None => Span::styled(" parsed ", theme.good()),
+        Some(_) => Span::styled(" the parse failed ", theme.bad()),
+    };
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(Span::styled(" doe ", theme.title()));
+        .title(Line::from(vec![
+            Span::raw(" "),
+            Span::styled(
+                format::truncate(&format::safe(&app.type_name), 40),
+                theme.title(),
+            ),
+            Span::raw(" "),
+        ]))
+        .title(Line::from(status).alignment(Alignment::Right))
+        .title_bottom(Line::from(Span::styled(" q quit ", theme.dim())));
     let inner = block.inner(frame.area());
     frame.render_widget(block, frame.area());
-
-    let result = match &app.error {
-        None => Span::styled("parsed", theme.good()),
-        Some(error) => Span::styled(format!("the parse failed: {error}"), theme.bad()),
-    };
-    let lines = vec![
-        Line::from(vec![
-            Span::raw("type  "),
-            Span::styled(app.type_name.clone(), theme.title()),
-        ]),
-        Line::from(vec![
-            Span::raw("file  "),
-            Span::raw(app.file.display().to_string()),
-        ]),
-        Line::from(vec![
-            Span::raw("size  "),
-            Span::raw(format!("{} bytes", app.size)),
-        ]),
-        Line::from(vec![Span::raw("      "), result]),
-        Line::raw(""),
-        Line::from(Span::styled("q to quit", theme.dim())),
-    ];
-    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+    tree_view::render(frame, inner, &app.tree, &mut app.view, theme);
 }
 
 #[cfg(test)]
@@ -101,34 +145,34 @@ mod tests {
     use crate::app::tests::app;
 
     fn screen(width: u16, height: u16, color: bool) -> (String, Terminal<TestBackend>) {
-        let (app, _dir) = app();
+        let (mut app, _dir) = app();
         let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
         terminal
-            .draw(|f| draw(f, &app, &Theme::new(color)))
+            .draw(|f| draw(f, &mut app, &Theme::new(color)))
             .unwrap();
         let text = terminal.backend().to_string();
         (text, terminal)
     }
 
     #[test]
-    fn the_type_the_file_and_the_way_out_are_shown() {
-        let (text, _) = screen(60, 10, true);
-        assert!(text.contains("type  t"), "{text}");
-        assert!(text.contains("size  3 bytes"), "{text}");
-        assert!(text.contains("parsed"), "{text}");
-        assert!(text.contains("q to quit"), "{text}");
+    fn the_title_has_the_type_and_the_parse() {
+        let (text, _) = screen(40, 8, true);
+        let first = text.lines().next().unwrap();
+        assert!(first.contains(" t "), "{text}");
+        assert!(first.contains("parsed"), "{text}");
+        assert!(text.contains("q quit"), "{text}");
     }
 
     #[test]
     fn a_tiny_terminal_is_drawn_without_panicking() {
-        for (w, h) in [(1, 1), (5, 2), (20, 3)] {
+        for (w, h) in [(1, 1), (2, 2), (5, 2), (20, 3), (3, 40), (80, 1)] {
             screen(w, h, true);
         }
     }
 
     #[test]
     fn without_colour_no_cell_has_one() {
-        let (_, terminal) = screen(60, 10, false);
+        let (_, terminal) = screen(40, 8, false);
         let buffer = terminal.backend().buffer();
         assert!(
             buffer
@@ -136,7 +180,7 @@ mod tests {
                 .iter()
                 .all(|cell| cell.fg == Color::Reset && cell.bg == Color::Reset)
         );
-        let (_, terminal) = screen(60, 10, true);
+        let (_, terminal) = screen(40, 8, true);
         assert!(
             terminal
                 .backend()

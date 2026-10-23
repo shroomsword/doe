@@ -12,9 +12,11 @@
 //! - [`run`] ties them together with the event loop.
 
 pub mod app;
+pub mod format;
 pub mod load;
 pub mod terminal;
 pub mod tree;
+pub mod tree_view;
 pub mod ui;
 
 use std::io::{self, IsTerminal};
@@ -73,7 +75,7 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
     let (_guard, mut terminal) = Guard::enter().context("could not set up the terminal")?;
     while !app.quit && !signals.fired() {
         terminal
-            .draw(|frame| ui::draw(frame, &app, &theme))
+            .draw(|frame| ui::draw(frame, &mut app, &theme))
             .context("could not draw the screen")?;
         if event::poll(TICK).context("could not read the keyboard")?
             && let Event::Key(key) = event::read().context("could not read the keyboard")?

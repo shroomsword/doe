@@ -443,6 +443,8 @@ dependencies = [
  "ratatui",
  "signal-hook",
  "tempfile",
+ "unicode-segmentation",
+ "unicode-width",
 ]
 
 [[package]]

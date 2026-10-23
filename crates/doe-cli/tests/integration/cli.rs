@@ -1140,7 +1140,7 @@ mod tui_in_a_terminal {
     #[test]
     fn q_leaves_and_the_terminal_is_as_it_was() {
         let mut session = Session::start(&[], &[]);
-        session.wait_for("q to quit");
+        session.wait_for("q quit");
         session.send(b"q");
         let (success, seen) = session.finish();
         assert!(success);
@@ -1150,7 +1150,7 @@ mod tui_in_a_terminal {
     #[test]
     fn ctrl_c_leaves_too() {
         let mut session = Session::start(&[], &[]);
-        session.wait_for("q to quit");
+        session.wait_for("q quit");
         session.send(&[0x03]);
         let (success, seen) = session.finish();
         assert!(success);
@@ -1160,7 +1160,7 @@ mod tui_in_a_terminal {
     #[test]
     fn a_hangup_leaves_with_the_terminal_put_back() {
         let mut session = Session::start(&[], &[]);
-        session.wait_for("q to quit");
+        session.wait_for("q quit");
         // What the terminal closing does to the program.
         session.child.kill().unwrap();
         let (_, seen) = session.finish();
@@ -1179,7 +1179,7 @@ mod tui_in_a_terminal {
     /// What `doe --tui` printed with these options until it showed its first screen.
     fn first_screen(extra: &[&str], env: &[(&str, &str)]) -> String {
         let mut session = Session::start(extra, env);
-        session.wait_for("q to quit");
+        session.wait_for("q quit");
         session.send(b"q");
         session.finish().1
     }

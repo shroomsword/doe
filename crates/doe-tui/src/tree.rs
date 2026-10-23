@@ -32,8 +32,79 @@ pub enum RowKind {
     },
 }
 
+/// The longest text of a string that a row keeps; the rest is cut when the row is made.
+const MAX_SHOWN_CHARS: usize = 1024;
+/// How many bytes of a byte sequence a row keeps.
+const PREVIEW_BYTES: usize = 16;
+
+/// A value by kind, for drawing it the way its kind is read.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Shown {
+    /// An unsigned integer.
+    UInt(u64),
+    /// A signed integer.
+    SInt(i64),
+    /// An integer with a name from an enum, when it has one.
+    Enum {
+        /// The number.
+        value: i128,
+        /// The member, if the number is one.
+        name: Option<String>,
+    },
+    /// A float.
+    Float(f64),
+    /// A bit or a boolean.
+    Bool(bool),
+    /// A string (cut at 1024 characters; `cut` says it was).
+    Str {
+        /// The text.
+        text: String,
+        /// Whether it was longer.
+        cut: bool,
+    },
+    /// A byte sequence: how long it is and its first bytes.
+    Bytes {
+        /// The length in bytes.
+        len: u64,
+        /// The first bytes.
+        preview: Vec<u8>,
+    },
+}
+
+/// What a value is shown as; `None` for a type, a list and an absent value.
+fn shown_of(value: Option<&Value>) -> Option<Shown> {
+    Some(match value? {
+        Value::Instance { value, .. } => return shown_of(Some(value)),
+        Value::UInt(n) => Shown::UInt(*n),
+        Value::SInt(n) => Shown::SInt(*n),
+        Value::Float(f) => Shown::Float(*f),
+        Value::Bool(b) => Shown::Bool(*b),
+        Value::Enum { value, name } => Shown::Enum {
+            value: *value,
+            name: name.clone(),
+        },
+        Value::Str(text) => {
+            let mut chars = text.chars();
+            let kept: String = chars.by_ref().take(MAX_SHOWN_CHARS).collect();
+            Shown::Str {
+                cut: chars.next().is_some(),
+                text: kept,
+            }
+        }
+        Value::Bytes(bytes) => Shown::Bytes {
+            len: bytes.len() as u64,
+            preview: bytes.iter().copied().take(PREVIEW_BYTES).collect(),
+        },
+        Value::Blob { len, preview, .. } => Shown::Bytes {
+            len: *len,
+            preview: preview.iter().copied().take(PREVIEW_BYTES).collect(),
+        },
+        Value::Struct { .. } | Value::Array(_) | Value::Absent => return None,
+    })
+}
+
 /// A line of the tree.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "each flag is a separate fact a row can show; they are not a state machine"
@@ -52,6 +123,8 @@ pub struct Row {
     pub type_name: Option<String>,
     /// The value as text, for a value that is not a type or a list.
     pub summary: Option<String>,
+    /// The value by kind, to draw it.
+    pub shown: Option<Shown>,
     /// The bits it was read from; none for an instance computed by an expression.
     pub span: Option<Span>,
     /// Whether it is an instance.
@@ -110,6 +183,7 @@ fn row_of(node: &TraceNode, value: Option<&Value>, path: &[usize], open: bool) -
         name: node.name.clone(),
         type_name: node.type_name.clone(),
         summary: value.and_then(value_summary),
+        shown: shown_of(value),
         span: node.span,
         instance: node.is_instance,
         failed: node.failed,
@@ -224,6 +298,7 @@ impl TreeModel {
                 name: format!("{} more…", node.children.len() - shown),
                 type_name: None,
                 summary: None,
+                shown: None,
                 span: None,
                 instance: false,
                 failed: false,
@@ -435,7 +510,7 @@ impl TreeModel {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     #![allow(
         clippy::unwrap_used,
         clippy::expect_used,
@@ -448,7 +523,7 @@ mod tests {
     use crate::load::load;
 
     /// A model made by parsing `bytes` with `schema` (a file is needed: `load` reads one).
-    fn model(schema: &str, bytes: &[u8]) -> (TreeModel, Option<String>) {
+    pub(crate) fn model(schema: &str, bytes: &[u8]) -> (TreeModel, Option<String>) {
         let dir = tempfile::tempdir().unwrap();
         let schema_path = dir.path().join("t.yaml");
         std::fs::write(&schema_path, schema).unwrap();
