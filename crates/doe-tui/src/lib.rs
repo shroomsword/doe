@@ -12,7 +12,9 @@
 //! - [`run`] ties them together with the event loop.
 
 pub mod app;
+pub mod bytes;
 pub mod format;
+pub mod hex_view;
 pub mod load;
 pub mod terminal;
 pub mod tree;
