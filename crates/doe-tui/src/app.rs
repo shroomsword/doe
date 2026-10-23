@@ -43,6 +43,8 @@ pub struct App {
     pub hex: HexState,
     /// Which pane has the keys.
     pub focus: Focus,
+    /// Whether the inspector shows the selected bytes in other forms.
+    pub inspector: bool,
     /// Whether the person asked to leave.
     pub quit: bool,
 }
@@ -55,6 +57,7 @@ impl App {
             bytes: FileBytes::open(&file).ok(),
             hex: HexState::new(),
             focus: Focus::Tree,
+            inspector: false,
             file,
             type_name: loaded.type_name,
             size: loaded.size,
@@ -67,7 +70,8 @@ impl App {
 
     /// What a key does. `q`, `Esc` and Ctrl-C leave (raw mode turns Ctrl-C
     /// into a key; it is not a signal while the viewer is open); `Tab` moves
-    /// the keys between the tree and the bytes.
+    /// the keys between the tree and the bytes; `i` shows or hides the
+    /// inspector.
     ///
     /// In the tree: `↑`/`k`, `↓`/`j`, `PgUp`, `PgDn`, `Home`/`g`, `End`/`G`
     /// move; `→`/`l` opens a node or goes into it, `←`/`h` closes it or goes to
@@ -83,6 +87,7 @@ impl App {
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => self.quit = true,
             KeyCode::Char('c') if ctrl => self.quit = true,
+            KeyCode::Char('i') => self.inspector = !self.inspector,
             KeyCode::Tab | KeyCode::BackTab => {
                 self.focus = match self.focus {
                     Focus::Tree => Focus::Hex,
@@ -230,6 +235,11 @@ pub(crate) mod tests {
 
     fn key(app: &mut App, code: KeyCode) {
         press(app, code, KeyModifiers::NONE);
+    }
+
+    /// A key without modifiers, for other tests.
+    pub(crate) fn press_key(app: &mut App, code: KeyCode) {
+        key(app, code);
     }
 
     /// A viewer for `data` parsed with `schema`.
