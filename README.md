@@ -17,6 +17,24 @@ each time.
 cargo install --path crates/doe-cli
 ```
 
+### The web IDE
+
+The web IDE (`doe --ide`, see [Web IDE](#web-ide)) is a page that is built into
+the binary. It is not in git: it is made from `web/` with Node and the
+WebAssembly toolchain (`npm run build` in `web/`; see `web/README.md`).
+
+- The **release archives** have it in every binary: the release workflow builds
+  the page once and fails if it is not in a binary.
+- A plain `cargo build` or `cargo install --path crates/doe-cli` needs no Node:
+  if `web/dist` is not there, `doe --ide` still starts and warns that the page is
+  missing, and serves a page that says so. To have it, run `npm run build` in
+  `web/` first and then `cargo build`; `DOE_IDE_DIST` names another directory,
+  and `DOE_IDE_REQUIRE_BUNDLE=1` makes the build fail if there is none.
+- Every push to `main` publishes the page to GitHub Pages (workflow `pages`), as
+  the hosted IDE, which is the same page without the types and files of
+  `doe --ide`.
+- `cargo build --no-default-features` leaves out `--ide` and the page.
+
 ### Shell completions
 
 `doe --completions <SHELL>` prints a completion script to stdout for `bash`,

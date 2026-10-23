@@ -91,3 +91,11 @@ the time limit.
 | `src/wasm/` | The module and its glue, made by the build (not committed) |
 | `build.mjs`, `serve.mjs` | The build, and a static server for `dist/` |
 | `tests/` | Playwright tests: `model.spec.ts` (no browser), `smoke.spec.ts` (the module), `ide.spec.ts` (the page) |
+
+## Publishing
+
+Every push to `main` builds `web/dist` in CI and publishes it to GitHub Pages
+(`.github/workflows/pages.yml`; the Pages source of the repository must be
+"GitHub Actions"). The release workflow builds it too and puts it in each `doe`
+binary (`crates/doe-cli/build.rs` embeds `web/dist`). The steps that build it are
+in `.github/actions/build-web`.

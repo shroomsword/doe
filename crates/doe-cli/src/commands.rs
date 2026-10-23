@@ -47,6 +47,11 @@ fn man(page: Page) -> anyhow::Result<()> {
 #[cfg(feature = "ide")]
 fn ide(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     let include_paths = resolve_include_paths(&cli.include_paths, config);
+    if !crate::ide::BUNDLED {
+        log::warn!(
+            "this build of doe has no web IDE in it (it was built without web/dist): the page will say so"
+        );
+    }
     let local = crate::ide_api::Local::new(&include_paths, cli.file.as_deref())?;
     let requested = cli.port.unwrap_or(crate::cli::DEFAULT_IDE_PORT);
     let (listener, port) = crate::ide::bind(requested)
