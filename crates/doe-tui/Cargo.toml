@@ -1,0 +1,25 @@
+[package]
+name = "doe-tui"
+version = "0.3.0"
+description = "doe — terminal viewer for decoded binary files"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+doe = { version = "0.3.0", path = "../doe" }
+anyhow = { workspace = true, features = ["std"] }
+log.workspace = true
+ratatui = { workspace = true, features = ["crossterm"] }
+crossterm = { workspace = true, features = ["events"] }
+
+[target.'cfg(unix)'.dependencies]
+signal-hook.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

@@ -965,3 +965,235 @@ fn ide_says_it_is_not_in_this_build() {
         .failure()
         .stderr(predicate::str::contains("not in this build"));
 }
+
+// ── --tui ────────────────────────────────────────────────────────────────────
+
+#[test]
+fn tui_does_not_mix_with_output_options() {
+    for flags in [["--json"], ["--pretty"], ["--no-instances"], ["--ide"]] {
+        doe()
+            .arg("--tui")
+            .args(flags)
+            .args(["file", "type"])
+            .assert()
+            .failure();
+    }
+}
+
+#[cfg(feature = "tui")]
+#[test]
+fn tui_without_a_terminal_is_an_error_and_prints_no_escape_codes() {
+    let dir = TempDir::new().unwrap();
+    let (schema, binary) = simple_fixture(dir.path());
+    // assert_cmd runs with pipes: no terminal on stdin or stdout.
+    let out = doe()
+        .arg("--tui")
+        .arg(&binary)
+        .arg(&schema)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("needs a terminal"))
+        .get_output()
+        .clone();
+    assert!(!out.stdout.contains(&0x1b) && !out.stderr.contains(&0x1b));
+    // a bad schema is the ordinary error, with or without a terminal
+    doe()
+        .arg("--tui")
+        .arg(&binary)
+        .arg("/nonexistent.yaml")
+        .assert()
+        .failure();
+}
+
+#[cfg(not(feature = "tui"))]
+#[test]
+fn tui_says_it_is_not_in_this_build() {
+    doe()
+        .args(["--tui", "file", "type"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not in this build"));
+}
+
+#[cfg(all(feature = "tui", unix))]
+mod tui_in_a_terminal {
+    use std::io::Read;
+    use std::sync::mpsc;
+    use std::time::{Duration, Instant};
+
+    use portable_pty::{CommandBuilder, PtySize, native_pty_system};
+
+    use super::*;
+
+    const ENTER_SCREEN: &str = "\x1b[?1049h";
+    const LEAVE_SCREEN: &str = "\x1b[?1049l";
+    const SHOW_CURSOR: &str = "\x1b[?25h";
+
+    /// `doe --tui` running in a pseudo-terminal.
+    struct Session {
+        child: Box<dyn portable_pty::Child + Send + Sync>,
+        writer: Box<dyn std::io::Write + Send>,
+        output: mpsc::Receiver<Vec<u8>>,
+        seen: String,
+        _dir: TempDir,
+        _master: Box<dyn portable_pty::MasterPty + Send>,
+    }
+
+    impl Session {
+        fn start(extra: &[&str], env: &[(&str, &str)]) -> Session {
+            let dir = TempDir::new().unwrap();
+            let (schema, binary) = simple_fixture(dir.path());
+            let pair = native_pty_system()
+                .openpty(PtySize {
+                    rows: 24,
+                    cols: 80,
+                    pixel_width: 0,
+                    pixel_height: 0,
+                })
+                .unwrap();
+            let mut command = CommandBuilder::new(assert_cmd::cargo::cargo_bin("doe"));
+            command.args(extra);
+            command.args(["--tui", "-c", NO_CONFIG]);
+            command.arg(binary);
+            command.arg(schema);
+            command.env("XDG_STATE_HOME", sandbox().join("state"));
+            command.env("XDG_CONFIG_HOME", sandbox().join("config"));
+            command.env_remove("NO_COLOR");
+            for (name, value) in env {
+                command.env(name, value);
+            }
+            let child = pair.slave.spawn_command(command).unwrap();
+            drop(pair.slave);
+            let mut reader = pair.master.try_clone_reader().unwrap();
+            let writer = pair.master.take_writer().unwrap();
+            let (send, output) = mpsc::channel();
+            std::thread::spawn(move || {
+                let mut buffer = [0_u8; 4096];
+                while let Ok(n) = reader.read(&mut buffer) {
+                    if n == 0 || send.send(buffer[..n].to_vec()).is_err() {
+                        break;
+                    }
+                }
+            });
+            Session {
+                child,
+                writer,
+                output,
+                seen: String::new(),
+                _dir: dir,
+                _master: pair.master,
+            }
+        }
+
+        /// Read until `text` has been printed.
+        fn wait_for(&mut self, text: &str) {
+            let end = Instant::now() + Duration::from_secs(20);
+            while !self.seen.contains(text) {
+                let left = end.saturating_duration_since(Instant::now());
+                match self.output.recv_timeout(left) {
+                    Ok(bytes) => self.seen.push_str(&String::from_utf8_lossy(&bytes)),
+                    Err(e) => panic!("never saw {text:?} in {:?}: {e}", self.seen),
+                }
+            }
+        }
+
+        fn send(&mut self, bytes: &[u8]) {
+            use std::io::Write as _;
+            self.writer.write_all(bytes).unwrap();
+            self.writer.flush().unwrap();
+        }
+
+        /// Wait for the program to end, and for what it printed to the end.
+        fn finish(mut self) -> (bool, String) {
+            let end = Instant::now() + Duration::from_secs(20);
+            let status = loop {
+                if let Some(status) = self.child.try_wait().unwrap() {
+                    break status;
+                }
+                assert!(
+                    Instant::now() < end,
+                    "doe --tui did not end; saw {:?}",
+                    self.seen
+                );
+                std::thread::sleep(Duration::from_millis(20));
+            };
+            while let Ok(bytes) = self.output.recv_timeout(Duration::from_millis(300)) {
+                self.seen.push_str(&String::from_utf8_lossy(&bytes));
+            }
+            (status.success(), self.seen)
+        }
+    }
+
+    fn assert_screen_restored(seen: &str) {
+        assert!(seen.contains(ENTER_SCREEN), "{seen:?}");
+        let left = seen
+            .rfind(LEAVE_SCREEN)
+            .unwrap_or_else(|| panic!("the screen was not left: {seen:?}"));
+        assert!(left > seen.find(ENTER_SCREEN).unwrap());
+        assert!(
+            seen.rfind(SHOW_CURSOR)
+                .is_some_and(|show| show > seen.find(ENTER_SCREEN).unwrap()),
+            "{seen:?}"
+        );
+    }
+
+    #[test]
+    fn q_leaves_and_the_terminal_is_as_it_was() {
+        let mut session = Session::start(&[], &[]);
+        session.wait_for("q to quit");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success);
+        assert_screen_restored(&seen);
+    }
+
+    #[test]
+    fn ctrl_c_leaves_too() {
+        let mut session = Session::start(&[], &[]);
+        session.wait_for("q to quit");
+        session.send(&[0x03]);
+        let (success, seen) = session.finish();
+        assert!(success);
+        assert_screen_restored(&seen);
+    }
+
+    #[test]
+    fn a_hangup_leaves_with_the_terminal_put_back() {
+        let mut session = Session::start(&[], &[]);
+        session.wait_for("q to quit");
+        // What the terminal closing does to the program.
+        session.child.kill().unwrap();
+        let (_, seen) = session.finish();
+        assert_screen_restored(&seen);
+    }
+
+    #[test]
+    fn the_type_and_the_parse_are_shown() {
+        let mut session = Session::start(&[], &[]);
+        session.wait_for("simple");
+        session.wait_for("parsed");
+        session.send(b"q");
+        assert!(session.finish().0);
+    }
+
+    /// What `doe --tui` printed with these options until it showed its first screen.
+    fn first_screen(extra: &[&str], env: &[(&str, &str)]) -> String {
+        let mut session = Session::start(extra, env);
+        session.wait_for("q to quit");
+        session.send(b"q");
+        session.finish().1
+    }
+
+    fn has_colour(seen: &str) -> bool {
+        seen.contains("\x1b[38;") || (30..38).any(|n| seen.contains(&format!("\x1b[{n}m")))
+    }
+
+    #[test]
+    fn colour_follows_no_color_and_the_color_option() {
+        assert!(has_colour(&first_screen(&[], &[])));
+        // NO_COLOR is honoured (by doe, and by the terminal library as well)
+        assert!(!has_colour(&first_screen(&[], &[("NO_COLOR", "1")])));
+        assert!(!has_colour(&first_screen(&["--color", "never"], &[])));
+        assert!(has_colour(&first_screen(&["--color", "always"], &[])));
+    }
+}
