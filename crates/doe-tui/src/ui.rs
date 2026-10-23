@@ -1,10 +1,9 @@
 //! Drawing the state of the viewer.
 
 use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
 use crate::app::App;
 
@@ -74,20 +73,17 @@ pub fn draw(frame: &mut Frame<'_>, app: &App, theme: &Theme) {
         ]),
         Line::from(vec![
             Span::raw("file  "),
-            Span::raw(format!(
-                "{} ({} bytes)",
-                app.file.display(),
-                app.loaded.size
-            )),
+            Span::raw(app.file.display().to_string()),
+        ]),
+        Line::from(vec![
+            Span::raw("size  "),
+            Span::raw(format!("{} bytes", app.loaded.size)),
         ]),
         Line::from(vec![Span::raw("      "), result]),
         Line::raw(""),
         Line::from(Span::styled("q to quit", theme.dim())),
     ];
-    let [area] = Layout::vertical([Constraint::Length(u16::try_from(lines.len()).unwrap_or(5))])
-        .flex(ratatui::layout::Flex::Center)
-        .areas(inner);
-    frame.render_widget(Paragraph::new(lines).alignment(Alignment::Left), area);
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
 #[cfg(test)]
@@ -118,7 +114,7 @@ mod tests {
     fn the_type_the_file_and_the_way_out_are_shown() {
         let (text, _) = screen(60, 10, true);
         assert!(text.contains("type  t"), "{text}");
-        assert!(text.contains("(3 bytes)"), "{text}");
+        assert!(text.contains("size  3 bytes"), "{text}");
         assert!(text.contains("parsed"), "{text}");
         assert!(text.contains("q to quit"), "{text}");
     }
