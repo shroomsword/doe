@@ -984,6 +984,18 @@ toggles it; the bytes scroll to the selected field. `Tab` moves the keys to the
 bytes: `←`/`→` (or `h`/`l`) move by a byte, `↑`/`↓` (`k`/`j`) by a line, `PgUp`/`PgDn`
 by a page, `Home`/`End` to the start and end of the line, `g`/`G` to the start and
 end of the file, and the tree selects the innermost field that holds the byte.
+
+The **status bar** at the bottom has the path of the selected field
+(`header/entries/[3]/name`), its type (or the kind of its value), where its bytes
+are (`@0x14 (20) · 4 bytes (32 bits)`, or the bit it starts at for a bit field,
+or that it is computed or made by a `process:` and so not in the file), and the
+name and size of the file. `i` shows the **inspector**: the selected bytes read
+from the file, whatever the parsed value was, as unsigned and signed numbers in
+both byte orders (decimal, hex and, up to 4 bytes, binary), as a float when the
+field is 4 or 8 bytes, as the value of the bits for a bit field, and as text in
+UTF-8, ASCII, Latin-1 and UTF-16 (the first 64 bytes of a longer field). For a
+field with no bytes of the file it says why. It is drawn below the bytes when
+there is room, else in place of them.
 `q`, `Esc` and Ctrl-C leave it, and the terminal is put back also if the
 program panics or is stopped by `SIGTERM` or `SIGHUP`. It uses colour unless
 `NO_COLOR` is set or `--color never` is given. It is behind the `tui` cargo

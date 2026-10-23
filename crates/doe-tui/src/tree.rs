@@ -244,6 +244,21 @@ impl TreeModel {
         Some(node)
     }
 
+    /// The names from the root to the node at `path` (the root's name is the first).
+    #[must_use]
+    pub fn names_to(&self, path: &[usize]) -> Vec<String> {
+        let mut names = vec![self.root.name.clone()];
+        let mut node = &self.root;
+        for &index in path {
+            let Some(child) = node.children.get(index) else {
+                break;
+            };
+            names.push(child.name.clone());
+            node = child;
+        }
+        names
+    }
+
     /// The path of the innermost field (not an instance) that holds the byte
     /// at `offset` of the file; nothing inside a transformed field is looked
     /// at, as its offsets are of other bytes.
