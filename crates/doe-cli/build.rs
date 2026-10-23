@@ -1,7 +1,9 @@
 //! Embeds the web IDE (`web/dist`, made by `npm run build` in `web/`) in the
 //! binary when the `ide` feature is on. The directory can be named with
 //! `DOE_IDE_DIST`. When it is not there, a page that says so is embedded
-//! instead, so that the crate still builds without the web toolchain.
+//! instead, so that the crate still builds without the web toolchain (a build
+//! that must have the page, such as a release, sets `DOE_IDE_REQUIRE_BUNDLE`
+//! and fails instead).
 
 #![allow(
     clippy::unwrap_used,
@@ -21,6 +23,7 @@ Build them (<code>npm run build</code> in <code>web/</code>) and build doe again
 
 fn main() {
     println!("cargo:rerun-if-env-changed=DOE_IDE_DIST");
+    println!("cargo:rerun-if-env-changed=DOE_IDE_REQUIRE_BUNDLE");
     println!("cargo:rerun-if-changed=build.rs");
     if env::var_os("CARGO_FEATURE_IDE").is_none() {
         return;
@@ -35,6 +38,11 @@ fn main() {
         collect(&dist, &dist, &mut files);
     }
     files.sort();
+    assert!(
+        !files.is_empty() || env::var_os("DOE_IDE_REQUIRE_BUNDLE").is_none(),
+        "DOE_IDE_REQUIRE_BUNDLE is set, but {} has no index.html: build the web IDE first (npm run build in web/)",
+        dist.display()
+    );
 
     let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
     let mut code = String::from("pub(crate) static ASSETS: &[(&str, &[u8])] = &[\n");
@@ -58,6 +66,12 @@ fn main() {
         .unwrap();
     }
     code.push_str("];\n");
+    writeln!(
+        code,
+        "/// Whether the page of the web IDE is in this binary.\npub(crate) const BUNDLED: bool = {};",
+        !files.is_empty()
+    )
+    .unwrap();
     fs::write(out.join("ide_assets.rs"), code).unwrap();
 }
 

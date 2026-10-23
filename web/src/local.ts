@@ -27,22 +27,22 @@ export class LocalApi {
   constructor(readonly info: LocalInfo) {}
 
   async types(): Promise<LocalType[]> {
-    return (await this.json('/api/types')) as LocalType[];
+    return (await this.json('api/types')) as LocalType[];
   }
 
   async schema(path: string): Promise<LocalSchema> {
-    return (await this.json(`/api/schema?path=${encodeURIComponent(path)}`)) as LocalSchema;
+    return (await this.json(`api/schema?path=${encodeURIComponent(path)}`)) as LocalSchema;
   }
 
   async range(offset: number, len: number): Promise<Uint8Array> {
-    const response = await fetch(`/api/input?offset=${offset}&len=${len}`);
+    const response = await fetch(`api/input?offset=${offset}&len=${len}`);
     if (!response.ok) throw new Error(`could not read the file: ${response.status}`);
     return new Uint8Array(await response.arrayBuffer());
   }
 
   /** Parse the input file named on the command line, on this machine. */
   async parse(request: Request, signal: AbortSignal): Promise<ParseResponse> {
-    const response = await fetch('/api/parse', {
+    const response = await fetch('api/parse', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(request),
@@ -62,7 +62,7 @@ export class LocalApi {
 /** The calls of the local server, or null when the page is not served by one. */
 export async function detectLocal(): Promise<LocalApi | null> {
   try {
-    const response = await fetch('/api/local');
+    const response = await fetch('api/local');
     if (!response.ok || !(response.headers.get('content-type') ?? '').includes('application/json')) return null;
     const info = (await response.json()) as Partial<LocalInfo>;
     return typeof info.version === 'string' ? new LocalApi(info as LocalInfo) : null;
