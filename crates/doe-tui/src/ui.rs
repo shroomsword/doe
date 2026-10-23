@@ -62,14 +62,14 @@ pub fn draw(frame: &mut Frame<'_>, app: &App, theme: &Theme) {
     let inner = block.inner(frame.area());
     frame.render_widget(block, frame.area());
 
-    let result = match &app.loaded.outcome.error {
+    let result = match &app.error {
         None => Span::styled("parsed", theme.good()),
         Some(error) => Span::styled(format!("the parse failed: {error}"), theme.bad()),
     };
     let lines = vec![
         Line::from(vec![
             Span::raw("type  "),
-            Span::styled(app.loaded.type_name.clone(), theme.title()),
+            Span::styled(app.type_name.clone(), theme.title()),
         ]),
         Line::from(vec![
             Span::raw("file  "),
@@ -77,7 +77,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &App, theme: &Theme) {
         ]),
         Line::from(vec![
             Span::raw("size  "),
-            Span::raw(format!("{} bytes", app.loaded.size)),
+            Span::raw(format!("{} bytes", app.size)),
         ]),
         Line::from(vec![Span::raw("      "), result]),
         Line::raw(""),

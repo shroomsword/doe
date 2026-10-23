@@ -14,6 +14,7 @@
 pub mod app;
 pub mod load;
 pub mod terminal;
+pub mod tree;
 pub mod ui;
 
 use std::io::{self, IsTerminal};

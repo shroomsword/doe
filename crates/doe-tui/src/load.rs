@@ -3,8 +3,11 @@
 use std::path::Path;
 
 use doe::DoeError;
+use doe::Value;
 use doe::parser::cursor::Cursor;
-use doe::parser::engine::{Engine, ParseOutcome};
+use doe::parser::engine::Engine;
+use doe::parser::engine::ParseOutcome;
+use doe::parser::trace::TraceNode;
 use doe::schema::compiler::Compiler;
 
 use crate::Options;
@@ -16,8 +19,12 @@ pub struct Loaded {
     pub type_name: String,
     /// The size of the file in bytes.
     pub size: u64,
-    /// What was read, where from, and why it stopped if it did.
-    pub outcome: ParseOutcome,
+    /// What was read: the value, or as much of it as there was when the parse failed.
+    pub value: Option<Value>,
+    /// Where each part of it came from.
+    pub trace: TraceNode,
+    /// Why the parse stopped, if it did.
+    pub error: Option<DoeError>,
 }
 
 /// Compile the schema and parse the file with it.
@@ -49,9 +56,17 @@ pub fn load(options: &Options) -> Result<Loaded, DoeError> {
     // decide how much memory the viewer needs.
     let mut cursor = Cursor::from_file(file, &options.file)?;
     let outcome = engine.parse_type_partial(&type_name, &mut cursor)?;
+    let ParseOutcome {
+        value,
+        trace,
+        error,
+        ..
+    } = outcome;
     Ok(Loaded {
         type_name,
         size,
-        outcome,
+        value,
+        trace,
+        error,
     })
 }
