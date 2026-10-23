@@ -11,6 +11,11 @@ inspecting proprietary formats, reverse-engineering firmware images, and
 validating binary protocol implementations without writing a one-off parser
 each time.
 
+**Try it in the browser:** the web IDE is hosted at
+<https://shroomsword.github.io/doe/>. Open a schema and a file, or pick a format
+of the Kaitai Struct gallery, and see the parse tree next to the bytes. It runs in
+your browser; nothing you open is uploaded (see [Web IDE](#web-ide)).
+
 ## Installation
 
 ```sh
