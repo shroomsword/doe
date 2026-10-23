@@ -964,8 +964,14 @@ and `--log-file` can go with them, as in `doe --completions bash --color never`.
 terminal instead of printing it. It needs a terminal on stdin and stdout (with a
 pipe it stops with an error), and it parses with the same schema rules as the
 rest of the command, also showing what was read when the parse fails. For now it
-shows the type and how the parse went; the tree and the bytes follow (issue
-#98). `q`, `Esc` and Ctrl-C leave it, and the terminal is put back also if the
+shows the tree of the parsed value (the hex view follows, issue #98): each
+field with its type and value (integers in decimal with the hex next to them,
+enum names with their number, strings quoted, byte sequences with a hex
+preview), instances dimmed, and the field where a parse failed marked with a cross in the first column.
+Strings from the file are shown with control characters escaped, so nothing in a
+file can send commands to the terminal. Move with the arrow keys or `j`/`k`,
+`PgUp`/`PgDn`, `Home`/`End`; `→`/`l` opens a node, `←`/`h` closes it or goes to its
+parent, `Enter` or `Space` toggles it. `q`, `Esc` and Ctrl-C leave it, and the terminal is put back also if the
 program panics or is stopped by `SIGTERM` or `SIGHUP`. It uses colour unless
 `NO_COLOR` is set or `--color never` is given. It is behind the `tui` cargo
 feature, which is on by default: `--no-default-features` leaves it out, and
