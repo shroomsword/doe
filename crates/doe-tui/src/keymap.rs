@@ -15,6 +15,8 @@ pub enum Action {
     ToggleInspector,
     /// Show the help.
     Help,
+    /// Show or hide the message about a parse that failed.
+    ToggleReport,
     /// Ask for text to search for.
     Search,
     /// The next match.
@@ -168,6 +170,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::Goto,
         help: "go to an offset (decimal or 0x…) and select the field there",
+    },
+    Binding {
+        keys: &[ch('e')],
+        scope: Scope::Anywhere,
+        action: Action::ToggleReport,
+        help: "show or hide the message about a parse that failed",
     },
     Binding {
         keys: &[ch('?')],

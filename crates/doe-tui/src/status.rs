@@ -58,8 +58,14 @@ pub fn place(row: &Row) -> String {
         return "not in the file (made by process:)".to_owned();
     }
     let Some(span) = row.span else {
+        if row.failed {
+            return "the parse failed here".to_owned();
+        }
         return "computed, not in the file".to_owned();
     };
+    if row.failed && span.is_empty() {
+        return format!("the parse failed here, at byte {:#x}", span.start / 8);
+    }
     if span.is_empty() {
         return format!("@{:#x} · no bytes", span.start / 8);
     }
@@ -87,9 +93,11 @@ pub fn type_of(row: &Row) -> String {
     if let Some(name) = &row.type_name {
         return format::safe(name);
     }
-    row.shown
-        .as_ref()
-        .map_or_else(|| "list".to_owned(), |s| kind_of(s).to_owned())
+    match (&row.shown, row.failed) {
+        (Some(shown), _) => kind_of(shown).to_owned(),
+        (None, true) => "not read".to_owned(),
+        (None, false) => "list".to_owned(),
+    }
 }
 
 /// The two halves of the bar: the field (left) and the file (right).

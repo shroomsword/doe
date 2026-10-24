@@ -11,6 +11,7 @@ use crate::format;
 use crate::hex_view;
 use crate::inspect;
 use crate::keymap;
+use crate::report::Report;
 use crate::status;
 use crate::tree::Shown;
 use crate::tree_view;
@@ -196,9 +197,14 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         Focus::Tree
     };
 
-    let status = match &app.error {
-        None => Span::styled(" parsed ", theme.good()),
-        Some(_) => Span::styled(" the parse failed ", theme.bad()),
+    let fatal = app.report.as_ref().is_some_and(|r| r.fatal);
+    let status = if fatal {
+        Span::styled(" cannot be parsed ", theme.bad())
+    } else {
+        match &app.error {
+            None => Span::styled(" parsed ", theme.good()),
+            Some(_) => Span::styled(" the parse failed ", theme.bad()),
+        }
     };
     let hint = if hex_area.is_some() {
         " q quit · Tab switch pane · i inspector "
@@ -220,11 +226,35 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         .title_bottom(Line::from(Span::styled(hint, theme.dim())));
     let inner = block.inner(tree_area);
     frame.render_widget(block, tree_area);
+    // What went wrong is where the tree is (nothing was parsed), or under it.
+    let mut tree_inner = inner;
+    if let Some(report) = &app.report {
+        let lines = report_lines(report, *theme);
+        if report.fatal {
+            frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+            tree_inner = Rect { height: 0, ..inner };
+        } else if app.show_report && inner.height >= REPORT_MIN_HEIGHT {
+            let rows = estimate_rows(&lines, inner.width)
+                .min(REPORT_MAX_ROWS)
+                .min(inner.height / 2);
+            let [top, bottom] =
+                Layout::vertical([Constraint::Min(0), Constraint::Length(rows + 1)]).areas(inner);
+            let mut panel = vec![Line::from(Span::styled(
+                format::truncate("── error (e hides) ", usize::from(bottom.width)),
+                theme.bad(),
+            ))];
+            panel.extend(lines);
+            frame.render_widget(Paragraph::new(panel).wrap(Wrap { trim: false }), bottom);
+            tree_inner = top;
+        }
+    }
     // With no room for the bytes, the inspector takes the place of the tree.
-    if app.inspector && hex_area.is_none() {
-        inspector(frame, inner, app, *theme);
+    if fatal {
+        // the report is all there is to see in this pane
+    } else if app.inspector && hex_area.is_none() {
+        inspector(frame, tree_inner, app, *theme);
     } else {
-        tree_view::render(frame, inner, &app.tree, &mut app.view, theme);
+        tree_view::render(frame, tree_inner, &app.tree, &mut app.view, theme);
     }
 
     if let Some(hex_area) = hex_area {
@@ -410,6 +440,53 @@ fn help(frame: &mut Frame<'_>, theme: Theme) {
     let inner = block.inner(area);
     frame.render_widget(block, area);
     frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+}
+
+/// The shortest pane that has the message about a failed parse under the tree.
+const REPORT_MIN_HEIGHT: u16 = 10;
+/// The most rows of that message.
+const REPORT_MAX_ROWS: u16 = 8;
+
+/// The lines of a report: what happened, what caused it, and where in the schema.
+fn report_lines(report: &Report, theme: Theme) -> Vec<Line<'static>> {
+    let mut lines = vec![Line::from(Span::styled(
+        report.headline.clone(),
+        theme.bad(),
+    ))];
+    for (i, cause) in report.causes.iter().enumerate() {
+        let text = if i == 0 {
+            cause.clone()
+        } else {
+            format!("caused by: {cause}")
+        };
+        lines.push(Line::from(Span::raw(text)));
+    }
+    if let Some(place) = &report.place {
+        lines.push(Line::from(Span::styled(
+            format!("{}:{}:{}", place.file, place.line, place.column),
+            theme.title(),
+        )));
+        lines.push(Line::from(Span::raw(place.source_line.clone())));
+        lines.push(Line::from(Span::styled(
+            format!("{}^", " ".repeat(place.caret_cells)),
+            theme.bad(),
+        )));
+    }
+    if report.fatal {
+        lines.push(Line::raw(""));
+        lines.push(Line::from(Span::styled(
+            "the bytes of the file are shown if it can be read; q leaves",
+            theme.dim(),
+        )));
+    }
+    lines
+}
+
+/// How many rows `lines` take when they wrap at `width` cells.
+fn estimate_rows(lines: &[Line<'_>], width: u16) -> u16 {
+    let width = usize::from(width.max(1));
+    let rows: usize = lines.iter().map(|l| l.width().div_ceil(width).max(1)).sum();
+    u16::try_from(rows).unwrap_or(u16::MAX)
 }
 
 /// The bar at the bottom: the field on the left, the file on the right.
@@ -988,6 +1065,161 @@ instances:
         let (lines, _) = draw_app(&mut app, 60, 12);
         assert!(has(&lines, "too small for all of the help"), "{lines:?}");
         for (w, h) in [(9, 4), (10, 3), (3, 3), (1, 1), (100, 4)] {
+            let _ = draw_app(&mut app, w, h);
+        }
+    }
+
+    #[test]
+    fn a_parse_that_fails_in_a_nested_type_is_shown_with_the_failed_row_and_the_message() {
+        let schema = "id: rec\nseq:\n  - id: head\n    type: u1\n  - id: body\n    type: pair\ntypes:\n  pair:\n    seq:\n      - id: x\n        type: u1\n      - id: y\n        type: u2le\n";
+        let (mut app, _dir) = crate::app::tests::app_for(schema, &[1, 5, 9]);
+        let (lines, _) = draw_app(&mut app, 100, 16);
+        // the tree up to the failure, the failed row marked and selected
+        let failed = lines
+            .iter()
+            .find(|l| l.contains('✗'))
+            .expect("a failed row");
+        assert!(failed.contains('y'), "{failed}");
+        assert!(has(&lines, "x = 5"), "what was read before it: {lines:?}");
+        // the message under the tree, with the field and the type
+        assert!(has(&lines, "── error (e hides)"), "{lines:?}");
+        // (the headline wraps in the narrow pane)
+        assert!(has(&lines, "the parse failed at rec/body/y"), "{lines:?}");
+        assert!(has(&lines, "rec::pair)"), "{lines:?}");
+        assert!(
+            has(&lines, "buffer overrun"),
+            "the message of the error: {lines:?}"
+        );
+        assert!(
+            has(
+                &lines,
+                " rec/body/y · not read · the parse failed here, at byte 0x2"
+            ),
+            "the bar: {lines:?}"
+        );
+        // the bytes are at the field, and the bar says where
+        assert!(has(&lines, "the parse failed"), "the title says so");
+        assert!(
+            lines[0].contains("y: the parse failed here, at byte 0x00000002"),
+            "the title of the bytes names the field: {lines:?}"
+        );
+        // e hides the message, and the tree has the room back
+        app.show_report = false;
+        let (lines, _) = draw_app(&mut app, 100, 16);
+        assert!(!has(&lines, "── error"), "{lines:?}");
+    }
+
+    #[test]
+    fn a_parse_that_fails_in_a_repeated_field() {
+        let schema = "id: rec\nseq:\n  - id: count\n    type: u1\n  - id: items\n    type: u2le\n    repeat: expr\n    repeat-expr: count\n";
+        let (mut app, _dir) = crate::app::tests::app_for(schema, &[3, 1, 0, 2, 0, 9]);
+        let (lines, _) = draw_app(&mut app, 100, 16);
+        assert!(
+            has(&lines, "the parse failed at rec/items/[2]"),
+            "{lines:?}"
+        );
+        let marked: Vec<&String> = lines.iter().filter(|l| l.contains('✗')).collect();
+        assert_eq!(marked.len(), 1, "{lines:?}");
+        assert!(marked[0].contains("[2]"));
+        assert!(
+            has(&lines, "[1] = 2"),
+            "the elements before are there: {lines:?}"
+        );
+    }
+
+    #[test]
+    fn a_schema_that_does_not_compile_is_shown_with_its_place_and_the_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        let schema = dir.path().join("t.yaml");
+        std::fs::write(&schema, "id: bad\nseq:\n  - id: a\n    type: nope\n").unwrap();
+        let file = dir.path().join("t.bin");
+        std::fs::write(&file, [1, 2, 3]).unwrap();
+        let options = crate::Options {
+            file: file.clone(),
+            type_or_schema: schema.to_string_lossy().into_owned(),
+            include_paths: Vec::new(),
+            color: false,
+        };
+        let failure = crate::load::try_load(&options).unwrap_err();
+        let mut app = App::broken(file, &failure, Some(&schema));
+        let (lines, _) = draw_app(&mut app, 110, 18);
+        assert!(has(&lines, "cannot be parsed"), "{lines:?}");
+        assert!(has(&lines, "the schema bad cannot be used"), "{lines:?}");
+        assert!(has(&lines, "nope"), "the error says which type: {lines:?}");
+        assert!(lines.iter().any(|l| l.contains("t.yaml:4:11")), "{lines:?}");
+        // the line of the schema and a caret under the place
+        let source = lines
+            .iter()
+            .position(|l| l.contains("    type: nope"))
+            .expect("the line");
+        let caret = &lines[source + 1];
+        assert!(caret.contains('^'), "{lines:?}");
+        let column = |line: &str, needle: char| line.chars().position(|c| c == needle).unwrap();
+        assert_eq!(
+            column(caret, '^'),
+            column(&lines[source], 'n'),
+            "the caret is under `nope`"
+        );
+        // there is no tree, and the bytes of the file are there
+        assert!(!has(&lines, "▾"));
+        assert!(has(&lines, "00000000  01 02 03"), "{lines:?}");
+        assert!(has(&lines, "the bytes of the file are shown"));
+    }
+
+    #[test]
+    fn a_missing_file_and_an_unknown_type_are_shown() {
+        let dir = tempfile::tempdir().unwrap();
+        let schema = dir.path().join("t.yaml");
+        std::fs::write(&schema, "id: ok\nseq:\n  - id: a\n    type: u1\n").unwrap();
+        let options = crate::Options {
+            file: dir.path().join("missing.bin"),
+            type_or_schema: schema.to_string_lossy().into_owned(),
+            include_paths: Vec::new(),
+            color: false,
+        };
+        let failure = crate::load::try_load(&options).unwrap_err();
+        let mut app = App::broken(options.file.clone(), &failure, Some(&schema));
+        let (lines, _) = draw_app(&mut app, 110, 18);
+        assert!(has(&lines, "the file cannot be read"), "{lines:?}");
+        assert!(has(&lines, "could not read file"), "{lines:?}");
+        assert!(
+            has(&lines, "No such file") || has(&lines, "caused by"),
+            "{lines:?}"
+        );
+        assert!(
+            has(&lines, "could not open the file"),
+            "no bytes to show: {lines:?}"
+        );
+
+        let unknown = crate::Options {
+            type_or_schema: "no_such_type".to_owned(),
+            ..options
+        };
+        let failure = crate::load::try_load(&unknown).unwrap_err();
+        let mut app = App::broken(unknown.file.clone(), &failure, None);
+        let (lines, _) = draw_app(&mut app, 110, 18);
+        assert!(
+            has(&lines, "the schema no_such_type cannot be used"),
+            "{lines:?}"
+        );
+        assert!(has(&lines, "schema not found"), "{lines:?}");
+    }
+
+    #[test]
+    fn a_report_is_drawn_on_small_screens_without_panicking() {
+        let schema = "id: rec\nseq:\n  - id: head\n    type: u1\n  - id: body\n    type: u2le\n";
+        for (w, h) in [(100, 16), (60, 12), (40, 10), (30, 6), (12, 4), (8, 3)] {
+            let (mut app, _dir) = crate::app::tests::app_for(schema, &[1]);
+            let _ = draw_app(&mut app, w, h);
+            let dir = tempfile::tempdir().unwrap();
+            let options = crate::Options {
+                file: dir.path().join("nothing"),
+                type_or_schema: "nothing".to_owned(),
+                include_paths: Vec::new(),
+                color: false,
+            };
+            let failure = crate::load::try_load(&options).unwrap_err();
+            let mut app = App::broken(options.file.clone(), &failure, None);
             let _ = draw_app(&mut app, w, h);
         }
     }

@@ -1043,6 +1043,29 @@ mod tui_in_a_terminal {
         fn start(extra: &[&str], env: &[(&str, &str)]) -> Session {
             let dir = TempDir::new().unwrap();
             let (schema, binary) = simple_fixture(dir.path());
+            Session::start_in(dir, schema, binary, extra, env)
+        }
+
+        /// `doe --tui` on the files of the fixture, with `schema` as the text of the
+        /// schema and `data` as the file (none: the file does not exist).
+        fn start_with(schema: &str, data: Option<&[u8]>) -> Session {
+            let dir = TempDir::new().unwrap();
+            let schema_path = dir.path().join("t.yaml");
+            std::fs::write(&schema_path, schema).unwrap();
+            let binary = dir.path().join("t.bin");
+            if let Some(data) = data {
+                std::fs::write(&binary, data).unwrap();
+            }
+            Session::start_in(dir, schema_path, binary, &[], &[])
+        }
+
+        fn start_in(
+            dir: TempDir,
+            schema: PathBuf,
+            binary: PathBuf,
+            extra: &[&str],
+            env: &[(&str, &str)],
+        ) -> Session {
             let pair = native_pty_system()
                 .openpty(PtySize {
                     rows: 24,
@@ -1221,6 +1244,58 @@ mod tui_in_a_terminal {
         let on = seen.find("\x1b[?2004h").expect("bracketed paste on");
         let off = seen.rfind("\x1b[?2004l").expect("bracketed paste off");
         assert!(on < off, "{seen:?}");
+    }
+
+    #[test]
+    fn a_parse_that_fails_is_shown_and_the_exit_code_says_so() {
+        // `b` needs two bytes and there is one
+        let mut session = Session::start_with(
+            "id: rec\nseq:\n  - id: a\n    type: u1\n  - id: b\n    type: u2le\n",
+            Some(&[7, 1]),
+        );
+        session.wait_for("the parse failed");
+        session.wait_for("error");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(!success, "the parse failed: the exit code must say so");
+        assert_screen_restored(&seen);
+        // after the viewer, on the normal screen, the message stays for the person to read
+        let after = seen.rsplit("\x1b[?1049l").next().unwrap();
+        assert!(after.contains("the parse failed at rec/b"), "{after:?}");
+    }
+
+    #[test]
+    fn a_schema_that_does_not_compile_is_shown_and_the_viewer_stays_open() {
+        let mut session = Session::start_with(
+            "id: bad\nseq:\n  - id: a\n    type: nope\n",
+            Some(&[1, 2, 3]),
+        );
+        session.wait_for("cannot be parsed");
+        session.wait_for("t.yaml:4:11");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(!success);
+        assert_screen_restored(&seen);
+        assert!(seen.contains("nope"), "{seen:?}");
+    }
+
+    #[test]
+    fn a_missing_file_is_shown_and_the_viewer_stays_open() {
+        let mut session = Session::start_with("id: ok\nseq:\n  - id: a\n    type: u1\n", None);
+        session.wait_for("cannot be parsed");
+        session.send(b"\t"); // keys work: nothing panics without a file
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(!success);
+        assert_screen_restored(&seen);
+    }
+
+    #[test]
+    fn a_parse_that_works_leaves_with_a_success_code() {
+        let mut session = Session::start(&[], &[]);
+        session.wait_for("parsed");
+        session.send(b"q");
+        assert!(session.finish().0);
     }
 
     /// What `doe --tui` printed with these options until it showed its first screen.

@@ -19,6 +19,7 @@ pub mod inspect;
 pub mod keymap;
 pub mod load;
 pub mod prompt;
+pub mod report;
 pub mod search;
 pub mod status;
 pub mod terminal;
@@ -58,28 +59,30 @@ const TICK: Duration = Duration::from_millis(100);
 /// # Errors
 ///
 /// Fails, before the terminal is touched, when stdin or stdout is not a
-/// terminal or when the schema cannot be compiled or the file read; and when
-/// the terminal fails while the viewer is open.
+/// terminal; and when the terminal fails while the viewer is open. A schema
+/// that cannot be used or a file that cannot be read is shown in the viewer,
+/// not refused: after it is left (the terminal is put back first), the last
+/// parse having failed is an error, with the message that was on the screen.
 pub fn run(options: &Options) -> anyhow::Result<()> {
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         bail!(
             "--tui needs a terminal on stdin and on stdout (use --json or --pretty to print to a pipe)"
         );
     }
-    // Load first: a schema that does not compile is an ordinary error, printed
-    // on the terminal as it was, not on an alternate screen that is left at once.
-    let loaded = load::load(options).with_context(|| {
-        format!(
-            "could not parse {} as {}",
-            options.file.display(),
-            options.type_or_schema
-        )
-    })?;
-    let mut app = App::new(options.file.clone(), loaded);
+    // What cannot be parsed is shown in the viewer, not refused before it opens:
+    // a schema with a mistake in it, a type that does not exist, a file that
+    // cannot be read. The person sees what and where, and leaves with `q`.
+    let mut app = match load::try_load(options) {
+        Ok(loaded) => App::new(options.file.clone(), loaded),
+        Err(failure) => {
+            let schema = load::schema_file(options);
+            App::broken(options.file.clone(), &failure, schema.as_deref())
+        }
+    };
     let theme = Theme::new(options.color);
 
     let signals = Signals::install().context("could not install the signal handlers")?;
-    let (_guard, mut terminal) = Guard::enter().context("could not set up the terminal")?;
+    let (guard, mut terminal) = Guard::enter().context("could not set up the terminal")?;
     while !app.quit && !signals.fired() {
         terminal
             .draw(|frame| ui::draw(frame, &mut app, &theme))
@@ -103,5 +106,12 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
             app.search_step();
         }
     }
-    Ok(())
+    // The terminal is put back first, so that what is said next is on the screen the person returns to.
+    let message = app.finish_message();
+    drop(terminal);
+    drop(guard);
+    match message {
+        Some(message) => bail!(message),
+        None => Ok(()),
+    }
 }

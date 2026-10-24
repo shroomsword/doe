@@ -987,6 +987,18 @@ page, `Home`/`End` to the start and end of the line, `Ctrl-Home` and `Ctrl-End`
 (or `G`) to the start and end of the file, and the tree selects the innermost
 field that holds the byte.
 
+When the parse fails, the tree is what was read up to the failure, the field
+where it failed is marked and selected, and the bytes are at it. A message under
+the tree says what happened, in which field (`rec/items/[2]/kind`) and type, and
+why (`e` hides it or shows it again). When nothing can be parsed (a schema that
+does not compile, a type that does not exist, a file that cannot be read) the
+viewer opens all the same and the first pane has the error instead of the tree:
+what was wrong, what caused it, and for a schema that is a file, the place in it
+(`my_format.yaml:12:5`, the line, and a caret under the place). The bytes of the
+file are shown if it can be read. After `q` the message is printed again on the
+normal screen, and the exit status of `doe --tui` is 1 if the last parse failed
+(or nothing could be parsed), 0 if it worked.
+
 `/` searches the names, types and values of the fields, as the tree shows them
 (`300 (0x12c)`, `"abc"`, `png (1)`): a query without a capital letter ignores
 case, one with a capital letter does not. `n` and `N` go to the next and previous

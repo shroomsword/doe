@@ -322,6 +322,28 @@ impl TreeModel {
         shown_of(self.value_at(path)).is_some_and(|shown| matches(&crate::format::shown(&shown)))
     }
 
+    /// The path of the node where the parse failed (the innermost value that
+    /// was being read), if it failed. The last children are tried first: the
+    /// parse stops there, so it is found without looking at the rest.
+    #[must_use]
+    pub fn failed_path(&self) -> Option<Vec<usize>> {
+        fn walk(node: &TraceNode, path: &mut Vec<usize>) -> bool {
+            if node.failed {
+                return true;
+            }
+            for (index, child) in node.children.iter().enumerate().rev() {
+                path.push(index);
+                if walk(child, path) {
+                    return true;
+                }
+                path.pop();
+            }
+            false
+        }
+        let mut path = Vec::new();
+        walk(&self.root, &mut path).then_some(path)
+    }
+
     /// The names from the root to the node at `path` (the root's name is the first).
     #[must_use]
     pub fn names_to(&self, path: &[usize]) -> Vec<String> {
