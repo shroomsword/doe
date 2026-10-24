@@ -106,20 +106,41 @@ impl TraceNode {
         if !node.span.is_some_and(|span| span.contains_byte(offset)) {
             return None;
         }
-        loop {
-            let next = node.children.iter().enumerate().find(|(_, child)| {
-                !child.processed
-                    && !child.is_instance
-                    && child.span.is_some_and(|span| span.contains_byte(offset))
-            });
-            match next {
-                Some((index, child)) => {
-                    path.push(index);
-                    node = child;
-                }
-                None => return Some(path),
-            }
+        while let Some((index, child)) = node.child_holding(offset) {
+            path.push(index);
+            node = child;
         }
+        Some(path)
+    }
+
+    /// The first child that holds the byte at `offset` and is looked in (not an
+    /// instance, not inside a transformed field).
+    ///
+    /// The fields of a type are in the order of the input, so the child is found
+    /// by a binary search, which makes finding the byte in a list of a million
+    /// elements as quick as in a list of ten. Children that are not in order
+    /// (a field placed with `pos:`) make the guess wrong; it is checked, and
+    /// the children are then looked through one by one.
+    fn child_holding(&self, offset: u64) -> Option<(usize, &TraceNode)> {
+        let holds = |child: &TraceNode| {
+            !child.processed
+                && !child.is_instance
+                && child.span.is_some_and(|span| span.contains_byte(offset))
+        };
+        // the fields come first, the instances after them
+        let fields = self.children.partition_point(|c| !c.is_instance);
+        let in_order = self.children.get(..fields).unwrap_or_default();
+        let guess =
+            in_order.partition_point(|c| c.span.is_some_and(|span| span.end_byte() <= offset));
+        if let Some(child) = in_order.get(guess)
+            && holds(child)
+        {
+            return Some((guess, child));
+        }
+        self.children
+            .iter()
+            .enumerate()
+            .find(|(_, child)| holds(child))
     }
 }
 

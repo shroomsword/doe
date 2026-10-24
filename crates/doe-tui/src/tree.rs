@@ -7,9 +7,11 @@
 //! done to the tree (what is open, what is selected) is kept by path, so a
 //! model made from a changed value can take it over (reload, #106).
 //!
-//! Only open nodes have rows, and a long list is shown in pieces of
-//! [`CHUNK`] with a row that says how many more there are, so opening a list
-//! of a million elements makes about [`CHUNK`] rows, not a million.
+//! Only open nodes have rows, and a long list is shown through a **window** of
+//! [`CHUNK`] elements (at most [`MAX_WINDOW`]) with a row before and after that
+//! says how many are not shown. Opening a list of a million elements makes
+//! about [`CHUNK`] rows, and so does going to its millionth element (the window
+//! moves there), so the work to build the rows never depends on the size of a list.
 
 use std::collections::{HashMap, HashSet};
 
@@ -19,14 +21,21 @@ use doe::parser::trace::{Span, TraceNode};
 
 /// How many children of a node are shown at first, and how many more each time.
 pub const CHUNK: usize = 200;
+/// The most children of one node that have rows at a time.
+pub const MAX_WINDOW: usize = 4 * CHUNK;
 
 /// What a row is.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RowKind {
     /// A field, an element or an instance.
     Node,
-    /// "N more": the children of the parent that are not shown yet.
+    /// "N more": the children of the parent after the ones that are shown.
     More {
+        /// How many are hidden.
+        hidden: usize,
+    },
+    /// "N earlier": the children of the parent before the ones that are shown.
+    Earlier {
         /// How many are hidden.
         hidden: usize,
     },
@@ -145,8 +154,8 @@ pub struct TreeModel {
     root: TraceNode,
     value: Option<Value>,
     open: HashSet<Vec<usize>>,
-    /// How many children of a node are shown, when more than [`CHUNK`].
-    shown: HashMap<Vec<usize>, usize>,
+    /// Which children of a node have rows (`start..end`), when it is not the first [`CHUNK`].
+    windows: HashMap<Vec<usize>, (usize, usize)>,
     rows: Vec<Row>,
     /// The selected row.
     selected: usize,
@@ -193,6 +202,25 @@ fn row_of(node: &TraceNode, value: Option<&Value>, path: &[usize], open: bool) -
     }
 }
 
+/// A row for the children that are not shown: "N more…" or "N earlier…".
+fn marker_row(kind: RowKind, parent: &[usize], name: String) -> Row {
+    Row {
+        kind,
+        path: parent.to_vec(),
+        depth: parent.len() + 1,
+        name,
+        type_name: None,
+        summary: None,
+        shown: None,
+        span: None,
+        instance: false,
+        failed: false,
+        processed: false,
+        openable: false,
+        open: false,
+    }
+}
+
 impl TreeModel {
     /// A tree of what a parse read. The root is open and selected.
     #[must_use]
@@ -202,7 +230,7 @@ impl TreeModel {
             root,
             value,
             open: HashSet::from([Vec::new()]),
-            shown: HashMap::new(),
+            windows: HashMap::new(),
             rows: Vec::new(),
             selected: 0,
         };
@@ -400,45 +428,51 @@ impl TreeModel {
         if !open {
             return;
         }
-        let shown = self
-            .shown
-            .get(path.as_slice())
-            .copied()
-            .unwrap_or(CHUNK)
-            .max(CHUNK);
-        for (index, child) in node.children.iter().enumerate().take(shown) {
+        let len = node.children.len();
+        let (start, end) = self.window(path, len);
+        if start > 0 {
+            rows.push(marker_row(
+                RowKind::Earlier { hidden: start },
+                path,
+                format!("{start} earlier…"),
+            ));
+        }
+        for (index, child) in node.children.iter().enumerate().take(end).skip(start) {
             path.push(index);
             self.push_rows(child, child_value(value, index, &child.name), path, rows);
             path.pop();
         }
-        if node.children.len() > shown {
-            rows.push(Row {
-                kind: RowKind::More {
-                    hidden: node.children.len() - shown,
-                },
-                path: path.clone(),
-                depth: path.len() + 1,
-                name: format!("{} more…", node.children.len() - shown),
-                type_name: None,
-                summary: None,
-                shown: None,
-                span: None,
-                instance: false,
-                failed: false,
-                processed: false,
-                openable: false,
-                open: false,
-            });
+        if end < len {
+            rows.push(marker_row(
+                RowKind::More { hidden: len - end },
+                path,
+                format!("{} more…", len - end),
+            ));
         }
+    }
+
+    /// The children of the node at `path` (it has `len`) that have rows: `start..end`.
+    fn window(&self, path: &[usize], len: usize) -> (usize, usize) {
+        let (start, end) = self.windows.get(path).copied().unwrap_or((0, CHUNK));
+        let end = end.min(len);
+        // a window that is past the end (the list got shorter) shows the last piece
+        let start = if start >= end {
+            end.saturating_sub(CHUNK)
+        } else {
+            start
+        };
+        (start, end)
     }
 
     // ── open and close ───────────────────────────────────────────────────────
 
-    /// Open the selected node; on a "more" row, show the next piece.
+    /// Open the selected node; on a "more" row show the next piece, on an
+    /// "earlier" row the one before.
     pub fn expand(&mut self) {
         let row = self.selected().clone();
         match row.kind {
             RowKind::More { .. } => self.show_more(&row.path),
+            RowKind::Earlier { .. } => self.show_earlier(&row.path),
             RowKind::Node if row.openable && !row.open => {
                 self.open.insert(row.path);
                 self.rebuild();
@@ -447,17 +481,42 @@ impl TreeModel {
         }
     }
 
+    /// The length of the children of the node at `path`.
+    fn children_of(&self, path: &[usize]) -> usize {
+        self.node(path).map_or(0, |n| n.children.len())
+    }
+
+    /// Show the next [`CHUNK`] children: the window grows at its end (and loses its
+    /// start past [`MAX_WINDOW`]); the first of the new ones is selected.
     fn show_more(&mut self, parent: &[usize]) {
-        let shown = self.shown.get(parent).copied().unwrap_or(CHUNK).max(CHUNK);
-        self.shown.insert(parent.to_vec(), shown + CHUNK);
+        let len = self.children_of(parent);
+        let (start, end) = self.window(parent, len);
+        let new_end = (end + CHUNK).min(len);
+        let new_start = start.max(new_end.saturating_sub(MAX_WINDOW));
+        self.windows.insert(parent.to_vec(), (new_start, new_end));
         self.rebuild();
-        // The first row that was hidden is selected.
-        let first_new = shown;
+        self.select_child(parent, end);
+    }
+
+    /// Show the previous [`CHUNK`] children: the window grows at its start (and
+    /// loses its end past [`MAX_WINDOW`]); the last of the new ones is selected.
+    fn show_earlier(&mut self, parent: &[usize]) {
+        let len = self.children_of(parent);
+        let (start, end) = self.window(parent, len);
+        let new_start = start.saturating_sub(CHUNK);
+        let new_end = end.min(new_start + MAX_WINDOW);
+        self.windows.insert(parent.to_vec(), (new_start, new_end));
+        self.rebuild();
+        self.select_child(parent, start.saturating_sub(1));
+    }
+
+    /// Select the row of child `index` of the node at `parent`, if it has one.
+    fn select_child(&mut self, parent: &[usize], index: usize) {
         if let Some(position) = self.rows.iter().position(|r| {
             r.kind == RowKind::Node
                 && r.path.len() == parent.len() + 1
                 && r.path.starts_with(parent)
-                && r.path.last() == Some(&first_new)
+                && r.path.last() == Some(&index)
         }) {
             self.selected = position;
         }
@@ -521,7 +580,7 @@ impl TreeModel {
     pub fn parent(&mut self) {
         let row = self.selected();
         let parent: &[usize] = match row.kind {
-            RowKind::More { .. } => &row.path,
+            RowKind::More { .. } | RowKind::Earlier { .. } => &row.path,
             RowKind::Node => match row.path.split_last() {
                 Some((_, parent)) => parent,
                 None => return,
@@ -597,10 +656,13 @@ impl TreeModel {
         }
         for (depth, &index) in found.iter().enumerate() {
             let ancestor = found.get(..depth).unwrap_or_default().to_vec();
-            let needed = index + 1;
-            if needed > CHUNK {
-                let shown = self.shown.entry(ancestor.clone()).or_insert(CHUNK);
-                *shown = (*shown).max(needed.div_ceil(CHUNK) * CHUNK);
+            let len = self.children_of(&ancestor);
+            let (start, end) = self.window(&ancestor, len);
+            if index < start || index >= end {
+                // the window goes to the element, not the rows up to it
+                let first = index.saturating_sub(CHUNK / 2);
+                self.windows
+                    .insert(ancestor.clone(), (first, first + CHUNK));
             }
             self.open.insert(ancestor);
         }
@@ -653,11 +715,11 @@ impl TreeModel {
                 self.open.insert(found);
             }
         }
-        for (path, shown) in &other.shown {
+        for (path, window) in &other.windows {
             let names = names_of(path);
             let (found, count) = self.resolve_names(&names);
             if count == names.len() {
-                self.shown.insert(found, *shown);
+                self.windows.insert(found, *window);
             }
         }
         let (path, _) = self.resolve_names(&names_of(other.selected_path()));
@@ -1039,27 +1101,122 @@ instances:
         assert_eq!(tree.rows().len(), 2);
     }
 
-    #[test]
-    fn selecting_deep_in_a_long_list_shows_the_pieces_up_to_it() {
-        let count = 5_000;
-        let (mut tree, _) = model(
+    fn long_list(count: usize) -> TreeModel {
+        model(
             &format!(
                 "id: big\nseq:\n  - id: items\n    type: u1\n    repeat: expr\n    repeat-expr: {count}\n"
             ),
             &vec![7_u8; count],
-        );
+        )
+        .0
+    }
+
+    fn kinds(tree: &TreeModel) -> (usize, usize) {
+        let earlier = tree
+            .rows()
+            .iter()
+            .filter(|r| matches!(r.kind, RowKind::Earlier { .. }))
+            .count();
+        let more = tree
+            .rows()
+            .iter()
+            .filter(|r| matches!(r.kind, RowKind::More { .. }))
+            .count();
+        (earlier, more)
+    }
+
+    #[test]
+    fn selecting_deep_in_a_long_list_moves_the_window_to_it_and_builds_no_rows_up_to_it() {
+        let mut tree = long_list(5_000);
         tree.select_path(&[0, 4_500]);
         assert_eq!(tree.selected().name, "[4500]");
-        // the pieces up to the one it is in, and a "more" row for the rest
-        assert_eq!(tree.rows().len(), 2 + 4_600 + 1);
+        // root, the list, "4400 earlier", a window of CHUNK elements, "300 more"
+        assert_eq!(tree.rows().len(), 2 + 1 + CHUNK + 1);
+        assert_eq!(kinds(&tree), (1, 1));
+        let first = tree
+            .rows()
+            .iter()
+            .find(|r| r.kind == RowKind::Node && r.depth == 2)
+            .unwrap();
+        assert_eq!(first.name, "[4400]");
+        // the end of the list: no "more" row
         tree.select_path(&[0, 4_999]);
         assert_eq!(tree.selected().name, "[4999]");
+        assert_eq!(kinds(&tree), (1, 0));
+        assert!(tree.rows().len() <= 2 + 1 + CHUNK);
+        // and back to the start: no "earlier" row
+        tree.select_path(&[0, 3]);
+        assert_eq!(tree.selected().name, "[3]");
+        assert_eq!(kinds(&tree).0, 0);
+        // an element that is in the window does not move it
+        tree.select_path(&[0, 4_000]);
+        let rows = tree.rows().len();
+        tree.select_path(&[0, 4_010]);
+        assert_eq!(tree.rows().len(), rows);
+    }
+
+    #[test]
+    fn the_window_slides_through_a_list_in_both_directions_and_stays_bounded() {
+        let mut tree = long_list(5_000);
+        tree.down();
+        tree.expand(); // items: elements 0..200
+        // forward: more rows, the window grows to MAX_WINDOW and then loses its start
+        for step in 1..=10 {
+            tree.end(); // the "more" row
+            assert!(
+                matches!(tree.selected().kind, RowKind::More { .. }),
+                "step {step}"
+            );
+            tree.expand();
+            assert!(
+                tree.rows().len() <= 2 + 1 + MAX_WINDOW + 1,
+                "{}",
+                tree.rows().len()
+            );
+        }
+        // the first element that was added is selected, and there are earlier ones
+        assert_eq!(kinds(&tree).0, 1);
+        assert_eq!(tree.selected().kind, RowKind::Node);
+        // the window is [1400, 2200): the first element that was added is 2000
+        assert_eq!(tree.selected().name, "[2000]");
+        // backward: the "earlier" row shows the piece before, the last of it is selected
+        tree.home();
+        tree.down();
+        tree.down();
         assert!(
-            !tree
-                .rows()
-                .iter()
-                .any(|r| matches!(r.kind, RowKind::More { .. }))
+            matches!(tree.selected().kind, RowKind::Earlier { hidden: 1400 }),
+            "{:?}",
+            tree.selected().kind
         );
+        tree.expand();
+        assert_eq!(tree.selected().name, "[1399]");
+        assert!(tree.rows().len() <= 2 + 1 + MAX_WINDOW + 1);
+        // up and down, the keys of the model work on the markers: parent from one
+        tree.home();
+        tree.down();
+        tree.down();
+        tree.parent();
+        assert_eq!(tree.selected().name, "items");
+    }
+
+    /// A list of a million elements: going to any of them builds a window of rows.
+    #[test]
+    fn going_to_the_millionth_element_builds_a_window_of_rows_not_a_million() {
+        let mut tree = many();
+        tree.select_path(&[0, MANY - 1]);
+        assert_eq!(tree.selected().name, format!("[{}]", MANY - 1));
+        assert!(tree.rows().len() <= 2 + 1 + CHUNK, "{}", tree.rows().len());
+        tree.select_path(&[0, MANY / 2]);
+        assert!(tree.rows().len() <= 2 + 2 + CHUNK, "{}", tree.rows().len());
+        assert_eq!(tree.selected().summary.as_deref(), Some("7"));
+        // a thousand keys: each one is cheap, and the rows stay a window
+        for _ in 0..1_000 {
+            tree.down();
+        }
+        for _ in 0..1_000 {
+            tree.up();
+        }
+        assert!(tree.rows().len() <= 2 + 2 + CHUNK);
     }
 
     #[test]

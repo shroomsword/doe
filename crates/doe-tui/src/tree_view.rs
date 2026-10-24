@@ -68,7 +68,7 @@ fn pieces(row: &Row, theme: Theme) -> Vec<Piece> {
         (" ".to_owned(), Style::default())
     });
     out.push(("  ".repeat(row.depth), Style::default()));
-    if let RowKind::More { .. } = row.kind {
+    if matches!(row.kind, RowKind::More { .. } | RowKind::Earlier { .. }) {
         out.push(("  ".to_owned(), Style::default()));
         out.push((format::safe(&row.name), theme.dim()));
         return out;

@@ -66,6 +66,11 @@ pub struct App {
     pub focus: Focus,
     /// Whether the inspector shows the selected bytes in other forms.
     pub inspector: bool,
+    /// Whether the file is still being parsed (in another thread): the screen
+    /// is up and says so, and the tree comes when it is done.
+    pub loading: bool,
+    /// When the parse began, for the time it has taken.
+    pub loading_since: Option<std::time::Instant>,
     /// Whether the help is shown.
     pub help: bool,
     /// What went wrong, if something did: a parse that stopped, or nothing parsed at all.
@@ -125,6 +130,8 @@ impl App {
             hex: HexState::new(),
             focus: Focus::Tree,
             inspector: false,
+            loading: false,
+            loading_since: None,
             help: false,
             report: None,
             show_report: true,
@@ -171,6 +178,8 @@ impl App {
             hex: HexState::new(),
             focus: Focus::Tree,
             inspector: false,
+            loading: false,
+            loading_since: None,
             help: false,
             report: Some(Report::from_failure(failure, schema_file)),
             show_report: true,
@@ -193,6 +202,59 @@ impl App {
         }
     }
 
+    /// A viewer for a file that is being parsed: there is nothing to show yet but
+    /// that it is being read. [`App::finish_loading`] gives it the result.
+    #[must_use]
+    pub fn loading(file: PathBuf, type_name: &str) -> Self {
+        let mut app = App {
+            bytes: FileBytes::open(&file).ok(),
+            hex: HexState::new(),
+            focus: Focus::Tree,
+            inspector: false,
+            loading: true,
+            loading_since: Some(std::time::Instant::now()),
+            help: false,
+            report: None,
+            show_report: true,
+            options: None,
+            schema_files: Vec::new(),
+            prompt: None,
+            search: None,
+            last_query: None,
+            notice: None,
+            size: 0,
+            type_name: type_name.to_owned(),
+            error: None,
+            tree: TreeModel::new(doe::parser::trace::TraceNode::named(type_name), None),
+            view: TreeView::new(),
+            quit: false,
+            file,
+        };
+        app.size = app.bytes.as_ref().map_or(0, FileBytes::size);
+        app
+    }
+
+    /// The parse that was going on is done: show what it made, or what stopped it.
+    pub fn finish_loading(&mut self, result: Result<Loaded, Box<LoadFailure>>) {
+        match result {
+            Ok(loaded) => self.adopt(loaded),
+            Err(failure) => {
+                let schema = self.options.as_ref().and_then(load::schema_file);
+                let broken = App::broken(self.file.clone(), &failure, schema.as_deref());
+                self.loading = false;
+                self.loading_since = None;
+                self.tree = broken.tree;
+                self.type_name = broken.type_name;
+                self.size = broken.size;
+                self.error = None;
+                self.report = broken.report;
+                self.bytes = broken.bytes;
+                self.schema_files = broken.schema_files;
+            }
+        }
+        self.notice = None;
+    }
+
     /// The files whose change means a reload: the schema and what it imports, and the file.
     #[must_use]
     pub fn watched_files(&self) -> Vec<PathBuf> {
@@ -210,6 +272,10 @@ impl App {
     /// scroll where it was as far as the new tree allows. If the new schema or
     /// file cannot be used, the old tree stays and the error is shown.
     pub fn reload(&mut self) {
+        if self.loading {
+            self.notice = Some("still reading the file".to_owned());
+            return;
+        }
         let Some(options) = self.options.clone() else {
             self.notice = Some("nothing to read again from".to_owned());
             return;
@@ -222,7 +288,9 @@ impl App {
 
     /// Take a new parse in the place of the old, keeping the place.
     fn adopt(&mut self, loaded: Loaded) {
-        let was_broken = self.report.as_ref().is_some_and(|r| r.fatal);
+        let was_broken = self.report.as_ref().is_some_and(|r| r.fatal) || self.loading;
+        self.loading = false;
+        self.loading_since = None;
         let fresh = App::new(self.file.clone(), loaded);
         let mut tree = fresh.tree;
         if !was_broken {
@@ -1378,6 +1446,88 @@ types:
         app.search = Some(Search::new(Needle::new("x").unwrap(), true, Vec::new()));
         app.reload();
         assert!(!app.searching());
+    }
+
+    fn options_in(dir: &tempfile::TempDir, schema: &str, data: Option<&[u8]>) -> Options {
+        std::fs::write(dir.path().join("t.yaml"), schema).unwrap();
+        if let Some(data) = data {
+            std::fs::write(dir.path().join("t.bin"), data).unwrap();
+        }
+        Options {
+            file: dir.path().join("t.bin"),
+            type_or_schema: dir.path().join("t.yaml").to_string_lossy().into_owned(),
+            include_paths: vec![dir.path().to_path_buf()],
+            color: false,
+            watch: false,
+        }
+    }
+
+    #[test]
+    fn a_viewer_that_is_loading_says_so_works_meanwhile_and_takes_the_result() {
+        let dir = tempfile::tempdir().unwrap();
+        let options = options_in(&dir, V1, Some(&[1, 2, 3, 4]));
+        let mut app = App::loading(options.file.clone(), &options.type_or_schema);
+        app.options = Some(options.clone());
+        assert!(app.loading);
+        assert_eq!(
+            app.size, 4,
+            "the size of the file is known before it is parsed"
+        );
+        // the keys are safe while it waits; r says that it is busy; q leaves
+        for code in [
+            KeyCode::Down,
+            KeyCode::Right,
+            KeyCode::Tab,
+            KeyCode::End,
+            KeyCode::Char('i'),
+            KeyCode::Char('n'),
+        ] {
+            key(&mut app, code);
+        }
+        key(&mut app, KeyCode::Tab);
+        key(&mut app, KeyCode::Char('r'));
+        assert_eq!(app.notice.as_deref(), Some("still reading the file"));
+        // the result comes
+        app.finish_loading(crate::load::try_load(&options));
+        assert!(!app.loading && app.loading_since.is_none());
+        assert!(app.report.is_none());
+        assert_eq!(app.type_name, "rec");
+        assert!(app.tree.rows().len() >= 4);
+        key(&mut app, KeyCode::Char('q'));
+        assert!(app.quit);
+    }
+
+    #[test]
+    fn a_result_that_is_a_failed_parse_selects_the_field_as_when_it_is_there_at_the_start() {
+        let dir = tempfile::tempdir().unwrap();
+        let options = options_in(&dir, V1, Some(&[1, 2]));
+        let mut app = App::loading(options.file.clone(), &options.type_or_schema);
+        app.options = Some(options.clone());
+        app.finish_loading(crate::load::try_load(&options));
+        assert!(app.error.is_some());
+        assert!(app.tree.selected().failed);
+        assert!(!app.report.as_ref().unwrap().fatal);
+    }
+
+    #[test]
+    fn a_result_that_is_an_error_shows_the_report() {
+        let dir = tempfile::tempdir().unwrap();
+        let options = options_in(&dir, V1, None);
+        let mut app = App::loading(options.file.clone(), &options.type_or_schema);
+        app.options = Some(options.clone());
+        assert_eq!(app.size, 0);
+        app.finish_loading(crate::load::try_load(&options));
+        assert!(!app.loading);
+        assert!(app.report.as_ref().unwrap().fatal);
+        assert!(
+            app.finish_message()
+                .unwrap()
+                .contains("the file cannot be read")
+        );
+        // a thread that ended without an answer is an error too
+        let mut app = App::loading(options.file.clone(), "x");
+        app.finish_loading(Err(Box::new(crate::load::LoadFailure::stopped(&options))));
+        assert!(app.report.as_ref().unwrap().causes[0].contains("stopped without an answer"));
     }
 
     #[test]
