@@ -1,6 +1,6 @@
 [package]
 name = "doe-tui"
-version = "0.3.0"
+version = "0.4.0"
 description = "doe — terminal viewer for decoded binary files"
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
-doe = { version = "0.3.0", path = "../doe" }
+doe = { version = "0.4.0", path = "../doe" }
 anyhow = { workspace = true, features = ["std"] }
 log.workspace = true
 ratatui = { workspace = true, features = ["crossterm"] }
