@@ -9,9 +9,15 @@ use doe::DoeError;
 
 use crate::bytes::FileBytes;
 use crate::hex_view::{HexState, Selection};
+use crate::keymap::{self, Action, Scope};
 use crate::load::Loaded;
+use crate::prompt::{Kind, LineEditor, Outcome as PromptOutcome};
+use crate::search::{Needle, Outcome as SearchOutcome, Search};
 use crate::tree::TreeModel;
 use crate::tree_view::TreeView;
+
+/// How many fields a search looks at between two redraws of the screen.
+pub const SEARCH_STEP: usize = 5_000;
 
 /// The pane that keys go to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,6 +26,15 @@ pub enum Focus {
     Tree,
     /// The bytes.
     Hex,
+}
+
+/// The line that is being typed at the bottom of the screen.
+#[derive(Debug, Clone)]
+pub struct Prompt {
+    /// What it is for.
+    pub kind: Kind,
+    /// The text and the cursor.
+    pub line: LineEditor,
 }
 
 /// The viewer.
@@ -45,8 +60,45 @@ pub struct App {
     pub focus: Focus,
     /// Whether the inspector shows the selected bytes in other forms.
     pub inspector: bool,
+    /// Whether the help is shown.
+    pub help: bool,
+    /// The line being typed, if any.
+    pub prompt: Option<Prompt>,
+    /// The search that is going on, if any (it is advanced by [`App::search_step`]).
+    pub search: Option<Search>,
+    /// What was last searched for, for `n` and `N`.
+    pub last_query: Option<String>,
+    /// A message for the status bar, until the next key.
+    pub notice: Option<String>,
     /// Whether the person asked to leave.
     pub quit: bool,
+}
+
+/// An offset as it is typed: decimal or `0x` hex, `_` allowed between digits.
+///
+/// # Errors
+///
+/// What is wrong with the text.
+pub fn parse_offset(text: &str) -> Result<u64, String> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err("type an offset: a number, or 0x… for hex".to_owned());
+    }
+    let (digits, radix) = match text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
+        Some(hex) => (hex, 16),
+        None => (text, 10),
+    };
+    let cleaned: String = digits.chars().filter(|&c| c != '_').collect();
+    if cleaned.is_empty() || cleaned.starts_with('-') || cleaned.starts_with('+') {
+        return Err(format!("not an offset: {}", crate::format::safe(text)));
+    }
+    u64::from_str_radix(&cleaned, radix).map_err(|e| {
+        if matches!(e.kind(), std::num::IntErrorKind::PosOverflow) {
+            format!("{} is too large for an offset", crate::format::safe(text))
+        } else {
+            format!("not an offset: {}", crate::format::safe(text))
+        }
+    })
 }
 
 impl App {
@@ -58,6 +110,11 @@ impl App {
             hex: HexState::new(),
             focus: Focus::Tree,
             inspector: false,
+            help: false,
+            prompt: None,
+            search: None,
+            last_query: None,
+            notice: None,
             file,
             type_name: loaded.type_name,
             size: loaded.size,
@@ -68,27 +125,155 @@ impl App {
         }
     }
 
-    /// What a key does. `q`, `Esc` and Ctrl-C leave (raw mode turns Ctrl-C
-    /// into a key; it is not a signal while the viewer is open); `Tab` moves
-    /// the keys between the tree and the bytes; `i` shows or hides the
-    /// inspector.
+    /// Whether a search is going on (the event loop then advances it between keys).
+    #[must_use]
+    pub fn searching(&self) -> bool {
+        self.search.is_some()
+    }
+
+    /// What a key does. The keys are in [`keymap::BINDINGS`] and in the help
+    /// (`?`); this decides who gets a key:
     ///
-    /// In the tree: `↑`/`k`, `↓`/`j`, `PgUp`, `PgDn`, `Home`/`g`, `End`/`G`
-    /// move; `→`/`l` opens a node or goes into it, `←`/`h` closes it or goes to
-    /// its parent; `Enter` and `Space` open or close. The bytes follow the
-    /// field that is selected.
-    ///
-    /// In the bytes: `←`/`h` and `→`/`l` move by a byte, `↑`/`k` and `↓`/`j`
-    /// by a line, `PgUp` and `PgDn` by a page, `Home` and `End` to the start
-    /// and the end of the line, `g` and `G` to the start and the end of the
-    /// file. The tree follows: it selects the innermost field with that byte.
+    /// - a search that is going on is stopped by any key (`Esc` and Ctrl-C
+    ///   only stop it);
+    /// - the help is closed by any key;
+    /// - a prompt takes the key as text or as an edit of it;
+    /// - otherwise the pane that has the keys, then the keys for both.
     pub fn on_key(&mut self, key: KeyEvent) {
-        let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
-        match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => self.quit = true,
-            KeyCode::Char('c') if ctrl => self.quit = true,
-            KeyCode::Char('i') => self.inspector = !self.inspector,
-            KeyCode::Tab | KeyCode::BackTab => {
+        self.notice = None;
+        if self.search.take().is_some() {
+            let stops = key.code == KeyCode::Esc
+                || (key.code == KeyCode::Char('c')
+                    && key.modifiers.contains(KeyModifiers::CONTROL));
+            self.notice = Some("search stopped".to_owned());
+            if stops {
+                return;
+            }
+        }
+        if self.help {
+            self.help = false;
+            return;
+        }
+        if self.prompt.is_some() {
+            self.prompt_key(&key);
+            return;
+        }
+        let pane = match self.focus {
+            Focus::Tree => Scope::Tree,
+            Focus::Hex => Scope::Bytes,
+        };
+        if let Some(action) = keymap::lookup(pane, &key) {
+            self.act(action);
+        }
+    }
+
+    /// Text that is pasted: it goes into the prompt, if there is one.
+    pub fn on_paste(&mut self, text: &str) {
+        if let Some(prompt) = &mut self.prompt {
+            prompt.line.insert_str(text);
+        }
+    }
+
+    fn prompt_key(&mut self, key: &KeyEvent) {
+        let Some(prompt) = self.prompt.as_mut() else {
+            return;
+        };
+        match prompt.line.key(key) {
+            PromptOutcome::Editing => {}
+            PromptOutcome::Cancel => self.prompt = None,
+            PromptOutcome::Submit => {
+                let Some(prompt) = self.prompt.take() else {
+                    return;
+                };
+                match prompt.kind {
+                    Kind::Search => self.start_search(prompt.line.text(), true),
+                    Kind::Goto => self.goto(prompt.line.text()),
+                }
+            }
+        }
+    }
+
+    fn open_prompt(&mut self, kind: Kind) {
+        self.prompt = Some(Prompt {
+            kind,
+            line: LineEditor::new(),
+        });
+    }
+
+    /// Start a search for `query` from the selected field (the last query if it is empty).
+    fn start_search(&mut self, query: &str, forward: bool) {
+        let query = if query.is_empty() {
+            self.last_query.clone().unwrap_or_default()
+        } else {
+            query.to_owned()
+        };
+        let Some(needle) = Needle::new(&query) else {
+            self.notice = Some("nothing to search for".to_owned());
+            return;
+        };
+        self.last_query = Some(query);
+        self.search = Some(Search::new(
+            needle,
+            forward,
+            self.tree.selected_path().to_vec(),
+        ));
+    }
+
+    /// Look at the next [`SEARCH_STEP`] fields of the search that is going on.
+    pub fn search_step(&mut self) {
+        let Some(mut search) = self.search.take() else {
+            return;
+        };
+        match search.step(&self.tree, SEARCH_STEP) {
+            SearchOutcome::Running => self.search = Some(search),
+            SearchOutcome::Found(path) => {
+                self.tree.select_path(&path);
+                self.show_selected_field();
+                if search.wrapped() {
+                    self.notice = Some("search wrapped around".to_owned());
+                }
+            }
+            SearchOutcome::NotFound => {
+                self.notice = Some(format!(
+                    "not found: {}",
+                    crate::format::safe(search.needle().query())
+                ));
+            }
+        }
+    }
+
+    /// Go to the offset typed in `text`: the bytes show it and the tree selects the
+    /// innermost field that holds it.
+    fn goto(&mut self, text: &str) {
+        let offset = match parse_offset(text) {
+            Ok(offset) => offset,
+            Err(message) => {
+                self.notice = Some(message);
+                return;
+            }
+        };
+        let size = self.bytes.as_ref().map_or(0, FileBytes::size);
+        if offset >= size {
+            self.notice = Some(format!(
+                "offset {offset:#x} is past the end of the file ({size} bytes)"
+            ));
+            return;
+        }
+        match self.tree.find_byte(offset) {
+            Some(path) => self.tree.select_path(&path),
+            None => {
+                self.notice = Some(format!(
+                    "no field holds byte {offset:#x} (it is after what was parsed)"
+                ));
+            }
+        }
+        self.hex.reveal(offset, size);
+    }
+
+    fn act(&mut self, action: Action) {
+        match action {
+            Action::Quit => self.quit = true,
+            Action::ToggleFocus => {
                 self.focus = match self.focus {
                     Focus::Tree => Focus::Hex,
                     Focus::Hex => Focus::Tree,
@@ -98,16 +283,31 @@ impl App {
                     self.show_selected_field();
                 }
             }
-            code => match self.focus {
-                Focus::Tree => {
-                    let before = self.tree.selected_path().to_vec();
-                    self.tree_key(code);
-                    if self.tree.selected_path() != before.as_slice() {
-                        self.show_selected_field();
-                    }
-                }
-                Focus::Hex => self.hex_key(code),
+            Action::ToggleInspector => self.inspector = !self.inspector,
+            Action::Help => self.help = true,
+            Action::Search => self.open_prompt(Kind::Search),
+            Action::SearchNext | Action::SearchPrevious => match self.last_query.clone() {
+                Some(query) => self.start_search(&query, action == Action::SearchNext),
+                None => self.notice = Some("nothing searched for yet: press /".to_owned()),
             },
+            Action::Goto => self.open_prompt(Kind::Goto),
+            Action::HexLeft
+            | Action::HexRight
+            | Action::HexUp
+            | Action::HexDown
+            | Action::HexPageUp
+            | Action::HexPageDown
+            | Action::HexLineStart
+            | Action::HexLineEnd
+            | Action::HexStart
+            | Action::HexEnd => self.hex_action(action),
+            tree_action => {
+                let before = self.tree.selected_path().to_vec();
+                self.tree_action(tree_action);
+                if self.tree.selected_path() != before.as_slice() {
+                    self.show_selected_field();
+                }
+            }
         }
     }
 
@@ -119,16 +319,16 @@ impl App {
         }
     }
 
-    fn tree_key(&mut self, code: KeyCode) {
+    fn tree_action(&mut self, action: Action) {
         let tree = &mut self.tree;
-        match code {
-            KeyCode::Up | KeyCode::Char('k') => tree.up(),
-            KeyCode::Down | KeyCode::Char('j') => tree.down(),
-            KeyCode::PageUp => tree.page_up(self.view.page()),
-            KeyCode::PageDown => tree.page_down(self.view.page()),
-            KeyCode::Home | KeyCode::Char('g') => tree.home(),
-            KeyCode::End | KeyCode::Char('G') => tree.end(),
-            KeyCode::Right | KeyCode::Char('l') => {
+        match action {
+            Action::TreeUp => tree.up(),
+            Action::TreeDown => tree.down(),
+            Action::TreePageUp => tree.page_up(self.view.page()),
+            Action::TreePageDown => tree.page_down(self.view.page()),
+            Action::TreeHome => tree.home(),
+            Action::TreeEnd => tree.end(),
+            Action::TreeRight => {
                 if tree.selected().openable && !tree.selected().open {
                     tree.expand();
                 } else if tree.selected().openable {
@@ -138,41 +338,39 @@ impl App {
                     tree.expand();
                 }
             }
-            KeyCode::Left | KeyCode::Char('h') => {
+            Action::TreeLeft => {
                 if tree.selected().open {
                     tree.collapse();
                 } else {
                     tree.parent();
                 }
             }
-            KeyCode::Enter | KeyCode::Char(' ') => tree.toggle(),
+            Action::TreeToggle => tree.toggle(),
+            Action::NextSibling => tree.next_sibling(),
+            Action::PreviousSibling => tree.prev_sibling(),
             _ => {}
         }
     }
 
-    fn hex_key(&mut self, code: KeyCode) {
+    fn hex_action(&mut self, action: Action) {
         let size = self.bytes.as_ref().map_or(0, FileBytes::size);
         let line = i64::try_from(self.hex.bytes_per_line()).unwrap_or(16);
         let page = line.saturating_mul(i64::try_from(self.hex.page_lines()).unwrap_or(16));
         let cursor = self.hex.cursor();
-        match code {
-            KeyCode::Left | KeyCode::Char('h') => self.hex.move_by(-1, size),
-            KeyCode::Right | KeyCode::Char('l') => self.hex.move_by(1, size),
-            KeyCode::Up | KeyCode::Char('k') => self.hex.move_by(-line, size),
-            KeyCode::Down | KeyCode::Char('j') => self.hex.move_by(line, size),
-            KeyCode::PageUp => self.hex.move_by(-page, size),
-            KeyCode::PageDown => self.hex.move_by(page, size),
-            KeyCode::Home => {
-                let width = u64::try_from(line).unwrap_or(16).max(1);
-                self.hex.set_cursor(cursor - cursor % width, size);
-            }
-            KeyCode::End => {
-                let width = u64::try_from(line).unwrap_or(16).max(1);
-                self.hex
-                    .set_cursor(cursor - cursor % width + width - 1, size);
-            }
-            KeyCode::Char('g') => self.hex.set_cursor(0, size),
-            KeyCode::Char('G') => self.hex.set_cursor(size, size),
+        let width = u64::try_from(line).unwrap_or(16).max(1);
+        match action {
+            Action::HexLeft => self.hex.move_by(-1, size),
+            Action::HexRight => self.hex.move_by(1, size),
+            Action::HexUp => self.hex.move_by(-line, size),
+            Action::HexDown => self.hex.move_by(line, size),
+            Action::HexPageUp => self.hex.move_by(-page, size),
+            Action::HexPageDown => self.hex.move_by(page, size),
+            Action::HexLineStart => self.hex.set_cursor(cursor - cursor % width, size),
+            Action::HexLineEnd => self
+                .hex
+                .set_cursor(cursor - cursor % width + width - 1, size),
+            Action::HexStart => self.hex.set_cursor(0, size),
+            Action::HexEnd => self.hex.set_cursor(size, size),
             _ => return,
         }
         // the tree follows the byte: the innermost field that holds it
@@ -259,6 +457,326 @@ pub(crate) mod tests {
         (App::new(file, loaded), dir)
     }
 
+    /// Fields to search: a name, a count, and three items with an enum and a label.
+    const REC: &str = "id: rec
+seq:
+  - id: name
+    type: str
+    size: 5
+    encoding: UTF-8
+  - id: Count
+    type: u1
+  - id: items
+    type: item
+    repeat: expr
+    repeat-expr: 3
+types:
+  item:
+    seq:
+      - id: kind
+        type: u1
+        enum: kinds
+      - id: label
+        type: str
+        size: 2
+        encoding: UTF-8
+enums:
+  kinds:
+    1: alpha
+    2: beta
+";
+
+    fn rec_data() -> Vec<u8> {
+        let mut data = b"Hello".to_vec();
+        data.push(7);
+        for (kind, label) in [(1_u8, "aa"), (2, "bB"), (1, "cc")] {
+            data.push(kind);
+            data.extend(label.as_bytes());
+        }
+        data
+    }
+
+    fn type_text(app: &mut App, text: &str) {
+        for c in text.chars() {
+            key(app, KeyCode::Char(c));
+        }
+    }
+
+    /// Run the search that is going on to its end, as the event loop would.
+    fn finish_search(app: &mut App) {
+        let mut steps = 0;
+        while app.searching() {
+            app.search_step();
+            steps += 1;
+            assert!(steps < 100, "the search never ends");
+        }
+    }
+
+    fn selected(app: &App) -> Vec<String> {
+        app.tree.names_to(app.tree.selected_path())
+    }
+
+    #[test]
+    fn offsets_are_decimal_or_hex() {
+        assert_eq!(parse_offset("0"), Ok(0));
+        assert_eq!(parse_offset(" 42 "), Ok(42));
+        assert_eq!(parse_offset("0x2a"), Ok(42));
+        assert_eq!(parse_offset("0X2A"), Ok(42));
+        assert_eq!(parse_offset("1_000"), Ok(1000));
+        assert_eq!(parse_offset("0xffff_ffff_ffff_ffff"), Ok(u64::MAX));
+        for bad in ["", "  ", "abc", "0x", "-5", "+5", "0xg", "1.5", "0b11"] {
+            assert!(parse_offset(bad).is_err(), "{bad:?}");
+        }
+        assert!(
+            parse_offset("18446744073709551616")
+                .unwrap_err()
+                .contains("too large")
+        );
+        // what is wrong is said without printing raw text
+        assert!(!parse_offset("a\x1bb").unwrap_err().contains('\x1b'));
+    }
+
+    #[test]
+    fn searching_with_the_prompt_selects_the_match_and_shows_its_bytes() {
+        let (mut app, _dir) = app_for(REC, &rec_data());
+        key(&mut app, KeyCode::Char('/'));
+        assert!(app.prompt.is_some());
+        type_text(&mut app, "beta");
+        key(&mut app, KeyCode::Enter);
+        assert!(app.prompt.is_none() && app.searching());
+        finish_search(&mut app);
+        assert_eq!(selected(&app), ["rec", "items", "[1]", "kind"]);
+        // the bytes follow: kind of the second item is byte 9
+        assert_eq!(app.hex.cursor(), 9);
+        assert_eq!(app.last_query.as_deref(), Some("beta"));
+        // n goes on, round to the same one (it is the only match), and says so
+        key(&mut app, KeyCode::Char('n'));
+        finish_search(&mut app);
+        assert_eq!(selected(&app), ["rec", "items", "[1]", "kind"]);
+        assert_eq!(app.notice.as_deref(), Some("search wrapped around"));
+    }
+
+    #[test]
+    fn n_and_capital_n_walk_through_the_matches_both_ways() {
+        let (mut app, _dir) = app_for(REC, &rec_data());
+        key(&mut app, KeyCode::Char('/'));
+        type_text(&mut app, "label");
+        key(&mut app, KeyCode::Enter);
+        finish_search(&mut app);
+        assert_eq!(selected(&app), ["rec", "items", "[0]", "label"]);
+        key(&mut app, KeyCode::Char('n'));
+        finish_search(&mut app);
+        assert_eq!(selected(&app), ["rec", "items", "[1]", "label"]);
+        key(&mut app, KeyCode::Char('n'));
+        finish_search(&mut app);
+        assert_eq!(selected(&app), ["rec", "items", "[2]", "label"]);
+        key(&mut app, KeyCode::Char('N'));
+        finish_search(&mut app);
+        assert_eq!(selected(&app), ["rec", "items", "[1]", "label"]);
+        // round the other way
+        key(&mut app, KeyCode::Char('N'));
+        finish_search(&mut app);
+        key(&mut app, KeyCode::Char('N'));
+        finish_search(&mut app);
+        assert_eq!(selected(&app), ["rec", "items", "[2]", "label"]);
+        assert_eq!(app.notice.as_deref(), Some("search wrapped around"));
+    }
+
+    #[test]
+    fn a_search_with_no_match_says_so_and_changes_nothing() {
+        let (mut app, _dir) = app_for(REC, &rec_data());
+        key(&mut app, KeyCode::Down);
+        let before = selected(&app);
+        key(&mut app, KeyCode::Char('/'));
+        type_text(&mut app, "no such thing");
+        key(&mut app, KeyCode::Enter);
+        finish_search(&mut app);
+        assert_eq!(app.notice.as_deref(), Some("not found: no such thing"));
+        assert_eq!(selected(&app), before);
+        // case: a capital in the query makes it exact
+        key(&mut app, KeyCode::Char('/'));
+        type_text(&mut app, "HELLO");
+        key(&mut app, KeyCode::Enter);
+        finish_search(&mut app);
+        assert!(app.notice.as_deref().unwrap().starts_with("not found"));
+        key(&mut app, KeyCode::Char('/'));
+        type_text(&mut app, "hello");
+        key(&mut app, KeyCode::Enter);
+        finish_search(&mut app);
+        assert_eq!(selected(&app), ["rec", "name"]);
+    }
+
+    #[test]
+    fn an_empty_query_repeats_the_last_one_and_n_needs_one() {
+        let (mut app, _dir) = app_for(REC, &rec_data());
+        key(&mut app, KeyCode::Char('n'));
+        assert_eq!(
+            app.notice.as_deref(),
+            Some("nothing searched for yet: press /")
+        );
+        key(&mut app, KeyCode::Char('/'));
+        key(&mut app, KeyCode::Enter); // nothing typed, nothing before
+        assert_eq!(app.notice.as_deref(), Some("nothing to search for"));
+        key(&mut app, KeyCode::Char('/'));
+        type_text(&mut app, "kind");
+        key(&mut app, KeyCode::Enter);
+        finish_search(&mut app);
+        let first = selected(&app);
+        key(&mut app, KeyCode::Char('/'));
+        key(&mut app, KeyCode::Enter); // the same query again, from here
+        finish_search(&mut app);
+        assert_ne!(selected(&app), first);
+    }
+
+    #[test]
+    fn a_key_stops_a_search_that_is_going_on_and_is_then_used() {
+        let (mut app, _dir) = app_for(REC, &rec_data());
+        app.search = Some(Search::new(Needle::new("beta").unwrap(), true, Vec::new()));
+        assert!(app.searching());
+        key(&mut app, KeyCode::Down); // stops it, and moves
+        assert!(!app.searching());
+        assert_eq!(app.notice, Some("search stopped".to_owned()));
+        assert_eq!(selected(&app), ["rec", "name"]);
+        // Esc and Ctrl-C only stop it: they do not leave
+        app.search = Some(Search::new(Needle::new("beta").unwrap(), true, Vec::new()));
+        key(&mut app, KeyCode::Esc);
+        assert!(!app.searching() && !app.quit);
+        app.search = Some(Search::new(Needle::new("beta").unwrap(), true, Vec::new()));
+        press(&mut app, KeyCode::Char('c'), KeyModifiers::CONTROL);
+        assert!(!app.searching() && !app.quit);
+        key(&mut app, KeyCode::Esc);
+        assert!(app.quit);
+    }
+
+    #[test]
+    fn goto_selects_the_innermost_field_at_an_offset() {
+        let (mut app, _dir) = app_for(REC, &rec_data());
+        // 0x7 is the first byte of the label of the first item
+        key(&mut app, KeyCode::Char('g'));
+        type_text(&mut app, "0x7");
+        key(&mut app, KeyCode::Enter);
+        assert_eq!(selected(&app), ["rec", "items", "[0]", "label"]);
+        assert_eq!(app.hex.cursor(), 7);
+        // decimal; a byte of the last label
+        key(&mut app, KeyCode::Char('g'));
+        type_text(&mut app, "13");
+        key(&mut app, KeyCode::Enter);
+        assert_eq!(selected(&app), ["rec", "items", "[2]", "label"]);
+        assert_eq!(app.hex.cursor(), 13);
+        key(&mut app, KeyCode::Char('g'));
+        type_text(&mut app, "0");
+        key(&mut app, KeyCode::Enter);
+        assert_eq!(selected(&app), ["rec", "name"]);
+        assert!(app.notice.is_none());
+    }
+
+    #[test]
+    fn goto_out_of_the_file_or_with_a_bad_offset_says_so_and_stays() {
+        let (mut app, _dir) = app_for(REC, &rec_data());
+        key(&mut app, KeyCode::Down);
+        let before = (selected(&app), app.hex.cursor());
+        for (typed, said) in [
+            ("15", "offset 0xf is past the end of the file (15 bytes)"),
+            (
+                "0xffff",
+                "offset 0xffff is past the end of the file (15 bytes)",
+            ),
+            ("nope", "not an offset: nope"),
+            ("", "type an offset: a number, or 0x… for hex"),
+            ("-1", "not an offset: -1"),
+        ] {
+            key(&mut app, KeyCode::Char('g'));
+            type_text(&mut app, typed);
+            key(&mut app, KeyCode::Enter);
+            assert_eq!(app.notice.as_deref(), Some(said));
+            assert_eq!((selected(&app), app.hex.cursor()), before);
+        }
+    }
+
+    #[test]
+    fn goto_in_a_gap_between_fields_selects_the_type_that_holds_it_or_nothing() {
+        // `inner` is 4 bytes but its fields read 2: bytes 2 and 3 are in no field of it
+        let schema = "id: gap\nseq:\n  - id: inner\n    type: pair\n    size: 4\ntypes:\n  pair:\n    seq:\n      - id: x\n        type: u1\n      - id: y\n        type: u1\n";
+        let (mut app, _dir) = app_for(schema, &[1, 2, 3, 4]);
+        key(&mut app, KeyCode::Char('g'));
+        type_text(&mut app, "3");
+        key(&mut app, KeyCode::Enter);
+        assert_eq!(
+            selected(&app),
+            ["gap", "inner"],
+            "the type that holds the byte"
+        );
+        assert_eq!(app.hex.cursor(), 3);
+        // bytes after what the type reads: no field holds them
+        let schema = "id: short\nseq:\n  - id: a\n    type: u2le\n";
+        let (mut app, _dir) = app_for(schema, &[1, 2, 3, 4, 5]);
+        key(&mut app, KeyCode::Char('g'));
+        type_text(&mut app, "4");
+        key(&mut app, KeyCode::Enter);
+        assert_eq!(
+            app.notice.as_deref(),
+            Some("no field holds byte 0x4 (it is after what was parsed)")
+        );
+        assert_eq!(selected(&app), ["short"], "the selection is as it was");
+        assert_eq!(app.hex.cursor(), 4, "the bytes show it");
+    }
+
+    #[test]
+    fn the_prompt_takes_keys_as_text_and_pastes_and_cancels() {
+        let (mut app, _dir) = app_for(REC, &rec_data());
+        key(&mut app, KeyCode::Char('/'));
+        // keys that do things elsewhere are text here
+        type_text(&mut app, "qig?/");
+        assert!(!app.quit && !app.inspector && !app.help);
+        assert_eq!(app.prompt.as_ref().unwrap().line.text(), "qig?/");
+        key(&mut app, KeyCode::Left);
+        key(&mut app, KeyCode::Backspace);
+        assert_eq!(app.prompt.as_ref().unwrap().line.text(), "qig/");
+        app.on_paste("beta\nsecond line");
+        assert_eq!(app.prompt.as_ref().unwrap().line.text(), "qigbeta/");
+        // Esc leaves the prompt, not the viewer
+        key(&mut app, KeyCode::Esc);
+        assert!(app.prompt.is_none() && !app.quit);
+        // a paste with no prompt goes nowhere
+        app.on_paste("beta");
+        assert!(app.prompt.is_none());
+        // the keys of the tree work again
+        key(&mut app, KeyCode::Down);
+        assert_eq!(selected(&app), ["rec", "name"]);
+    }
+
+    #[test]
+    fn question_mark_shows_the_help_and_the_next_key_closes_it_and_does_nothing_else() {
+        let (mut app, _dir) = app_for(REC, &rec_data());
+        key(&mut app, KeyCode::Char('?'));
+        assert!(app.help);
+        key(&mut app, KeyCode::Char('q'));
+        assert!(
+            !app.help && !app.quit,
+            "the key closed the help and was not used"
+        );
+        key(&mut app, KeyCode::Char('q'));
+        assert!(app.quit);
+    }
+
+    #[test]
+    fn brackets_go_to_the_next_and_previous_field_at_the_same_level() {
+        let (mut app, _dir) = app_for(REC, &rec_data());
+        key(&mut app, KeyCode::Down); // name
+        key(&mut app, KeyCode::Char(']'));
+        assert_eq!(selected(&app), ["rec", "Count"]);
+        key(&mut app, KeyCode::Char(']'));
+        assert_eq!(selected(&app), ["rec", "items"]);
+        key(&mut app, KeyCode::Char(']'));
+        assert_eq!(selected(&app), ["rec", "items"], "no field after the last");
+        key(&mut app, KeyCode::Char('['));
+        key(&mut app, KeyCode::Char('['));
+        assert_eq!(selected(&app), ["rec", "name"]);
+        // the bytes follow
+        key(&mut app, KeyCode::Char(']'));
+        assert_eq!(app.hex.cursor(), 5);
+    }
+
     #[test]
     fn tab_moves_the_keys_between_the_tree_and_the_bytes() {
         let (mut app, _dir) = app();
@@ -300,7 +818,7 @@ pub(crate) mod tests {
         );
         key(&mut app, KeyCode::Char('G'));
         assert_eq!(app.hex.cursor(), 2);
-        key(&mut app, KeyCode::Char('g'));
+        press(&mut app, KeyCode::Home, KeyModifiers::CONTROL);
         assert_eq!(
             (app.hex.cursor(), app.tree.selected().name.as_str()),
             (0, "a")
@@ -328,7 +846,7 @@ pub(crate) mod tests {
         assert_eq!(app.hex.cursor(), 160);
         key(&mut app, KeyCode::Down); // tail
         assert_eq!(app.hex.cursor(), 161);
-        key(&mut app, KeyCode::Char('g')); // the root again: the start of the file
+        key(&mut app, KeyCode::Home); // the root again: the start of the file
         assert_eq!(app.hex.cursor(), 0);
         // going to the bytes and back changes nothing
         key(&mut app, KeyCode::Char('G'));
@@ -386,7 +904,7 @@ pub(crate) mod tests {
         assert_eq!(name(&app), "a");
         key(&mut app, KeyCode::PageDown);
         assert_eq!(name(&app), "inner");
-        key(&mut app, KeyCode::Char('g'));
+        key(&mut app, KeyCode::Home);
         assert_eq!(name(&app), "t");
         assert!(!app.quit);
     }
