@@ -201,9 +201,10 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     let status = if fatal {
         Span::styled(" cannot be parsed ", theme.bad())
     } else {
-        match &app.error {
-            None => Span::styled(" parsed ", theme.good()),
-            Some(_) => Span::styled(" the parse failed ", theme.bad()),
+        match (&app.error, &app.report) {
+            (Some(_), _) => Span::styled(" the parse failed ", theme.bad()),
+            (None, Some(_)) => Span::styled(" could not read again ", theme.bad()),
+            (None, None) => Span::styled(" parsed ", theme.good()),
         }
     };
     let hint = if hex_area.is_some() {
@@ -1139,6 +1140,7 @@ instances:
             type_or_schema: schema.to_string_lossy().into_owned(),
             include_paths: Vec::new(),
             color: false,
+            watch: false,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
         let mut app = App::broken(file, &failure, Some(&schema));
@@ -1176,6 +1178,7 @@ instances:
             type_or_schema: schema.to_string_lossy().into_owned(),
             include_paths: Vec::new(),
             color: false,
+            watch: false,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
         let mut app = App::broken(options.file.clone(), &failure, Some(&schema));
@@ -1217,6 +1220,7 @@ instances:
                 type_or_schema: "nothing".to_owned(),
                 include_paths: Vec::new(),
                 color: false,
+                watch: false,
             };
             let failure = crate::load::try_load(&options).unwrap_err();
             let mut app = App::broken(options.file.clone(), &failure, None);

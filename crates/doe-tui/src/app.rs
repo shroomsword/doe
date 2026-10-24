@@ -7,10 +7,11 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use doe::DoeError;
 
+use crate::Options;
 use crate::bytes::FileBytes;
 use crate::hex_view::{HexState, Selection};
 use crate::keymap::{self, Action, Scope};
-use crate::load::{LoadFailure, Loaded};
+use crate::load::{self, LoadFailure, Loaded};
 use crate::prompt::{Kind, LineEditor, Outcome as PromptOutcome};
 use crate::report::Report;
 use crate::search::{Needle, Outcome as SearchOutcome, Search};
@@ -75,6 +76,10 @@ pub struct App {
     pub prompt: Option<Prompt>,
     /// The search that is going on, if any (it is advanced by [`App::search_step`]).
     pub search: Option<Search>,
+    /// What the viewer was started with, to read it all again (`r`).
+    pub options: Option<Options>,
+    /// The schema files that were read, and the file: what `--watch` looks at.
+    pub schema_files: Vec<std::path::PathBuf>,
     /// What was last searched for, for `n` and `N`.
     pub last_query: Option<String>,
     /// A message for the status bar, until the next key.
@@ -123,6 +128,8 @@ impl App {
             help: false,
             report: None,
             show_report: true,
+            options: None,
+            schema_files: loaded.schema_files,
             prompt: None,
             search: None,
             last_query: None,
@@ -167,6 +174,8 @@ impl App {
             help: false,
             report: Some(Report::from_failure(failure, schema_file)),
             show_report: true,
+            options: None,
+            schema_files: failure.schema_files.clone(),
             prompt: None,
             search: None,
             last_query: None,
@@ -182,6 +191,69 @@ impl App {
             view: TreeView::new(),
             quit: false,
         }
+    }
+
+    /// The files whose change means a reload: the schema and what it imports, and the file.
+    #[must_use]
+    pub fn watched_files(&self) -> Vec<PathBuf> {
+        let mut files = self.schema_files.clone();
+        if !files.contains(&self.file) {
+            files.push(self.file.clone());
+        }
+        files
+    }
+
+    /// Read the schema (with its imports) and the file again and parse.
+    ///
+    /// The tree is the new one, with the same fields open and the selection on
+    /// the field with the same name (or the nearest one that is there), and the
+    /// scroll where it was as far as the new tree allows. If the new schema or
+    /// file cannot be used, the old tree stays and the error is shown.
+    pub fn reload(&mut self) {
+        let Some(options) = self.options.clone() else {
+            self.notice = Some("nothing to read again from".to_owned());
+            return;
+        };
+        match load::try_load(&options) {
+            Ok(loaded) => self.adopt(loaded),
+            Err(failure) => self.reload_failed(&failure, &options),
+        }
+    }
+
+    /// Take a new parse in the place of the old, keeping the place.
+    fn adopt(&mut self, loaded: Loaded) {
+        let was_broken = self.report.as_ref().is_some_and(|r| r.fatal);
+        let fresh = App::new(self.file.clone(), loaded);
+        let mut tree = fresh.tree;
+        if !was_broken {
+            tree.take_state_of(&self.tree);
+        }
+        self.tree = tree;
+        self.type_name = fresh.type_name;
+        self.size = fresh.size;
+        self.error = fresh.error;
+        self.report = fresh.report;
+        self.bytes = fresh.bytes;
+        self.schema_files = fresh.schema_files;
+        self.search = None;
+        if was_broken {
+            self.hex = fresh.hex;
+        } else {
+            self.show_selected_field();
+        }
+        self.notice = Some("read again".to_owned());
+    }
+
+    /// The new schema or file could not be used: the old tree stays.
+    fn reload_failed(&mut self, failure: &LoadFailure, options: &Options) {
+        let was_broken = self.report.as_ref().is_some_and(|r| r.fatal);
+        let mut report = Report::from_failure(failure, load::schema_file(options).as_deref());
+        report.fatal = was_broken;
+        report.headline = format!("could not read again: {}", report.headline);
+        self.notice = Some(report.one_line());
+        self.report = Some(report);
+        self.show_report = true;
+        self.schema_files.clone_from(&failure.schema_files);
     }
 
     /// What is said after the viewer has been left, if the last parse failed:
@@ -357,6 +429,7 @@ impl App {
             Action::ToggleInspector => self.inspector = !self.inspector,
             Action::Help => self.help = true,
             Action::ToggleReport => self.show_report = !self.show_report,
+            Action::Reload => self.reload(),
             Action::Search => self.open_prompt(Kind::Search),
             Action::SearchNext | Action::SearchPrevious => match self.last_query.clone() {
                 Some(query) => self.start_search(&query, action == Action::SearchNext),
@@ -485,6 +558,7 @@ pub(crate) mod tests {
             type_or_schema: schema.to_string_lossy().into_owned(),
             include_paths: Vec::new(),
             color: false,
+            watch: false,
         };
         (App::new(file, load(&options).unwrap()), dir)
     }
@@ -523,14 +597,17 @@ pub(crate) mod tests {
         std::fs::write(&schema_path, schema).unwrap();
         let file = dir.path().join("t.bin");
         std::fs::write(&file, data).unwrap();
-        let loaded = load(&Options {
+        let options = Options {
             file: file.clone(),
             type_or_schema: schema_path.to_string_lossy().into_owned(),
-            include_paths: Vec::new(),
+            include_paths: vec![dir.path().to_path_buf()],
             color: false,
-        })
-        .unwrap();
-        (App::new(file, loaded), dir)
+            watch: false,
+        };
+        let loaded = load(&options).unwrap();
+        let mut app = App::new(file, loaded);
+        app.options = Some(options);
+        (app, dir)
     }
 
     /// Fields to search: a name, a count, and three items with an enum and a label.
@@ -963,10 +1040,13 @@ seq:
             type_or_schema: schema_path.to_string_lossy().into_owned(),
             include_paths: vec![dir.path().to_path_buf()],
             color: false,
+            watch: false,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
         let schema = crate::load::schema_file(&options);
-        (App::broken(file, &failure, schema.as_deref()), dir)
+        let mut app = App::broken(file, &failure, schema.as_deref());
+        app.options = Some(options);
+        (app, dir)
     }
 
     #[test]
@@ -1020,6 +1100,284 @@ seq:
             type_text(&mut app, text);
             key(&mut app, KeyCode::Enter);
         }
+    }
+
+    /// Rewrite the schema and the file of a viewer made by `app_for` or `broken_app`.
+    fn rewrite(dir: &tempfile::TempDir, schema: Option<&str>, data: Option<&[u8]>) {
+        if let Some(schema) = schema {
+            std::fs::write(dir.path().join("t.yaml"), schema).unwrap();
+        }
+        if let Some(data) = data {
+            std::fs::write(dir.path().join("t.bin"), data).unwrap();
+        }
+    }
+
+    const V1: &str = "id: rec
+seq:
+  - id: a
+    type: u1
+  - id: inner
+    type: pair
+  - id: c
+    type: u1
+types:
+  pair:
+    seq:
+      - id: x
+        type: u1
+      - id: y
+        type: u1
+";
+
+    /// The same with a field before `inner`, and one inside it.
+    const V2: &str = "id: rec
+seq:
+  - id: new
+    type: u1
+  - id: a
+    type: u1
+  - id: inner
+    type: pair
+  - id: c
+    type: u1
+types:
+  pair:
+    seq:
+      - id: first
+        type: u1
+      - id: x
+        type: u1
+      - id: y
+        type: u1
+";
+
+    #[test]
+    fn after_a_reload_with_a_changed_schema_the_selection_is_on_the_same_field() {
+        let (mut app, dir) = app_for(V1, &[1, 2, 3, 4]);
+        // open `inner` and select `inner/y`
+        app.tree.select_path(&[1, 1]);
+        assert_eq!(selected(&app), ["rec", "inner", "y"]);
+        assert_eq!(app.tree.selected().summary.as_deref(), Some("3"));
+        // the schema gets a field before `inner` and one in it, and the file two bytes more
+        rewrite(&dir, Some(V2), Some(&[9, 1, 2, 3, 4, 5]));
+        key(&mut app, KeyCode::Char('r'));
+        assert_eq!(app.notice.as_deref(), Some("read again"));
+        // the same field, which is now at another place in the tree
+        assert_eq!(selected(&app), ["rec", "inner", "y"]);
+        assert_eq!(app.tree.selected_path(), [2, 2]);
+        assert_eq!(app.tree.selected().summary.as_deref(), Some("4"));
+        // `inner` is still open
+        assert!(app.tree.rows().iter().any(|r| r.name == "first"));
+        // the bytes show the new field
+        assert_eq!(app.hex.cursor(), 4);
+        assert_eq!(app.size, 6);
+        assert!(app.report.is_none());
+    }
+
+    #[test]
+    fn after_a_reload_that_removes_the_field_the_nearest_one_is_selected() {
+        let (mut app, dir) = app_for(V1, &[1, 2, 3, 4]);
+        app.tree.select_path(&[1, 1]);
+        // `inner` has no `y` any more
+        let without_y = V1.replace("      - id: y\n        type: u1\n", "");
+        rewrite(&dir, Some(&without_y), Some(&[1, 2, 3]));
+        key(&mut app, KeyCode::Char('r'));
+        assert_eq!(selected(&app), ["rec", "inner"]);
+        // and with `inner` gone, the root
+        rewrite(
+            &dir,
+            Some("id: rec\nseq:\n  - id: a\n    type: u1\n"),
+            Some(&[1]),
+        );
+        key(&mut app, KeyCode::Char('r'));
+        assert_eq!(selected(&app), ["rec"]);
+    }
+
+    #[test]
+    fn a_reload_that_fails_keeps_the_old_tree_and_shows_the_error() {
+        let (mut app, dir) = app_for(V1, &[1, 2, 3, 4]);
+        app.tree.select_path(&[1, 1]);
+        let rows_before = app.tree.rows().len();
+        rewrite(
+            &dir,
+            Some("id: rec\nseq:\n  - id: a\n    type: nope\n"),
+            None,
+        );
+        key(&mut app, KeyCode::Char('r'));
+        // the old tree is there, with the selection
+        assert_eq!(app.tree.rows().len(), rows_before);
+        assert_eq!(selected(&app), ["rec", "inner", "y"]);
+        let report = app.report.as_ref().unwrap();
+        assert!(!report.fatal, "the tree is still shown");
+        assert!(
+            report
+                .headline
+                .starts_with("could not read again: the schema rec cannot be used"),
+            "{report:?}"
+        );
+        assert!(report.place.is_some(), "the place in the schema");
+        assert!(
+            app.notice
+                .as_deref()
+                .unwrap()
+                .starts_with("could not read again")
+        );
+        assert!(
+            app.finish_message().is_some(),
+            "the last read failed: the exit says so"
+        );
+        // the schema is fixed, and r reads it again
+        rewrite(&dir, Some(V1), None);
+        key(&mut app, KeyCode::Char('r'));
+        assert!(app.report.is_none());
+        assert_eq!(app.finish_message(), None);
+        assert_eq!(selected(&app), ["rec", "inner", "y"]);
+    }
+
+    #[test]
+    fn a_viewer_that_began_with_an_error_shows_the_tree_after_it_is_fixed() {
+        let (mut app, dir) = broken_app("id: rec\nseq:\n  - id: a\n    type: nope\n", None);
+        assert!(app.report.as_ref().unwrap().fatal);
+        rewrite(
+            &dir,
+            Some("id: rec\nseq:\n  - id: a\n    type: u1\n"),
+            Some(&[7]),
+        );
+        key(&mut app, KeyCode::Char('r'));
+        assert!(app.report.is_none());
+        assert!(app.bytes.is_some());
+        assert_eq!(app.tree.rows().len(), 2);
+        assert_eq!(app.size, 1);
+        // and a file that stops being readable shows the error again, still fatal
+        std::fs::remove_file(dir.path().join("t.bin")).unwrap();
+        key(&mut app, KeyCode::Char('r'));
+        assert!(!app.report.as_ref().unwrap().fatal, "the tree is kept");
+    }
+
+    #[test]
+    fn a_reload_after_the_file_changed_shows_the_new_bytes() {
+        let (mut app, dir) = app_for(V1, &[1, 2, 3, 4]);
+        app.tree.select_path(&[2]);
+        assert_eq!(app.tree.selected().summary.as_deref(), Some("4"));
+        rewrite(&dir, None, Some(&[1, 2, 3, 99]));
+        key(&mut app, KeyCode::Char('r'));
+        assert_eq!(selected(&app), ["rec", "c"]);
+        assert_eq!(app.tree.selected().summary.as_deref(), Some("99"));
+        // the bytes pane reads the new file
+        assert_eq!(app.bytes.as_mut().unwrap().window(3, 1), [99]);
+        // a file that now ends too soon: a parse that fails, with the field selected as before
+        rewrite(&dir, None, Some(&[1, 2]));
+        key(&mut app, KeyCode::Char('r'));
+        assert!(app.error.is_some());
+        assert!(
+            app.report
+                .as_ref()
+                .unwrap()
+                .headline
+                .starts_with("the parse failed")
+        );
+    }
+
+    #[test]
+    fn the_scroll_is_kept_as_far_as_the_new_tree_allows() {
+        let long =
+            "id: big\nseq:\n  - id: items\n    type: u1\n    repeat: expr\n    repeat-expr: 100\n";
+        let (mut app, dir) = app_for(long, &[0; 100]);
+        key(&mut app, KeyCode::Down);
+        key(&mut app, KeyCode::Right); // open items
+        app.tree.select_path(&[0, 90]);
+        let theme = crate::ui::Theme::new(false);
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(60, 12)).unwrap();
+        terminal
+            .draw(|f| crate::ui::draw(f, &mut app, &theme))
+            .unwrap();
+        let top = app.view.top();
+        assert!(top > 50, "{top}");
+        // the same tree again: the scroll is where it was
+        key(&mut app, KeyCode::Char('r'));
+        terminal
+            .draw(|f| crate::ui::draw(f, &mut app, &theme))
+            .unwrap();
+        assert_eq!(app.view.top(), top);
+        // a tree with 40 elements: the selection falls back to the list, the scroll to what fits
+        let shorter = long.replace("100", "40");
+        rewrite(&dir, Some(&shorter), Some(&[0; 40]));
+        key(&mut app, KeyCode::Char('r'));
+        terminal
+            .draw(|f| crate::ui::draw(f, &mut app, &theme))
+            .unwrap();
+        assert_eq!(selected(&app), ["big", "items"]);
+        assert!(app.view.top() < app.tree.rows().len(), "{}", app.view.top());
+        assert_eq!(
+            app.view.top(),
+            1,
+            "scrolled up just far enough to show the selected list"
+        );
+    }
+
+    #[test]
+    fn imports_are_read_again_and_watched() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("common.yaml"),
+            "id: common\nseq:\n  - id: v\n    type: u1\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("t.yaml"),
+            "id: top\nimports:\n  - common\nseq:\n  - id: c\n    type: common\n",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("t.bin"), [5]).unwrap();
+        let options = Options {
+            file: dir.path().join("t.bin"),
+            type_or_schema: dir.path().join("t.yaml").to_string_lossy().into_owned(),
+            include_paths: Vec::new(),
+            color: false,
+            watch: false,
+        };
+        let mut app = App::new(options.file.clone(), load(&options).unwrap());
+        app.options = Some(options);
+        // the files that are watched: the schema, its import and the file
+        let watched: Vec<String> = app
+            .watched_files()
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        for name in ["t.yaml", "common.yaml", "t.bin"] {
+            assert!(
+                watched.iter().any(|w| w == name),
+                "{name} is not watched: {watched:?}"
+            );
+        }
+        // the import changes, the schema does not: r shows it
+        std::fs::write(
+            dir.path().join("common.yaml"),
+            "id: common\nseq:\n  - id: v\n    type: u1\n  - id: w\n    type: u1\n",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("t.bin"), [5, 6]).unwrap();
+        key(&mut app, KeyCode::Char('r'));
+        app.tree.select_path(&[0]);
+        key(&mut app, KeyCode::Right);
+        assert!(
+            app.tree.rows().iter().any(|r| r.name == "w"),
+            "{:?}",
+            app.tree.rows().iter().map(|r| &r.name).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn r_without_anything_to_read_from_says_so_and_a_reload_ends_a_search() {
+        let (mut app, _dir) = app_for(V1, &[1, 2, 3, 4]);
+        app.options = None;
+        key(&mut app, KeyCode::Char('r'));
+        assert_eq!(app.notice.as_deref(), Some("nothing to read again from"));
+        let (mut app, _dir) = app_for(V1, &[1, 2, 3, 4]);
+        app.search = Some(Search::new(Needle::new("x").unwrap(), true, Vec::new()));
+        app.reload();
+        assert!(!app.searching());
     }
 
     #[test]
@@ -1117,6 +1475,7 @@ seq:
             type_or_schema: schema.to_string_lossy().into_owned(),
             include_paths: Vec::new(),
             color: false,
+            watch: false,
         })
         .unwrap();
         let mut app = App::new(file, loaded);

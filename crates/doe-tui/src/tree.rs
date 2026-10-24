@@ -614,20 +614,53 @@ impl TreeModel {
         }
     }
 
-    /// Take over the open nodes and the selection of another model, for a
-    /// tree made from a changed value: what no longer exists is dropped.
+    /// The path in this tree of the node that has these `names` (the names of
+    /// the fields from the root, not counting the root), and how many of the
+    /// names were found: the path is that of the deepest node that is there.
+    fn resolve_names(&self, names: &[String]) -> (Vec<usize>, usize) {
+        let mut path = Vec::new();
+        let mut node = &self.root;
+        let mut found = 0;
+        for name in names {
+            let Some((index, child)) = node
+                .children
+                .iter()
+                .enumerate()
+                .find(|(_, c)| &c.name == name)
+            else {
+                break;
+            };
+            path.push(index);
+            node = child;
+            found += 1;
+        }
+        (path, found)
+    }
+
+    /// Take over the open nodes and the selection of another model, for a tree
+    /// made from a changed value or a changed schema: what was open is open,
+    /// and the selection is on the field that has the same name all the way
+    /// from the root, or, if the field is gone, on the deepest one of them that
+    /// is there. Nodes are found by their names, not by their places, so a field
+    /// added before the selected one does not move the selection.
     pub fn take_state_of(&mut self, other: &TreeModel) {
+        let names_of =
+            |path: &[usize]| -> Vec<String> { other.names_to(path).into_iter().skip(1).collect() };
         for path in &other.open {
-            if self.node(path).is_some() {
-                self.open.insert(path.clone());
+            let names = names_of(path);
+            let (found, count) = self.resolve_names(&names);
+            if count == names.len() {
+                self.open.insert(found);
             }
         }
         for (path, shown) in &other.shown {
-            if self.node(path).is_some() {
-                self.shown.insert(path.clone(), *shown);
+            let names = names_of(path);
+            let (found, count) = self.resolve_names(&names);
+            if count == names.len() {
+                self.shown.insert(found, *shown);
             }
         }
-        let path = other.selected_path().to_vec();
+        let (path, _) = self.resolve_names(&names_of(other.selected_path()));
         self.select_path(&path);
     }
 }
@@ -657,6 +690,7 @@ pub(crate) mod tests {
             type_or_schema: schema_path.to_string_lossy().into_owned(),
             include_paths: Vec::new(),
             color: false,
+            watch: false,
         })
         .unwrap();
         let error = loaded.error.as_ref().map(ToString::to_string);
@@ -942,6 +976,26 @@ instances:
         smaller.take_state_of(&before);
         assert_eq!(smaller.selected_path(), [1]);
         assert_eq!(smaller.selected().name, "items");
+    }
+
+    #[test]
+    fn the_state_is_taken_over_by_names_so_a_field_added_before_does_not_move_it() {
+        let before_schema = "id: t\nseq:\n  - id: a\n    type: u1\n  - id: inner\n    type: pair\ntypes:\n  pair:\n    seq:\n      - id: x\n        type: u1\n      - id: y\n        type: u1\n";
+        let after_schema = "id: t\nseq:\n  - id: added\n    type: u1\n  - id: a\n    type: u1\n  - id: inner\n    type: pair\ntypes:\n  pair:\n    seq:\n      - id: x\n        type: u1\n      - id: y\n        type: u1\n";
+        let (mut before, _) = model(before_schema, &[1, 2, 3]);
+        before.select_path(&[1, 1]); // inner/y, inner open
+        let (mut after, _) = model(after_schema, &[0, 1, 2, 3]);
+        after.take_state_of(&before);
+        assert_eq!(after.selected().name, "y");
+        assert_eq!(after.selected_path(), [2, 1], "inner moved from 1 to 2");
+        assert!(
+            after.rows().iter().any(|r| r.name == "x"),
+            "inner is still open"
+        );
+        // a field that is gone: the deepest one that is there
+        let (mut gone, _) = model("id: t\nseq:\n  - id: a\n    type: u1\n", &[1]);
+        gone.take_state_of(&before);
+        assert_eq!(gone.selected().name, "t");
     }
 
     /// A million elements: `items` has this many.

@@ -1035,7 +1035,7 @@ mod tui_in_a_terminal {
         writer: Box<dyn std::io::Write + Send>,
         output: mpsc::Receiver<Vec<u8>>,
         seen: String,
-        _dir: TempDir,
+        dir: TempDir,
         _master: Box<dyn portable_pty::MasterPty + Send>,
     }
 
@@ -1049,6 +1049,10 @@ mod tui_in_a_terminal {
         /// `doe --tui` on the files of the fixture, with `schema` as the text of the
         /// schema and `data` as the file (none: the file does not exist).
         fn start_with(schema: &str, data: Option<&[u8]>) -> Session {
+            Session::start_with_args(schema, data, &[])
+        }
+
+        fn start_with_args(schema: &str, data: Option<&[u8]>, extra: &[&str]) -> Session {
             let dir = TempDir::new().unwrap();
             let schema_path = dir.path().join("t.yaml");
             std::fs::write(&schema_path, schema).unwrap();
@@ -1056,7 +1060,7 @@ mod tui_in_a_terminal {
             if let Some(data) = data {
                 std::fs::write(&binary, data).unwrap();
             }
-            Session::start_in(dir, schema_path, binary, &[], &[])
+            Session::start_in(dir, schema_path, binary, extra, &[])
         }
 
         fn start_in(
@@ -1103,7 +1107,7 @@ mod tui_in_a_terminal {
                 writer,
                 output,
                 seen: String::new(),
-                _dir: dir,
+                dir,
                 _master: pair.master,
             }
         }
@@ -1296,6 +1300,57 @@ mod tui_in_a_terminal {
         session.wait_for("parsed");
         session.send(b"q");
         assert!(session.finish().0);
+    }
+
+    const ONE_FIELD: &str = "id: rec\nseq:\n  - id: first\n    type: u1\n";
+    const TWO_FIELDS: &str =
+        "id: rec\nseq:\n  - id: first\n    type: u1\n  - id: added\n    type: u1\n";
+
+    #[test]
+    fn r_reads_the_schema_again() {
+        let mut session = Session::start_with(ONE_FIELD, Some(&[1, 2]));
+        session.wait_for("first");
+        std::fs::write(session.dir.path().join("t.yaml"), TWO_FIELDS).unwrap();
+        session.send(b"r");
+        session.wait_for("added");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success, "the last read worked");
+        assert_screen_restored(&seen);
+    }
+
+    #[test]
+    fn a_reload_that_fails_keeps_the_tree_and_the_exit_says_so() {
+        let mut session = Session::start_with(ONE_FIELD, Some(&[1, 2]));
+        session.wait_for("first");
+        std::fs::write(
+            session.dir.path().join("t.yaml"),
+            "id: rec\nseq:\n  - id: first\n    type: nope\n",
+        )
+        .unwrap();
+        session.send(b"r");
+        session.wait_for("could not read again");
+        session.send(b"q");
+        let (success, _) = session.finish();
+        assert!(!success);
+    }
+
+    #[test]
+    fn watch_reads_the_schema_again_when_it_changes_on_disk() {
+        let mut session = Session::start_with_args(ONE_FIELD, Some(&[1, 2]), &["--watch"]);
+        session.wait_for("first");
+        std::fs::write(session.dir.path().join("t.yaml"), TWO_FIELDS).unwrap();
+        // no key: the viewer notices by itself, a second or so later
+        session.wait_for("added");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success);
+        assert_screen_restored(&seen);
+    }
+
+    #[test]
+    fn watch_without_tui_is_refused() {
+        doe().args(["--watch", "file", "type"]).assert().failure();
     }
 
     /// What `doe --tui` printed with these options until it showed its first screen.

@@ -119,6 +119,11 @@ pub(crate) struct Cli {
     )]
     pub(crate) tui: bool,
 
+    /// With `--tui`: read the schema and the file again when either changes
+    /// on disk (the modification times are looked at twice a second).
+    #[arg(long, requires = "tui")]
+    pub(crate) watch: bool,
+
     /// With `--ide`: the port to serve on (0 for any free one) [default: 8765].
     #[arg(long, value_name = "PORT", requires = "ide")]
     pub(crate) port: Option<u16>,
