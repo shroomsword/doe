@@ -4,12 +4,13 @@ use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
-use crate::app::{App, Focus};
+use crate::app::{App, Focus, Prompt};
 use crate::format;
 use crate::hex_view;
 use crate::inspect;
+use crate::keymap;
 use crate::status;
 use crate::tree::Shown;
 use crate::tree_view;
@@ -277,6 +278,138 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
             inspector(frame, area, app, *theme);
         }
     }
+
+    // A notice shows on the last line while there is no bar for it.
+    if area_has_no_bar(frame.area())
+        && let Some(notice) = &app.notice
+    {
+        let row = Rect {
+            y: frame.area().bottom().saturating_sub(1),
+            height: 1,
+            ..frame.area()
+        };
+        frame.render_widget(Clear, row);
+        frame.render_widget(
+            Paragraph::new(format::truncate(notice, usize::from(row.width))).style(theme.status()),
+            row,
+        );
+    }
+    if let Some(prompt) = &app.prompt {
+        prompt_line(frame, prompt, *theme);
+    }
+    if app.help {
+        help(frame, *theme);
+    }
+}
+
+/// Whether the screen is too short for the status bar.
+fn area_has_no_bar(area: Rect) -> bool {
+    area.height < STATUS_MIN_HEIGHT
+}
+
+/// The line being typed, on the last row of the screen, with the cursor in it.
+fn prompt_line(frame: &mut Frame<'_>, prompt: &Prompt, theme: Theme) {
+    let area = frame.area();
+    if area.height == 0 || area.width == 0 {
+        return;
+    }
+    let row = Rect {
+        y: area.bottom() - 1,
+        height: 1,
+        ..area
+    };
+    let label = prompt.kind.label();
+    let width = usize::from(row.width);
+    // keep the cursor in view: scroll the text left when the line is longer than the row
+    let room = width.saturating_sub(format::width(label) + 1).max(1);
+    let cursor = prompt.line.cursor_cells();
+    let skip_cells = cursor.saturating_sub(room.saturating_sub(1));
+    let mut shown = String::new();
+    let mut used = 0;
+    let mut skipped = 0;
+    for c in prompt.line.text().chars() {
+        let w = format::width(c.encode_utf8(&mut [0; 4]));
+        if skipped < skip_cells {
+            skipped += w;
+            continue;
+        }
+        if used + w > room {
+            break;
+        }
+        shown.push(c);
+        used += w;
+    }
+    frame.render_widget(Clear, row);
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(label, theme.title()),
+            Span::raw(shown),
+        ])),
+        row,
+    );
+    let x = row.x + u16::try_from(format::width(label) + cursor - skipped.min(cursor)).unwrap_or(0);
+    frame.set_cursor_position((x.min(row.right().saturating_sub(1)), row.y));
+}
+
+/// The help: every key, in a box over the screen.
+fn help(frame: &mut Frame<'_>, theme: Theme) {
+    let screen = frame.area();
+    if screen.width < 10 || screen.height < 4 {
+        return;
+    }
+    let mut lines: Vec<Line<'static>> = Vec::new();
+    for (title, bindings) in keymap::help() {
+        lines.push(Line::from(Span::styled(title, theme.title())));
+        for (keys, what) in bindings {
+            lines.push(Line::from(vec![
+                Span::styled(format!("  {keys:<14}"), theme.name()),
+                Span::raw(what),
+            ]));
+        }
+        lines.push(Line::raw(""));
+    }
+    lines.push(Line::from(Span::styled(
+        "In a prompt (/ and g)",
+        theme.title(),
+    )));
+    for (keys, what) in keymap::PROMPT_HELP {
+        lines.push(Line::from(vec![
+            Span::styled(format!("  {keys:<14}"), theme.name()),
+            Span::raw(*what),
+        ]));
+    }
+    lines.push(Line::raw(""));
+    lines.push(Line::from(Span::styled(
+        "any key closes this help",
+        theme.dim(),
+    )));
+
+    let wanted = u16::try_from(lines.len() + 2).unwrap_or(u16::MAX);
+    let width = screen.width.min(100);
+    let height = screen.height.min(wanted);
+    let area = Rect {
+        x: screen.x + (screen.width - width) / 2,
+        y: screen.y + (screen.height - height) / 2,
+        width,
+        height,
+    };
+    frame.render_widget(Clear, area);
+    let truncated = usize::from(height.saturating_sub(2)) < lines.len();
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(theme.border(true))
+        .title(Span::styled(" keys ", theme.title()))
+        .title_bottom(Line::from(Span::styled(
+            if truncated {
+                " the terminal is too small for all of the help "
+            } else {
+                " any key closes "
+            },
+            theme.dim(),
+        )));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
 /// The bar at the bottom: the field on the left, the file on the right.
@@ -286,7 +419,16 @@ fn status_bar(frame: &mut Frame<'_>, area: Rect, app: &App, theme: Theme) {
         || app.file.display().to_string(),
         |n| n.to_string_lossy().into_owned(),
     );
-    let (left, right) = status::bar(app.tree.selected(), &names, &file_name, app.size);
+    let (mut left, right) = status::bar(app.tree.selected(), &names, &file_name, app.size);
+    if let Some(search) = &app.search {
+        left = format!(
+            "searching for \"{}\"… {} fields looked at (any key stops)",
+            format::safe(search.needle().query()),
+            search.visited()
+        );
+    } else if let Some(notice) = &app.notice {
+        left.clone_from(notice);
+    }
     let width = usize::from(area.width);
     let right = format::truncate(&right, width / 2);
     let room = width.saturating_sub(format::width(&right) + 2);
@@ -717,6 +859,136 @@ instances:
             (1, 1),
         ] {
             let _ = inspected(&[2], w, h);
+        }
+    }
+
+    fn draw_app(app: &mut App, width: u16, height: u16) -> (Vec<String>, Terminal<TestBackend>) {
+        let theme = Theme::new(false);
+        let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+        terminal.draw(|f| draw(f, app, &theme)).unwrap();
+        let lines = rows(&terminal);
+        (lines, terminal)
+    }
+
+    #[test]
+    fn the_prompt_is_the_last_line_with_the_cursor_in_it() {
+        let (mut app, _dir) = app();
+        app.prompt = Some(Prompt {
+            kind: crate::prompt::Kind::Search,
+            line: crate::prompt::LineEditor::with_text("abc"),
+        });
+        let (lines, mut terminal) = draw_app(&mut app, 100, 10);
+        assert!(lines.last().unwrap().starts_with("/abc"), "{lines:?}");
+        let cursor = terminal.get_cursor_position().unwrap();
+        assert_eq!((cursor.x, cursor.y), (4, 9));
+
+        // the cursor is where it is in the text, wide characters count two cells
+        let mut line = crate::prompt::LineEditor::with_text("日本");
+        line.left();
+        app.prompt = Some(Prompt {
+            kind: crate::prompt::Kind::Goto,
+            line,
+        });
+        let (lines, mut terminal) = draw_app(&mut app, 100, 10);
+        assert!(
+            lines.last().unwrap().starts_with("goto offset: 日本"),
+            "{lines:?}"
+        );
+        let cursor = terminal.get_cursor_position().unwrap();
+        assert_eq!(cursor.x, 13 + 2);
+
+        // a line longer than the screen scrolls, and the cursor stays on the screen
+        app.prompt = Some(Prompt {
+            kind: crate::prompt::Kind::Search,
+            line: crate::prompt::LineEditor::with_text(&"x".repeat(200)),
+        });
+        let (lines, mut terminal) = draw_app(&mut app, 40, 10);
+        assert!(lines.last().unwrap().starts_with("/xxx"));
+        let cursor = terminal.get_cursor_position().unwrap();
+        assert!(cursor.x < 40 && cursor.y == 9, "{cursor:?}");
+
+        // no prompt: no cursor to show, and the bar is back
+        app.prompt = None;
+        let (lines, _) = draw_app(&mut app, 100, 10);
+        assert!(lines.last().unwrap().contains("t.bin"), "{lines:?}");
+    }
+
+    #[test]
+    fn the_prompt_and_the_notice_are_there_on_a_screen_too_short_for_the_bar() {
+        let (mut app, _dir) = app();
+        app.notice = Some("not found: zzz".to_owned());
+        let (lines, _) = draw_app(&mut app, 60, 5);
+        assert!(
+            lines.last().unwrap().contains("not found: zzz"),
+            "{lines:?}"
+        );
+        app.prompt = Some(Prompt {
+            kind: crate::prompt::Kind::Goto,
+            line: crate::prompt::LineEditor::with_text("0x10"),
+        });
+        let (lines, _) = draw_app(&mut app, 60, 5);
+        assert!(
+            lines.last().unwrap().starts_with("goto offset: 0x10"),
+            "{lines:?}"
+        );
+    }
+
+    #[test]
+    fn the_bar_shows_a_notice_and_the_progress_of_a_search() {
+        let (mut app, _dir) = app();
+        app.notice = Some("search wrapped around".to_owned());
+        let (lines, _) = draw_app(&mut app, 100, 10);
+        assert!(
+            lines.last().unwrap().starts_with(" search wrapped around"),
+            "{lines:?}"
+        );
+        app.notice = None;
+        app.search = Some(crate::search::Search::new(
+            crate::search::Needle::new("beta").unwrap(),
+            true,
+            Vec::new(),
+        ));
+        let (lines, _) = draw_app(&mut app, 100, 10);
+        assert!(
+            lines
+                .last()
+                .unwrap()
+                .contains("searching for \"beta\"… 0 fields looked at (any key stops)"),
+            "{lines:?}"
+        );
+    }
+
+    #[test]
+    fn the_help_lists_the_keys_and_fits_or_says_that_it_does_not() {
+        let (mut app, _dir) = app();
+        app.help = true;
+        let (lines, _) = draw_app(&mut app, 100, 50);
+        for needle in [
+            "keys",
+            "Anywhere",
+            "In the tree",
+            "In the bytes",
+            "In a prompt",
+            "Ctrl-C",
+            "go to an offset",
+            "search the names",
+            "any key closes",
+        ] {
+            assert!(
+                has(&lines, needle),
+                "{needle} is not in the help: {lines:?}"
+            );
+        }
+        // every line of the table is on the screen of a tall terminal
+        for (_, bindings) in crate::keymap::help() {
+            for (keys, what) in bindings {
+                assert!(has(&lines, &format!("{keys:<14}{what}")), "{keys}: {what}");
+            }
+        }
+        let (lines, _) = draw_app(&mut app, 60, 12);
+        assert!(has(&lines, "too small for all of the help"), "{lines:?}");
+        for (w, h) in [(9, 4), (10, 3), (3, 3), (1, 1), (100, 4)] {
+            let _ = draw_app(&mut app, w, h);
         }
     }
 

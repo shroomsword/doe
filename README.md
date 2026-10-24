@@ -978,12 +978,26 @@ view are read, so a file of many gigabytes opens and scrolls at once.
 Strings from the file are shown with control characters escaped, so nothing in a
 file can send commands to the terminal.
 
-In the tree, move with the arrow keys or `j`/`k`, `PgUp`/`PgDn`, `Home`/`End`;
-`→`/`l` opens a node, `←`/`h` closes it or goes to its parent, `Enter` or `Space`
-toggles it; the bytes scroll to the selected field. `Tab` moves the keys to the
-bytes: `←`/`→` (or `h`/`l`) move by a byte, `↑`/`↓` (`k`/`j`) by a line, `PgUp`/`PgDn`
-by a page, `Home`/`End` to the start and end of the line, `g`/`G` to the start and
-end of the file, and the tree selects the innermost field that holds the byte.
+In the tree, move with the arrow keys or `j`/`k`, `PgUp`/`PgDn`, `Home`/`End`
+(or `G`); `→`/`l` opens a node, `←`/`h` closes it or goes to its parent, `Enter` or
+`Space` toggles it; `]` and `[` go to the next and previous field at the same
+level; the bytes scroll to the selected field. `Tab` moves the keys to the bytes:
+`←`/`→` (or `h`/`l`) move by a byte, `↑`/`↓` (`k`/`j`) by a line, `PgUp`/`PgDn` by a
+page, `Home`/`End` to the start and end of the line, `Ctrl-Home` and `Ctrl-End`
+(or `G`) to the start and end of the file, and the tree selects the innermost
+field that holds the byte.
+
+`/` searches the names, types and values of the fields, as the tree shows them
+(`300 (0x12c)`, `"abc"`, `png (1)`): a query without a capital letter ignores
+case, one with a capital letter does not. `n` and `N` go to the next and previous
+match, round the end of the tree. The search looks at the fields in steps between
+redraws, so a tree of millions of fields does not freeze the screen, and any key
+stops it. `g` asks for an offset (decimal, or `0x…` for hex), shows it in the
+bytes and selects the innermost field that holds it; an offset past the end of the
+file, or in the part of the file that was not parsed, says so. `?` lists every key.
+The line that is typed for `/` and `g` is edited as a shell line is: the arrow keys,
+`Home`/`End`, `Backspace`/`Delete`, `Ctrl-W` (a word), `Ctrl-U`, `Ctrl-K`, and a
+paste (one line) is inserted at the cursor; `Enter` runs it, `Esc` cancels it.
 
 The **status bar** at the bottom has the path of the selected field
 (`header/entries/[3]/name`), its type (or the kind of its value), where its bytes

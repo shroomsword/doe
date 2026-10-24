@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Once};
 
 use crossterm::cursor::{Hide, Show};
+use crossterm::event::{DisableBracketedPaste, EnableBracketedPaste};
 use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
@@ -37,7 +38,12 @@ pub struct CrosstermScreen;
 impl Screen for CrosstermScreen {
     fn enter(&self) -> io::Result<()> {
         enable_raw_mode()?;
-        if let Err(e) = execute!(io::stdout(), EnterAlternateScreen, Hide) {
+        if let Err(e) = execute!(
+            io::stdout(),
+            EnterAlternateScreen,
+            Hide,
+            EnableBracketedPaste
+        ) {
             self.leave();
             return Err(e);
         }
@@ -46,7 +52,12 @@ impl Screen for CrosstermScreen {
 
     fn leave(&self) {
         // Every step is tried, and none can be handled if it fails.
-        let _ = execute!(io::stdout(), Show, LeaveAlternateScreen);
+        let _ = execute!(
+            io::stdout(),
+            DisableBracketedPaste,
+            Show,
+            LeaveAlternateScreen
+        );
         let _ = disable_raw_mode();
     }
 }

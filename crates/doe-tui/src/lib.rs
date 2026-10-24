@@ -16,7 +16,10 @@ pub mod bytes;
 pub mod format;
 pub mod hex_view;
 pub mod inspect;
+pub mod keymap;
 pub mod load;
+pub mod prompt;
+pub mod search;
 pub mod status;
 pub mod terminal;
 pub mod tree;
@@ -81,12 +84,23 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
         terminal
             .draw(|frame| ui::draw(frame, &mut app, &theme))
             .context("could not draw the screen")?;
-        if event::poll(TICK).context("could not read the keyboard")?
-            && let Event::Key(key) = event::read().context("could not read the keyboard")?
-            // Windows also reports the release of a key.
-            && key.kind != KeyEventKind::Release
-        {
-            app.on_key(key);
+        // While a search goes on, keys are only looked at, not waited for; between
+        // them it looks at the next fields. Redrawing between the steps keeps the
+        // screen alive and any key stops the search.
+        let wait = if app.searching() {
+            Duration::ZERO
+        } else {
+            TICK
+        };
+        if event::poll(wait).context("could not read the keyboard")? {
+            match event::read().context("could not read the keyboard")? {
+                // Windows also reports the release of a key.
+                Event::Key(key) if key.kind != KeyEventKind::Release => app.on_key(key),
+                Event::Paste(text) => app.on_paste(&text),
+                _ => {}
+            }
+        } else if app.searching() {
+            app.search_step();
         }
     }
     Ok(())

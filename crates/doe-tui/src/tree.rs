@@ -244,6 +244,84 @@ impl TreeModel {
         Some(node)
     }
 
+    /// The value at `path`, if the parse kept it.
+    fn value_at(&self, path: &[usize]) -> Option<&Value> {
+        let mut node = &self.root;
+        let mut value = self.value.as_ref();
+        for &index in path {
+            let child = node.children.get(index)?;
+            value = child_value(value, index, &child.name);
+            node = child;
+        }
+        value
+    }
+
+    /// The node after `path` in the order of the tree (a node, then its
+    /// children, then its next sibling); `None` after the last one.
+    #[must_use]
+    pub fn next_in_order(&self, path: &[usize]) -> Option<Vec<usize>> {
+        let node = self.node(path)?;
+        let mut next = path.to_vec();
+        if !node.children.is_empty() {
+            next.push(0);
+            return Some(next);
+        }
+        while let Some(last) = next.pop() {
+            let parent = self.node(&next)?;
+            if last + 1 < parent.children.len() {
+                next.push(last + 1);
+                return Some(next);
+            }
+        }
+        None
+    }
+
+    /// The last node of the tree in its order: down the last child every time.
+    #[must_use]
+    pub fn last_path(&self) -> Vec<usize> {
+        let mut path = Vec::new();
+        let mut node = &self.root;
+        while let Some(last) = node.children.len().checked_sub(1) {
+            path.push(last);
+            match node.children.get(last) {
+                Some(child) => node = child,
+                None => break,
+            }
+        }
+        path
+    }
+
+    /// The node before `path` in the order of the tree; `None` before the root.
+    #[must_use]
+    pub fn previous_in_order(&self, path: &[usize]) -> Option<Vec<usize>> {
+        let (&last, parent) = path.split_last()?;
+        let mut previous = parent.to_vec();
+        if last == 0 {
+            return Some(previous);
+        }
+        previous.push(last - 1);
+        // the last node inside the previous sibling
+        let mut node = self.node(&previous)?;
+        while let Some(index) = node.children.len().checked_sub(1) {
+            previous.push(index);
+            node = node.children.get(index)?;
+        }
+        Some(previous)
+    }
+
+    /// Whether the name, the type or the value (as the tree shows it) of the
+    /// node at `path` matches.
+    #[must_use]
+    pub fn node_matches(&self, path: &[usize], matches: impl Fn(&str) -> bool) -> bool {
+        let Some(node) = self.node(path) else {
+            return false;
+        };
+        if matches(&node.name) || node.type_name.as_deref().is_some_and(&matches) {
+            return true;
+        }
+        shown_of(self.value_at(path)).is_some_and(|shown| matches(&crate::format::shown(&shown)))
+    }
+
     /// The names from the root to the node at `path` (the root's name is the first).
     #[must_use]
     pub fn names_to(&self, path: &[usize]) -> Vec<String> {

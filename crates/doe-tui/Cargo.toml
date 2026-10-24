@@ -13,7 +13,7 @@ doe = { version = "0.3.0", path = "../doe" }
 anyhow = { workspace = true, features = ["std"] }
 log.workspace = true
 ratatui = { workspace = true, features = ["crossterm"] }
-crossterm = { workspace = true, features = ["events"] }
+crossterm = { workspace = true, features = ["events", "bracketed-paste"] }
 unicode-width.workspace = true
 unicode-segmentation.workspace = true
 

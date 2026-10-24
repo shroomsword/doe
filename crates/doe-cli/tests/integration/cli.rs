@@ -1194,6 +1194,35 @@ mod tui_in_a_terminal {
         assert!(seen.contains("bytes"), "{seen:?}");
     }
 
+    #[test]
+    fn help_search_goto_and_a_paste_work_in_the_terminal() {
+        let mut session = Session::start(&[], &[]);
+        session.wait_for("07");
+        // the help, closed by the next key
+        session.send(b"?");
+        session.wait_for("Anywhere");
+        session.send(b"x");
+        // a search for a field name, the text arriving as a bracketed paste
+        session.send(b"/");
+        session.wait_for("/");
+        session.send(b"\x1b[200~b\x1b[201~");
+        session.send(b"\r");
+        // a jump to an offset
+        session.send(b"g");
+        session.wait_for("goto offset: ");
+        session.send(b"0x2\r");
+        // the bar says where the field `b` is, after the jump
+        session.wait_for("simple/b");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success);
+        assert_screen_restored(&seen);
+        // bracketed paste was switched on while the viewer was open and off after it
+        let on = seen.find("\x1b[?2004h").expect("bracketed paste on");
+        let off = seen.rfind("\x1b[?2004l").expect("bracketed paste off");
+        assert!(on < off, "{seen:?}");
+    }
+
     /// What `doe --tui` printed with these options until it showed its first screen.
     fn first_screen(extra: &[&str], env: &[(&str, &str)]) -> String {
         let mut session = Session::start(extra, env);
