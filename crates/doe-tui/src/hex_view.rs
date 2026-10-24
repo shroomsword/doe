@@ -205,8 +205,18 @@ pub fn describe(row: &Row, digits: usize) -> String {
         return format!("{name}: not bytes of the file (made by process:)");
     }
     let Some(span) = row.span else {
+        if row.failed {
+            return format!("{name}: the parse failed here");
+        }
         return format!("{name}: computed, not in the file");
     };
+    if row.failed && span.is_empty() {
+        return format!(
+            "{name}: the parse failed here, at byte {:#0w$x}",
+            span.start / 8,
+            w = digits + 2
+        );
+    }
     if span.is_empty() {
         return format!("{name}: no bytes");
     }

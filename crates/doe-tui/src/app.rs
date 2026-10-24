@@ -10,8 +10,9 @@ use doe::DoeError;
 use crate::bytes::FileBytes;
 use crate::hex_view::{HexState, Selection};
 use crate::keymap::{self, Action, Scope};
-use crate::load::Loaded;
+use crate::load::{LoadFailure, Loaded};
 use crate::prompt::{Kind, LineEditor, Outcome as PromptOutcome};
+use crate::report::Report;
 use crate::search::{Needle, Outcome as SearchOutcome, Search};
 use crate::tree::TreeModel;
 use crate::tree_view::TreeView;
@@ -39,6 +40,10 @@ pub struct Prompt {
 
 /// The viewer.
 #[derive(Debug)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "each flag is a separate thing that is shown or not; they are not a state machine"
+)]
 pub struct App {
     /// The file that is shown.
     pub file: PathBuf,
@@ -62,6 +67,10 @@ pub struct App {
     pub inspector: bool,
     /// Whether the help is shown.
     pub help: bool,
+    /// What went wrong, if something did: a parse that stopped, or nothing parsed at all.
+    pub report: Option<Report>,
+    /// Whether the message about a parse that failed is shown.
+    pub show_report: bool,
     /// The line being typed, if any.
     pub prompt: Option<Prompt>,
     /// The search that is going on, if any (it is advanced by [`App::search_step`]).
@@ -102,15 +111,18 @@ pub fn parse_offset(text: &str) -> Result<u64, String> {
 }
 
 impl App {
-    /// A viewer for a parsed file.
+    /// A viewer for a parsed file. If the parse stopped, the field where it did
+    /// is selected and its bytes are shown.
     #[must_use]
     pub fn new(file: PathBuf, loaded: Loaded) -> Self {
-        App {
+        let mut app = App {
             bytes: FileBytes::open(&file).ok(),
             hex: HexState::new(),
             focus: Focus::Tree,
             inspector: false,
             help: false,
+            report: None,
+            show_report: true,
             prompt: None,
             search: None,
             last_query: None,
@@ -122,7 +134,66 @@ impl App {
             tree: TreeModel::new(loaded.trace, loaded.value),
             view: TreeView::new(),
             quit: false,
+        };
+        if let Some(error) = &app.error {
+            let path = app.tree.failed_path().unwrap_or_default();
+            let names = app.tree.names_to(&path);
+            // the type the field is in: the nearest one above it that has a name
+            let in_type = (0..path.len()).rev().find_map(|depth| {
+                app.tree
+                    .node(path.get(..depth)?)
+                    .and_then(|n| n.type_name.clone())
+            });
+            app.report = Some(Report::from_parse(error, &names, in_type.as_deref()));
+            app.tree.select_path(&path);
+            app.show_selected_field();
         }
+        app
+    }
+
+    /// A viewer for a file that could not be parsed at all: it shows what went
+    /// wrong and where, and the bytes of the file if it can be read.
+    #[must_use]
+    pub fn broken(
+        file: PathBuf,
+        failure: &LoadFailure,
+        schema_file: Option<&std::path::Path>,
+    ) -> Self {
+        App {
+            bytes: FileBytes::open(&file).ok(),
+            hex: HexState::new(),
+            focus: Focus::Tree,
+            inspector: false,
+            help: false,
+            report: Some(Report::from_failure(failure, schema_file)),
+            show_report: true,
+            prompt: None,
+            search: None,
+            last_query: None,
+            notice: None,
+            file,
+            type_name: failure.type_name.clone(),
+            size: failure.size,
+            error: None,
+            tree: TreeModel::new(
+                doe::parser::trace::TraceNode::named(&failure.type_name),
+                None,
+            ),
+            view: TreeView::new(),
+            quit: false,
+        }
+    }
+
+    /// What is said after the viewer has been left, if the last parse failed:
+    /// the message, and that the command exits with a failure.
+    #[must_use]
+    pub fn finish_message(&self) -> Option<String> {
+        let report = self.report.as_ref()?;
+        Some(format!(
+            "{}: {}",
+            crate::format::safe(&self.file.display().to_string()),
+            report.one_line()
+        ))
     }
 
     /// Whether a search is going on (the event loop then advances it between keys).
@@ -285,6 +356,7 @@ impl App {
             }
             Action::ToggleInspector => self.inspector = !self.inspector,
             Action::Help => self.help = true,
+            Action::ToggleReport => self.show_report = !self.show_report,
             Action::Search => self.open_prompt(Kind::Search),
             Action::SearchNext | Action::SearchPrevious => match self.last_query.clone() {
                 Some(query) => self.start_search(&query, action == Action::SearchNext),
@@ -314,8 +386,12 @@ impl App {
     /// Scroll the bytes to the selected field, and put the cursor at its start.
     pub fn show_selected_field(&mut self) {
         let size = self.bytes.as_ref().map_or(0, FileBytes::size);
-        if let Some(selection) = Selection::of(self.tree.selected()) {
+        let row = self.tree.selected();
+        if let Some(selection) = Selection::of(row) {
             self.hex.reveal(selection.first_byte(), size);
+        } else if let Some(span) = row.span.filter(|_| !row.processed) {
+            // a field that failed has no bits, but it has a place
+            self.hex.reveal(span.start / 8, size);
         }
     }
 
@@ -775,6 +851,175 @@ enums:
         // the bytes follow
         key(&mut app, KeyCode::Char(']'));
         assert_eq!(app.hex.cursor(), 5);
+    }
+
+    /// A parse that fails in a type inside a type: `body` needs three bytes and has two.
+    const NESTED_FAIL: &str = "id: rec
+seq:
+  - id: head
+    type: u1
+  - id: body
+    type: pair
+types:
+  pair:
+    seq:
+      - id: x
+        type: u1
+      - id: y
+        type: u2le
+";
+
+    /// A parse that fails in the third element of a repeated field.
+    const REPEATED_FAIL: &str = "id: rec
+seq:
+  - id: count
+    type: u1
+  - id: items
+    type: u2le
+    repeat: expr
+    repeat-expr: count
+";
+
+    #[test]
+    fn a_parse_that_fails_in_a_nested_type_selects_the_field_and_shows_its_bytes() {
+        let (app, _dir) = app_for(NESTED_FAIL, &[1, 5, 9]);
+        assert!(app.error.is_some());
+        let report = app.report.as_ref().unwrap();
+        assert!(!report.fatal);
+        assert_eq!(
+            report.headline,
+            "the parse failed at rec/body/y (in rec::pair)"
+        );
+        assert_ne!(report.causes.len(), 0);
+        // the failed field is selected, marked, and the bytes are at it
+        assert_eq!(selected(&app), ["rec", "body", "y"]);
+        assert!(app.tree.selected().failed);
+        assert_eq!(app.hex.cursor(), 2);
+        // what was read before is in the tree
+        assert!(
+            app.tree
+                .rows()
+                .iter()
+                .any(|r| r.name == "x" && r.shown.is_some())
+        );
+        assert!(app.show_report);
+    }
+
+    #[test]
+    fn a_parse_that_fails_in_a_repeated_field_selects_the_element() {
+        let (app, _dir) = app_for(REPEATED_FAIL, &[3, 1, 0, 2, 0, 9]);
+        let report = app.report.as_ref().unwrap();
+        assert_eq!(
+            report.headline,
+            "the parse failed at rec/items/[2] (in rec)"
+        );
+        assert_eq!(selected(&app), ["rec", "items", "[2]"]);
+        assert!(app.tree.selected().failed);
+        assert_eq!(app.hex.cursor(), 5);
+        // the two elements that were read are there
+        assert!(app.tree.rows().iter().any(|r| r.name == "[1]"));
+    }
+
+    #[test]
+    fn a_parse_that_works_has_no_report_and_the_viewer_ends_well() {
+        let (app, _dir) = app();
+        assert!(app.report.is_none());
+        assert_eq!(app.finish_message(), None);
+    }
+
+    #[test]
+    fn what_is_said_when_the_viewer_is_left_names_the_file_and_the_error() {
+        let (app, dir) = app_for(NESTED_FAIL, &[1, 5, 9]);
+        let message = app.finish_message().unwrap();
+        let file = dir.path().join("t.bin").display().to_string();
+        assert!(
+            message.starts_with(&format!(
+                "{file}: the parse failed at rec/body/y (in rec::pair): "
+            )),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn e_shows_and_hides_the_message() {
+        let (mut app, _dir) = app_for(NESTED_FAIL, &[1, 5, 9]);
+        assert!(app.show_report);
+        key(&mut app, KeyCode::Char('e'));
+        assert!(!app.show_report);
+        key(&mut app, KeyCode::Char('e'));
+        assert!(app.show_report);
+    }
+
+    fn broken_app(schema: &str, data: Option<&[u8]>) -> (App, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let schema_path = dir.path().join("t.yaml");
+        std::fs::write(&schema_path, schema).unwrap();
+        let file = dir.path().join("t.bin");
+        if let Some(data) = data {
+            std::fs::write(&file, data).unwrap();
+        }
+        let options = Options {
+            file: file.clone(),
+            type_or_schema: schema_path.to_string_lossy().into_owned(),
+            include_paths: vec![dir.path().to_path_buf()],
+            color: false,
+        };
+        let failure = crate::load::try_load(&options).unwrap_err();
+        let schema = crate::load::schema_file(&options);
+        (App::broken(file, &failure, schema.as_deref()), dir)
+    }
+
+    #[test]
+    fn a_schema_that_does_not_compile_leaves_the_viewer_open_with_the_error_and_the_bytes() {
+        let (mut app, _dir) = broken_app(
+            "id: bad\nseq:\n  - id: a\n    type: nope\n",
+            Some(&[1, 2, 3]),
+        );
+        let report = app.report.as_ref().unwrap();
+        assert!(report.fatal);
+        assert_eq!(report.place.as_ref().unwrap().line, 4);
+        assert!(
+            app.finish_message()
+                .unwrap()
+                .contains("the schema bad cannot be used")
+        );
+        // the viewer works: the bytes can be moved in, the keys are handled, q leaves
+        key(&mut app, KeyCode::Tab);
+        key(&mut app, KeyCode::Right);
+        assert_eq!(app.hex.cursor(), 1);
+        key(&mut app, KeyCode::Char('/'));
+        key(&mut app, KeyCode::Esc);
+        assert!(!app.quit);
+        key(&mut app, KeyCode::Char('q'));
+        assert!(app.quit);
+    }
+
+    #[test]
+    fn a_missing_file_is_a_report_and_the_viewer_has_no_bytes() {
+        let (mut app, _dir) = broken_app("id: ok\nseq:\n  - id: a\n    type: u1\n", None);
+        assert!(app.report.as_ref().unwrap().fatal);
+        assert!(app.bytes.is_none());
+        assert!(
+            app.finish_message()
+                .unwrap()
+                .contains("the file cannot be read")
+        );
+        // every key is safe without a file
+        for code in [
+            KeyCode::Down,
+            KeyCode::Tab,
+            KeyCode::Right,
+            KeyCode::End,
+            KeyCode::Char('i'),
+            KeyCode::Char('n'),
+        ] {
+            key(&mut app, code);
+        }
+        for text in ["0", "5"] {
+            key(&mut app, KeyCode::Char('g'));
+            type_text(&mut app, text);
+            key(&mut app, KeyCode::Enter);
+        }
     }
 
     #[test]

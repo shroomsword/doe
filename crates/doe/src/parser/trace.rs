@@ -76,6 +76,14 @@ pub struct TraceNode {
 }
 
 impl TraceNode {
+    /// A node with a name and nothing else: no type, no bits, no children. A
+    /// viewer uses it as the root of a tree for a file that could not be
+    /// parsed at all.
+    #[must_use]
+    pub fn named(name: &str) -> Self {
+        TraceNode::untraced(name)
+    }
+
     /// A root that records nothing, for a parse that was not traced.
     pub(crate) fn untraced(name: &str) -> Self {
         TraceNode {
