@@ -55,6 +55,38 @@ pub struct Options {
     pub watch: bool,
 }
 
+/// The stack of the thread that parses: as large as the engine may need for the
+/// deepest schemas it allows (the main thread has 8 MiB; a new thread 2 MiB).
+const LOAD_STACK: usize = 64 * 1024 * 1024;
+
+/// Parse in another thread, so that the first screen does not wait for it.
+fn spawn_load(
+    options: Options,
+) -> std::sync::mpsc::Receiver<Result<load::Loaded, Box<load::LoadFailure>>> {
+    let (send, receive) = std::sync::mpsc::channel();
+    let spawned = std::thread::Builder::new()
+        .name("doe-parse".to_owned())
+        .stack_size(LOAD_STACK)
+        .spawn({
+            let send = send.clone();
+            move || {
+                // The viewer may have been left already: then nobody wants the result.
+                let _ = send.send(load::try_load(&options));
+            }
+        });
+    if let Err(error) = spawned {
+        log::error!("could not start the thread that parses: {error}");
+        drop(send);
+    }
+    receive
+}
+
+/// The longest the screen is left undrawn while keys keep coming.
+const MAX_BEHIND: Duration = Duration::from_millis(50);
+
+/// How often the screen is redrawn while the file is being parsed (for the seconds on it).
+const LOADING_REDRAW: Duration = Duration::from_millis(250);
+
 /// How often the loop looks at the signals when no key is pressed.
 const TICK: Duration = Duration::from_millis(100);
 
@@ -73,26 +105,35 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
             "--tui needs a terminal on stdin and on stdout (use --json or --pretty to print to a pipe)"
         );
     }
-    // What cannot be parsed is shown in the viewer, not refused before it opens:
-    // a schema with a mistake in it, a type that does not exist, a file that
+    // The terminal is set up and the first screen drawn at once; the file is
+    // parsed in another thread, which can take a while for a file with millions of
+    // fields. What cannot be parsed is shown in the viewer, not refused before it
+    // opens: a schema with a mistake in it, a type that does not exist, a file that
     // cannot be read. The person sees what and where, and leaves with `q`.
-    let mut app = match load::try_load(options) {
-        Ok(loaded) => App::new(options.file.clone(), loaded),
-        Err(failure) => {
-            let schema = load::schema_file(options);
-            App::broken(options.file.clone(), &failure, schema.as_deref())
-        }
-    };
+    let mut app = App::loading(options.file.clone(), &options.type_or_schema);
     app.options = Some(options.clone());
-    let mut watch = options.watch.then(|| Watch::new(app.watched_files()));
+    let loader = spawn_load(options.clone());
+    let mut loader = Some(loader);
+    let mut watch: Option<Watch> = None;
     let theme = Theme::new(options.color);
 
     let signals = Signals::install().context("could not install the signal handlers")?;
     let (guard, mut terminal) = Guard::enter().context("could not set up the terminal")?;
+    // The screen is drawn when something has changed, not on every turn of the loop.
+    let mut dirty = true;
+    let mut last_draw = Instant::now();
     while !app.quit && !signals.fired() {
-        terminal
-            .draw(|frame| ui::draw(frame, &mut app, &theme))
-            .context("could not draw the screen")?;
+        // A held key sends keys faster than a screen can be drawn and read: while
+        // more input is waiting, the screen is only drawn every so often, so that the
+        // viewer is never behind its keys.
+        let input_waiting = event::poll(Duration::ZERO).context("could not read the keyboard")?;
+        if dirty && (!input_waiting || last_draw.elapsed() >= MAX_BEHIND) {
+            terminal
+                .draw(|frame| ui::draw(frame, &mut app, &theme))
+                .context("could not draw the screen")?;
+            dirty = false;
+            last_draw = Instant::now();
+        }
         // While a search goes on, keys are only looked at, not waited for; between
         // them it looks at the next fields. Redrawing between the steps keeps the
         // screen alive and any key stops the search.
@@ -108,8 +149,33 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
                 Event::Paste(text) => app.on_paste(&text),
                 _ => {}
             }
+            dirty = true;
         } else if app.searching() {
             app.search_step();
+            dirty = true;
+        }
+        // The parse is done: the tree takes the place of the message. (If the thread
+        // that parses stopped without an answer, that is the answer.)
+        if let Some(receiver) = &loader {
+            let result = match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(std::sync::mpsc::TryRecvError::Empty) => None,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    Some(Err(Box::new(load::LoadFailure::stopped(options))))
+                }
+            };
+            if let Some(result) = result {
+                app.finish_loading(result);
+                loader = None;
+                if options.watch {
+                    watch = Some(Watch::new(app.watched_files()));
+                }
+                dirty = true;
+            }
+        }
+        // The time that the parse has taken is on the screen, a few times a second.
+        if app.loading && last_draw.elapsed() >= LOADING_REDRAW {
+            dirty = true;
         }
         // With --watch, a change of the schema or the file on disk is read again. The
         // files are looked at once in a while, not on every turn of the loop.
@@ -118,6 +184,7 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
         {
             app.reload();
             watch.set_paths(app.watched_files());
+            dirty = true;
         }
     }
     // The terminal is put back first, so that what is said next is on the screen the person returns to.

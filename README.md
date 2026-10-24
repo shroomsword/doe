@@ -988,6 +988,21 @@ page, `Home`/`End` to the start and end of the line, `Ctrl-Home` and `Ctrl-End`
 (or `G`) to the start and end of the file, and the tree selects the innermost
 field that holds the byte.
 
+**Large files.** The viewer is built not to be what makes a big file hard to
+look at. The first screen is drawn at once and says that the file is being
+parsed (the parse runs in another thread, and a file with millions of fields
+takes the engine a few seconds); the file itself is read as the schema asks
+for it and as the bytes are shown, a window at a time, so a file of gigabytes
+(it may be sparse) opens and scrolls with the memory of a small one. A list is
+shown through a window of 200 elements that moves to the element you go to
+(search, `g`, the end of the list), so a list of a million elements never has
+more than a few hundred rows. The screen is redrawn when something changed, and
+while keys come faster than it can be drawn only every 50 ms. The budget is in
+`crates/doe-tui/tests/performance.rs`, which tests it on a generated tree of a
+million fields and a file of 6 GiB: the first screen in 500 ms, a key and a frame
+in 100 ms, a step of a search in 100 ms and no more than 32 MiB of memory added;
+what is measured is tens of times smaller.
+
 When the parse fails, the tree is what was read up to the failure, the field
 where it failed is marked and selected, and the bytes are at it. A message under
 the tree says what happened, in which field (`rec/items/[2]/kind`) and type, and

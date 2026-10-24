@@ -1353,6 +1353,16 @@ mod tui_in_a_terminal {
         doe().args(["--watch", "file", "type"]).assert().failure();
     }
 
+    #[test]
+    fn the_first_screen_is_up_while_the_file_is_parsed() {
+        let mut session = Session::start(&[], &[]);
+        // the screen with the message is drawn before the parse is done, then the tree
+        session.wait_for("parsing");
+        session.wait_for("parsed");
+        session.send(b"q");
+        assert!(session.finish().0);
+    }
+
     /// What `doe --tui` printed with these options until it showed its first screen.
     fn first_screen(extra: &[&str], env: &[(&str, &str)]) -> String {
         let mut session = Session::start(extra, env);

@@ -573,3 +573,74 @@ fn nothing_of_a_failed_parse_leaks_into_the_next() {
     // The plain parse still returns the error alone.
     assert!(engine.parse_type("t", &mut Cursor::new(&[1])).is_err());
 }
+
+/// The path that looking through every child, in order, gives: what `find_byte`
+/// did before it used a binary search.
+fn find_byte_by_looking(root: &TraceNode, offset: u64) -> Option<Vec<usize>> {
+    let mut path = Vec::new();
+    let mut node = root;
+    if !node.span.is_some_and(|span| span.contains_byte(offset)) {
+        return None;
+    }
+    while let Some((index, child)) = node.children.iter().enumerate().find(|(_, c)| {
+        !c.processed && !c.is_instance && c.span.is_some_and(|span| span.contains_byte(offset))
+    }) {
+        path.push(index);
+        node = child;
+    }
+    Some(path)
+}
+
+#[test]
+fn finding_a_byte_gives_what_looking_through_the_children_gives() {
+    // lists, bit fields that share bytes, a field placed with pos:, an instance, empty fields
+    let yaml = indoc! {"
+        meta:
+          id: mixed
+        seq:
+          - id: count
+            type: u1
+          - id: flags
+            type: b3
+          - id: more_flags
+            type: b5
+          - id: nothing
+            size: 0
+          - id: items
+            type: item
+            repeat: expr
+            repeat-expr: count
+          - id: tail
+            type: u2le
+        types:
+          item:
+            seq:
+              - id: a
+                type: u1
+              - id: b
+                type: b4
+              - id: c
+                type: b4
+        instances:
+          placed:
+            pos: 1
+            type: u1
+          computed:
+            value: count * 2
+    "};
+    let mut data = vec![6_u8];
+    data.extend([0xa5]);
+    data.extend(0_u8..18);
+    data.extend([1, 2, 3]);
+    let root = trace(yaml, &data);
+    let mut seen = 0;
+    for offset in 0..data.len() as u64 + 3 {
+        assert_eq!(
+            root.find_byte(offset),
+            find_byte_by_looking(&root, offset),
+            "byte {offset}"
+        );
+        seen += usize::from(root.find_byte(offset).is_some());
+    }
+    assert_eq!(seen, 16, "the 16 bytes that were read");
+}

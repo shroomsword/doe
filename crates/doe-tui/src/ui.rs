@@ -198,7 +198,9 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     };
 
     let fatal = app.report.as_ref().is_some_and(|r| r.fatal);
-    let status = if fatal {
+    let status = if app.loading {
+        Span::styled(" parsing… ", theme.title())
+    } else if fatal {
         Span::styled(" cannot be parsed ", theme.bad())
     } else {
         match (&app.error, &app.report) {
@@ -229,7 +231,27 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     frame.render_widget(block, tree_area);
     // What went wrong is where the tree is (nothing was parsed), or under it.
     let mut tree_inner = inner;
-    if let Some(report) = &app.report {
+    if app.loading {
+        // the file is still being parsed: there is no tree yet
+        let seconds = app.loading_since.map_or(0, |t| t.elapsed().as_secs());
+        let text = vec![
+            Line::from(Span::styled(
+                format!(
+                    "parsing {} as {}… {seconds} s",
+                    format::safe(&app.file.display().to_string()),
+                    format::safe(&app.type_name)
+                ),
+                theme.title(),
+            )),
+            Line::raw(""),
+            Line::from(Span::styled(
+                "the tree comes when it is done; q leaves",
+                theme.dim(),
+            )),
+        ];
+        frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
+        tree_inner = Rect { height: 0, ..inner };
+    } else if let Some(report) = &app.report {
         let lines = report_lines(report, *theme);
         if report.fatal {
             frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
@@ -250,8 +272,8 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         }
     }
     // With no room for the bytes, the inspector takes the place of the tree.
-    if fatal {
-        // the report is all there is to see in this pane
+    if fatal || app.loading {
+        // the report, or the message that it is being read, is all there is to see in this pane
     } else if app.inspector && hex_area.is_none() {
         inspector(frame, tree_inner, app, *theme);
     } else {
@@ -260,10 +282,12 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
 
     if let Some(hex_area) = hex_area {
         let size = app.bytes.as_ref().map_or(0, crate::bytes::FileBytes::size);
-        let note = format::truncate(
-            &hex_view::describe(app.tree.selected(), hex_view::offset_digits(size)),
-            usize::from(hex_area.width.saturating_sub(4)),
-        );
+        let described = if app.loading {
+            "the file is being parsed".to_owned()
+        } else {
+            hex_view::describe(app.tree.selected(), hex_view::offset_digits(size))
+        };
+        let note = format::truncate(&described, usize::from(hex_area.width.saturating_sub(4)));
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(theme.border(focus == Focus::Hex))
@@ -1224,6 +1248,26 @@ instances:
             };
             let failure = crate::load::try_load(&options).unwrap_err();
             let mut app = App::broken(options.file.clone(), &failure, None);
+            let _ = draw_app(&mut app, w, h);
+        }
+    }
+
+    #[test]
+    fn while_the_file_is_parsed_the_screen_says_so() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("big.bin");
+        std::fs::write(&file, [1, 2, 3]).unwrap();
+        let mut app = App::loading(file, "my_format");
+        let (lines, _) = draw_app(&mut app, 100, 12);
+        assert!(has(&lines, "parsing"), "{lines:?}");
+        assert!(has(&lines, "my_format… 0 s"), "{lines:?}");
+        assert!(has(&lines, "big.bin"), "{lines:?}");
+        assert!(has(&lines, "the file is being parsed"), "{lines:?}");
+        assert!(has(&lines, "q leaves"), "{lines:?}");
+        // the bytes are there already: the file is read as they are shown, not parsed
+        assert!(has(&lines, "00000000  01 02 03"), "{lines:?}");
+        assert!(!has(&lines, "▾"), "there is no tree yet");
+        for (w, h) in [(30, 8), (12, 4), (8, 3)] {
             let _ = draw_app(&mut app, w, h);
         }
     }

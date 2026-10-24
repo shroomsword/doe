@@ -76,6 +76,24 @@ impl SchemaSource for Recording {
     }
 }
 
+impl LoadFailure {
+    /// What is said when the thread that parses ended without an answer (it
+    /// panicked, or could not be started).
+    #[must_use]
+    pub fn stopped(options: &Options) -> LoadFailure {
+        LoadFailure {
+            error: DoeError::Schema(
+                "the thread that parses stopped without an answer (this is a bug in doe)"
+                    .to_owned(),
+            ),
+            stage: Stage::Schema,
+            type_name: options.type_or_schema.clone(),
+            size: 0,
+            schema_files: Vec::new(),
+        }
+    }
+}
+
 /// The file the schema is in, when it is known: the one named on the command
 /// line, or the one that declares the type with that name on the include paths.
 #[must_use]
