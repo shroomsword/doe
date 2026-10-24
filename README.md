@@ -1058,6 +1058,17 @@ feature, which is on by default: `--no-default-features` leaves it out, and
 `--tui` then says so. It cannot be combined with `--json`, `--pretty`,
 `--no-instances`, `--indent` or `--ide`.
 
+**How it is tested.** The model, the keys and the drawing are tested by feeding
+events to the app and drawing it on a `ratatui` `TestBackend`, in the CI test job
+on all four targets (Linux x86-64, macOS arm64, Windows x86-64 run them; macOS
+x86-64 is built on the arm64 runner, so its tests are compiled but not run). A few tests start the real
+`doe --tui` on a pseudo-terminal, send keys, and check the screen and that the
+terminal is put back after `q`, after a signal and after a panic inside the
+viewer. Those run on Linux and macOS; **on Windows there is no pseudo-terminal
+test** (it would need `ConPTY` and a dependency for it), so the setup and
+restoring of the console there is not covered by tests, and `SIGTERM` and
+`SIGHUP` do not exist there.
+
 ### Color
 
 Color is used on stderr only: errors in red, warnings in yellow. `--color`

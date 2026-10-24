@@ -99,6 +99,12 @@ const TICK: Duration = Duration::from_millis(100);
 /// that cannot be used or a file that cannot be read is shown in the viewer,
 /// not refused: after it is left (the terminal is put back first), the last
 /// parse having failed is an error, with the message that was on the screen.
+///
+/// # Panics
+///
+/// When the environment variable `DOE_TUI_PANIC_FOR_TEST` is set, after the
+/// terminal is set up: the tests use it to check that a panic puts the terminal
+/// back.
 pub fn run(options: &Options) -> anyhow::Result<()> {
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         bail!(
@@ -119,6 +125,11 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
 
     let signals = Signals::install().context("could not install the signal handlers")?;
     let (guard, mut terminal) = Guard::enter().context("could not set up the terminal")?;
+    // For the test that a panic inside the viewer puts the terminal back.
+    assert!(
+        std::env::var_os("DOE_TUI_PANIC_FOR_TEST").is_none(),
+        "DOE_TUI_PANIC_FOR_TEST is set"
+    );
     // The screen is drawn when something has changed, not on every turn of the loop.
     let mut dirty = true;
     let mut last_draw = Instant::now();

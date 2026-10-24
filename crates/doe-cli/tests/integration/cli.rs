@@ -1165,6 +1165,19 @@ mod tui_in_a_terminal {
     }
 
     #[test]
+    fn a_panic_inside_the_viewer_puts_the_terminal_back_before_its_message() {
+        let session = Session::start(&[], &[("DOE_TUI_PANIC_FOR_TEST", "1")]);
+        let (success, seen) = session.finish();
+        assert!(!success);
+        assert_screen_restored(&seen);
+        // the message is after the screen was left, so it is not lost with the alternate screen
+        let message = seen
+            .find("DOE_TUI_PANIC_FOR_TEST is set")
+            .unwrap_or_else(|| panic!("{seen:?}"));
+        assert!(message > seen.rfind(LEAVE_SCREEN).unwrap(), "{seen:?}");
+    }
+
+    #[test]
     fn q_leaves_and_the_terminal_is_as_it_was() {
         let mut session = Session::start(&[], &[]);
         session.wait_for("q quit");
