@@ -979,6 +979,38 @@ view are read, so a file of many gigabytes opens and scrolls at once.
 Strings from the file are shown with control characters escaped, so nothing in a
 file can send commands to the terminal.
 
+This is `doe --tui demo.bin demo.yaml` for a small made-up format, with the
+selection on the `size` of the first record (the bytes of the field are
+highlighted in the second pane, and the status line says where they are):
+
+```text
+┌ demo ────────────────────────────────────────────────────────────────────── parsed ┐
+│ ▾ demo                                                                            █│
+│     magic = <4 bytes> 44 4f 45 31                                                 █│
+│     version = 3                                                                   █│
+│     flags = 5                                                                     █│
+│     count = 2                                                                     █│
+│     name = "demo"                                                                 █│
+│   ▾ records                                                                       █│
+│     ▾ [0]  demo::record                                                           █│
+│         kind = text (1)                                                           █│
+│         size = 11                                                                 ║│
+└ q quit · Tab switch pane · i inspector ────────────────────────────────────────────┘
+┌ size: bytes 0x0000000e..0x0000000f ────────────────────────────────────────────────┐
+│00000000  44 4f 45 31 03 00 05 02  64 65 6d 6f 00 01 0b 00  DOE1....demo....        │
+│00000010  68 65 6c 6c 6f 20 77 6f  72 6c 64 02 08 00 89 8a  hello world.....        │
+│00000020  8b 8c 8d 8e 8f 90                                 ......                  │
+└ 38 bytes ──────────────────────────────────────────────────────────────────────────┘
+ demo/records/[0]/size · unsigned integer · @0xe (14) · 2 bytes (… demo.bin · 38 bytes
+```
+
+The viewer and the [web IDE](#web-ide) show the same parse of the same schemas.
+The IDE is for writing a schema (an editor beside the tree, the bytes and the
+errors, in a browser, with files and schemas dropped on it); the terminal viewer is
+for looking at a file where you already are (over `ssh`, or beside the editor you
+use) and for files that are too big to put in a page, and with `--watch` it can
+follow a schema you edit elsewhere. Neither needs the other.
+
 In the tree, move with the arrow keys or `j`/`k`, `PgUp`/`PgDn`, `Home`/`End`
 (or `G`); `→`/`l` opens a node, `←`/`h` closes it or goes to its parent, `Enter` or
 `Space` toggles it; `]` and `[` go to the next and previous field at the same

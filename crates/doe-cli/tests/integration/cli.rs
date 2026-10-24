@@ -595,6 +595,29 @@ fn man_page_is_roff_and_listed_in_help() {
 }
 
 #[test]
+fn the_terminal_viewer_is_in_help_the_man_page_and_the_completions() {
+    let text = |args: &[&str]| {
+        let assert = doe().args(args).assert().success();
+        String::from_utf8(assert.get_output().stdout.clone()).unwrap()
+    };
+    let help = text(&["-c", NO_CONFIG, "--help"]);
+    for flag in ["--tui", "--watch"] {
+        assert!(help.contains(flag), "{flag} is not in --help: {help}");
+    }
+    // roff writes the hyphens of a flag escaped
+    let man = text(&["--man"]);
+    for flag in [r"\-\-tui", r"\-\-watch"] {
+        assert!(man.contains(flag), "{flag} is not in the man page");
+    }
+    for shell in ["bash", "zsh", "fish", "powershell", "elvish"] {
+        let completions = text(&["--completions", shell]);
+        for flag in ["tui", "watch"] {
+            assert!(completions.contains(flag), "{flag} is not in {shell}");
+        }
+    }
+}
+
+#[test]
 fn the_schema_page_is_a_page_of_its_own() {
     doe()
         .arg("--man=schema")
