@@ -391,6 +391,7 @@ mod tests {
             type_or_schema: schema_path.to_string_lossy().into_owned(),
             include_paths: Vec::new(),
             color: false,
+            watch: false,
         })
         .unwrap();
         let bytes = FileBytes::open(&file).unwrap();

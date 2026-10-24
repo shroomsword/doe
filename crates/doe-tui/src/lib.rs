@@ -26,10 +26,11 @@ pub mod terminal;
 pub mod tree;
 pub mod tree_view;
 pub mod ui;
+pub mod watch;
 
 use std::io::{self, IsTerminal};
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, bail};
 use crossterm::event::{self, Event, KeyEventKind};
@@ -37,6 +38,7 @@ use crossterm::event::{self, Event, KeyEventKind};
 use crate::app::App;
 use crate::terminal::{Guard, Signals};
 use crate::ui::Theme;
+use crate::watch::Watch;
 
 /// What the viewer is asked to show.
 #[derive(Debug, Clone)]
@@ -49,6 +51,8 @@ pub struct Options {
     pub include_paths: Vec<PathBuf>,
     /// Whether to use colours (`--color` and `NO_COLOR` are decided by the caller).
     pub color: bool,
+    /// Whether to read the schema and the file again when they change on disk.
+    pub watch: bool,
 }
 
 /// How often the loop looks at the signals when no key is pressed.
@@ -79,6 +83,8 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
             App::broken(options.file.clone(), &failure, schema.as_deref())
         }
     };
+    app.options = Some(options.clone());
+    let mut watch = options.watch.then(|| Watch::new(app.watched_files()));
     let theme = Theme::new(options.color);
 
     let signals = Signals::install().context("could not install the signal handlers")?;
@@ -104,6 +110,14 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
             }
         } else if app.searching() {
             app.search_step();
+        }
+        // With --watch, a change of the schema or the file on disk is read again. The
+        // files are looked at once in a while, not on every turn of the loop.
+        if let Some(watch) = &mut watch
+            && watch.changed(Instant::now())
+        {
+            app.reload();
+            watch.set_paths(app.watched_files());
         }
     }
     // The terminal is put back first, so that what is said next is on the screen the person returns to.

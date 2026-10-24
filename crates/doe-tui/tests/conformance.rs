@@ -87,6 +87,7 @@ fn the_tree_and_the_bytes_agree_on_the_conformance_samples() {
                 type_or_schema: definition.to_string_lossy().into_owned(),
                 include_paths: include_paths.clone(),
                 color: false,
+                watch: false,
             })
             .unwrap_or_else(|e| panic!("{label}: {e}"));
             let size = loaded.size;

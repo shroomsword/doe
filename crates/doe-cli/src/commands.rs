@@ -88,6 +88,7 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         type_or_schema: type_or_schema.clone(),
         include_paths: resolve_include_paths(&cli.include_paths, config),
         color,
+        watch: cli.watch,
     })
 }
 

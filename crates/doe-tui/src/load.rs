@@ -1,6 +1,7 @@
 //! Parse the file and keep what was read, also when the parse fails.
 
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use doe::DoeError;
 use doe::Value;
@@ -9,6 +10,7 @@ use doe::parser::engine::Engine;
 use doe::parser::engine::ParseOutcome;
 use doe::parser::trace::TraceNode;
 use doe::schema::compiler::Compiler;
+use doe::schema::source::{FsSource, SchemaSource};
 
 use crate::Options;
 
@@ -25,6 +27,8 @@ pub struct Loaded {
     pub trace: TraceNode,
     /// Why the parse stopped, if it did.
     pub error: Option<DoeError>,
+    /// The schema files that were read: the schema and what it imports.
+    pub schema_files: Vec<PathBuf>,
 }
 
 /// Where loading stopped.
@@ -47,6 +51,29 @@ pub struct LoadFailure {
     pub type_name: String,
     /// The size of the file, if it could be read.
     pub size: u64,
+    /// The schema files that were read before it stopped.
+    pub schema_files: Vec<PathBuf>,
+}
+
+/// Reads the filesystem, and remembers which files it read.
+#[derive(Debug)]
+struct Recording {
+    seen: Arc<Mutex<Vec<PathBuf>>>,
+}
+
+impl SchemaSource for Recording {
+    fn exists(&self, path: &Path) -> bool {
+        FsSource.exists(path)
+    }
+
+    fn read(&self, path: &Path) -> doe::error::Result<String> {
+        if let Ok(mut seen) = self.seen.lock()
+            && !seen.iter().any(|p| p == path)
+        {
+            seen.push(path.to_owned());
+        }
+        FsSource.read(path)
+    }
 }
 
 /// The file the schema is in, when it is known: the one named on the command
@@ -79,18 +106,28 @@ pub fn load(options: &Options) -> Result<Loaded, DoeError> {
 ///
 /// The reason nothing could be parsed, and at what stage.
 pub fn try_load(options: &Options) -> Result<Loaded, Box<LoadFailure>> {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let files =
+        |seen: &Arc<Mutex<Vec<PathBuf>>>| seen.lock().map(|s| s.clone()).unwrap_or_default();
     let failed = |error: DoeError, stage: Stage, type_name: &str, size: u64| {
         Box::new(LoadFailure {
             error,
             stage,
             type_name: type_name.to_owned(),
             size,
+            schema_files: files(&seen),
         })
     };
     let asked = options.type_or_schema.as_str();
-    let mut compiler = Compiler::new(options.include_paths.clone());
+    let mut compiler = Compiler::with_source(
+        options.include_paths.clone(),
+        Box::new(Recording {
+            seen: Arc::clone(&seen),
+        }),
+    );
     let type_name = if doe::is_schema_path(asked) {
-        let schema = doe::load_schema_file(Path::new(asked))
+        let schema = compiler
+            .read_schema(Path::new(asked))
             .map_err(|e| failed(e, Stage::Schema, asked, 0))?;
         let id = schema.id.clone();
         compiler
@@ -128,11 +165,13 @@ pub fn try_load(options: &Options) -> Result<Loaded, Box<LoadFailure>> {
         error,
         ..
     } = outcome;
+    let schema_files = files(&seen);
     Ok(Loaded {
         type_name,
         size,
         value,
         trace,
         error,
+        schema_files,
     })
 }

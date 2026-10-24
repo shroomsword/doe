@@ -942,6 +942,7 @@ Options:
       --completions <SHELL>  Print a shell completion script to stdout and exit [possible values: bash, elvish, fish, powershell, zsh]
       --man[=<PAGE>]         Print a manual page (roff) to stdout and exit: `doe` (the default) or `schema`, the schema format [possible values: doe, schema]
       --tui                  Show FILE decoded with the given type or schema in an interactive viewer in the terminal, instead of printing it. Needs a terminal on stdin and stdout
+      --watch                With `--tui`: read the schema and the file again when either changes on disk (the modification times are looked at twice a second)
       --ide                  Serve the web IDE on this machine and print its address, instead of parsing a file. Only the loopback address is used. A FILE is offered to the page as the input, however large it is; the types found through the include paths and the config are offered too
       --port <PORT>          With `--ide`: the port to serve on (0 for any free one) [default: 8765]
       --open                 With `--ide`: open the page in the browser
@@ -998,6 +999,19 @@ what was wrong, what caused it, and for a schema that is a file, the place in it
 file are shown if it can be read. After `q` the message is printed again on the
 normal screen, and the exit status of `doe --tui` is 1 if the last parse failed
 (or nothing could be parsed), 0 if it worked.
+
+`r` reads the schema (with the files it imports) and the file again and parses:
+writing a schema is a loop of editing it and looking at the result, and quitting
+each time loses the place. The new tree has the same nodes open and the
+selection on the field with the same name all the way from the root (so a field
+added before it does not move it), or on the deepest of those that is still there;
+the scroll stays as far as the new tree allows. If the new schema or file cannot
+be used, the old tree stays, the error is shown with its place in the schema,
+and the exit status after `q` says that the last read failed. With `--watch`,
+`doe` looks at the modification times of the schema, its imports and the file
+twice a second and reads them again by itself when one of them has changed and
+has stayed the same for one more look, so a file that an editor is still writing
+is not read half way, and a change is read once.
 
 `/` searches the names, types and values of the fields, as the tree shows them
 (`300 (0x12c)`, `"abc"`, `png (1)`): a query without a capital letter ignores

@@ -157,6 +157,7 @@ mod tests {
             type_or_schema: dir.join("t.yaml").to_string_lossy().into_owned(),
             include_paths: vec![dir.to_path_buf()],
             color: false,
+            watch: false,
         }
     }
 

@@ -17,6 +17,8 @@ pub enum Action {
     Help,
     /// Show or hide the message about a parse that failed.
     ToggleReport,
+    /// Read the schema and the file again.
+    Reload,
     /// Ask for text to search for.
     Search,
     /// The next match.
@@ -176,6 +178,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::ToggleReport,
         help: "show or hide the message about a parse that failed",
+    },
+    Binding {
+        keys: &[ch('r')],
+        scope: Scope::Anywhere,
+        action: Action::Reload,
+        help: "read the schema and the file again, and keep the place",
     },
     Binding {
         keys: &[ch('?')],
