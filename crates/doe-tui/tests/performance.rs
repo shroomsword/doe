@@ -31,6 +31,7 @@
     reason = "Panicking and printing are permitted in tests (rust-practices)."
 )]
 
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -106,8 +107,14 @@ impl Worst {
     }
 }
 
+/// The peak memory is the process's, and the time is the machine's: the tests run one at a time.
+static ALONE: Mutex<()> = Mutex::new(());
+
 #[test]
 fn a_million_fields_open_scroll_search_and_jump_within_the_budget() {
+    let _alone = ALONE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let dir = tempfile::tempdir().unwrap();
     let schema = dir.path().join("big.yaml");
     std::fs::write(
@@ -266,6 +273,10 @@ fn a_million_fields_open_scroll_search_and_jump_within_the_budget() {
 #[test]
 fn a_file_of_gigabytes_opens_and_scrolls_without_being_read() {
     use std::io::{Seek, SeekFrom, Write};
+
+    let _alone = ALONE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
 
     let dir = tempfile::tempdir().unwrap();
     let schema = dir.path().join("huge.yaml");
