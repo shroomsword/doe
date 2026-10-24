@@ -243,7 +243,7 @@ impl Writer {
                     continue;
                 }
                 '\\' => self.out.push_str("\\e"),
-                '-' => self.out.push_str("\\-"),
+                '-' | '\u{2500}' => self.out.push_str("\\-"),
                 '\'' => self.out.push_str("\\(aq"),
                 '`' => self.out.push_str("\\(ga"),
                 '\u{2014}' => self.out.push_str("\\(em"),
@@ -251,6 +251,13 @@ impl Writer {
                 '\u{2026}' => self.out.push_str("..."),
                 '\u{2192}' => self.out.push_str("\\(->"),
                 '\u{00d7}' => self.out.push_str("\\(mu"),
+                // the characters of the drawing of the terminal viewer: the fonts of
+                // `groff` have none of them
+                '\u{250c}' | '\u{2510}' | '\u{2514}' | '\u{2518}' => self.out.push('+'),
+                '\u{2502}' | '\u{2551}' => self.out.push('|'),
+                '\u{2588}' => self.out.push('#'),
+                '\u{25be}' => self.out.push('v'),
+                '\u{25b8}' => self.out.push('>'),
                 '.' if self.line_start => self.out.push_str("\\&."),
                 other => self.out.push(other),
             }
