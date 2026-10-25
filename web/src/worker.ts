@@ -4,6 +4,9 @@
 import { type Doe, loadDoe } from './doe.js';
 import type { FromWorker, ToWorker } from './client.js';
 
+/** The part of the input that signatures are compared with (as `doe::detect::HEAD_BYTES`). */
+const HEAD_BYTES = 64 * 1024;
+
 let doe: Doe | null = null;
 let input = new Uint8Array(0);
 
@@ -30,6 +33,9 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
         break;
       case 'inspect':
         send({ op: 'inspected', id: message.id, response: need().inspect(message.request) });
+        break;
+      case 'order':
+        send({ op: 'ordered', id: message.id, response: need().detectOrder(message.sources, input.subarray(0, HEAD_BYTES), message.name, message.all) });
         break;
       case 'export':
         send({ op: 'exported', id: message.id, response: need().export(message.request, input, message.format) });

@@ -14,7 +14,7 @@ use doe::Value;
 use doe::{OutputFormat, parse_file};
 use serde_json::{Map, Value as Json};
 
-fn conformance_dir() -> PathBuf {
+pub(crate) fn conformance_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../conformance")
 }
 
@@ -104,7 +104,7 @@ fn samples(format: &str) -> Vec<String> {
 /// checked out here, once, so that `cargo test` works in any clone. When that
 /// cannot be done (not a git checkout, no network), the tests that need the
 /// definitions say so.
-fn gallery_dir() -> PathBuf {
+pub(crate) fn gallery_dir() -> PathBuf {
     static CHECKED_OUT: std::sync::Once = std::sync::Once::new();
     let dir = conformance_dir().join("kaitai_struct_formats");
     CHECKED_OUT.call_once(|| {

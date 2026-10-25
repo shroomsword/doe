@@ -2,13 +2,14 @@
 // that takes longer than the limit, or that is cancelled, ends the worker and
 // starts a new one, which is the only way to stop WebAssembly that is running.
 
-import type { CheckResponse, ExportFormat, ExportResponse, InspectResponse, ParseResponse, Request } from './doe.js';
+import type { CheckResponse, DetectSource, ExportFormat, ExportResponse, InspectResponse, OrderResponse, ParseResponse, Request } from './doe.js';
 
 export type ToWorker =
   | { op: 'init'; wasmUrl: string }
   | { op: 'input'; bytes: ArrayBuffer }
   | { op: 'check'; id: number; request: Request }
   | { op: 'inspect'; id: number; request: Request }
+  | { op: 'order'; id: number; sources: DetectSource[]; name: string | null; all: boolean }
   | { op: 'parse'; id: number; request: Request }
   | { op: 'export'; id: number; request: Request; format: ExportFormat };
 
@@ -16,6 +17,7 @@ export type FromWorker =
   | { op: 'ready'; version: string }
   | { op: 'checked'; id: number; response: CheckResponse }
   | { op: 'inspected'; id: number; response: InspectResponse }
+  | { op: 'ordered'; id: number; response: OrderResponse }
   | { op: 'parsed'; id: number; response: ParseResponse }
   | { op: 'exported'; id: number; response: ExportResponse }
   | { op: 'failed'; id: number; message: string };
@@ -103,7 +105,7 @@ export class DoeClient {
     return this.call((id) => ({ op: 'export', id, request, format }));
   }
 
-  private readonly inspecting = new Map<number, { resolve: (response: InspectResponse) => void; reject: (error: CallEnded) => void }>();
+  private readonly inspecting = new Map<number, { resolve: (response: never) => void; reject: (error: CallEnded) => void }>();
 
   /**
    * List the schemas of a request. This does not end the call that is running,
@@ -118,6 +120,26 @@ export class DoeClient {
     return new Promise<InspectResponse>((resolve, reject) => {
       this.inspecting.set(id, { resolve, reject });
       worker.postMessage({ op: 'inspect', id, request } satisfies ToWorker);
+    });
+  }
+
+  /**
+   * The order in which to try schemas on the input (the first 64 KiB of it, as
+   * set with `setInput`). Like `inspect`, it does not end the running call.
+   */
+  async order(sources: DetectSource[], name: string | null, all: boolean): Promise<OrderResponse> {
+    await this.start();
+    const worker = this.worker;
+    if (!worker) throw new CallEnded('failed', 'doe is not running');
+    if (!this.inputSent) {
+      const copy = this.input.slice().buffer;
+      worker.postMessage({ op: 'input', bytes: copy } satisfies ToWorker, [copy]);
+      this.inputSent = true;
+    }
+    const id = this.next++;
+    return new Promise<OrderResponse>((resolve, reject) => {
+      this.inspecting.set(id, { resolve, reject });
+      worker.postMessage({ op: 'order', id, sources, name, all } satisfies ToWorker);
     });
   }
 
@@ -153,8 +175,8 @@ export class DoeClient {
   }
 
   private answer(message: FromWorker): void {
-    if (message.op === 'inspected') {
-      this.inspecting.get(message.id)?.resolve(message.response);
+    if (message.op === 'inspected' || message.op === 'ordered') {
+      this.inspecting.get(message.id)?.resolve(message.response as never);
       this.inspecting.delete(message.id);
       return;
     }

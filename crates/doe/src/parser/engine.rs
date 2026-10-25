@@ -63,12 +63,38 @@ pub struct ParseOutcome {
     pub error: Option<DoeError>,
 }
 
+/// How much work a parse may do before it stops with an error. A parse that
+/// tries a schema on a file that it may not describe uses this, so that a
+/// schema that loops or reads without end cannot hold up the others.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Limits {
+    /// The most fields (and elements of a repeated field) that are read.
+    pub max_fields: Option<u64>,
+    /// The longest the parse may take. Not available in WebAssembly, where
+    /// there is no clock: use `max_fields` there.
+    pub max_time: Option<std::time::Duration>,
+}
+
+impl Limits {
+    /// Limit only the number of fields.
+    #[must_use]
+    pub fn fields(max_fields: u64) -> Self {
+        Limits {
+            max_fields: Some(max_fields),
+            max_time: None,
+        }
+    }
+}
+
 /// Walks a compiled [`TypeRegistry`] over a byte buffer to produce a [`Value`] tree.
 #[derive(Debug)]
 pub struct Engine<'reg> {
     registry: &'reg TypeRegistry,
     /// Whether the instances of a type are part of the result.
     instances: bool,
+    /// How much work a parse may do.
+    limits: Limits,
 }
 
 impl<'reg> Engine<'reg> {
@@ -77,7 +103,15 @@ impl<'reg> Engine<'reg> {
         Engine {
             registry,
             instances: true,
+            limits: Limits::default(),
         }
+    }
+
+    /// Limit the work of every parse by this engine (none, by default).
+    #[must_use]
+    pub fn with_limits(mut self, limits: Limits) -> Self {
+        self.limits = limits;
+        self
     }
 
     /// Choose whether the instances of a type are part of the result (the
@@ -178,6 +212,7 @@ impl<'reg> Engine<'reg> {
             });
         }
         let mut ctx = ParseContext::new();
+        ctx.limit(self.limits.max_fields, self.limits.max_time);
         ctx.set_input_len(cursor.len());
         ctx.set_root_len(cursor.root_len());
         // `sizeof<type>` and `_sizeof`, which the compiler turned into names
@@ -539,6 +574,7 @@ impl<'reg> Engine<'reg> {
         cursor: &mut Cursor<'_>,
         ctx: &mut ParseContext,
     ) -> Result<Value> {
+        ctx.charge()?;
         if !field.uses_instances.is_empty() {
             self.force_instances(field, parent_ty, cursor, ctx)?;
         }
@@ -780,6 +816,7 @@ impl<'reg> Engine<'reg> {
         cursor: &mut Cursor<'_>,
         ctx: &mut ParseContext,
     ) -> Result<Value> {
+        ctx.charge()?;
         let before = cursor.bit_position();
         let value = self.parse_element(index, field, parent_ty, cursor, ctx)?;
         if cursor.bit_position() == before {

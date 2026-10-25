@@ -50,6 +50,16 @@ pub struct ParseContext {
     /// What the value that was being read had got as far as when the parse
     /// failed, until the one around it takes it in.
     partial: Option<Value>,
+    /// How much work the parse may do, when it is limited.
+    limits: Option<Meter>,
+}
+
+/// What a limited parse has used so far.
+#[derive(Debug)]
+struct Meter {
+    fields_left: u64,
+    deadline: Option<std::time::Instant>,
+    checked: u32,
 }
 
 /// Where an instance is in being computed.
@@ -137,7 +147,50 @@ impl ParseContext {
             trace: None,
             keep_partial: false,
             partial: None,
+            limits: None,
         }
+    }
+
+    /// Limit the work of the parse to `max_fields` fields read and, when it is
+    /// given, `max_time` (checked every so often, not at every field).
+    pub(crate) fn limit(&mut self, max_fields: Option<u64>, max_time: Option<std::time::Duration>) {
+        if max_fields.is_some() || max_time.is_some() {
+            self.limits = Some(Meter {
+                fields_left: max_fields.unwrap_or(u64::MAX),
+                deadline: max_time.map(|time| std::time::Instant::now() + time),
+                checked: 0,
+            });
+        }
+    }
+
+    /// Count one field read against the limits.
+    ///
+    /// # Errors
+    ///
+    /// [`DoeError::LimitExceeded`] when the fields or the time are used up.
+    pub(crate) fn charge(&mut self) -> crate::error::Result<()> {
+        let Some(meter) = self.limits.as_mut() else {
+            return Ok(());
+        };
+        if meter.fields_left == 0 {
+            return Err(crate::error::DoeError::LimitExceeded(
+                "too many fields".to_owned(),
+            ));
+        }
+        meter.fields_left -= 1;
+        meter.checked += 1;
+        if meter.checked >= 256 {
+            meter.checked = 0;
+            if meter
+                .deadline
+                .is_some_and(|d| std::time::Instant::now() >= d)
+            {
+                return Err(crate::error::DoeError::LimitExceeded(
+                    "too much time".to_owned(),
+                ));
+            }
+        }
+        Ok(())
     }
 
     /// Keep what was read when the parse fails.

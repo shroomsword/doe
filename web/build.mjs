@@ -9,7 +9,7 @@
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 
 const web = dirname(fileURLToPath(import.meta.url));
@@ -96,6 +96,22 @@ if (existsSync(join(gallery, 'README.md'))) {
     if (!id || !source.includes('meta:')) continue;
     manifest.formats.push({ path, id, title: title ?? null, imports: [...closure(path)] });
   }
+  // What each format's files start with, and what it is called, to find the
+  // schema of a file without fetching every definition: asked of the module
+  // that was just built, so the page and the library agree.
+  const wasm = await import(pathToFileURL(join(web, 'src', 'wasm', 'doe_wasm.js')).href);
+  wasm.initSync({ module: readFileSync(join(web, 'src', 'wasm', 'doe_wasm_bg.wasm')) });
+  let withSignature = 0;
+  for (const format of manifest.formats) {
+    const files = Object.fromEntries(format.imports.map((path) => [path, text(path)]));
+    const answer = JSON.parse(wasm.signature(JSON.stringify({ schema: text(format.path), files, path: format.path, include_paths: [''] })));
+    format.names = answer.ok ? [...new Set(answer.names)] : [format.id.toLowerCase()];
+    if (answer.ok && answer.magic.length > 0) {
+      format.magic = answer.magic;
+      withSignature += 1;
+    }
+  }
+  console.log(`gallery.json: ${withSignature} of ${manifest.formats.length} formats have a signature`);
 } else {
   console.warn('gallery.json: the submodule conformance/kaitai_struct_formats is not checked out; the picker will be empty');
 }

@@ -25,6 +25,11 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum DoeError {
     // ── I/O ──────────────────────────────────────────────────────────────────
+    /// The parse used more fields or more time than it was allowed (see
+    /// [`Limits`](crate::parser::engine::Limits)).
+    #[error("the parse went past its limit: {0}")]
+    LimitExceeded(String),
+
     /// A file could not be opened or read.
     #[error("could not read file {path}")]
     Io {

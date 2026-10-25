@@ -30,9 +30,18 @@ pub(crate) struct Cli {
     #[arg(required_unless_present_any = ["help", "completions", "man", "ide"])]
     pub(crate) file: Option<PathBuf>,
 
-    /// Type name (e.g. `png`) or path to a YAML schema file; add `::TYPE` to parse with a type inside it.
-    #[arg(required_unless_present_any = ["help", "completions", "man", "ide"])]
+    /// Type name (e.g. `png`) or path to a YAML schema file; add `::TYPE` to
+    /// parse with a type inside it. Without it, the schema is looked for among
+    /// the types of the include paths (see `--detect`).
+    #[arg()]
     pub(crate) type_or_schema: Option<String>,
+
+    /// When no `TYPE_OR_SCHEMA` is given: `all` also tries the types that have no
+    /// signature and whose name the file does not carry (slow for a big
+    /// library). Without it the types whose signature the file starts with, and
+    /// those named like the file, are tried; `-v` says which.
+    #[arg(long, value_name = "WHAT", value_parser = ["all"], conflicts_with = "type_or_schema")]
+    pub(crate) detect: Option<String>,
 
     /// Add a directory to the schema search path (repeatable).
     #[arg(short = 'I', long = "include-path", value_name = "DIR")]

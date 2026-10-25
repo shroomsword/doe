@@ -28,6 +28,11 @@
         <button id="export" type="button" disabled title="Save the whole parsed value, as doe prints it">Export</button>
       </div>
       <div class="actions">
+        <button id="detect" type="button" title="Find the schema of the opened file among the gallery (and the types of this machine, with doe --ide)">Detect schema</button>
+        <label id="detect-auto-box" title="When a file is opened and the schema does not parse it, look for the one that does"><input id="detect-auto" type="checkbox" /> detect when I open a file</label>
+      </div>
+      <div id="detect-report" hidden></div>
+      <div class="actions">
         <label id="theme-box">Theme <select id="theme"></select></label>
         <label class="button" title="Load a theme file (TOML, as doe --tui reads it); it is kept in this browser">Load theme<input id="open-theme" type="file" accept=".toml" /></label>
       </div>
