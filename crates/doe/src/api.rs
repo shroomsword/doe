@@ -234,6 +234,11 @@ pub struct InspectResponse {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+/// A path as the files of a request name it: with `/`, on every platform.
+fn slashes(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
 /// List the schemas that a request is made of: its own, the files it imports
 /// and the ones they import, the imports that are not there, and the types
 /// that any of them defines, one of which can be the `type` of the request.
@@ -272,7 +277,7 @@ pub fn inspect(request: &str) -> InspectResponse {
             .schemas
             .into_iter()
             .map(|entry| {
-                let path = entry.path.to_string_lossy().into_owned();
+                let path = slashes(&entry.path);
                 let error = entry
                     .error
                     .as_ref()
@@ -291,7 +296,7 @@ pub fn inspect(request: &str) -> InspectResponse {
             .into_iter()
             .map(|missing| MissingOut {
                 name: missing.name,
-                from: missing.from.to_string_lossy().into_owned(),
+                from: slashes(&missing.from),
                 message: missing.error.to_string(),
             })
             .collect(),
