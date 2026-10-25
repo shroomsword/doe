@@ -256,6 +256,7 @@ impl Writer {
                 '\u{250c}' | '\u{2510}' | '\u{2514}' | '\u{2518}' => self.out.push('+'),
                 '\u{2502}' | '\u{2551}' => self.out.push('|'),
                 '\u{2588}' => self.out.push('#'),
+                '\u{25cf}' => self.out.push('*'),
                 '\u{25be}' => self.out.push('v'),
                 '\u{25b8}' => self.out.push('>'),
                 '.' if self.line_start => self.out.push_str("\\&."),

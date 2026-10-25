@@ -878,6 +878,17 @@ offline. It shows a schema, the tree of what it parses, the bytes and the
 problems, in step with each other; parsing runs in the browser (WebAssembly) and
 nothing is sent anywhere. Files are opened in the page, up to 256 MiB (but see below).
 
+Under the editor is the list of the **schemas** that are open: the main one
+first, then each file it imports, with its id, where it came from (typed in the
+editor, opened from a file, added, fetched from the gallery, or from the type
+library of this machine) and a cross with the number of its problems; imports
+that are not there are listed too, with the file that asked for them. Picking an
+entry shows its text in the editor, and what was added or typed can be edited;
+what was fetched from the gallery or the library is read-only until *Edit a copy*
+makes it the person's own. *Parse as* chooses the type to parse with from the types of all the
+open schemas (the main schema's own, by default); the choice is part of a share
+link and of the saved work, and the status line says which type was parsed.
+
 Four things make the page pleasant to come back to:
 
 - **Share link:** *Share link* copies a link with the schema and its imports in
@@ -924,7 +935,7 @@ Usage: doe [OPTIONS] [FILE] [TYPE_OR_SCHEMA]
 
 Arguments:
   [FILE]            Binary file to parse
-  [TYPE_OR_SCHEMA]  Type name (e.g. `png`) or path to a YAML schema file
+  [TYPE_OR_SCHEMA]  Type name (e.g. `png`) or path to a YAML schema file; add `::TYPE` to parse with a type inside it
 
 Options:
   -I, --include-path <DIR>   Add a directory to the schema search path (repeatable)
@@ -952,6 +963,13 @@ Options:
 `FILE` is the binary to parse. `TYPE_OR_SCHEMA` is treated as a schema path if
 it starts with `.`, `/` or `~`, or ends with `.yaml`/`.yml`. Otherwise it is a
 bare type name resolved through the configured include paths.
+
+`TYPE_OR_SCHEMA::TYPE` parses with a type inside the schema instead of the
+schema's own: `doe file.bin my_format.yaml::chunk` (or `png::chunk` for a type of
+the library), where `chunk` is a type in the `types:` of the schema (`a::b` for
+one inside another), or a type of a schema that it imports, named in full
+(`my_format.yaml::common::header`). A type that is not there is an error that
+lists the ones that are.
 
 Results go to stdout; everything else (errors, warnings, progress) goes to
 stderr. `--completions` and `--man` print and exit; they cannot be combined with
@@ -1068,6 +1086,17 @@ redraws, so a tree of millions of fields does not freeze the screen, and any key
 stops it. `g` asks for an offset (decimal, or `0x…` for hex), shows it in the
 bytes and selects the innermost field that holds it; an offset past the end of the
 file, or in the part of the file that was not parsed, says so. `?` lists every key.
+
+`s` lists the **schemas** that are open: the one named on the command line first,
+then the files it imports (and they import), each with its id, when the file was
+last changed, and a cross with the error and its place if it could not be read;
+under each, the **types** it defines; and the imports that are not there, with the
+file that asked for them. `↑`/`↓` move, `Enter` on a schema reads its text in a
+pager with line numbers (read-only; `Esc` goes back, and the line of an error is
+marked), and `Enter` on a type reads the file again and parses it with that type,
+as `doe --tui FILE SCHEMA::TYPE` does; the type that is parsed has a `●`. `r`
+reads everything again, and `Esc` closes the list. If the new type cannot be used,
+the old tree stays and the error is shown.
 The line that is typed for `/` and `g` is edited as a shell line is: the arrow keys,
 `Home`/`End`, `Backspace`/`Delete`, `Ctrl-W` (a word), `Ctrl-U`, `Ctrl-K`, and a
 paste (one line) is inserted at the cursor; `Enter` runs it, `Esc` cancels it.

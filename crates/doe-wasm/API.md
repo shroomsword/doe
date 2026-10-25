@@ -1,12 +1,13 @@
 # The calls of doe-wasm
 
-Four functions, exported to JavaScript by `wasm-bindgen`. Requests and answers
+Five functions, exported to JavaScript by `wasm-bindgen`. Requests and answers
 are **JSON strings**, so the page, a worker and the tests all call them the same
 way. The Rust side is `src/api.rs`; the tests in `tests/api.rs` check every
 shape below.
 
 ```ts
 check(request: string): string          // CheckResponse as JSON
+inspect(request: string): string        // InspectResponse as JSON: the schemas, the missing imports, the types
 parse(request: string, bytes: Uint8Array): string   // ParseResponse as JSON
 render(request: string, bytes: Uint8Array, format: string): string   // ExportResponse as JSON (`export` is a reserved word in JavaScript)
 version(): string
@@ -64,6 +65,31 @@ text, byte for byte). `format` is `"text"` (two-space indent), `"json"`
 { "ok": true, "diagnostics": [], "output": "...", "error": null }
 { "ok": false, "diagnostics": [ Diagnostic, ... ], "output": null, "error": null }  // the schema does not compile
 { "ok": false, "diagnostics": [], "output": null, "error": Diagnostic }  // the parse failed, or the format is unknown
+```
+
+## InspectResponse
+
+`inspect(request)` lists the schemas a request is made of. It reads the files
+and does not compile them, so it answers also for a schema that does not
+compile (and for one with an import that is not there).
+
+```jsonc
+{
+  "ok": true,
+  "schemas": [                       // the main schema first, then each file it imports (and they import), once
+    {
+      "path": "main.ksy",            // as imports found it
+      "id": "chunks",                // null when the file could not be read
+      "imports": ["common"],         // as the file writes them
+      "types": ["chunks", "chunks::item"],   // what `type` of a request takes: the id, and id::name for the types in `types:`
+      "error": null                  // Diagnostic (with the place in that file's text) when it could not be read
+    }
+  ],
+  "missing": [                       // imports that were not found
+    { "name": "common", "from": "main.ksy", "message": "schema 'common' not found; searched: ..." }
+  ],
+  "diagnostics": []                  // only when the request is not valid (then ok is false)
+}
 ```
 
 ## Diagnostic

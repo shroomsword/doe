@@ -195,6 +195,110 @@ fn request_from(json: &str) -> Result<Request, Diagnostic> {
         .map_err(|e| Diagnostic::new("request", format!("the request is not valid: {e}")))
 }
 
+/// One schema file of an [`InspectResponse`].
+#[derive(Debug, Serialize)]
+pub struct SchemaOut {
+    /// Where the file is, as imports found it (the `path` of the request for the main schema).
+    pub path: String,
+    /// Its id, when the file could be read.
+    pub id: Option<String>,
+    /// The imports it names, as it writes them.
+    pub imports: Vec<String>,
+    /// The types it defines, as the `type` of a request takes them.
+    pub types: Vec<String>,
+    /// Why the file could not be read, with the place in its text.
+    pub error: Option<Diagnostic>,
+}
+
+/// An import that was not found.
+#[derive(Debug, Serialize)]
+pub struct MissingOut {
+    /// The name as the importing file writes it.
+    pub name: String,
+    /// The file that asked for it.
+    pub from: String,
+    /// What was searched.
+    pub message: String,
+}
+
+/// The answer to [`inspect`].
+#[derive(Debug, Serialize)]
+pub struct InspectResponse {
+    /// Whether the request was understood.
+    pub ok: bool,
+    /// The main schema, then the files it imports, each once.
+    pub schemas: Vec<SchemaOut>,
+    /// The imports that were not found.
+    pub missing: Vec<MissingOut>,
+    /// What is wrong with the request.
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+/// List the schemas that a request is made of: its own, the files it imports
+/// and the ones they import, the imports that are not there, and the types
+/// that any of them defines, one of which can be the `type` of the request.
+/// The files are read, not compiled, so this also answers for a schema that
+/// does not compile.
+pub fn inspect(request: &str) -> InspectResponse {
+    let request = match request_from(request) {
+        Ok(request) => request,
+        Err(diagnostic) => {
+            return InspectResponse {
+                ok: false,
+                schemas: Vec::new(),
+                missing: Vec::new(),
+                diagnostics: vec![diagnostic],
+            };
+        }
+    };
+    let mut files = MemorySource::new();
+    for (path, text) in &request.files {
+        files.insert(path, text.as_str());
+    }
+    files.insert(&request.path, request.schema.as_str());
+    let include = request.include_paths.iter().map(PathBuf::from).collect();
+    let compiler = Compiler::with_source(include, Box::new(files));
+    let found = crate::inspect::inspect(&compiler, Path::new(&request.path));
+    let text_of = |path: &str| -> &str {
+        if path == request.path {
+            &request.schema
+        } else {
+            request.files.get(path).map_or("", String::as_str)
+        }
+    };
+    InspectResponse {
+        ok: true,
+        schemas: found
+            .schemas
+            .into_iter()
+            .map(|entry| {
+                let path = entry.path.to_string_lossy().into_owned();
+                let error = entry
+                    .error
+                    .as_ref()
+                    .map(|error| diagnostic_of(error, text_of(&path)));
+                SchemaOut {
+                    path,
+                    id: entry.id,
+                    imports: entry.imports,
+                    types: entry.types,
+                    error,
+                }
+            })
+            .collect(),
+        missing: found
+            .missing
+            .into_iter()
+            .map(|missing| MissingOut {
+                name: missing.name,
+                from: missing.from.to_string_lossy().into_owned(),
+                message: missing.error.to_string(),
+            })
+            .collect(),
+        diagnostics: Vec::new(),
+    }
+}
+
 /// Compile the schema of a request (a JSON string) and say what is wrong.
 pub fn check(request: &str) -> CheckResponse {
     let request = match request_from(request) {

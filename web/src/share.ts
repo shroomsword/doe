@@ -1,12 +1,23 @@
 // The schema in a link, and in the browser's storage. Only text that the
 // person wrote or added as imports goes here: never the binary.
 
+/** Where a schema came from: typed in the editor, opened from a file, added as an import, or taken from the gallery or the library. */
+export type Origin = 'typed' | 'file' | 'added' | 'gallery' | 'library';
+
+const ORIGINS: readonly string[] = ['typed', 'file', 'added', 'gallery', 'library'];
+
 /** What is shared and remembered. */
 export interface Work {
   schema: string;
   files: Record<string, string>;
   path: string;
   include_paths?: string[];
+  /** The type to parse with; the schema's own when it is left out. */
+  type?: string;
+  /** Where the main schema came from. */
+  origin?: Origin;
+  /** Where each imported file came from; `added` for those that are not named. */
+  origins?: Record<string, Origin>;
 }
 
 /** The longest link that is made, in characters. */
@@ -64,7 +75,13 @@ function isWork(value: unknown): value is Work {
     typeof files === 'object' &&
     files !== null &&
     Object.values(files).every((text) => typeof text === 'string') &&
-    (work.include_paths === undefined || (Array.isArray(work.include_paths) && work.include_paths.every((p) => typeof p === 'string')))
+    (work.include_paths === undefined || (Array.isArray(work.include_paths) && work.include_paths.every((p) => typeof p === 'string'))) &&
+    (work.type === undefined || typeof work.type === 'string') &&
+    (work.origin === undefined || (typeof work.origin === 'string' && ORIGINS.includes(work.origin))) &&
+    (work.origins === undefined ||
+      (typeof work.origins === 'object' &&
+        work.origins !== null &&
+        Object.values(work.origins).every((origin) => typeof origin === 'string' && ORIGINS.includes(origin))))
   );
 }
 

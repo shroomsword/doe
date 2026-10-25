@@ -280,3 +280,132 @@ fn export_says_why_there_is_no_output() {
     let format = doe_wasm::api::export(&request, &[2, 1, 0, 2, 0], "xml");
     assert_eq!(format.error.unwrap().kind, "request");
 }
+
+fn inspect(request: &Value) -> Value {
+    serde_json::from_str(&doe_wasm::inspect(&request.to_string())).unwrap()
+}
+
+#[test]
+fn inspect_lists_the_main_schema_its_imports_and_their_types() {
+    let answer = inspect(&json!({
+        "schema": "meta:\n  id: top\n  imports:\n    - common\n    - ./sub/leaf.ksy\nseq:\n  - id: a\n    type: common\ntypes:\n  inner:\n    seq:\n      - id: x\n        type: u1\n    types:\n      deeper:\n        seq: []\n",
+        "files": {
+            "common.ksy": "meta:\n  id: common\nseq:\n  - id: b\n    type: u1\ntypes:\n  piece:\n    seq: []\n",
+            "sub/leaf.ksy": "meta:\n  id: leaf\n  imports:\n    - ../common.ksy\nseq: []\n",
+        },
+    }));
+    assert_eq!(answer["ok"], true);
+    assert_eq!(answer["missing"], json!([]));
+    let paths: Vec<_> = answer["schemas"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["path"].as_str().unwrap())
+        .collect();
+    // the main schema first; a file imported twice is listed once
+    assert_eq!(paths, ["main.ksy", "common.ksy", "sub/leaf.ksy"]);
+    let main = &answer["schemas"][0];
+    assert_eq!(main["id"], "top");
+    assert_eq!(main["imports"], json!(["common", "./sub/leaf.ksy"]));
+    assert_eq!(
+        main["types"],
+        json!(["top", "top::inner", "top::inner::deeper"])
+    );
+    assert_eq!(
+        answer["schemas"][1]["types"],
+        json!(["common", "common::piece"])
+    );
+    assert_eq!(answer["schemas"][2]["id"], "leaf");
+    assert!(main["error"].is_null());
+}
+
+#[test]
+fn inspect_lists_the_imports_that_are_missing_and_the_file_that_asked() {
+    let answer = inspect(&json!({
+        "schema": "meta:\n  id: top\n  imports:\n    - there\n    - gone\nseq: []\n",
+        "files": { "there.ksy": "meta:\n  id: there\n  imports:\n    - also_gone\nseq: []\n" },
+    }));
+    assert_eq!(answer["ok"], true);
+    let missing: Vec<(String, String)> = answer["missing"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| {
+            (
+                m["name"].as_str().unwrap().to_owned(),
+                m["from"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        missing,
+        [
+            ("gone".to_owned(), "main.ksy".to_owned()),
+            ("also_gone".to_owned(), "there.ksy".to_owned())
+        ]
+    );
+    assert!(
+        answer["missing"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("gone")
+    );
+    // the file that is there is listed
+    assert_eq!(answer["schemas"][1]["path"], "there.ksy");
+}
+
+#[test]
+fn inspect_answers_for_a_schema_that_does_not_compile_and_for_a_file_that_cannot_be_read() {
+    // a type that is not there: it reads, so it is listed
+    let answer = inspect(&json!({ "schema": "id: t\nseq:\n  - id: a\n    type: nope\n" }));
+    assert_eq!(answer["schemas"][0]["id"], "t");
+    assert!(answer["schemas"][0]["error"].is_null());
+    // an import that is not YAML: listed with the error and its place in that file
+    let answer = inspect(&json!({
+        "schema": "id: t\nimports:\n  - broken\nseq: []\n",
+        "files": { "broken.ksy": "id: broken\nseq:\n  - id: [\n" },
+    }));
+    let broken = &answer["schemas"][1];
+    assert_eq!(broken["path"], "broken.ksy");
+    assert!(broken["id"].is_null());
+    assert_eq!(broken["error"]["kind"], "yaml");
+    assert_eq!(broken["error"]["position"]["line"], 3);
+    // the main schema itself is not YAML
+    let answer = inspect(&json!({ "schema": "id: [\n" }));
+    assert_eq!(answer["schemas"][0]["error"]["kind"], "yaml");
+    assert!(answer["schemas"][0]["error"]["position"]["line"].is_number());
+}
+
+#[test]
+fn inspect_refuses_a_request_that_is_not_valid_and_follows_a_cycle_once() {
+    let answer = inspect(&json!({ "schema": 5 }));
+    assert_eq!(answer["ok"], false);
+    assert_eq!(answer["diagnostics"][0]["kind"], "request");
+    let answer = inspect(&json!({
+        "schema": "id: a\nimports:\n  - b\nseq: []\n",
+        "files": { "b.ksy": "id: b\nimports:\n  - main\nseq: []\n" },
+    }));
+    let paths: Vec<_> = answer["schemas"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["path"].as_str().unwrap())
+        .collect();
+    assert_eq!(paths, ["main.ksy", "b.ksy"]);
+}
+
+#[test]
+fn a_type_of_an_imported_schema_can_be_the_type_to_parse_with() {
+    let schema = "meta:\n  id: top\n  imports:\n    - common\nseq:\n  - id: a\n    type: common\n";
+    let files = json!({ "common.ksy": "meta:\n  id: common\nseq:\n  - id: b\n    type: u1\ntypes:\n  piece:\n    seq:\n      - id: p\n        type: u2le\n" });
+    let own = parse(&json!({ "schema": schema, "files": files }), &[7, 0, 0]);
+    assert_eq!(own["ok"], true);
+    assert_eq!(own["trace"]["type"], "top");
+    let imported = parse(
+        &json!({ "schema": schema, "files": files, "type": "common::piece" }),
+        &[7, 0, 0],
+    );
+    assert_eq!(imported["ok"], true);
+    assert_eq!(imported["trace"]["children"][0]["name"], "p");
+    assert_eq!(imported["value"]["p"], 7);
+}

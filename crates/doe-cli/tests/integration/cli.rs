@@ -595,6 +595,47 @@ fn man_page_is_roff_and_listed_in_help() {
 }
 
 #[test]
+fn a_type_inside_a_schema_is_named_with_two_colons() {
+    let dir = TempDir::new().unwrap();
+    let schema = dir.path().join("top.yaml");
+    std::fs::write(
+        &schema,
+        "id: top\nseq:\n  - id: a\n    type: u1\ntypes:\n  part:\n    seq:\n      - id: p\n        type: u2le\n    types:\n      deep:\n        seq:\n          - id: d\n            type: u1\n",
+    )
+    .unwrap();
+    let binary = dir.path().join("top.bin");
+    std::fs::write(&binary, [0x07, 0x34, 0x12]).unwrap();
+    let with = |type_arg: String| {
+        let mut command = doe();
+        command
+            .args(["-c", NO_CONFIG, "--json"])
+            .arg(&binary)
+            .arg(type_arg);
+        command
+    };
+    let top = schema.to_str().unwrap();
+    with(top.to_owned())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#""a":7"#));
+    with(format!("{top}::part"))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#""$type":"top::part""#))
+        .stdout(predicate::str::contains(r#""p":13319"#));
+    with(format!("{top}::part::deep"))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#""d":7"#));
+    // a type that is not there lists the ones that are
+    with(format!("{top}::nope"))
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("nope"))
+        .stderr(predicate::str::contains("part::deep"));
+}
+
+#[test]
 fn the_terminal_viewer_is_in_help_the_man_page_and_the_completions() {
     let text = |args: &[&str]| {
         let assert = doe().args(args).assert().success();
@@ -1201,6 +1242,65 @@ mod tui_in_a_terminal {
             .find("DOE_TUI_PANIC_FOR_TEST is set")
             .unwrap_or_else(|| panic!("{seen:?}"));
         assert!(message > seen.rfind(LEAVE_SCREEN).unwrap(), "{seen:?}");
+    }
+
+    #[test]
+    fn s_lists_the_schemas_and_a_type_is_chosen_from_the_list() {
+        let schema = "id: t\nseq:\n  - id: a\n    type: u1\ntypes:\n  part:\n    seq:\n      - id: p\n        type: u1\n";
+        let mut session = Session::start_with(schema, Some(&[5]));
+        session.wait_for("parsed");
+        session.send(b"s");
+        session.wait_for("main schema");
+        session.wait_for("t::part");
+        // the selection starts on the type that is parsed (t); the next line is t::part
+        session.send(b"j");
+        let before = session.seen.len();
+        session.send(b"\r");
+        // the screen only writes the cells that changed, so the notice comes in pieces
+        session.wait_for("as t");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success);
+        assert!(
+            seen.get(before..).is_some_and(|rest| rest.contains("as t")),
+            "{seen:?}"
+        );
+        assert_screen_restored(&seen);
+    }
+
+    #[test]
+    fn a_type_can_be_named_on_the_command_line_of_the_viewer() {
+        let dir = TempDir::new().unwrap();
+        let schema = dir.path().join("t.yaml");
+        std::fs::write(
+            &schema,
+            "id: t\nseq:\n  - id: a\n    type: u1\ntypes:\n  part:\n    seq:\n      - id: p\n        type: u1\n",
+        )
+        .unwrap();
+        let binary = dir.path().join("t.bin");
+        std::fs::write(&binary, [5]).unwrap();
+        let named = PathBuf::from(format!("{}::part", schema.display()));
+        let mut session = Session::start_in(dir, named, binary, &[], &[]);
+        // it was parsed (a type that is not there would leave with a failure, see below)
+        session.wait_for("parsed");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success, "{seen:?}");
+        assert!(seen.contains("::part"), "{seen:?}");
+    }
+
+    #[test]
+    fn a_type_that_is_not_in_the_schema_is_shown_as_the_error_it_is() {
+        let dir = TempDir::new().unwrap();
+        let (schema, binary) = simple_fixture(dir.path());
+        let named = PathBuf::from(format!("{}::nope", schema.display()));
+        let mut session = Session::start_in(dir, named, binary, &[], &[]);
+        session.wait_for("nope");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        // the viewer opens with the error (as for any schema that cannot be used) and the exit status says so
+        assert!(!success, "{seen:?}");
+        assert!(seen.contains("no type nope"), "{seen:?}");
     }
 
     #[test]

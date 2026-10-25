@@ -30,7 +30,7 @@ pub(crate) struct Cli {
     #[arg(required_unless_present_any = ["help", "completions", "man", "ide"])]
     pub(crate) file: Option<PathBuf>,
 
-    /// Type name (e.g. `png`) or path to a YAML schema file.
+    /// Type name (e.g. `png`) or path to a YAML schema file; add `::TYPE` to parse with a type inside it.
     #[arg(required_unless_present_any = ["help", "completions", "man", "ide"])]
     pub(crate) type_or_schema: Option<String>,
 

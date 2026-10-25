@@ -39,7 +39,7 @@ test('a share link opens the same schema, with its imports, in a fresh browser',
   const other = await (await browser.newContext()).newPage();
   await ready(other, link);
   await expect(other.locator('.cm-content')).toContainText('shared_thing');
-  await expect(other.locator('#files code')).toHaveText('extra.ksy');
+  await expect(other.locator('#schemas li:not(.main) code')).toHaveText('extra.ksy');
   // no file comes with it
   await expect(other.locator('#status')).toContainText('no file opened');
   await other.context().close();
@@ -83,7 +83,7 @@ test('a format of the gallery is fetched at the pinned commit, and parses a file
   await page.locator('#gallery').selectOption(String(gallery.formats.findIndex((format) => format.path === 'image/jpeg.ksy')));
   await expect(page.locator('.cm-content')).toContainText('jpeg');
   // the definition came from the commit of the submodule, with what it imports
-  await expect(page.locator('#files code')).toHaveText('image/exif.ksy');
+  await expect(page.locator('#schemas li:not(.main) code')).toHaveText('image/exif.ksy');
   expect(wanted).toEqual(expect.arrayContaining([`/kaitai-io/kaitai_struct_formats/${gallery.commit}/image/jpeg.ksy`, `/kaitai-io/kaitai_struct_formats/${gallery.commit}/image/exif.ksy`]));
   const sample = readFileSync(join(repo, 'conformance/samples/gallery/image/jpeg/baseline.bin'));
   await page.setInputFiles('#open-input', { name: 'baseline.jpg', mimeType: 'image/jpeg', buffer: sample });

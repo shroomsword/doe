@@ -36,9 +36,16 @@
     </header>
     <main>
       <section id="pane-editor" aria-labelledby="h-schema">
-        <h2 id="h-schema">Schema</h2>
+        <h2 id="h-schema">Schema <small id="editing"></small></h2>
         <div id="editor"></div>
-        <ul id="files" aria-label="imported files"></ul>
+        <p id="edit-note" hidden></p>
+        <div id="schemas-box">
+          <div class="schemas-head">
+            <h3 id="h-schemas">Schemas</h3>
+            <label id="type-box">Parse as <select id="parse-type"></select></label>
+          </div>
+          <ul id="schemas" aria-labelledby="h-schemas"></ul>
+        </div>
       </section>
       <section id="pane-tree" aria-labelledby="h-parsed">
         <h2 id="h-parsed">Parsed</h2>

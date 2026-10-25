@@ -28,6 +28,9 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
       case 'check':
         send({ op: 'checked', id: message.id, response: need().check(message.request) });
         break;
+      case 'inspect':
+        send({ op: 'inspected', id: message.id, response: need().inspect(message.request) });
+        break;
       case 'export':
         send({ op: 'exported', id: message.id, response: need().export(message.request, input, message.format) });
         break;

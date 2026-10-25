@@ -31,6 +31,14 @@ pub fn check(request: &str) -> String {
     to_json(&api::check(request))
 }
 
+/// List the schemas of `request` (JSON): its own and the files it imports, the
+/// imports that are missing, and the types that can be parsed with. Returns
+/// JSON: `{ok, schemas, missing, diagnostics}`.
+#[wasm_bindgen]
+pub fn inspect(request: &str) -> String {
+    to_json(&api::inspect(request))
+}
+
 /// Compile the schema of `request` (JSON) and parse `bytes` with it. Returns
 /// JSON: `{ok, id, diagnostics, value, trace, error}`.
 #[wasm_bindgen]
