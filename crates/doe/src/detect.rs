@@ -21,7 +21,7 @@
 //! time.
 //!
 //! [`rank`] is the order, over plain data, which the web page uses with
-//! definitions it has not fetched yet; [`detect_file`] does all of it for a
+//! definitions it has not fetched yet; `detect_file` does all of it for a
 //! file and the schemas of the include paths.
 
 #[cfg(feature = "fs")]
