@@ -29,6 +29,7 @@
 pub mod api;
 #[cfg(feature = "fs")]
 pub mod config;
+pub mod detect;
 pub mod error;
 pub mod inspect;
 pub mod parser;

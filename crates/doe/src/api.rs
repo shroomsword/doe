@@ -172,6 +172,8 @@ pub struct ParseResponse {
 /// A schema and the compiler that has it.
 struct Compiled {
     id: String,
+    /// The names of the format: id, file name, extensions, in lower case.
+    names: Vec<String>,
     compiler: Compiler,
 }
 
@@ -199,8 +201,19 @@ fn compile(request: &Request) -> Result<Compiled, Vec<Diagnostic>> {
         .read_schema(Path::new(&request.path))
         .map_err(one)?;
     compiler.process_schema(&schema).map_err(one)?;
+    let mut names = vec![schema.id.to_ascii_lowercase()];
+    if let Some(stem) = Path::new(&request.path)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+    {
+        names.push(stem.to_ascii_lowercase());
+    }
+    names.extend(crate::detect::extensions_of(
+        schema.meta.file_extension.as_ref(),
+    ));
     Ok(Compiled {
         id: schema.id,
+        names,
         compiler,
     })
 }
@@ -208,6 +221,108 @@ fn compile(request: &Request) -> Result<Compiled, Vec<Diagnostic>> {
 fn request_from(json: &str) -> Result<Request, Diagnostic> {
     serde_json::from_str(json)
         .map_err(|e| Diagnostic::new("request", format!("the request is not valid: {e}")))
+}
+
+/// The answer to [`signature`].
+#[derive(Debug, Serialize)]
+pub struct SignatureResponse {
+    /// Whether the schema compiled.
+    pub ok: bool,
+    /// What every file of the schema starts with (see [`crate::detect::magic_of`]);
+    /// empty when the schema says nothing of it.
+    pub magic: Vec<crate::detect::Magic>,
+    /// The names of the format, in lower case: id, file name, extensions.
+    pub names: Vec<String>,
+    /// What is wrong with the schema.
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+/// What a schema's files start with and what its format is called, to find
+/// the schema of a file (see [`detect_order`]).
+#[must_use]
+pub fn signature(request: &str) -> SignatureResponse {
+    let failed = |diagnostics| SignatureResponse {
+        ok: false,
+        magic: Vec::new(),
+        names: Vec::new(),
+        diagnostics,
+    };
+    let request = match request_from(request) {
+        Ok(request) => request,
+        Err(diagnostic) => return failed(vec![diagnostic]),
+    };
+    match compile(&request) {
+        Ok(compiled) => SignatureResponse {
+            ok: true,
+            magic: crate::detect::magic_of(&compiled.compiler.registry, &compiled.id),
+            names: compiled.names,
+            diagnostics: Vec::new(),
+        },
+        Err(diagnostics) => failed(diagnostics),
+    }
+}
+
+/// What [`detect_order`] is asked.
+#[derive(Debug, Deserialize)]
+struct OrderRequest {
+    sources: Vec<crate::detect::Source>,
+    /// The name of the file, for its extension.
+    #[serde(default)]
+    name: Option<String>,
+    /// Also the schemas without a signature or a name that fits.
+    #[serde(default)]
+    all: bool,
+}
+
+/// The answer to [`detect_order`].
+#[derive(Debug, Serialize)]
+pub struct OrderResponse {
+    /// Whether the request was understood.
+    pub ok: bool,
+    /// The schemas to try, in order, as places in the `sources` of the request.
+    pub order: Vec<crate::detect::Ranked>,
+    /// How many were left out because the file does not start with their signature.
+    pub excluded: usize,
+    /// Why not.
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+/// The order in which to try schemas on a file that starts with `head`: the
+/// ranking of [`crate::detect::rank`], for a page that has the signatures of
+/// schemas and has not fetched them. The request is JSON,
+/// `{sources: [{name, magic: [{offset, bytes}], names}], name, all}`.
+#[must_use]
+pub fn detect_order(request: &str, head: &[u8]) -> OrderResponse {
+    match serde_json::from_str::<OrderRequest>(request) {
+        Ok(request) => {
+            let head = head.get(..crate::detect::HEAD_BYTES).unwrap_or(head);
+            let excluded = request
+                .sources
+                .iter()
+                .filter(|s| !s.magic.is_empty() && !crate::detect::matches_magic(&s.magic, head))
+                .count();
+            OrderResponse {
+                ok: true,
+                order: crate::detect::rank(
+                    &request.sources,
+                    head,
+                    request.name.as_deref(),
+                    request.all,
+                ),
+                excluded,
+                diagnostics: Vec::new(),
+            }
+        }
+        Err(e) => OrderResponse {
+            ok: false,
+            order: Vec::new(),
+            excluded: 0,
+            diagnostics: vec![Diagnostic::new(
+                "request",
+                format!("the request is not valid: {e}"),
+            )],
+        },
+    }
 }
 
 /// One schema file of an [`InspectResponse`].

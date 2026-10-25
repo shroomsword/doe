@@ -89,6 +89,30 @@ export interface InspectResponse {
   diagnostics: Diagnostic[];
 }
 
+/** What a file of a schema starts with: these bytes at this offset. */
+export interface Magic {
+  offset: number;
+  bytes: number[];
+}
+
+/** What is known of a schema before it is tried (see `signature` and `detect_order`). */
+export interface DetectSource {
+  name: string;
+  magic: Magic[];
+  names: string[];
+}
+
+export type DetectWhy = 'signatureandname' | 'signature' | 'name' | 'remaining';
+
+export interface OrderResponse {
+  ok: boolean;
+  /** Places in the `sources` of the request, in the order to try them. */
+  order: { index: number; why: DetectWhy }[];
+  /** How many were left out because the file does not start with their signature. */
+  excluded: number;
+  diagnostics: Diagnostic[];
+}
+
 /** How the whole value is printed: as `doe` prints text, compact JSON (`--json`) or indented JSON (`--pretty`). */
 export type ExportFormat = 'text' | 'json' | 'pretty';
 
@@ -98,6 +122,8 @@ export interface Doe {
   inspect(request: Request): InspectResponse;
   parse(request: Request, bytes: Uint8Array): ParseResponse;
   export(request: Request, bytes: Uint8Array, format: ExportFormat): ExportResponse;
+  /** The order in which to try schemas on a file that starts with `head`. */
+  detectOrder(sources: DetectSource[], head: Uint8Array, name: string | null, all: boolean): OrderResponse;
 }
 
 /** Load the WebAssembly module and return the calls. */
@@ -111,5 +137,7 @@ export async function loadDoe(wasmUrl: URL | string): Promise<Doe> {
       JSON.parse(wasm.parse(JSON.stringify(request), bytes)) as ParseResponse,
     export: (request, bytes, format) =>
       JSON.parse(wasm.render(JSON.stringify(request), bytes, format)) as ExportResponse,
+    detectOrder: (sources, head, name, all) =>
+      JSON.parse(wasm.detect_order(JSON.stringify({ sources, name, all }), head)) as OrderResponse,
   };
 }

@@ -66,6 +66,113 @@ fn indent_flag_changes_text_indentation() {
         .stdout(predicate::str::contains("--a  7"));
 }
 
+/// A library of two types for the signature `AB`, one that does not fit a file
+/// of three bytes and one that does, and a third for another signature.
+fn detect_library(dir: &std::path::Path) -> PathBuf {
+    let lib = dir.join("lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(
+        lib.join("a_wide.yaml"),
+        "meta:\n  id: a_wide\nseq:\n  - id: m\n    contents: AB\n  - id: n\n    type: u4le\n",
+    )
+    .unwrap();
+    std::fs::write(
+        lib.join("b_narrow.yaml"),
+        "meta:\n  id: b_narrow\nseq:\n  - id: m\n    contents: AB\n  - id: n\n    type: u1\n",
+    )
+    .unwrap();
+    std::fs::write(
+        lib.join("c_other.yaml"),
+        "meta:\n  id: c_other\nseq:\n  - id: m\n    contents: CD\n",
+    )
+    .unwrap();
+    lib
+}
+
+#[test]
+fn without_a_schema_the_one_that_fits_the_file_is_found_and_v_says_what_was_tried() {
+    let dir = TempDir::new().unwrap();
+    let lib = detect_library(dir.path());
+    let file = dir.path().join("x.bin");
+    std::fs::write(&file, b"ABc").unwrap();
+    doe()
+        .args(["-c", NO_CONFIG, "-v", "-I"])
+        .arg(&lib)
+        .arg(&file)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("b_narrow\n"))
+        .stdout(predicate::str::contains("n  99"))
+        .stderr(predicate::str::contains("tried a_wide"))
+        .stderr(predicate::str::contains("did not fit"))
+        .stderr(predicate::str::contains("tried b_narrow"))
+        .stderr(predicate::str::contains("parsed (3 bytes read)"))
+        .stderr(predicate::str::contains("c_other").not());
+}
+
+#[test]
+fn a_file_that_no_schema_fits_is_an_error_that_lists_what_was_tried() {
+    let dir = TempDir::new().unwrap();
+    let lib = detect_library(dir.path());
+    let file = dir.path().join("x.bin");
+    std::fs::write(&file, b"AB").unwrap();
+    doe()
+        .args(["-c", NO_CONFIG, "-I"])
+        .arg(&lib)
+        .arg(&file)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("no schema fits"))
+        .stderr(predicate::str::contains("a_wide"))
+        .stderr(predicate::str::contains("b_narrow"))
+        .stderr(predicate::str::contains("did not fit"))
+        .stderr(predicate::str::contains("1 left out"));
+    // the same without a signature that the file has: nothing is tried, and all can be
+    let other = dir.path().join("y.bin");
+    std::fs::write(&other, b"zz").unwrap();
+    doe()
+        .args(["-c", NO_CONFIG, "-I"])
+        .arg(&lib)
+        .arg(&other)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--detect all"));
+}
+
+#[test]
+fn the_viewer_without_a_schema_says_the_same_when_nothing_fits() {
+    let dir = TempDir::new().unwrap();
+    let lib = detect_library(dir.path());
+    let file = dir.path().join("x.bin");
+    std::fs::write(&file, b"AB").unwrap();
+    doe()
+        .args(["-c", NO_CONFIG, "--tui", "-I"])
+        .arg(&lib)
+        .arg(&file)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("no schema fits"));
+}
+
+#[test]
+fn detect_all_is_only_for_a_file_without_a_schema() {
+    let dir = TempDir::new().unwrap();
+    let (schema, binary) = simple_fixture(dir.path());
+    doe()
+        .args(["-c", NO_CONFIG, "--detect", "all"])
+        .arg(&binary)
+        .arg(&schema)
+        .assert()
+        .failure()
+        .code(2);
+    doe()
+        .args(["-c", NO_CONFIG, "--detect", "some"])
+        .arg(&binary)
+        .assert()
+        .failure()
+        .code(2);
+}
+
 #[test]
 fn json_flag_prints_compact_json() {
     let dir = TempDir::new().unwrap();
@@ -1149,7 +1256,10 @@ mod tui_in_a_terminal {
                 command.args(["-c", NO_CONFIG]);
             }
             command.arg(binary);
-            command.arg(schema);
+            // an empty path is no schema: the viewer looks for one
+            if !schema.as_os_str().is_empty() {
+                command.arg(schema);
+            }
             command.env("XDG_STATE_HOME", sandbox().join("state"));
             command.env("XDG_CONFIG_HOME", sandbox().join("config"));
             command.env_remove("NO_COLOR");
@@ -1302,6 +1412,22 @@ mod tui_in_a_terminal {
             .failure()
             .stderr(predicate::str::contains("unknown radix"))
             .stderr(predicate::str::contains("dec, hex, bin or oct"));
+    }
+
+    #[test]
+    fn the_viewer_started_with_a_file_only_finds_the_schema_of_it() {
+        let dir = TempDir::new().unwrap();
+        let lib = detect_library(dir.path());
+        let binary = dir.path().join("x.bin");
+        std::fs::write(&binary, b"ABc").unwrap();
+        let include = format!("-I{}", lib.display());
+        let mut session = Session::start_in(dir, PathBuf::new(), binary, &[include.as_str()], &[]);
+        session.wait_for("parsed");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success, "{seen:?}");
+        // the type that fit is the one in the title
+        assert!(seen.contains("narrow"), "{seen:?}");
     }
 
     #[test]

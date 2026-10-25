@@ -414,3 +414,48 @@ fn a_type_of_an_imported_schema_can_be_the_type_to_parse_with() {
     assert_eq!(imported["trace"]["children"][0]["name"], "p");
     assert_eq!(imported["value"]["p"], 7);
 }
+
+#[test]
+fn signature_gives_what_the_files_start_with_and_the_names_of_the_format() {
+    let schema = "meta:\n  id: Pic\n  file-extension: [PIC, pc]\nseq:\n  - id: magic\n    contents: [0x89, PIC]\n  - id: n\n    type: u1\n";
+    let answer: Value = serde_json::from_str(&doe_wasm::signature(
+        &json!({"schema": schema, "path": "formats/pic.ksy"}).to_string(),
+    ))
+    .unwrap();
+    assert_eq!(answer["ok"], true);
+    assert_eq!(
+        answer["magic"],
+        json!([{"offset": 0, "bytes": [0x89, 80, 73, 67]}])
+    );
+    assert_eq!(answer["names"], json!(["pic", "pic", "pic", "pc"]));
+
+    let bad: Value = serde_json::from_str(&doe_wasm::signature(
+        &json!({"schema": "seq: [", "path": "x.ksy"}).to_string(),
+    ))
+    .unwrap();
+    assert_eq!(bad["ok"], false);
+    assert_ne!(bad["diagnostics"].as_array().unwrap().len(), 0);
+}
+
+#[test]
+fn detect_order_ranks_by_signature_then_name_and_leaves_out_what_cannot_fit() {
+    let request = json!({
+        "sources": [
+            {"name": "plain", "magic": [], "names": ["dat"]},
+            {"name": "png", "magic": [{"offset": 0, "bytes": [137, 80]}], "names": ["png"]},
+            {"name": "gif", "magic": [{"offset": 0, "bytes": [71, 73]}], "names": ["gif"]},
+        ],
+        "name": "x.dat",
+    });
+    let answer: Value =
+        serde_json::from_str(&doe_wasm::detect_order(&request.to_string(), &[137, 80, 1])).unwrap();
+    assert_eq!(answer["ok"], true);
+    assert_eq!(
+        answer["order"],
+        json!([{"index": 1, "why": "signature"}, {"index": 0, "why": "name"}])
+    );
+    assert_eq!(answer["excluded"], 1);
+
+    let bad: Value = serde_json::from_str(&doe_wasm::detect_order("{", &[])).unwrap();
+    assert_eq!(bad["ok"], false);
+}

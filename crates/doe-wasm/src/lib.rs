@@ -1,6 +1,6 @@
 //! doe for WebAssembly: the library behind the web IDE.
 //!
-//! Three functions are exported to JavaScript by `wasm-bindgen`. The requests
+//! These functions are exported to JavaScript by `wasm-bindgen`. The requests
 //! and the answers are JSON strings (see `API.md`), so that the page, a worker
 //! and the tests all call them the same way, with no objects that live in
 //! WebAssembly memory to free.
@@ -37,6 +37,21 @@ pub fn check(request: &str) -> String {
 #[wasm_bindgen]
 pub fn inspect(request: &str) -> String {
     to_json(&api::inspect(request))
+}
+
+/// What a schema's files start with and what the format is called, for
+/// finding the schema of a file. Returns JSON: `{ok, magic, names, diagnostics}`.
+#[wasm_bindgen]
+pub fn signature(request: &str) -> String {
+    to_json(&api::signature(request))
+}
+
+/// The order in which to try schemas on a file that starts with `head`. The
+/// request is JSON, `{sources: [{name, magic, names}], name, all}`. Returns
+/// JSON: `{ok, order: [{index, why}], excluded, diagnostics}`.
+#[wasm_bindgen]
+pub fn detect_order(request: &str, head: &[u8]) -> String {
+    to_json(&api::detect_order(request, head))
 }
 
 /// Compile the schema of `request` (JSON) and parse `bytes` with it. Returns

@@ -14,6 +14,7 @@ import { type Origin, SchemaList, editable, isKnownType, listing } from './schem
 import { MAX_LINK, type Work, codeOfHash, decodeWork, encodeWork, forget, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { Radixes, isRadix } from './radix.js';
+import { type Attempt, type GalleryFormat, describe, detectGallery } from './detect.js';
 import { TreeView } from './tree.js';
 
 /** How long the schema is left alone before it is checked again. */
@@ -223,7 +224,7 @@ export class App {
     }
   }
 
-  private gallery: { repo: string; commit: string; formats: { path: string; id: string; title: string | null; imports: string[] }[] } | null = null;
+  private gallery: { repo: string; commit: string; formats: GalleryFormat[] } | null = null;
 
   /** The formats of the Kaitai Struct gallery; their definitions are fetched when one is picked. */
   private async showGallery(): Promise<void> {
@@ -261,6 +262,139 @@ export class App {
     }
   }
 
+  /** A file of the gallery, at the commit the page was built with. */
+  private async fetchGallery(path: string): Promise<string> {
+    const gallery = this.gallery;
+    if (!gallery) throw new Error('there is no gallery');
+    const response = await fetch(`https://raw.githubusercontent.com/${gallery.repo}/${gallery.commit}/${path}`);
+    if (!response.ok) throw new Error(`${path}: ${response.status}`);
+    return response.text();
+  }
+
+  // ── finding the schema of a file ───────────────────────────────────────────
+
+  private detection: { cancelled: boolean } | null = null;
+  /** Look for the schema if the one in the editor does not parse the file that was just opened. */
+  private detectIfItFails = false;
+
+  private autoDetect(): boolean {
+    try {
+      return localStorage.getItem('doe.detect') === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  /** Whether there is a file to look for a schema of. */
+  private canDetect(): boolean {
+    return this.bytes !== null || this.serverInput !== null;
+  }
+
+  private showDetectReport(title: string, lines: { text: string; fit: boolean }[], offerAll: boolean): void {
+    const box = element('detect-report');
+    box.hidden = false;
+    box.replaceChildren();
+    const head = document.createElement('div');
+    head.textContent = title;
+    box.append(head);
+    const list = document.createElement('ul');
+    for (const line of lines) {
+      const item = document.createElement('li');
+      item.textContent = line.text;
+      if (line.fit) item.className = 'fit';
+      list.append(item);
+    }
+    box.append(list);
+    if (offerAll) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.id = 'detect-all';
+      button.textContent = 'Try them all';
+      button.title = 'Also try the formats that have no signature and whose name the file does not carry (slow)';
+      button.addEventListener('click', () => void this.detect(true));
+      box.append(button);
+    }
+  }
+
+  /**
+   * Find the schema of the opened file: the formats are put in an order by the
+   * library (by signature, then by name) and the first that parses the file is
+   * opened. `all` also tries the formats that have neither.
+   */
+  async detect(all = false): Promise<void> {
+    if (!this.canDetect()) {
+      element('status').textContent = 'open a file first: the schema is looked for from the file';
+      return;
+    }
+    this.detectIfItFails = false;
+    const run = { cancelled: false };
+    this.detection = run;
+    const status = element('status');
+    status.textContent = 'looking for the schema…';
+    const cancel = element('cancel');
+    cancel.hidden = false;
+    try {
+      if (this.serverInput && this.local) {
+        const found = await this.local.detect(all);
+        const lines = found.attempts.map((a) => ({ text: `${a.name} (${a.why}): ${a.fits ? 'parsed' : a.outcome}`, fit: a.fits }));
+        if (found.chosen) {
+          await this.openType(this.local, found.chosen.path);
+          status.textContent = `detected ${found.chosen.name} (${found.attempts.length} tried)`;
+          this.showDetectReport(`${found.chosen.name} parses the file`, lines, false);
+        } else {
+          status.textContent = 'no schema of this machine parses the file';
+          lines.push({ text: `${found.known} types known, ${found.excluded} left out because the file does not start with their signature`, fit: false });
+          this.showDetectReport('no schema fits', lines, !all);
+        }
+        return;
+      }
+      if (!this.gallery) {
+        status.textContent = 'there is no gallery to look in';
+        return;
+      }
+      const found = await detectGallery(
+        {
+          formats: this.gallery.formats,
+          order: (sources, name, every) => this.client.order(sources, name, every),
+          fetchText: (path) => this.fetchGallery(path),
+          parse: (request) => this.client.parse(request),
+          progress: (text) => {
+            status.textContent = text;
+          },
+          cancelled: () => run.cancelled,
+        },
+        this.inputName,
+        all,
+      );
+      const lines = found.attempts.map((a: Attempt) => ({ text: describe(a), fit: a.result === 'fit' }));
+      if (found.chosen) {
+        const { format, text, files } = found.chosen;
+        this.applyWork({
+          schema: text,
+          files,
+          path: format.path,
+          include_paths: [''],
+          origin: 'gallery',
+          origins: Object.fromEntries(Object.keys(files).map((path) => [path, 'gallery' as const])),
+        });
+        this.refreshNow();
+        status.textContent = `detected ${format.id} (${found.attempts.length} tried)`;
+        this.showDetectReport(`${format.id} parses the file`, lines, false);
+      } else if (run.cancelled) {
+        status.textContent = 'detection cancelled';
+      } else {
+        status.textContent = 'no gallery format parses the file';
+        lines.push({ text: `${found.known} formats known, ${found.excluded} left out because the file does not start with their signature`, fit: false });
+        this.showDetectReport('no format fits', lines, !all);
+      }
+    } catch (error) {
+      status.textContent = `detection stopped: ${error instanceof Error ? error.message : String(error)}`;
+    } finally {
+      cancel.hidden = this.detection !== run;
+      if (this.detection === run) this.detection = null;
+    }
+  }
+
   /** Fetch a format and the files it imports, at the commit the page was built with. */
   async openGallery(format: { path: string; imports: string[] }): Promise<void> {
     const gallery = this.gallery;
@@ -268,11 +402,7 @@ export class App {
     const status = element('status');
     status.textContent = `fetching ${format.path}…`;
     try {
-      const get = async (path: string): Promise<string> => {
-        const response = await fetch(`https://raw.githubusercontent.com/${gallery.repo}/${gallery.commit}/${path}`);
-        if (!response.ok) throw new Error(`${path}: ${response.status}`);
-        return response.text();
-      };
+      const get = (path: string): Promise<string> => this.fetchGallery(path);
       const [text, ...imports] = await Promise.all([format.path, ...format.imports].map(get));
       const files: Record<string, string> = {};
       for (const [index, path] of format.imports.entries()) files[path] = imports[index] ?? '';
@@ -367,6 +497,7 @@ export class App {
   }
 
   private useServerInput(local: LocalApi, input: { name: string; size: number }): void {
+    element<HTMLButtonElement>('detect').disabled = false;
     this.serverInput = input;
     this.bytes = null;
     this.inputName = input.name;
@@ -382,6 +513,7 @@ export class App {
     this.inputName = name;
     this.client.setInput(bytes);
     this.hex.setBytes(bytes);
+    element<HTMLButtonElement>('detect').disabled = false;
   }
 
   // ── the controls ───────────────────────────────────────────────────────────
@@ -413,8 +545,19 @@ export class App {
       this.persist();
     });
     element('cancel').addEventListener('click', () => {
+      if (this.detection) this.detection.cancelled = true;
       this.client.cancel();
       this.abort?.abort();
+    });
+    element('detect').addEventListener('click', () => void this.detect(false));
+    const auto = element<HTMLInputElement>('detect-auto');
+    auto.checked = this.autoDetect();
+    auto.addEventListener('change', () => {
+      try {
+        localStorage.setItem('doe.detect', auto.checked ? '1' : '0');
+      } catch {
+        // no storage: the choice is not remembered
+      }
     });
     element('share').addEventListener('click', () => void this.share());
     element('export').addEventListener('click', () => void this.exportOutput());
@@ -469,6 +612,12 @@ export class App {
     this.notice = null;
     this.selection = null;
     this.setInput(new Uint8Array(await file.arrayBuffer()), file.name);
+    if (this.autoDetect() && this.mainText === EXAMPLE_SCHEMA) {
+      // nothing of the person's own is in the editor: no use trying the example
+      void this.detect(false);
+      return;
+    }
+    this.detectIfItFails = this.autoDetect();
     this.refreshNow();
   }
 
@@ -658,6 +807,8 @@ export class App {
     this.status(response, problems.length);
     this.showFiles();
     this.showMarks();
+    if (this.detectIfItFails && (!response.ok || response.error)) void this.detect(false);
+    this.detectIfItFails = false;
   }
 
   private selectionName = '';

@@ -16,6 +16,14 @@ export interface LocalType {
   path: string;
 }
 
+/** What `doe --ide` found out when it looked for the type of its input file. */
+export interface LocalDetection {
+  chosen: { name: string; path: string } | null;
+  attempts: { name: string; why: string; fits: boolean; outcome: string }[];
+  known: number;
+  excluded: number;
+}
+
 export interface LocalSchema {
   path: string;
   text: string;
@@ -28,6 +36,11 @@ export class LocalApi {
 
   async types(): Promise<LocalType[]> {
     return (await this.json('api/types')) as LocalType[];
+  }
+
+  /** Find the type of the input file among the types of this machine. */
+  async detect(all: boolean): Promise<LocalDetection> {
+    return (await this.json(`api/detect${all ? '?all=1' : ''}`)) as LocalDetection;
   }
 
   async schema(path: string): Promise<LocalSchema> {

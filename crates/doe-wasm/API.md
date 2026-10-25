@@ -1,6 +1,6 @@
 # The calls of doe-wasm
 
-Five functions, exported to JavaScript by `wasm-bindgen`. Requests and answers
+Seven functions, exported to JavaScript by `wasm-bindgen`. Requests and answers
 are **JSON strings**, so the page, a worker and the tests all call them the same
 way. The Rust side is `src/api.rs`; the tests in `tests/api.rs` check every
 shape below.
@@ -10,6 +10,8 @@ check(request: string): string          // CheckResponse as JSON
 inspect(request: string): string        // InspectResponse as JSON: the schemas, the missing imports, the types
 parse(request: string, bytes: Uint8Array): string   // ParseResponse as JSON
 render(request: string, bytes: Uint8Array, format: string): string   // ExportResponse as JSON (`export` is a reserved word in JavaScript)
+signature(request: string): string      // SignatureResponse as JSON: what the schema's files start with, and its names
+detect_order(request: string, head: Uint8Array): string   // OrderResponse as JSON: which schemas to try on a file, in what order
 version(): string
 ```
 
@@ -91,6 +93,50 @@ compile (and for one with an import that is not there).
   "diagnostics": []                  // only when the request is not valid (then ok is false)
 }
 ```
+
+## SignatureResponse
+
+`signature(request)` takes a [Request](#request) and compiles the schema.
+
+```jsonc
+{
+  "ok": true,
+  "magic": [ { "offset": 0, "bytes": [137, 80, 78, 71] } ],  // every file of the schema starts with these; [] if the schema does not say
+  "names": ["png", "png"],      // the format's id, the name of its file and its meta: file-extension, in lower case
+  "diagnostics": []             // what is wrong with the schema, when ok is false
+}
+```
+
+The signature is the `contents:` of the first fields, and the exact `valid:` of
+integers and strings, with the fixed-size fields before them (and looking into
+a field that is a type); see `doe::detect::magic_of`.
+
+## OrderResponse
+
+`detect_order(request, head)` ranks schemas for a file that starts with `head`
+(the first 64 KiB are used). The request has no schema, only what `signature`
+gave for each one:
+
+```jsonc
+{
+  "sources": [ { "name": "png", "magic": [ { "offset": 0, "bytes": [137, 80, 78, 71] } ], "names": ["png"] } ],
+  "name": "photo.png",   // the name of the file, for its extension (optional)
+  "all": false           // also the schemas with no signature and no name that fits (optional)
+}
+```
+
+```jsonc
+{
+  "ok": true,
+  "order": [ { "index": 0, "why": "signatureandname" } ],  // places in `sources`, in the order to try them
+  "excluded": 40,        // the schemas whose signature the file does not start with: never tried
+  "diagnostics": []
+}
+```
+
+`why` is `signatureandname`, `signature`, `name` or `remaining`. The page tries
+them in this order (fetching the definition of each only when it is its turn)
+and takes the first that parses.
 
 ## Diagnostic
 

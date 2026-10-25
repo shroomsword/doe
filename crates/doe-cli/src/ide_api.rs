@@ -154,6 +154,7 @@ impl Local {
             ("GET" | "HEAD", "types") => self.types(),
             ("GET" | "HEAD", "schema") => self.schema(query),
             ("GET" | "HEAD", "input") => self.bytes(query),
+            ("GET" | "HEAD", "detect") => self.detect(query),
             ("POST", "parse") => self.parse(body),
             ("POST", "export") => self.export(query, body),
             _ => error(404, "not found\n"),
@@ -294,6 +295,43 @@ impl Local {
                 head_only: false,
             },
             Err(_) => error(500, "could not make the answer\n"),
+        }
+    }
+
+    /// Find the type of the input file among the types of the include paths
+    /// (`doe::detect`), and say what was tried.
+    fn detect(&self, query: &str) -> Response {
+        let Some(input) = &self.input else {
+            return error(404, "no input file was named\n");
+        };
+        if self.busy.swap(true, Ordering::SeqCst) {
+            return error(503, "a parse is already running\n");
+        }
+        let options = doe::detect::Options {
+            all: query_param(query, "all").is_some_and(|v| v == "1"),
+            ..doe::detect::Options::default()
+        };
+        let found = doe::detect::detect_file(&input.path, &self.include_paths, &options);
+        self.busy.store(false, Ordering::SeqCst);
+        match found {
+            Ok(found) => json_response(
+                200,
+                &json!({
+                    "chosen": found.chosen().map(|a| json!({"name": a.name, "path": a.path})),
+                    "attempts": found.attempts.iter().map(|a| json!({
+                        "name": a.name,
+                        "why": a.why.describe(),
+                        "fits": a.outcome.fits(),
+                        "outcome": a.outcome.describe(),
+                    })).collect::<Vec<_>>(),
+                    "known": found.known,
+                    "excluded": found.excluded,
+                }),
+            ),
+            Err(e) => {
+                log::warn!("detection failed: {e}");
+                error(500, "could not look for the schema\n")
+            }
         }
     }
 
@@ -484,6 +522,40 @@ mod tests {
         assert_eq!(answer["value"]["a"], 1);
         assert_eq!(answer["trace"]["end"], 40);
         assert_eq!(f.local.handle("POST", "parse", "", b"\xff").status, 400);
+    }
+
+    #[test]
+    fn the_type_of_the_input_is_looked_for_among_the_types() {
+        let f = Fixture::new();
+        // no signature and no name that fits: nothing is tried unless all are asked for
+        let r = f.get("detect", "");
+        assert_eq!(r.status, 200);
+        let answer = json(&r);
+        assert_eq!(answer["chosen"], Value::Null, "{answer}");
+        assert_eq!(answer["attempts"].as_array().unwrap().len(), 0);
+        assert_eq!(answer["known"], 2);
+
+        let answer = json(&f.get("detect", "all=1"));
+        assert_eq!(answer["chosen"]["name"], "common", "{answer}");
+        assert_eq!(answer["attempts"][0]["fits"], true);
+        assert!(
+            answer["chosen"]["path"]
+                .as_str()
+                .unwrap()
+                .ends_with("common.yaml")
+                || answer["chosen"]["path"]
+                    .as_str()
+                    .unwrap()
+                    .ends_with("common.ksy"),
+            "{answer}"
+        );
+    }
+
+    #[test]
+    fn without_an_input_file_nothing_is_detected() {
+        let dir = tempfile::tempdir().unwrap();
+        let local = Local::new(&[dir.path().to_owned()], None).unwrap();
+        assert_eq!(local.handle("GET", "detect", "", b"").status, 404);
     }
 
     #[test]

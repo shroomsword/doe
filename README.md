@@ -84,6 +84,7 @@ Write a schema, point `doe` at a binary file:
 doe firmware.bin ./my_format.yaml
 doe dump.bin --json > dump.json
 doe packet.bin --pretty -I ~/.doe/types
+doe mystery.bin -I ~/.doe/types   # which schema? see Detecting the schema
 ```
 
 ## Type library
@@ -946,9 +947,10 @@ Usage: doe [OPTIONS] [FILE] [TYPE_OR_SCHEMA]
 
 Arguments:
   [FILE]            Binary file to parse
-  [TYPE_OR_SCHEMA]  Type name (e.g. `png`) or path to a YAML schema file; add `::TYPE` to parse with a type inside it
+  [TYPE_OR_SCHEMA]  Type name (e.g. `png`) or path to a YAML schema file; add `::TYPE` to parse with a type inside it. Without it, the schema is looked for among the types of the include paths (see `--detect`)
 
 Options:
+      --detect <WHAT>        When no `TYPE_OR_SCHEMA` is given: `all` also tries the types that have no signature and whose name the file does not carry (slow for a big library). Without it the types whose signature the file starts with, and those named like the file, are tried; `-v` says which [possible values: all]
   -I, --include-path <DIR>   Add a directory to the schema search path (repeatable)
   -c, --config <FILE>        Config file path [default: ~/.config/doe/config.toml]
       --json                 Emit compact JSON output
@@ -989,6 +991,54 @@ stderr. `--completions` and `--man` print and exit; they cannot be combined with
 a file, a type or the options that only matter when parsing (`-I`, `-c`,
 `--json`, `--pretty`, `--no-instances`), but `--color`, `-v`, `-q`, `--log-level`
 and `--log-file` can go with them, as in `doe --completions bash --color never`.
+
+### Detecting the schema
+
+`doe FILE` with no type looks for the schema of the file among the types of the
+include paths (`-I` and the config), and parses the file with the first that
+fits. The order is:
+
+1. **By signature.** A schema whose first fields are `contents:` (or an integer
+   or string with an exact `valid:`, after fields of a fixed size, also inside a
+   field that is a type) can only describe a file that starts with those bytes.
+   That is read from the compiled schema without parsing anything, and a schema
+   whose signature the file does not have is left out.
+2. **By name.** The extension of the file against the schema's `id`, the name of
+   its file and its `meta: file-extension`, for the schemas that have no
+   signature; and to put a schema first when both fit.
+3. **By trying.** The schemas that are left are tried in that order, each with
+   a limit of 2 million fields and 10 seconds, and a panic caught, so that one
+   bad schema does not stop the others. A try that stops with an error is a
+   schema that did not fit; the first that parses the file without an error
+   wins (it may leave bytes unread, so look at the result).
+
+`-v` says what was tried and why, one line each: `tried png (the file starts with
+its signature): parsed (1234 bytes read)`. When nothing fits it is an error that
+lists them, and the number of schemas that were left out because of the
+signature. `doe --tui FILE` does the same before the viewer opens (the viewer has
+no command to open another file, so that is the only time it looks).
+
+**The limits.** A format with no signature (a magic number that is an `enum`
+without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
+than a field of a size that is not fixed) is only found by its name, or when
+`--detect all` is given, which tries every schema that is left in the order of
+their names and can take a long time for a big library. Only the first 64 KiB of
+the file are compared with signatures. Of the 24 samples of the Kaitai gallery
+in the tests, 16 are found with their own schema, and the rest need their
+name or `--detect all`; a test keeps that number from falling.
+
+In the web IDE, *Detect schema* in the header does the same for the opened file
+among the formats of the gallery: the page has each format's signature and names
+(computed when it was built, by the same library), asks the library for the
+order, and fetches the definition of a format only when it is its turn, so a
+PNG costs a few requests, not the gallery. The formats tried are listed with why
+each was tried and what came of it, a format that takes longer than the limit of
+the page's worker is reported and the next is tried, and *Try them all* adds the
+formats with no signature. *Detect when I open a file* (remembered in the
+browser) does it on opening a file, when the editor still has the example or the
+schema does not parse the file. With `doe --ide FILE` the types of the include
+paths are searched as well, natively, for the file named on the command line
+(`Use FILE`); a file opened in the page is searched among the gallery only.
 
 ### Terminal viewer
 
