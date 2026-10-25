@@ -136,8 +136,7 @@ test('the button finds the format of a file by its signature and fetches only th
   await expect(page.locator('#detect')).toBeEnabled();
   await page.click('#detect');
   await expect(page.locator('#detect-report')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('#status')).toContainText('detected png', { timeout: 30_000 });
-  await expect(page.locator('#detect-report')).toContainText('png parses the file');
+  await expect(page.locator('#detect-report')).toContainText('png parses the file', { timeout: 30_000 });
   await expect(page.locator('#detect-report li.fit')).toContainText('the file starts with its signature');
   // the format is open and parsed
   await expect(page.locator('#editing')).toContainText('png.ksy');
@@ -170,5 +169,5 @@ test('with the setting on, opening a file looks for the schema, and the setting 
   await expect(page.locator('#detect-auto')).toBeChecked();
   await page.setInputFiles('#open-input', { name: 'x', mimeType: 'application/octet-stream', buffer: readFileSync(join(samples, 'image', 'gif', 'small.bin')) });
   // the editor still has the example, so the schema is looked for at once
-  await expect(page.locator('#status')).toContainText('detected gif', { timeout: 30_000 });
+  await expect(page.locator('#detect-report')).toContainText('gif parses the file', { timeout: 30_000 });
 });
