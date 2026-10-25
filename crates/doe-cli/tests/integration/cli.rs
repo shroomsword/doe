@@ -139,6 +139,7 @@ fn a_file_that_no_schema_fits_is_an_error_that_lists_what_was_tried() {
         .stderr(predicate::str::contains("--detect all"));
 }
 
+#[cfg(feature = "tui")]
 #[test]
 fn the_viewer_without_a_schema_says_the_same_when_nothing_fits() {
     let dir = TempDir::new().unwrap();
