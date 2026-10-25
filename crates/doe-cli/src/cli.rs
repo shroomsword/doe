@@ -124,6 +124,14 @@ pub(crate) struct Cli {
     #[arg(long, requires = "tui")]
     pub(crate) watch: bool,
 
+    /// With `--tui`: the colour theme, a built-in one by its id (`nord`,
+    /// `solarized-dark`, `catppuccin-mocha`...), a file `NAME.toml` in the
+    /// `themes` directory next to the config file, or the path of a theme file;
+    /// `terminal` is the colours of the terminal itself, which is the default
+    /// (the `theme` key of the config file changes that).
+    #[arg(long, value_name = "NAME|FILE", requires = "tui")]
+    pub(crate) theme: Option<String>,
+
     /// With `--ide`: the port to serve on (0 for any free one) [default: 8765].
     #[arg(long, value_name = "PORT", requires = "ide")]
     pub(crate) port: Option<u16>,

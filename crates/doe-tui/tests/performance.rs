@@ -144,6 +144,8 @@ fn a_million_fields_open_scroll_search_and_jump_within_the_budget() {
         include_paths: Vec::new(),
         color: false,
         watch: false,
+        theme: None,
+        theme_dir: None,
     })
     .unwrap();
     eprintln!("parse of {MANY} fields: {:?}", start.elapsed());
@@ -335,6 +337,8 @@ fn a_file_of_gigabytes_opens_and_scrolls_without_being_read() {
         include_paths: Vec::new(),
         color: false,
         watch: false,
+        theme: None,
+        theme_dir: None,
     })
     .unwrap();
     assert_eq!(loaded.size, size);

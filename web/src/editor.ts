@@ -2,13 +2,57 @@
 // underlined where they are in the text.
 
 import { yaml } from '@codemirror/lang-yaml';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
+import { Compartment, type Extension } from '@codemirror/state';
 import { EditorView, basicSetup } from 'codemirror';
+import { tags } from '@lezer/highlight';
 import type { Diagnostic, Position } from './doe.js';
 import { editorRange } from './model.js';
+import type { ThemeInfo } from './theme.js';
+
+/** The colours of the editor and of the YAML in it, from a theme. */
+export function editorTheme(theme: ThemeInfo): Extension {
+  const c = theme.colors;
+  return [
+    EditorView.theme(
+      {
+        '&': { color: c.foreground, backgroundColor: c.background },
+        '.cm-content': { caretColor: c.accent },
+        '.cm-cursor, .cm-dropCursor': { borderLeftColor: c.accent },
+        '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
+          backgroundColor: c.selection,
+        },
+        '.cm-activeLine': { backgroundColor: c.panel },
+        '.cm-activeLineGutter': { backgroundColor: c.panel },
+        '.cm-gutters': { backgroundColor: c.panel, color: c.muted, borderRight: `1px solid ${c.line}` },
+        '.cm-matchingBracket, .cm-nonmatchingBracket': { backgroundColor: c.selection_part, outline: `1px solid ${c.line}` },
+        '.cm-tooltip': { backgroundColor: c.panel, color: c.foreground, border: `1px solid ${c.line}` },
+        '.cm-panels': { backgroundColor: c.panel, color: c.foreground },
+        '.cm-searchMatch': { backgroundColor: c.selection_part, outline: `1px solid ${c.accent}` },
+        '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: c.selection },
+      },
+      { dark: theme.variant === 'dark' },
+    ),
+    syntaxHighlighting(
+      HighlightStyle.define([
+        { tag: [tags.comment, tags.lineComment], color: c.muted, fontStyle: 'italic' },
+        { tag: [tags.propertyName, tags.definition(tags.propertyName)], color: c.type },
+        { tag: [tags.string, tags.special(tags.string)], color: c.string },
+        { tag: [tags.number, tags.integer, tags.float], color: c.number },
+        { tag: [tags.bool, tags.null], color: c.boolean },
+        { tag: [tags.keyword, tags.atom], color: c.enum },
+        { tag: [tags.meta, tags.labelName, tags.typeName, tags.tagName, tags.className], color: c.accent },
+        { tag: [tags.punctuation, tags.separator, tags.operator, tags.bracket], color: c.muted },
+        { tag: tags.invalid, color: c.error },
+      ]),
+    ),
+  ];
+}
 
 export class SchemaEditor {
   private readonly view: EditorView;
+  private readonly theme = new Compartment();
 
   constructor(parent: HTMLElement, text: string, onChange: () => void) {
     this.view = new EditorView({
@@ -18,12 +62,18 @@ export class SchemaEditor {
         basicSetup,
         yaml(),
         lintGutter(),
+        this.theme.of([]),
         EditorView.contentAttributes.of({ 'aria-label': 'schema' }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) onChange();
         }),
       ],
     });
+  }
+
+  /** Draw the editor in the colours of a theme. */
+  setTheme(theme: ThemeInfo): void {
+    this.view.dispatch({ effects: this.theme.reconfigure(editorTheme(theme)) });
   }
 
   get text(): string {

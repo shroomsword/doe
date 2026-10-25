@@ -23,6 +23,7 @@ pub mod report;
 pub mod search;
 pub mod status;
 pub mod terminal;
+pub mod theme;
 pub mod tree;
 pub mod tree_view;
 pub mod ui;
@@ -53,6 +54,33 @@ pub struct Options {
     pub color: bool,
     /// Whether to read the schema and the file again when they change on disk.
     pub watch: bool,
+    /// The theme (`--theme` or the `theme` key of the config): the id of a
+    /// built-in theme, the name of a file in `theme_dir`, or the path of a file.
+    /// None: the colours of the terminal itself.
+    pub theme: Option<String>,
+    /// Where the themes of the person are (see [`theme::user_dir`]).
+    pub theme_dir: Option<PathBuf>,
+}
+
+impl Options {
+    /// The styles for these options: no colour, the colours of the terminal, or
+    /// the theme, brought down to what the terminal shows (`depth`).
+    ///
+    /// # Errors
+    ///
+    /// Fails when the theme is not found or not usable.
+    pub fn theme(&self, depth: theme::Depth) -> anyhow::Result<Theme> {
+        if !self.color {
+            return Ok(Theme::new(false));
+        }
+        match &self.theme {
+            Some(name) if name != "terminal" => {
+                let found = theme::resolve(name, self.theme_dir.as_deref())?;
+                Ok(Theme::themed(theme::Palette::new(&found.colors, depth)))
+            }
+            _ => Ok(Theme::new(true)),
+        }
+    }
 }
 
 /// The stack of the thread that parses: as large as the engine may need for the
@@ -111,6 +139,8 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
             "--tui needs a terminal on stdin and on stdout (use --json or --pretty to print to a pipe)"
         );
     }
+    // A theme that cannot be used is refused before the terminal is touched.
+    let theme = options.theme(theme::Depth::detect())?;
     // The terminal is set up and the first screen drawn at once; the file is
     // parsed in another thread, which can take a while for a file with millions of
     // fields. What cannot be parsed is shown in the viewer, not refused before it
@@ -121,8 +151,6 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
     let loader = spawn_load(options.clone());
     let mut loader = Some(loader);
     let mut watch: Option<Watch> = None;
-    let theme = Theme::new(options.color);
-
     let signals = Signals::install().context("could not install the signal handlers")?;
     let (guard, mut terminal) = Guard::enter().context("could not set up the terminal")?;
     // For the test that a panic inside the viewer puts the terminal back.

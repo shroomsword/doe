@@ -51,6 +51,12 @@ pub struct Config {
     #[serde(default)]
     pub include_paths: Vec<PathBuf>,
 
+    /// The colour theme of the terminal viewer (`doe --tui`): the id of a
+    /// built-in theme, the name of a file in the `themes` directory next to
+    /// the config file, or the path of a theme file. `--theme` overrides it.
+    #[serde(default)]
+    pub theme: Option<String>,
+
     /// Logging settings.
     #[serde(default)]
     pub log: LogConfig,

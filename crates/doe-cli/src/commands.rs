@@ -89,6 +89,10 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         include_paths: resolve_include_paths(&cli.include_paths, config),
         color,
         watch: cli.watch,
+        theme: cli.theme.clone().or_else(|| config.theme.clone()),
+        theme_dir: doe_tui::theme::user_dir(
+            cli.config.clone().or_else(Config::default_path).as_deref(),
+        ),
     })
 }
 

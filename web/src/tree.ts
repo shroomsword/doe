@@ -4,7 +4,7 @@
 // many children shows a first part of them and a row that shows more.
 
 import type { TraceNode } from './doe.js';
-import { type Path, describeRange, nodeAt } from './model.js';
+import { type Path, describeRange, nodeAt, valueKind } from './model.js';
 
 /** How many children of a node are shown at first, and added by each click on "more". */
 const CHUNK = 200;
@@ -130,7 +130,7 @@ export class TreeView {
         const parts = [
           `<span class="name">${escape(node.name)}</span>`,
           node.type ? `<span class="type">${escape(node.type)}</span>` : '',
-          node.summary !== null ? `<span class="summary">${escape(node.summary)}</span>` : '',
+          node.summary !== null ? `<span class="summary ${valueKind(node.summary) ?? ''}">${escape(node.summary)}</span>` : '',
           range ? `<span class="range">${escape(range)}</span>` : node.instance ? '<span class="range">computed</span>' : '',
           node.failed ? '<span class="flag">failed here</span>' : '',
         ];

@@ -158,6 +158,8 @@ mod tests {
             include_paths: vec![dir.to_path_buf()],
             color: false,
             watch: false,
+            theme: None,
+            theme_dir: None,
         }
     }
 

@@ -27,6 +27,10 @@
         </select>
         <button id="export" type="button" disabled title="Save the whole parsed value, as doe prints it">Export</button>
       </div>
+      <div class="actions">
+        <label id="theme-box">Theme <select id="theme"></select></label>
+        <label class="button" title="Load a theme file (TOML, as doe --tui reads it); it is kept in this browser">Load theme<input id="open-theme" type="file" accept=".toml" /></label>
+      </div>
       <p id="status" role="status">loading…</p>
       <button type="button" id="cancel" hidden>Cancel parse</button>
     </header>

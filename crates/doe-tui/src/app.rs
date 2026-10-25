@@ -627,6 +627,8 @@ pub(crate) mod tests {
             include_paths: Vec::new(),
             color: false,
             watch: false,
+            theme: None,
+            theme_dir: None,
         };
         (App::new(file, load(&options).unwrap()), dir)
     }
@@ -671,6 +673,8 @@ pub(crate) mod tests {
             include_paths: vec![dir.path().to_path_buf()],
             color: false,
             watch: false,
+            theme: None,
+            theme_dir: None,
         };
         let loaded = load(&options).unwrap();
         let mut app = App::new(file, loaded);
@@ -1109,6 +1113,8 @@ seq:
             include_paths: vec![dir.path().to_path_buf()],
             color: false,
             watch: false,
+            theme: None,
+            theme_dir: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
         let schema = crate::load::schema_file(&options);
@@ -1404,6 +1410,8 @@ types:
             include_paths: Vec::new(),
             color: false,
             watch: false,
+            theme: None,
+            theme_dir: None,
         };
         let mut app = App::new(options.file.clone(), load(&options).unwrap());
         app.options = Some(options);
@@ -1459,6 +1467,8 @@ types:
             include_paths: vec![dir.path().to_path_buf()],
             color: false,
             watch: false,
+            theme: None,
+            theme_dir: None,
         }
     }
 
@@ -1626,6 +1636,8 @@ types:
             include_paths: Vec::new(),
             color: false,
             watch: false,
+            theme: None,
+            theme_dir: None,
         })
         .unwrap();
         let mut app = App::new(file, loaded);

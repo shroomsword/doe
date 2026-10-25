@@ -1101,6 +1101,97 @@ test** (it would need `ConPTY` and a dependency for it), so the setup and
 restoring of the console there is not covered by tests, and `SIGTERM` and
 `SIGHUP` do not exist there.
 
+### Themes
+
+The terminal viewer and the [web IDE](#web-ide) have the same built-in colour
+themes, from one table in the repository (`crates/doe-tui/themes/themes.toml`;
+the web IDE's file is made from it, and a test fails when that file is out of
+date). A theme names its colours by what they are for, not by the widget: the
+background and the text, secondary text, borders and panels, the accent (focus
+and the names of types), the selection and a partial selection (a byte that is
+only partly the field's), errors and warnings, and a colour for each kind of
+value in the tree (integers and floats, strings, byte sequences, enum names,
+booleans, offsets, instances). Every built-in theme has at least 4.5:1 (WCAG AA)
+between its text and its background and between its error colour and its
+background, and the text is readable on its selection; the two high-contrast
+themes are 7:1. A test checks all of it, and another that the viewer draws
+with the colours of the theme and no others.
+
+In the terminal viewer, `--theme NAME|FILE` (or the `theme` key of the
+[config file](#configuration)) chooses one. `NAME` is the id from the table
+below (case, spaces and `_` do not matter: `Solarized Dark` is
+`solarized-dark`), the name of a file `NAME.toml` in the `themes` directory
+next to the config file (`~/.config/doe/themes/` on Linux), or `FILE` is the
+path of a theme file. Without it the viewer uses the colours of the terminal
+itself (`--theme terminal` says so), so it matches whatever palette the person
+has chosen for the terminal. A theme is `#rrggbb` colours; they are used as
+they are on a terminal with 24-bit colour (`COLORTERM=truecolor`), and the
+nearest of the 256 colours of xterm (`TERM` with `256color`) or of the 16
+colours of every terminal are used on one with fewer. `NO_COLOR` and
+`--color never` give no colour and no theme, as before.
+
+A theme file is TOML, with the colours of the table:
+
+```toml
+name = "My theme"
+variant = "dark"          # or "light"; "dark" if left out
+author = "me"             # author, license, source and note are optional
+[colors]
+background = "#1e1e2e"
+foreground = "#cdd6f4"
+muted = "#9399b2"
+line = "#45475a"
+panel = "#181825"
+accent = "#89b4fa"
+selection = "#45475a"
+selection_part = "#313244"
+error = "#f38ba8"
+warning = "#f9e2af"
+number = "#fab387"
+string = "#a6e3a1"
+bytes = "#fab387"
+enum = "#cba6f7"
+boolean = "#94e2d5"
+offset = "#9399b2"
+type = "#89b4fa"
+instance = "#9399b2"
+```
+
+In the web IDE the theme picker in the header chooses a theme; "System" (the
+default) follows the light or dark setting of the system, with the doe Light
+and doe Dark themes. The choice is remembered in the browser. "Load a theme
+file" reads a file of the format above, which is kept in the browser too (it
+is not sent anywhere, and a share link does not carry the theme).
+
+The themes, with the licence of each (all are MIT, and a theme whose licence
+does not allow redistribution is not included). A theme is the palette of the
+project it names, with a colour made lighter or darker where that was needed for
+4.5:1; `themes.toml` has the repository the palette comes from (`source`) and
+what was changed (`note`) for each theme.
+
+| Id | Name | Variant | Author | Licence |
+|---|---|---|---|---|
+| `doe-light` | doe Light | light | the doe project | MIT |
+| `doe-dark` | doe Dark | dark | the doe project | MIT |
+| `solarized-dark` | Solarized Dark | dark | Ethan Schoonover | MIT |
+| `solarized-light` | Solarized Light | light | Ethan Schoonover | MIT |
+| `dracula` | Dracula | dark | Zeno Rocha | MIT |
+| `nord` | Nord | dark | Sven Greb (Arctic Ice Studio) | MIT |
+| `gruvbox-dark` | Gruvbox Dark | dark | Pavel Pertsev | MIT |
+| `gruvbox-light` | Gruvbox Light | light | Pavel Pertsev | MIT |
+| `monokai` | Monokai | dark | Wimer Hazenberg | MIT |
+| `one-dark` | One Dark | dark | GitHub (Atom) | MIT |
+| `one-light` | One Light | light | GitHub (Atom) | MIT |
+| `tokyo-night` | Tokyo Night | dark | enkia | MIT |
+| `catppuccin-latte` | Catppuccin Latte | light | Catppuccin | MIT |
+| `catppuccin-frappe` | Catppuccin Frappé | dark | Catppuccin | MIT |
+| `catppuccin-macchiato` | Catppuccin Macchiato | dark | Catppuccin | MIT |
+| `catppuccin-mocha` | Catppuccin Mocha | dark | Catppuccin | MIT |
+| `github-light` | GitHub Light | light | GitHub | MIT |
+| `github-dark` | GitHub Dark | dark | GitHub | MIT |
+| `high-contrast` | High Contrast | dark | the doe project | MIT |
+| `high-contrast-light` | High Contrast Light | light | the doe project | MIT |
+
 ### Color
 
 Color is used on stderr only: errors in red, warnings in yellow. `--color`
@@ -1156,6 +1247,7 @@ level = "debug"
 | Key | Type | Meaning | Overriding flag |
 |-----|------|---------|-----------------|
 | `include_paths` | list of paths | Directories searched for bare type names, in order. `~/` is expanded. | `-I`/`--include-path` (these come first) |
+| `theme` | text | The colour theme of `doe --tui`: a built-in id, a file in the `themes` directory next to this file, or a path (see [Themes](#themes)). Default: the terminal's own colours. | `--theme` |
 | `log.level` | `off`, `error`, `warn`, `info`, `debug`, `trace` | Verbosity of the log file. Default `debug`. | `--log-level` |
 
 > **Upgrading:** earlier versions read `~/.doe/config/config.yaml`. That file

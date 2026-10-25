@@ -13,21 +13,44 @@ use crate::inspect;
 use crate::keymap;
 use crate::report::Report;
 use crate::status;
+use crate::theme::Palette;
 use crate::tree::Shown;
 use crate::tree_view;
 
-/// The styles of the viewer. Without colour they are the plain terminal
-/// colours with bold, dim and reverse only, which is what `NO_COLOR` asks for.
+/// The styles of the viewer. Without a theme they are the colours of the
+/// terminal itself (its own palette, so it matches whatever the person has
+/// chosen for it), and without colour they are bold, dim and reverse only, which
+/// is what `NO_COLOR` asks for. With a [`Palette`] from a theme they are the
+/// colours of the theme, and the background of the whole screen is the theme's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Theme {
     color: bool,
+    palette: Option<Palette>,
 }
 
 impl Theme {
-    /// A theme with or without colour.
+    /// The terminal's own colours, or none.
     #[must_use]
     pub fn new(color: bool) -> Self {
-        Theme { color }
+        Theme {
+            color,
+            palette: None,
+        }
+    }
+
+    /// The colours of a theme.
+    #[must_use]
+    pub fn themed(palette: Palette) -> Self {
+        Theme {
+            color: true,
+            palette: Some(palette),
+        }
+    }
+
+    /// The palette of the theme, if there is one.
+    #[must_use]
+    pub fn palette(self) -> Option<Palette> {
+        self.palette
     }
 
     fn colored(self, color: Color) -> Style {
@@ -38,22 +61,41 @@ impl Theme {
         }
     }
 
+    /// The colour to use for something of the terminal's palette, or the one of the theme.
+    fn pick(self, themed: impl FnOnce(Palette) -> Color, terminal: Color) -> Style {
+        match self.palette {
+            Some(palette) => Style::default().fg(themed(palette)),
+            None => self.colored(terminal),
+        }
+    }
+
+    /// What the whole screen is drawn on: the background and the text of the theme.
+    #[must_use]
+    pub fn base(self) -> Style {
+        match self.palette {
+            Some(p) => Style::default().fg(p.foreground).bg(p.background),
+            None => Style::default(),
+        }
+    }
+
     /// Titles and the type name.
     #[must_use]
     pub fn title(self) -> Style {
-        self.colored(Color::Cyan).add_modifier(Modifier::BOLD)
+        self.pick(|p| p.accent, Color::Cyan)
+            .add_modifier(Modifier::BOLD)
     }
 
     /// A parse that worked.
     #[must_use]
     pub fn good(self) -> Style {
-        self.colored(Color::Green)
+        self.pick(|p| p.string, Color::Green)
     }
 
     /// A parse that failed, and the row where it failed.
     #[must_use]
     pub fn bad(self) -> Style {
-        self.colored(Color::Red).add_modifier(Modifier::BOLD)
+        self.pick(|p| p.error, Color::Red)
+            .add_modifier(Modifier::BOLD)
     }
 
     /// The mark and the name of the row that failed.
@@ -65,7 +107,10 @@ impl Theme {
     /// Hints, and what is secondary.
     #[must_use]
     pub fn dim(self) -> Style {
-        Style::default().add_modifier(Modifier::DIM)
+        match self.palette {
+            Some(p) => Style::default().fg(p.muted),
+            None => Style::default().add_modifier(Modifier::DIM),
+        }
     }
 
     /// The open/closed marker of a row.
@@ -83,70 +128,133 @@ impl Theme {
     /// The name of an instance (the row is dimmed as a whole as well).
     #[must_use]
     pub fn instance(self) -> Style {
-        Style::default().add_modifier(Modifier::ITALIC)
+        match self.palette {
+            Some(p) => Style::default()
+                .fg(p.instance)
+                .add_modifier(Modifier::ITALIC),
+            None => Style::default().add_modifier(Modifier::ITALIC),
+        }
+    }
+
+    /// What is drawn over a piece of a row that is an instance: dimmer.
+    #[must_use]
+    pub fn faded(self, style: Style) -> Style {
+        match self.palette {
+            Some(p) => style.fg(p.instance),
+            None => style.add_modifier(Modifier::DIM),
+        }
     }
 
     /// The type of a field.
     #[must_use]
     pub fn type_name(self) -> Style {
-        self.colored(Color::Blue)
+        self.pick(|p| p.type_, Color::Blue)
     }
 
     /// A value, by its kind.
     #[must_use]
     pub fn value(self, shown: &Shown) -> Style {
         match shown {
-            Shown::UInt(_) | Shown::SInt(_) | Shown::Float(_) => self.colored(Color::Yellow),
-            Shown::Enum { .. } => self.colored(Color::Magenta),
-            Shown::Bool(_) => self.colored(Color::Cyan),
-            Shown::Str { .. } => self.colored(Color::Green),
-            Shown::Bytes { .. } => self.colored(Color::Red),
+            Shown::UInt(_) | Shown::SInt(_) | Shown::Float(_) => {
+                self.pick(|p| p.number, Color::Yellow)
+            }
+            Shown::Enum { .. } => self.pick(|p| p.enum_, Color::Magenta),
+            Shown::Bool(_) => self.pick(|p| p.boolean, Color::Cyan),
+            Shown::Str { .. } => self.pick(|p| p.string, Color::Green),
+            Shown::Bytes { .. } => self.pick(|p| p.bytes, Color::Red),
         }
     }
 
     /// A byte that is wholly in the selected field.
     #[must_use]
     pub fn hex_whole(self) -> Style {
-        self.colored(Color::Cyan).add_modifier(Modifier::REVERSED)
+        match self.palette {
+            Some(p) => Style::default()
+                .fg(p.foreground)
+                .bg(p.selection)
+                .add_modifier(Modifier::BOLD),
+            None => self.colored(Color::Cyan).add_modifier(Modifier::REVERSED),
+        }
     }
 
     /// A byte that is partly in the selected field (the other bits are a neighbour's).
     #[must_use]
     pub fn hex_part(self) -> Style {
-        self.colored(Color::Cyan).add_modifier(Modifier::UNDERLINED)
+        match self.palette {
+            Some(p) => Style::default()
+                .fg(p.foreground)
+                .bg(p.selection_part)
+                .add_modifier(Modifier::UNDERLINED),
+            None => self.colored(Color::Cyan).add_modifier(Modifier::UNDERLINED),
+        }
     }
 
     /// The byte the cursor is on, in the hex pane when it has the focus.
     #[must_use]
     pub fn hex_cursor(self) -> Style {
-        let style = if self.color {
-            Style::default().bg(Color::Yellow).fg(Color::Black)
-        } else {
-            Style::default()
+        let style = match self.palette {
+            Some(p) => Style::default().bg(p.accent).fg(p.background),
+            None if self.color => Style::default().bg(Color::Yellow).fg(Color::Black),
+            None => Style::default(),
         };
-        style.add_modifier(Modifier::REVERSED | Modifier::BOLD | Modifier::UNDERLINED)
+        let modifiers = if self.palette.is_some() {
+            Modifier::BOLD | Modifier::UNDERLINED
+        } else {
+            Modifier::REVERSED | Modifier::BOLD | Modifier::UNDERLINED
+        };
+        style.add_modifier(modifiers)
     }
 
     /// The border of a pane: bold when it has the focus.
     #[must_use]
     pub fn border(self, focused: bool) -> Style {
-        if focused {
-            self.colored(Color::Cyan).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().add_modifier(Modifier::DIM)
+        match (self.palette, focused) {
+            (Some(p), true) => Style::default().fg(p.accent).add_modifier(Modifier::BOLD),
+            (Some(p), false) => Style::default().fg(p.line),
+            (None, true) => self.colored(Color::Cyan).add_modifier(Modifier::BOLD),
+            (None, false) => Style::default().add_modifier(Modifier::DIM),
         }
     }
 
     /// The status bar: reversed, like the selection.
     #[must_use]
     pub fn status(self) -> Style {
-        Style::default().add_modifier(Modifier::REVERSED)
+        match self.palette {
+            Some(p) => Style::default().fg(p.foreground).bg(p.panel),
+            None => Style::default().add_modifier(Modifier::REVERSED),
+        }
     }
 
     /// The selected row: reversed, which shows without any colour.
     #[must_use]
     pub fn selected(self) -> Style {
-        Style::default().add_modifier(Modifier::REVERSED)
+        match self.palette {
+            Some(p) => Style::default().bg(p.selection),
+            None => Style::default().add_modifier(Modifier::REVERSED),
+        }
+    }
+
+    /// Something that is odd and not wrong.
+    #[must_use]
+    pub fn warning(self) -> Style {
+        self.pick(|p| p.warning, Color::Yellow)
+    }
+
+    /// The offsets in the bytes.
+    #[must_use]
+    pub fn offset(self) -> Style {
+        match self.palette {
+            Some(p) => Style::default().fg(p.offset),
+            None => self.dim(),
+        }
+    }
+}
+
+/// Blank `area` for something drawn over the screen: with the background of the theme, if it has one.
+fn clear(frame: &mut Frame<'_>, area: Rect, theme: Theme) {
+    frame.render_widget(Clear, area);
+    if theme.palette().is_some() {
+        frame.render_widget(Block::default().style(theme.base()), area);
     }
 }
 
@@ -170,6 +278,10 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     let mut area = frame.area();
     if area.width < SMALLEST || area.height < 3 {
         return;
+    }
+    // the background of a theme is under everything
+    if theme.palette().is_some() {
+        frame.render_widget(Block::default().style(theme.base()), area);
     }
     if area.height >= STATUS_MIN_HEIGHT {
         let [rest, bar] = Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
@@ -343,7 +455,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
             height: 1,
             ..frame.area()
         };
-        frame.render_widget(Clear, row);
+        clear(frame, row, *theme);
         frame.render_widget(
             Paragraph::new(format::truncate(notice, usize::from(row.width))).style(theme.status()),
             row,
@@ -394,7 +506,7 @@ fn prompt_line(frame: &mut Frame<'_>, prompt: &Prompt, theme: Theme) {
         shown.push(c);
         used += w;
     }
-    frame.render_widget(Clear, row);
+    clear(frame, row, theme);
     frame.render_widget(
         Paragraph::new(Line::from(vec![
             Span::styled(label, theme.title()),
@@ -448,7 +560,7 @@ fn help(frame: &mut Frame<'_>, theme: Theme) {
         width,
         height,
     };
-    frame.render_widget(Clear, area);
+    clear(frame, area, theme);
     let truncated = usize::from(height.saturating_sub(2)) < lines.len();
     let block = Block::default()
         .borders(Borders::ALL)
@@ -1165,6 +1277,8 @@ instances:
             include_paths: Vec::new(),
             color: false,
             watch: false,
+            theme: None,
+            theme_dir: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
         let mut app = App::broken(file, &failure, Some(&schema));
@@ -1203,6 +1317,8 @@ instances:
             include_paths: Vec::new(),
             color: false,
             watch: false,
+            theme: None,
+            theme_dir: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
         let mut app = App::broken(options.file.clone(), &failure, Some(&schema));
@@ -1245,6 +1361,8 @@ instances:
                 include_paths: Vec::new(),
                 color: false,
                 watch: false,
+                theme: None,
+                theme_dir: None,
             };
             let failure = crate::load::try_load(&options).unwrap_err();
             let mut app = App::broken(options.file.clone(), &failure, None);
