@@ -27,6 +27,8 @@ pub enum Action {
     SearchPrevious,
     /// Ask for an offset.
     Goto,
+    /// List the schemas and their types.
+    Schemas,
     /// Tree: one row up.
     TreeUp,
     /// Tree: one row down.
@@ -172,6 +174,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::Goto,
         help: "go to an offset (decimal or 0x…) and select the field there",
+    },
+    Binding {
+        keys: &[ch('s')],
+        scope: Scope::Anywhere,
+        action: Action::Schemas,
+        help: "list the schemas and types (Enter reads a schema, or chooses the type to parse)",
     },
     Binding {
         keys: &[ch('e')],

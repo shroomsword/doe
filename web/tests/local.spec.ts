@@ -17,7 +17,7 @@ test('the types of the machine are offered and open with their imports', async (
   await expect(page.locator('.cm-content')).toContainText('imports');
   // the import comes from the machine too: no problems, though "common" is not in the page
   await expect(page.locator('.problems')).toContainText('No problems.');
-  await expect(page.locator('#files code')).toHaveCount(1);
+  await expect(page.locator('#schemas li:not(.main) code')).toHaveCount(1);
 });
 
 test('a file larger than the browser limit is read and parsed by the server', async ({ page }) => {

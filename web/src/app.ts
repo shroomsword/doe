@@ -3,13 +3,14 @@
 // anywhere.
 
 import { CallEnded, DoeClient } from './client.js';
-import type { Diagnostic, ExportFormat, ExportResponse, ParseResponse, Request, TraceNode } from './doe.js';
+import type { Diagnostic, ExportFormat, ExportResponse, InspectResponse, ParseResponse, Request, TraceNode } from './doe.js';
 import { SchemaEditor } from './editor.js';
 import { EXAMPLE_BYTES, EXAMPLE_SCHEMA } from './example.js';
 import { HexView, RemoteBytes } from './hex.js';
 import { type LocalApi, detectLocal } from './local.js';
 import { type Path, byteRange, checkSize, describeRange, findByte, nodeAt, pathName } from './model.js';
 import { ProblemsView } from './problems.js';
+import { type Origin, SchemaList, editable, isKnownType, listing } from './schemas.js';
 import { MAX_LINK, type Work, codeOfHash, decodeWork, encodeWork, forget, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { TreeView } from './tree.js';
@@ -38,7 +39,21 @@ export class App {
   /** The file that the remembered work was last used with, to say which one to open again. */
   private lastInputName: string | null = null;
   private readonly files = new Map<string, string>();
+  /** Where each imported file came from (`added` when it is not here). */
+  private readonly origins = new Map<string, Origin>();
   private schemaPath = 'main.ksy';
+  /** The text of the main schema; the editor shows it, or an imported file. */
+  private mainText = EXAMPLE_SCHEMA;
+  private mainOrigin: Origin = 'typed';
+  /** The imported file the editor shows; null: the main schema. */
+  private active: string | null = null;
+  /** The type to parse with; null: the schema's own. */
+  private parseType: string | null = null;
+  /** The schemas the last request is made of. */
+  private found: InspectResponse | null = null;
+  private diagnostics: Diagnostic[] = [];
+  /** The editor is being given another text: that is not an edit. */
+  private switching = false;
   private bytes: Uint8Array | null = null;
   private inputName: string | null = null;
   private notice: Diagnostic | null = null;
@@ -51,10 +66,17 @@ export class App {
   private readonly hex: HexView;
   private readonly problems: ProblemsView;
   private readonly themes: Themes;
+  private readonly schemas: SchemaList;
 
   constructor(workerUrl: URL, wasmUrl: URL) {
     this.client = new DoeClient(workerUrl, wasmUrl);
-    this.editor = new SchemaEditor(element('editor'), EXAMPLE_SCHEMA, () => this.later());
+    this.editor = new SchemaEditor(element('editor'), EXAMPLE_SCHEMA, () => this.edited());
+    this.schemas = new SchemaList(element('schemas'), element<HTMLSelectElement>('parse-type'), element('edit-note'), {
+      select: (path) => this.showFile(path),
+      remove: (path) => this.removeFile(path),
+      type: (type) => this.chooseType(type),
+      copy: (path) => this.copyFile(path),
+    });
     this.themes = new Themes((theme) => this.editor.setTheme(theme));
     this.tree = new TreeView(element('tree'), (path) => this.select(path, 'tree'));
     this.hex = new HexView(element('hex'), (byte) => this.pickByte(byte));
@@ -116,18 +138,36 @@ export class App {
   // ── share links, saved work, the gallery, export ───────────────────────────
 
   private work(): Work {
-    const work: Work = { schema: this.editor.text, files: Object.fromEntries(this.files), path: this.schemaPath };
+    const work: Work = { schema: this.mainText, files: Object.fromEntries(this.files), path: this.schemaPath };
     if (this.includePaths) work.include_paths = this.includePaths;
+    if (this.parseType) work.type = this.parseType;
+    if (this.mainOrigin !== 'typed') work.origin = this.mainOrigin;
+    if (this.origins.size > 0) work.origins = Object.fromEntries(this.origins);
     return work;
   }
 
   private applyWork(work: Work): void {
     this.files.clear();
+    this.origins.clear();
     for (const [name, text] of Object.entries(work.files)) this.files.set(name, text);
-    this.showFiles();
+    for (const [name, origin] of Object.entries(work.origins ?? {})) if (this.files.has(name)) this.origins.set(name, origin);
     this.schemaPath = work.path;
     this.includePaths = work.include_paths;
-    this.editor.setText(work.schema);
+    this.mainOrigin = work.origin ?? 'typed';
+    this.parseType = work.type ?? null;
+    this.found = null;
+    this.setMain(work.schema);
+  }
+
+  /** Show the main schema, with this text, in the editor. */
+  private setMain(text: string): void {
+    this.mainText = text;
+    this.active = null;
+    this.switching = true;
+    this.editor.setText(text);
+    this.switching = false;
+    this.editor.setReadOnly(false);
+    this.showFiles();
   }
 
   /** Open the work of a share link, or else the work this browser remembers. No file: the person opens it. */
@@ -223,7 +263,14 @@ export class App {
       const [text, ...imports] = await Promise.all([format.path, ...format.imports].map(get));
       const files: Record<string, string> = {};
       for (const [index, path] of format.imports.entries()) files[path] = imports[index] ?? '';
-      this.applyWork({ schema: text ?? '', files, path: format.path, include_paths: [''] });
+      this.applyWork({
+        schema: text ?? '',
+        files,
+        path: format.path,
+        include_paths: [''],
+        origin: 'gallery',
+        origins: Object.fromEntries(Object.keys(files).map((path) => [path, 'gallery' as const])),
+      });
       this.refreshNow();
     } catch (error) {
       this.problems.show([{ severity: 'error', kind: 'request', message: `could not fetch the format: ${String(error)}`, position: null }]);
@@ -292,11 +339,17 @@ export class App {
   async openType(local: LocalApi, path: string): Promise<void> {
     const schema = await local.schema(path);
     this.files.clear();
-    for (const [name, text] of Object.entries(schema.files)) this.files.set(name, text);
-    this.showFiles();
+    this.origins.clear();
+    for (const [name, text] of Object.entries(schema.files)) {
+      this.files.set(name, text);
+      this.origins.set(name, 'library');
+    }
     this.schemaPath = schema.path;
     this.includePaths = schema.include_paths;
-    this.editor.setText(schema.text);
+    this.mainOrigin = 'library';
+    this.parseType = null;
+    this.found = null;
+    this.setMain(schema.text);
     this.refreshNow();
   }
 
@@ -346,14 +399,6 @@ export class App {
       element('status').textContent = 'the saved schema is forgotten';
     });
     element('example').addEventListener('click', () => this.loadExample());
-    element('files').addEventListener('click', (event) => {
-      const name = (event.target as HTMLElement).closest<HTMLElement>('[data-remove]')?.dataset.remove;
-      if (name !== undefined) {
-        this.files.delete(name);
-        this.showFiles();
-        this.refresh();
-      }
-    });
 
     window.addEventListener('dragover', (event) => event.preventDefault());
     window.addEventListener('drop', (event) => {
@@ -373,12 +418,18 @@ export class App {
   async openSchema(file: File | undefined): Promise<void> {
     if (!file) return;
     this.schemaPath = file.name;
-    this.editor.setText(await file.text());
+    this.mainOrigin = 'file';
+    this.parseType = null;
+    this.found = null;
+    this.setMain(await file.text());
     this.refreshNow();
   }
 
   async addFiles(files: File[]): Promise<void> {
-    for (const file of files) this.files.set(file.name, await file.text());
+    for (const file of files) {
+      this.files.set(file.name, await file.text());
+      this.origins.set(file.name, 'added');
+    }
     this.showFiles();
     this.refreshNow();
   }
@@ -399,23 +450,99 @@ export class App {
 
   loadExample(): void {
     this.files.clear();
-    this.showFiles();
+    this.origins.clear();
     this.schemaPath = 'main.ksy';
+    this.mainOrigin = 'typed';
+    this.parseType = null;
+    this.found = null;
     this.notice = null;
     this.selection = null;
     this.setInput(EXAMPLE_BYTES, 'example.bin');
-    this.editor.setText(EXAMPLE_SCHEMA);
+    this.setMain(EXAMPLE_SCHEMA);
     this.refreshNow();
   }
 
+  /** The list of the open schemas and the choice of the type. */
   private showFiles(): void {
-    const list = element('files');
-    list.innerHTML = [...this.files.keys()]
-      .map((name) => {
-        const safe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-        return `<li><code>${safe}</code> <button type="button" data-remove="${safe}" aria-label="remove ${safe}">×</button></li>`;
-      })
-      .join('');
+    const found = listing(this.found, this.schemaPath, this.mainOrigin, this.files, this.origins, this.diagnostics.length);
+    this.schemas.show(found, this.active ?? this.schemaPath, this.parseType);
+    element('editing').textContent = this.active === null ? this.schemaPath : `${this.active} (an import)`;
+  }
+
+  /** The editor changed: the text belongs to the file that is shown. */
+  private edited(): void {
+    if (this.switching) return;
+    const text = this.editor.text;
+    if (this.active === null) this.mainText = text;
+    else this.files.set(this.active, text);
+    this.later();
+  }
+
+  /** Show a schema of the list in the editor. */
+  private showFile(path: string): void {
+    const main = path === this.schemaPath;
+    const text = main ? this.mainText : this.files.get(path);
+    if (text === undefined) return;
+    this.active = main ? null : path;
+    const origin = main ? this.mainOrigin : (this.origins.get(path) ?? 'added');
+    this.switching = true;
+    this.editor.setText(text);
+    this.switching = false;
+    this.editor.setReadOnly(!editable(origin, main));
+    this.showFiles();
+    this.showMarks();
+  }
+
+  /** Underline the problems of the schema that is shown. */
+  private showMarks(): void {
+    if (this.active === null) this.editor.showDiagnostics(this.diagnostics);
+    else {
+      const error = this.found?.schemas.find((info) => info.path === this.active)?.error;
+      this.editor.showDiagnostics(error ? [error] : []);
+    }
+  }
+
+  private removeFile(path: string): void {
+    if (this.active === path) this.showFile(this.schemaPath);
+    this.files.delete(path);
+    this.origins.delete(path);
+    this.showFiles();
+    this.refresh();
+  }
+
+  /** A schema that was fetched becomes the person's own, to edit. */
+  private copyFile(path: string): void {
+    this.origins.set(path, 'added');
+    this.showFile(path);
+    this.persist();
+  }
+
+  private chooseType(type: string): void {
+    this.parseType = type === '' ? null : type;
+    this.refreshNow();
+  }
+
+  /** Ask which schemas the request is made of, and show them. A newer run replaces this one's answer. */
+  private inspect(request: Request, mine: number): void {
+    this.client.inspect(request).then(
+      (found) => {
+        if (mine !== this.generation) return;
+        this.found = found;
+        // a type that is no longer there is dropped, once, and the run is repeated
+        const rows = listing(found, this.schemaPath, this.mainOrigin, this.files, this.origins, 0).rows;
+        const readable = found.ok && found.schemas.every((info) => !info.error);
+        if (this.parseType && readable && !isKnownType(rows, this.parseType)) {
+          this.parseType = null;
+          this.refreshNow();
+          return;
+        }
+        this.showFiles();
+        this.showMarks();
+      },
+      () => {
+        // no list this time: the page keeps the last one
+      },
+    );
   }
 
   // ── the work ───────────────────────────────────────────────────────────────
@@ -432,8 +559,9 @@ export class App {
   }
 
   private request(): Request {
-    const request: Request = { schema: this.editor.text, files: Object.fromEntries(this.files), path: this.schemaPath };
+    const request: Request = { schema: this.mainText, files: Object.fromEntries(this.files), path: this.schemaPath };
     if (this.includePaths) request.include_paths = this.includePaths;
+    if (this.parseType) request.type = this.parseType;
     return request;
   }
 
@@ -465,6 +593,7 @@ export class App {
         cancel.hidden = true;
         element<HTMLButtonElement>('export').disabled = !(response.ok && (this.bytes || this.serverInput));
         this.show(response);
+        this.inspect(request, mine);
       },
       (error: unknown) => {
         // Ended by a newer run: that one will show.
@@ -492,7 +621,7 @@ export class App {
     const problems: Diagnostic[] = [...response.diagnostics];
     if (response.error) problems.push(response.error);
     if (this.notice) problems.push(this.notice);
-    this.editor.showDiagnostics(response.diagnostics);
+    this.diagnostics = response.diagnostics;
     this.problems.show(problems);
     this.trace = response.trace;
     this.tree.setTrace(response.trace);
@@ -503,6 +632,8 @@ export class App {
     } else this.selection = null;
     this.select(this.selection, 'none');
     this.status(response, problems.length);
+    this.showFiles();
+    this.showMarks();
   }
 
   private selectionName = '';
@@ -526,7 +657,11 @@ export class App {
   }
 
   private pickProblem(item: Diagnostic): void {
-    if (item.position) this.editor.reveal(item.position);
+    if (item.position) {
+      // the position is in the main schema
+      if (this.active !== null) this.showFile(this.schemaPath);
+      this.editor.reveal(item.position);
+    }
     else if (item.kind === 'parse' && this.trace) {
       const failed = this.pathToFailure(this.trace);
       if (failed) this.select(failed, 'tree');
@@ -547,7 +682,7 @@ export class App {
     if (!this.inputName) parts.push(this.lastInputName ? `open ${this.lastInputName} again` : 'no file opened');
     const size = this.serverInput?.size ?? this.bytes?.length;
     if (this.inputName && size !== undefined) parts.push(`${this.inputName}, ${size} bytes${this.serverInput ? ' (on this machine)' : ''}`);
-    parts.push(response.diagnostics.length > 0 ? 'the schema has problems' : response.ok ? `parsed as ${response.id ?? '?'}` : problems > 0 ? 'the parse failed' : 'ok');
+    parts.push(response.diagnostics.length > 0 ? 'the schema has problems' : response.ok ? `parsed as ${this.parseType ?? response.id ?? '?'}` : problems > 0 ? 'the parse failed' : 'ok');
     element('status').textContent = parts.join(' · ');
   }
 

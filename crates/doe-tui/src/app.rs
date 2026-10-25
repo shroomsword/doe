@@ -14,6 +14,7 @@ use crate::keymap::{self, Action, Scope};
 use crate::load::{self, LoadFailure, Loaded};
 use crate::prompt::{Kind, LineEditor, Outcome as PromptOutcome};
 use crate::report::Report;
+use crate::schemas::{Outcome as SchemasOutcome, SchemaList};
 use crate::search::{Needle, Outcome as SearchOutcome, Search};
 use crate::tree::TreeModel;
 use crate::tree_view::TreeView;
@@ -85,6 +86,8 @@ pub struct App {
     pub options: Option<Options>,
     /// The schema files that were read, and the file: what `--watch` looks at.
     pub schema_files: Vec<std::path::PathBuf>,
+    /// The list of the schemas and their types, while it is open.
+    pub schemas: Option<SchemaList>,
     /// What was last searched for, for `n` and `N`.
     pub last_query: Option<String>,
     /// A message for the status bar, until the next key.
@@ -137,6 +140,7 @@ impl App {
             show_report: true,
             options: None,
             schema_files: loaded.schema_files,
+            schemas: None,
             prompt: None,
             search: None,
             last_query: None,
@@ -185,6 +189,7 @@ impl App {
             show_report: true,
             options: None,
             schema_files: failure.schema_files.clone(),
+            schemas: None,
             prompt: None,
             search: None,
             last_query: None,
@@ -218,6 +223,7 @@ impl App {
             show_report: true,
             options: None,
             schema_files: Vec::new(),
+            schemas: None,
             prompt: None,
             search: None,
             last_query: None,
@@ -365,6 +371,10 @@ impl App {
             self.help = false;
             return;
         }
+        if self.schemas.is_some() {
+            self.schemas_key(&key);
+            return;
+        }
         if self.prompt.is_some() {
             self.prompt_key(&key);
             return;
@@ -375,6 +385,131 @@ impl App {
         };
         if let Some(action) = keymap::lookup(pane, &key) {
             self.act(action);
+        }
+    }
+
+    /// Open the list of the schemas (read from disk now) with the selection on
+    /// the type that is parsed.
+    fn open_schemas(&mut self) {
+        let Some(options) = self.options.as_ref() else {
+            self.notice = Some("there are no schemas to list".to_owned());
+            return;
+        };
+        match SchemaList::read(options) {
+            Ok(mut list) => {
+                list.select_type(&self.type_name);
+                self.schemas = Some(list);
+            }
+            Err(message) => self.notice = Some(message),
+        }
+    }
+
+    /// A key while the list of the schemas is open: move, read a schema, choose
+    /// a type, read the files again, or close it.
+    fn schemas_key(&mut self, key: &KeyEvent) {
+        let Some(list) = self.schemas.as_mut() else {
+            return;
+        };
+        let reading = list.pager.is_some();
+        let outcome = match key.code {
+            KeyCode::Esc | KeyCode::Left | KeyCode::Char('q' | 'h') => list.back(),
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                SchemasOutcome::Close
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                if reading {
+                    list.scroll(-1);
+                } else {
+                    list.move_by(-1);
+                }
+                SchemasOutcome::Nothing
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if reading {
+                    list.scroll(1);
+                } else {
+                    list.move_by(1);
+                }
+                SchemasOutcome::Nothing
+            }
+            KeyCode::PageUp | KeyCode::PageDown => {
+                let down = key.code == KeyCode::PageDown;
+                let step = if down { 10 } else { -10 };
+                if reading {
+                    list.scroll(step);
+                } else {
+                    list.move_by(step);
+                }
+                SchemasOutcome::Nothing
+            }
+            KeyCode::Home => {
+                if reading {
+                    list.scroll_to(false);
+                } else {
+                    list.jump(false);
+                }
+                SchemasOutcome::Nothing
+            }
+            KeyCode::End | KeyCode::Char('G') => {
+                if reading {
+                    list.scroll_to(true);
+                } else {
+                    list.jump(true);
+                }
+                SchemasOutcome::Nothing
+            }
+            KeyCode::Enter | KeyCode::Right | KeyCode::Char('l') if !reading => list.enter(),
+            KeyCode::Char('r') => {
+                self.reload();
+                if let Some(options) = self.options.as_ref()
+                    && let Ok(mut fresh) = SchemaList::read(options)
+                {
+                    fresh.select_type(&self.type_name);
+                    self.schemas = Some(fresh);
+                }
+                SchemasOutcome::Nothing
+            }
+            _ => SchemasOutcome::Nothing,
+        };
+        match outcome {
+            SchemasOutcome::Nothing => {}
+            SchemasOutcome::Close => self.schemas = None,
+            SchemasOutcome::Choose(name) => {
+                let main_id = self
+                    .schemas
+                    .as_ref()
+                    .and_then(|l| l.main_id().map(str::to_owned));
+                self.schemas = None;
+                self.choose_type(&name, main_id.as_deref());
+            }
+        }
+    }
+
+    /// Parse with another type of the open schemas: the viewer reads the file
+    /// again as `SCHEMA::TYPE` (`SCHEMA` alone for the schema's own type).
+    pub fn choose_type(&mut self, name: &str, main_id: Option<&str>) {
+        if self.loading {
+            self.notice = Some("still reading the file".to_owned());
+            return;
+        }
+        let Some(mut options) = self.options.clone() else {
+            return;
+        };
+        let (schema, _) = doe::split_type_arg(&options.type_or_schema);
+        let schema = schema.to_owned();
+        options.type_or_schema = if main_id == Some(name) {
+            schema
+        } else {
+            format!("{schema}::{name}")
+        };
+        match load::try_load(&options) {
+            Ok(loaded) => {
+                self.options = Some(options);
+                self.adopt(loaded);
+                self.notice = Some(format!("parsing as {name}"));
+            }
+            // the old type stays, with the old tree
+            Err(failure) => self.reload_failed(&failure, &options),
         }
     }
 
@@ -504,6 +639,7 @@ impl App {
                 None => self.notice = Some("nothing searched for yet: press /".to_owned()),
             },
             Action::Goto => self.open_prompt(Kind::Goto),
+            Action::Schemas => self.open_schemas(),
             Action::HexLeft
             | Action::HexRight
             | Action::HexUp

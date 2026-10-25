@@ -76,10 +76,25 @@ section { border: 1px solid var(--line); border-radius: 4px; min-width: 0; displ
   #pane-editor, #pane-tree, #pane-hex { height: auto; min-height: 0; }
 }
 
-#files { list-style: none; margin: 0; padding: 0 10px; font-size: .9em; }
-#files:not(:empty) { padding: 6px 10px; border-top: 1px solid var(--line); }
-#files li { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; }
-#files button { padding: 0 6px; line-height: 1.2; }
+/* the schemas that are open */
+#schemas-box { border-top: 1px solid var(--line); }
+.schemas-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; justify-content: space-between; padding: 4px 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
+h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin: 0; color: var(--muted); }
+#type-box { display: inline-flex; gap: 4px; align-items: center; max-width: 100%; }
+#type-box select { max-width: 16rem; text-overflow: ellipsis; }
+#schemas { list-style: none; margin: 0; padding: 0; max-height: 9rem; overflow: auto; font-size: .9em; }
+#schemas li { display: flex; align-items: center; gap: 4px; padding: 0 10px; }
+#schemas li.active { background: var(--select); }
+#schemas .pick { flex: 1; display: flex; flex-wrap: wrap; gap: 0 10px; align-items: baseline; text-align: left; border: 0; border-radius: 0; background: none; padding: 2px 0; min-width: 0; }
+#schemas li:not(.active) .pick:hover { background: var(--panel); }
+#schemas .id { color: var(--type); font-family: var(--mono); }
+#schemas .origin { color: var(--muted); }
+#schemas .count { color: var(--bad); font-family: var(--mono); }
+#schemas li.missing { padding-top: 2px; padding-bottom: 2px; }
+#schemas button[data-remove] { padding: 0 6px; line-height: 1.2; }
+#edit-note { margin: 0; padding: 4px 10px; border-top: 1px solid var(--line); background: var(--panel); color: var(--muted); font-size: .9em; }
+#edit-note[hidden] { display: none; }
+#editing { color: var(--muted); font-weight: normal; font-family: var(--mono); text-transform: none; letter-spacing: 0; }
 
 /* the tree */
 .tree { padding: 4px 0; font-family: var(--mono); font-size: 13px; outline: none; }

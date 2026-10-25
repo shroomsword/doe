@@ -30,6 +30,7 @@ pub mod api;
 #[cfg(feature = "fs")]
 pub mod config;
 pub mod error;
+pub mod inspect;
 pub mod parser;
 pub mod render;
 pub mod schema;
@@ -174,15 +175,17 @@ pub fn parse_file_with(
 
     let mut compiler = Compiler::new(all_include_paths);
 
-    let type_name = if is_schema_path(type_or_schema) {
-        let schema = load_schema_file(Path::new(type_or_schema))?;
+    let (schema_arg, wanted) = split_type_arg(type_or_schema);
+    let id = if is_schema_path(schema_arg) {
+        let schema = load_schema_file(Path::new(schema_arg))?;
         let id = schema.id.clone();
         compiler.process_schema(&schema)?;
         id
     } else {
-        compiler.load(type_or_schema, None)?;
-        type_or_schema.to_owned()
+        compiler.load(schema_arg, None)?;
+        schema_arg.to_owned()
     };
+    let type_name = type_in_schema(&compiler.registry, &id, wanted)?;
 
     // ── Parse ─────────────────────────────────────────────────────────────────
 
@@ -245,6 +248,62 @@ pub fn parse_file_with(
 /// ```
 pub fn is_schema_path(s: &str) -> bool {
     s.starts_with(['.', '/', '\\', '~']) || Path::new(s).is_absolute() || has_schema_extension(s)
+}
+
+/// Split `SCHEMA::TYPE`, the way to name a type inside a schema on the command
+/// line (`my_format.yaml::chunk`, or `png::chunk` for a type of the library):
+/// the schema (a path or a name) and the type, if there is one.
+///
+/// ```
+/// use doe::split_type_arg;
+///
+/// assert_eq!(split_type_arg("my_format.yaml::chunk"), ("my_format.yaml", Some("chunk")));
+/// assert_eq!(split_type_arg("png::chunk::data"), ("png", Some("chunk::data")));
+/// assert_eq!(split_type_arg("png"), ("png", None));
+/// assert_eq!(split_type_arg("C:\\types\\elf.yaml"), ("C:\\types\\elf.yaml", None));
+/// ```
+#[must_use]
+pub fn split_type_arg(arg: &str) -> (&str, Option<&str>) {
+    match arg.split_once("::") {
+        Some((schema, rest)) if !schema.is_empty() && !rest.is_empty() => (schema, Some(rest)),
+        _ => (arg, None),
+    }
+}
+
+/// The name to parse with when `SCHEMA::TYPE` was given: `TYPE` in the schema
+/// whose id is `id` (`id::TYPE`), or else a type of another schema that was
+/// imported, named in full (`other::type`).
+///
+/// # Errors
+///
+/// Fails when the schema has no such type, and lists the ones it has.
+pub fn type_in_schema(
+    registry: &schema::ir::TypeRegistry,
+    id: &str,
+    wanted: Option<&str>,
+) -> Result<String> {
+    let Some(wanted) = wanted else {
+        return Ok(id.to_owned());
+    };
+    for candidate in [format!("{id}::{wanted}"), wanted.to_owned()] {
+        if registry.types.contains_key(&candidate) {
+            return Ok(candidate);
+        }
+    }
+    let prefix = format!("{id}::");
+    let own: Vec<&str> = registry
+        .types
+        .keys()
+        .filter_map(|name| name.strip_prefix(&prefix))
+        .collect();
+    Err(DoeError::Schema(format!(
+        "the schema {id} has no type {wanted}{}",
+        if own.is_empty() {
+            " (it defines no types besides itself)".to_owned()
+        } else {
+            format!(": it has {}", own.join(", "))
+        }
+    )))
 }
 
 /// The file extensions of schemas: `.yaml` and `.yml`, and `.ksy`, which Kaitai

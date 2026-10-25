@@ -98,14 +98,12 @@ impl LoadFailure {
 /// line, or the one that declares the type with that name on the include paths.
 #[must_use]
 pub fn schema_file(options: &Options) -> Option<PathBuf> {
-    if doe::is_schema_path(&options.type_or_schema) {
-        return Some(PathBuf::from(&options.type_or_schema));
+    let (schema, _) = doe::split_type_arg(&options.type_or_schema);
+    if doe::is_schema_path(schema) {
+        return Some(PathBuf::from(schema));
     }
     let types = doe::config::discover_types(&options.include_paths).ok()?;
-    types
-        .into_iter()
-        .find(|t| t.id == options.type_or_schema)
-        .map(|t| t.source)
+    types.into_iter().find(|t| t.id == schema).map(|t| t.source)
 }
 
 /// Compile the schema and parse the file with it.
@@ -143,9 +141,11 @@ pub fn try_load(options: &Options) -> Result<Loaded, Box<LoadFailure>> {
             seen: Arc::clone(&seen),
         }),
     );
-    let type_name = if doe::is_schema_path(asked) {
+    // `schema.yaml::type` names a type inside a schema
+    let (schema_arg, wanted) = doe::split_type_arg(asked);
+    let id = if doe::is_schema_path(schema_arg) {
         let schema = compiler
-            .read_schema(Path::new(asked))
+            .read_schema(Path::new(schema_arg))
             .map_err(|e| failed(e, Stage::Schema, asked, 0))?;
         let id = schema.id.clone();
         compiler
@@ -154,10 +154,12 @@ pub fn try_load(options: &Options) -> Result<Loaded, Box<LoadFailure>> {
         id
     } else {
         compiler
-            .load(asked, None)
+            .load(schema_arg, None)
             .map_err(|e| failed(e, Stage::Schema, asked, 0))?;
-        asked.to_owned()
+        schema_arg.to_owned()
     };
+    let type_name = doe::type_in_schema(&compiler.registry, &id, wanted)
+        .map_err(|e| failed(e, Stage::Schema, asked, 0))?;
 
     let io_error = |source| DoeError::Io {
         path: options.file.clone(),

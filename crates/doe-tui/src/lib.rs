@@ -20,6 +20,7 @@ pub mod keymap;
 pub mod load;
 pub mod prompt;
 pub mod report;
+pub mod schemas;
 pub mod search;
 pub mod status;
 pub mod terminal;

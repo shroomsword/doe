@@ -135,11 +135,11 @@ test('imports are files the user adds, next to the schema', async ({ page }) => 
     mimeType: 'text/plain',
     buffer: Buffer.from('meta:\n  id: extra\nseq:\n  - id: x\n    type: u1\n'),
   });
-  await expect(page.locator('#files')).toContainText('extra.ksy');
+  await expect(page.locator('#schemas')).toContainText('extra.ksy');
   await expect(page.locator('.problems')).toContainText('No problems.');
   await expect(row(page, 'e')).toBeVisible();
 
-  await page.locator('#files [data-remove="extra.ksy"]').click();
+  await page.locator('#schemas [data-remove="extra.ksy"]').click();
   await expect(page.locator('.problem')).toHaveCount(1);
 });
 

@@ -2,18 +2,20 @@
 // that takes longer than the limit, or that is cancelled, ends the worker and
 // starts a new one, which is the only way to stop WebAssembly that is running.
 
-import type { CheckResponse, ExportFormat, ExportResponse, ParseResponse, Request } from './doe.js';
+import type { CheckResponse, ExportFormat, ExportResponse, InspectResponse, ParseResponse, Request } from './doe.js';
 
 export type ToWorker =
   | { op: 'init'; wasmUrl: string }
   | { op: 'input'; bytes: ArrayBuffer }
   | { op: 'check'; id: number; request: Request }
+  | { op: 'inspect'; id: number; request: Request }
   | { op: 'parse'; id: number; request: Request }
   | { op: 'export'; id: number; request: Request; format: ExportFormat };
 
 export type FromWorker =
   | { op: 'ready'; version: string }
   | { op: 'checked'; id: number; response: CheckResponse }
+  | { op: 'inspected'; id: number; response: InspectResponse }
   | { op: 'parsed'; id: number; response: ParseResponse }
   | { op: 'exported'; id: number; response: ExportResponse }
   | { op: 'failed'; id: number; message: string };
@@ -101,6 +103,24 @@ export class DoeClient {
     return this.call((id) => ({ op: 'export', id, request, format }));
   }
 
+  private readonly inspecting = new Map<number, { resolve: (response: InspectResponse) => void; reject: (error: CallEnded) => void }>();
+
+  /**
+   * List the schemas of a request. This does not end the call that is running,
+   * as the others do: the worker answers it when it is free, and it ends only
+   * if the worker is replaced meanwhile.
+   */
+  async inspect(request: Request): Promise<InspectResponse> {
+    await this.start();
+    const worker = this.worker;
+    if (!worker) throw new CallEnded('failed', 'doe is not running');
+    const id = this.next++;
+    return new Promise<InspectResponse>((resolve, reject) => {
+      this.inspecting.set(id, { resolve, reject });
+      worker.postMessage({ op: 'inspect', id, request } satisfies ToWorker);
+    });
+  }
+
   /** End the call that is running, if there is one. */
   cancel(): void {
     this.end(new CallEnded('cancelled', 'the parse was cancelled'));
@@ -133,6 +153,16 @@ export class DoeClient {
   }
 
   private answer(message: FromWorker): void {
+    if (message.op === 'inspected') {
+      this.inspecting.get(message.id)?.resolve(message.response);
+      this.inspecting.delete(message.id);
+      return;
+    }
+    if (message.op === 'failed' && this.inspecting.has(message.id)) {
+      this.inspecting.get(message.id)?.reject(new CallEnded('failed', `doe stopped: ${message.message}`));
+      this.inspecting.delete(message.id);
+      return;
+    }
     const pending = this.pending;
     if (!pending || message.op === 'ready' || message.id !== pending.id) return;
     clearTimeout(pending.timer);
@@ -150,6 +180,8 @@ export class DoeClient {
     this.worker?.terminate();
     this.worker = null;
     this.starting = null;
+    for (const waiting of this.inspecting.values()) waiting.reject(new CallEnded('cancelled', 'the worker was replaced'));
+    this.inspecting.clear();
     pending.reject(error);
   }
 }

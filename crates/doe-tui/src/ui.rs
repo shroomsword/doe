@@ -12,6 +12,7 @@ use crate::hex_view;
 use crate::inspect;
 use crate::keymap;
 use crate::report::Report;
+use crate::schemas::{self, Pager, Row as SchemaRow, SchemaList};
 use crate::status;
 use crate::theme::Palette;
 use crate::tree::Shown;
@@ -464,9 +465,211 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     if let Some(prompt) = &app.prompt {
         prompt_line(frame, prompt, *theme);
     }
+    if let Some(list) = &app.schemas {
+        schemas_overlay(frame, list, &app.type_name, *theme);
+    }
     if app.help {
         help(frame, *theme);
     }
+}
+
+/// A box over the screen with the room that it can have: most of it.
+fn big_box(screen: Rect) -> Rect {
+    let width = screen.width.saturating_sub(4).max(1);
+    let height = screen.height.saturating_sub(2).max(1);
+    Rect {
+        x: screen.x + (screen.width - width) / 2,
+        y: screen.y + (screen.height - height) / 2,
+        width,
+        height,
+    }
+}
+
+/// The list of the schemas and their types, or the text of one.
+fn schemas_overlay(frame: &mut Frame<'_>, list: &SchemaList, current: &str, theme: Theme) {
+    let screen = frame.area();
+    if screen.width < 24 || screen.height < 5 {
+        return;
+    }
+    let area = big_box(screen);
+    clear(frame, area, theme);
+    if let Some(pager) = &list.pager {
+        schema_text(frame, area, pager, theme);
+        return;
+    }
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(theme.border(true))
+        .title(Span::styled(" schemas and types ", theme.title()))
+        .title_bottom(Line::from(Span::styled(
+            " ↑↓ move · Enter reads a schema or chooses a type · r reads again · Esc closes ",
+            theme.dim(),
+        )));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    let rows = usize::from(inner.height);
+    if rows == 0 {
+        return;
+    }
+    // keep the selected line in view
+    let first = list.selected.saturating_sub(rows.saturating_sub(1)).max(
+        list.selected
+            .saturating_sub(rows / 2)
+            .min(list.rows.len().saturating_sub(rows)),
+    );
+    let width = usize::from(inner.width);
+    let lines: Vec<Line<'static>> = list
+        .rows
+        .iter()
+        .enumerate()
+        .skip(first)
+        .take(rows)
+        .map(|(index, row)| {
+            let line = schemas_line(list, row, current, width, theme);
+            if index == list.selected {
+                line.patch_style(theme.selected())
+            } else {
+                line
+            }
+        })
+        .collect();
+    frame.render_widget(Paragraph::new(lines), inner);
+}
+
+/// One line of the list.
+fn schemas_line(
+    list: &SchemaList,
+    row: &SchemaRow,
+    current: &str,
+    width: usize,
+    theme: Theme,
+) -> Line<'static> {
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    match row {
+        SchemaRow::Schema(index) => {
+            let Some(entry) = list.entries.get(*index) else {
+                return Line::raw("");
+            };
+            let name = format::safe(&entry.path.display().to_string());
+            spans.push(Span::styled(name, theme.name()));
+            if entry.main {
+                spans.push(Span::styled("  main schema", theme.dim()));
+            }
+            if let Some(id) = &entry.id {
+                spans.push(Span::styled(
+                    format!("  {}", format::safe(id)),
+                    theme.type_name(),
+                ));
+            }
+            if let Some(time) = entry.modified {
+                spans.push(Span::styled(
+                    format!("  {}", schemas::format_utc(time)),
+                    theme.dim(),
+                ));
+            }
+            if let Some(error) = &entry.error {
+                let place = match (error.line, error.column) {
+                    (Some(line), Some(column)) => format!(" at {line}:{column}"),
+                    _ => String::new(),
+                };
+                spans.push(Span::styled(
+                    format!("  ✗ {}{place}", format::safe(&error.message)),
+                    theme.bad(),
+                ));
+            }
+        }
+        SchemaRow::Type { name, .. } => {
+            let mark = if name == current { "● " } else { "  " };
+            spans.push(Span::raw("    "));
+            spans.push(Span::styled(mark, theme.good()));
+            spans.push(Span::styled(format::safe(name), theme.type_name()));
+        }
+        SchemaRow::Missing(index) => {
+            let Some(missing) = list.missing.get(*index) else {
+                return Line::raw("");
+            };
+            spans.push(Span::styled("✗ not found ", theme.bad()));
+            spans.push(Span::styled(format::safe(&missing.name), theme.name()));
+            spans.push(Span::styled(
+                format!(
+                    "  imported by {}",
+                    format::safe(&missing.from.display().to_string())
+                ),
+                theme.dim(),
+            ));
+        }
+    }
+    // cut to the width
+    let mut left = width;
+    let mut out: Vec<Span<'static>> = Vec::new();
+    for span in spans {
+        if left == 0 {
+            break;
+        }
+        let cells = format::width(&span.content);
+        if cells <= left {
+            left -= cells;
+            out.push(span);
+        } else {
+            out.push(Span::styled(
+                format::truncate(&span.content, left),
+                span.style,
+            ));
+            left = 0;
+        }
+    }
+    Line::from(out)
+}
+
+/// The text of one schema, with line numbers and the line of its error marked.
+fn schema_text(frame: &mut Frame<'_>, area: Rect, pager: &Pager, theme: Theme) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(theme.border(true))
+        .title(Span::styled(
+            format!(" {} ", format::safe(&pager.path.display().to_string())),
+            theme.title(),
+        ))
+        .title_bottom(Line::from(Span::styled(
+            " ↑↓ PgUp PgDn Home End scroll · Esc goes back (read-only) ",
+            theme.dim(),
+        )));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    let rows = usize::from(inner.height);
+    let message_rows = usize::from(pager.message.is_some());
+    let text_rows = rows.saturating_sub(message_rows);
+    let digits = pager.lines.len().max(1).to_string().len();
+    let width = usize::from(inner.width).saturating_sub(digits + 3);
+    let mut lines: Vec<Line<'static>> = pager
+        .lines
+        .iter()
+        .enumerate()
+        .skip(pager.top)
+        .take(text_rows)
+        .map(|(index, text)| {
+            let bad = pager.error_line == Some(index);
+            let number = format!("{:>digits$} ", index + 1);
+            let mark = if bad { "✗ " } else { "│ " };
+            let body = format::truncate(text, width);
+            let style = if bad { theme.bad() } else { Style::default() };
+            Line::from(vec![
+                Span::styled(number, theme.dim()),
+                Span::styled(mark, if bad { theme.bad() } else { theme.dim() }),
+                Span::styled(body, style),
+            ])
+        })
+        .collect();
+    if let Some(message) = &pager.message {
+        while lines.len() < text_rows {
+            lines.push(Line::raw(""));
+        }
+        lines.push(Line::from(Span::styled(
+            format::truncate(&format::safe(message), usize::from(inner.width)),
+            theme.bad(),
+        )));
+    }
+    frame.render_widget(Paragraph::new(lines), inner);
 }
 
 /// Whether the screen is too short for the status bar.

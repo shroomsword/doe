@@ -61,12 +61,39 @@ export interface ExportResponse {
   error: Diagnostic | null;
 }
 
+/** One schema file of a request: the main one or an import. */
+export interface SchemaInfo {
+  /** As imports found it. */
+  path: string;
+  id: string | null;
+  /** The imports it names, as it writes them. */
+  imports: string[];
+  /** What `type` of a request takes: the id, and `id::name` for the types in it. */
+  types: string[];
+  /** Why the file could not be read, with the place in its text. */
+  error: Diagnostic | null;
+}
+
+export interface MissingImport {
+  name: string;
+  from: string;
+  message: string;
+}
+
+export interface InspectResponse {
+  ok: boolean;
+  schemas: SchemaInfo[];
+  missing: MissingImport[];
+  diagnostics: Diagnostic[];
+}
+
 /** How the whole value is printed: as `doe` prints text, compact JSON (`--json`) or indented JSON (`--pretty`). */
 export type ExportFormat = 'text' | 'json' | 'pretty';
 
 export interface Doe {
   version(): string;
   check(request: Request): CheckResponse;
+  inspect(request: Request): InspectResponse;
   parse(request: Request, bytes: Uint8Array): ParseResponse;
   export(request: Request, bytes: Uint8Array, format: ExportFormat): ExportResponse;
 }
@@ -77,6 +104,7 @@ export async function loadDoe(wasmUrl: URL | string): Promise<Doe> {
   return {
     version: () => wasm.version(),
     check: (request) => JSON.parse(wasm.check(JSON.stringify(request))) as CheckResponse,
+    inspect: (request) => JSON.parse(wasm.inspect(JSON.stringify(request))) as InspectResponse,
     parse: (request, bytes) =>
       JSON.parse(wasm.parse(JSON.stringify(request), bytes)) as ParseResponse,
     export: (request, bytes, format) =>

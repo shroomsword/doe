@@ -4,7 +4,7 @@
 import { yaml } from '@codemirror/lang-yaml';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
-import { Compartment, type Extension } from '@codemirror/state';
+import { Compartment, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, basicSetup } from 'codemirror';
 import { tags } from '@lezer/highlight';
 import type { Diagnostic, Position } from './doe.js';
@@ -63,12 +63,20 @@ export class SchemaEditor {
         yaml(),
         lintGutter(),
         this.theme.of([]),
+        this.access.of([]),
         EditorView.contentAttributes.of({ 'aria-label': 'schema' }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) onChange();
         }),
       ],
     });
+  }
+
+  private readonly access = new Compartment();
+
+  /** Allow or refuse changes to the text (what was fetched is shown, not edited). */
+  setReadOnly(readOnly: boolean): void {
+    this.view.dispatch({ effects: this.access.reconfigure([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]) });
   }
 
   /** Draw the editor in the colours of a theme. */

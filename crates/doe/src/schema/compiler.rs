@@ -118,6 +118,19 @@ impl Compiler {
         load_yaml_from(self.source.as_ref(), path)
     }
 
+    /// Where an import of a schema in `importing_dir` is found, by the rules
+    /// that compiling uses: a name that starts with `./` or `../` is relative to
+    /// the importing file, one that starts with a slash is looked for in the
+    /// include paths only, and any other is looked for next to the importing
+    /// file first and then in the include paths.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DoeError::SchemaNotFound`] with the places that were looked in.
+    pub fn find_import(&self, import: &str, importing_dir: Option<&Path>) -> Result<PathBuf> {
+        self.resolve_import(import, importing_dir)
+    }
+
     // ── Public API ───────────────────────────────────────────────────────────
 
     /// Load and compile a schema by name (resolved through include paths) or
