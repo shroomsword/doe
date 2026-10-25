@@ -42,6 +42,8 @@ export interface TraceNode {
   failed: boolean;
   processed: boolean;
   summary: string | null;
+  /** For an integer or an enum: the number in decimal with all its digits, and the member's name. */
+  integer: { value: string; name: string | null } | null;
   children: TraceNode[];
 }
 

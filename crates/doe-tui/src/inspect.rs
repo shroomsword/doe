@@ -5,6 +5,8 @@
 
 use std::fmt::Write as _;
 
+use doe::radix::{Radix, format_integer, twos_complement};
+
 use crate::format;
 use crate::hex_view::Selection;
 use crate::tree::Row;
@@ -156,9 +158,22 @@ pub type InspectLine = (&'static str, String);
 /// The lines for `data` (the bytes of the selected field, at most
 /// [`TEXT_BYTES`] of them), when the field has `total` bytes and is
 /// `bit_start..bit_end` bits of them (bits counted from the first byte of
-/// `data`).
+/// `data`). The numbers are in decimal with their hex.
 #[must_use]
 pub fn lines(data: &[u8], total: u64, bit_start: u64, bit_end: u64) -> Vec<InspectLine> {
+    lines_in(data, total, bit_start, bit_end, Radix::Decimal)
+}
+
+/// As [`lines`], with the numbers in `radix` when it is not decimal; a
+/// negative one then has its two's complement next to it.
+#[must_use]
+pub fn lines_in(
+    data: &[u8],
+    total: u64,
+    bit_start: u64,
+    bit_end: u64,
+    radix: Radix,
+) -> Vec<InspectLine> {
     let mut out: Vec<InspectLine> = Vec::new();
     let bits = bit_end - bit_start;
     let whole = bit_start.is_multiple_of(8) && bit_end.is_multiple_of(8);
@@ -173,14 +188,17 @@ pub fn lines(data: &[u8], total: u64, bit_start: u64, bit_end: u64) -> Vec<Inspe
     if !whole {
         // a bit field: the value of its bits, and the bytes that hold them
         if let Some(value) = bits_value(data, bit_start, bit_end) {
-            out.push((
-                "bits",
+            let plural = if bits == 1 { "" } else { "s" };
+            let text = if radix == Radix::Decimal {
                 format!(
-                    "{bits} bit{} = {value} ({value:#x}, {value:#0w$b})",
-                    if bits == 1 { "" } else { "s" },
+                    "{bits} bit{plural} = {value} ({value:#x}, {value:#0w$b})",
                     w = usize::try_from(bits).unwrap_or(64) + 2
-                ),
-            ));
+                )
+            } else {
+                let number = format_integer(i128::from(value), u32::try_from(bits).ok(), radix);
+                format!("{bits} bit{plural} = {number}")
+            };
+            out.push(("bits", text));
         }
         return out;
     }
@@ -192,18 +210,31 @@ pub fn lines(data: &[u8], total: u64, bit_start: u64, bit_end: u64) -> Vec<Inspe
     {
         for big in [false, true] {
             let value = unsigned(data, big);
-            let mut line = format!("{value} ({value:#x})");
-            if len <= 4 {
+            let mut line = if radix == Radix::Decimal {
+                format!("{value} ({value:#x})")
+            } else {
+                format_integer(i128::from(value), u32::try_from(len * 8).ok(), radix)
+            };
+            if len <= 4 && radix == Radix::Decimal {
                 let _ = write!(line, " {}", binary(value, len)); // writing to a String cannot fail
             }
             out.push((if big { "unsigned BE" } else { "unsigned LE" }, line));
         }
         for big in [false, true] {
             let value = signed(unsigned(data, big), len);
-            out.push((
-                if big { "signed BE" } else { "signed LE" },
-                format!("{value}"),
-            ));
+            let mut line = if radix == Radix::Decimal {
+                format!("{value}")
+            } else {
+                format_integer(i128::from(value), u32::try_from(len * 8).ok(), radix)
+            };
+            if radix != Radix::Decimal
+                && let Some(pattern) = u32::try_from(len * 8)
+                    .ok()
+                    .and_then(|bits| twos_complement(i128::from(value), bits))
+            {
+                let _ = write!(line, " (two's complement {pattern})"); // writing to a String cannot fail
+            }
+            out.push((if big { "signed BE" } else { "signed LE" }, line));
         }
         for big in [false, true] {
             if let Some(f) = float(data, big) {
@@ -266,6 +297,26 @@ mod tests {
             .iter()
             .find(|(l, _)| *l == label)
             .map_or("<none>", |(_, t)| t.as_str())
+    }
+
+    #[test]
+    fn the_numbers_are_in_the_radix_and_a_negative_one_has_its_twos_complement() {
+        let l = lines_in(&[0xfe], 1, 0, 8, Radix::Hex);
+        assert_eq!(find(&l, "unsigned LE"), "0xfe");
+        assert_eq!(find(&l, "signed LE"), "-0x02 (two's complement 0xfe)");
+        let l = lines_in(&[0x34, 0x12], 2, 0, 16, Radix::Binary);
+        assert_eq!(find(&l, "unsigned LE"), "0b0001001000110100");
+        assert_eq!(find(&l, "unsigned BE"), "0b0011010000010010");
+        // a positive signed number has no complement to tell
+        assert_eq!(find(&l, "signed LE"), "0b0001001000110100");
+        // a bit field
+        let l = lines_in(&[0b1010_0000], 1, 0, 3, Radix::Octal);
+        assert_eq!(find(&l, "bits"), "3 bits = 0o5");
+        // decimal is as it was
+        assert_eq!(
+            lines_in(&[0xfe], 1, 0, 8, Radix::Decimal),
+            lines(&[0xfe], 1, 0, 8)
+        );
     }
 
     #[test]

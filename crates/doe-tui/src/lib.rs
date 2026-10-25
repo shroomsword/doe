@@ -19,6 +19,7 @@ pub mod inspect;
 pub mod keymap;
 pub mod load;
 pub mod prompt;
+pub mod radixes;
 pub mod report;
 pub mod schemas;
 pub mod search;
@@ -61,6 +62,9 @@ pub struct Options {
     pub theme: Option<String>,
     /// Where the themes of the person are (see [`theme::user_dir`]).
     pub theme_dir: Option<PathBuf>,
+    /// The radix in which integers are first shown (`--radix` or the `radix`
+    /// key of the config); decimal when it is none.
+    pub radix: Option<doe::radix::Radix>,
 }
 
 impl Options {
@@ -149,6 +153,7 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
     // cannot be read. The person sees what and where, and leaves with `q`.
     let mut app = App::loading(options.file.clone(), &options.type_or_schema);
     app.options = Some(options.clone());
+    app.radixes = radixes::Radixes::new(options.radix.unwrap_or_default());
     let loader = spawn_load(options.clone());
     let mut loader = Some(loader);
     let mut watch: Option<Watch> = None;

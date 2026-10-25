@@ -390,7 +390,14 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     } else if app.inspector && hex_area.is_none() {
         inspector(frame, tree_inner, app, *theme);
     } else {
-        tree_view::render(frame, tree_inner, &app.tree, &mut app.view, theme);
+        tree_view::render(
+            frame,
+            tree_inner,
+            &app.tree,
+            &mut app.view,
+            theme,
+            &app.radixes,
+        );
     }
 
     if let Some(hex_area) = hex_area {
@@ -886,11 +893,16 @@ fn inspector_lines(app: &mut App) -> Vec<(String, String)> {
             "No bytes: the field is past the end of the file.".to_owned(),
         )];
     }
-    inspect::lines(
+    let radix = app
+        .tree
+        .field_key(&row.path)
+        .map_or(app.radixes.global, |key| app.radixes.of(&key));
+    inspect::lines_in(
         &data,
         total,
         target.start - first * 8,
         target.end - first * 8,
+        radix,
     )
     .into_iter()
     .map(|(label, text)| (label.to_owned(), text))
@@ -1379,7 +1391,7 @@ instances:
     fn the_help_lists_the_keys_and_fits_or_says_that_it_does_not() {
         let (mut app, _dir) = app();
         app.help = true;
-        let (lines, _) = draw_app(&mut app, 100, 50);
+        let (lines, _) = draw_app(&mut app, 100, 60);
         for needle in [
             "keys",
             "Anywhere",
@@ -1482,6 +1494,7 @@ instances:
             watch: false,
             theme: None,
             theme_dir: None,
+            radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
         let mut app = App::broken(file, &failure, Some(&schema));
@@ -1522,6 +1535,7 @@ instances:
             watch: false,
             theme: None,
             theme_dir: None,
+            radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
         let mut app = App::broken(options.file.clone(), &failure, Some(&schema));
@@ -1566,6 +1580,7 @@ instances:
                 watch: false,
                 theme: None,
                 theme_dir: None,
+                radix: None,
             };
             let failure = crate::load::try_load(&options).unwrap_err();
             let mut app = App::broken(options.file.clone(), &failure, None);

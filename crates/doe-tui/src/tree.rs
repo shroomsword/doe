@@ -112,6 +112,16 @@ fn shown_of(value: Option<&Value>) -> Option<Shown> {
     })
 }
 
+impl Row {
+    /// How many bits the value was read from, which is the width of an
+    /// integer's type; none for a value that was not read (an instance).
+    #[must_use]
+    pub fn bits(&self) -> Option<u32> {
+        let span = self.span.filter(|span| !span.is_empty())?;
+        u32::try_from(span.end - span.start).ok()
+    }
+}
+
 /// A line of the tree.
 #[derive(Debug, Clone, PartialEq)]
 #[allow(
@@ -347,7 +357,13 @@ impl TreeModel {
         if matches(&node.name) || node.type_name.as_deref().is_some_and(&matches) {
             return true;
         }
-        shown_of(self.value_at(path)).is_some_and(|shown| matches(&crate::format::shown(&shown)))
+        shown_of(self.value_at(path)).is_some_and(|shown| {
+            matches(&crate::format::shown(
+                &shown,
+                None,
+                doe::radix::Radix::Decimal,
+            ))
+        })
     }
 
     /// The path of the node where the parse failed (the innermost value that
@@ -370,6 +386,33 @@ impl TreeModel {
         }
         let mut path = Vec::new();
         walk(&self.root, &mut path).then_some(path)
+    }
+
+    /// The name under which the radix of the field at `path` is kept: the type
+    /// that holds it and its name, so that it is the same for every element of a
+    /// list (`type.items[]`) and for the next parse of the same schema. The
+    /// root has none.
+    #[must_use]
+    pub fn field_key(&self, path: &[usize]) -> Option<String> {
+        if path.is_empty() {
+            return None;
+        }
+        let mut node = &self.root;
+        let mut key = String::new();
+        for &index in path {
+            let child = node.children.get(index)?;
+            key = if child.name.starts_with('[') {
+                format!("{key}[]")
+            } else {
+                format!(
+                    "{}.{}",
+                    node.type_name.as_deref().unwrap_or(&node.name),
+                    child.name
+                )
+            };
+            node = child;
+        }
+        Some(key)
     }
 
     /// The names from the root to the node at `path` (the root's name is the first).
@@ -755,6 +798,7 @@ pub(crate) mod tests {
             watch: false,
             theme: None,
             theme_dir: None,
+            radix: None,
         })
         .unwrap();
         let error = loaded.error.as_ref().map(ToString::to_string);

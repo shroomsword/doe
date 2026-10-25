@@ -132,6 +132,13 @@ pub(crate) struct Cli {
     #[arg(long, value_name = "NAME|FILE", requires = "tui")]
     pub(crate) theme: Option<String>,
 
+    /// With `--tui`: the radix in which integers are first shown, `dec`
+    /// (the default), `hex`, `bin` or `oct`; `x` in the viewer goes through
+    /// them, and `X` chooses one for the selected field (the `radix` key of
+    /// the config file changes the default).
+    #[arg(long, value_name = "RADIX", requires = "tui", value_parser = clap::value_parser!(doe::radix::Radix))]
+    pub(crate) radix: Option<doe::radix::Radix>,
+
     /// With `--ide`: the port to serve on (0 for any free one) [default: 8765].
     #[arg(long, value_name = "PORT", requires = "ide")]
     pub(crate) port: Option<u16>,

@@ -1268,6 +1268,43 @@ mod tui_in_a_terminal {
     }
 
     #[test]
+    fn x_writes_the_integers_in_another_radix_and_radix_starts_the_viewer_with_one() {
+        let schema = "id: t\nseq:\n  - id: a\n    type: u1\n";
+        let mut session = Session::start_with(schema, Some(&[5]));
+        session.wait_for("parsed");
+        session.send(b"x");
+        session.wait_for("0x05");
+        session.send(b"x");
+        // the screen writes only the cells that changed, so the digits come in pieces
+        session.wait_for("0000101");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success, "{seen:?}");
+        assert_screen_restored(&seen);
+
+        let dir = TempDir::new().unwrap();
+        let schema = dir.path().join("t.yaml");
+        std::fs::write(&schema, "id: t\nseq:\n  - id: a\n    type: u1\n").unwrap();
+        let binary = dir.path().join("t.bin");
+        std::fs::write(&binary, [5]).unwrap();
+        let mut session = Session::start_in(dir, schema, binary, &["--radix", "oct"], &[]);
+        session.wait_for("0o005");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success, "{seen:?}");
+    }
+
+    #[test]
+    fn a_radix_that_is_not_one_is_refused() {
+        doe()
+            .args(["-c", NO_CONFIG, "--tui", "--radix", "base3", "x", "y"])
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("unknown radix"))
+            .stderr(predicate::str::contains("dec, hex, bin or oct"));
+    }
+
+    #[test]
     fn a_type_can_be_named_on_the_command_line_of_the_viewer() {
         let dir = TempDir::new().unwrap();
         let schema = dir.path().join("t.yaml");

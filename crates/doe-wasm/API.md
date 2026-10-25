@@ -119,6 +119,10 @@ is known; an error in an imported file, or in the input, has none.
   "failed": false,        // the parse failed here (only the innermost value)
   "processed": false,     // offsets are in the bytes a `process:` produced, not in the input
   "summary": "13",        // the value as text; null for a type or a list; cut at 200 characters
+  "integer": { "value": "13", "name": null },
+                          // for an integer or an enum: the number in decimal, with all its
+                          // digits (a string: a JavaScript number loses some of a 64-bit one),
+                          // and the name of the member; null for anything else
   "children": [ TraceNode, ... ]
 }
 ```
@@ -126,3 +130,6 @@ is known; an error in an imported file, or in the input, has none.
 Offsets are in **bits**, so a bit field can be told from its neighbours: byte
 `n` is bits `8n` to `8n + 8`. The fields of a type come first, then its
 instances.
+
+The width of an integer, for showing it in hexadecimal or binary with the digits
+of its type, is `end - start`; an instance computed by an expression has none.

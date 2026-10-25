@@ -90,6 +90,7 @@ fn the_tree_and_the_bytes_agree_on_the_conformance_samples() {
                 watch: false,
                 theme: None,
                 theme_dir: None,
+                radix: None,
             })
             .unwrap_or_else(|e| panic!("{label}: {e}"));
             let size = loaded.size;

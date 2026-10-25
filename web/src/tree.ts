@@ -5,12 +5,15 @@
 
 import type { TraceNode } from './doe.js';
 import { type Path, describeRange, nodeAt, valueKind } from './model.js';
+import { type Radix, fieldKey, integerText } from './radix.js';
 
 /** How many children of a node are shown at first, and added by each click on "more". */
 const CHUNK = 200;
 
 interface Row {
   path: Path;
+  /** The name that the radix of the field is kept under. */
+  key: string;
   node: TraceNode;
   depth: number;
   /** For the row that shows more: how many are hidden. */
@@ -34,6 +37,7 @@ export class TreeView {
   constructor(
     parent: HTMLElement,
     private readonly onSelect: (path: Path) => void,
+    private readonly radixOf: (key: string) => Radix = () => 'dec',
   ) {
     this.element = document.createElement('div');
     this.element.className = 'tree';
@@ -98,14 +102,14 @@ export class TreeView {
     const rows: Row[] = [];
     const root = this.root;
     if (!root) return rows;
-    const walk = (node: TraceNode, path: Path, depth: number): void => {
-      rows.push({ path, node, depth });
+    const walk = (node: TraceNode, path: Path, depth: number, field: string): void => {
+      rows.push({ path, node, depth, key: field });
       if (!this.open.has(key(path))) return;
       const limit = this.shown.get(key(path)) ?? CHUNK;
-      node.children.slice(0, limit).forEach((child, index) => walk(child, [...path, index], depth + 1));
-      if (node.children.length > limit) rows.push({ path, node, depth: depth + 1, more: node.children.length - limit });
+      node.children.slice(0, limit).forEach((child, index) => walk(child, [...path, index], depth + 1, fieldKey(field, node, child)));
+      if (node.children.length > limit) rows.push({ path, node, depth: depth + 1, key: field, more: node.children.length - limit });
     };
-    walk(root, [], 0);
+    walk(root, [], 0, '');
     return rows;
   }
 
@@ -119,6 +123,8 @@ export class TreeView {
           return `<div class="tree-row more" ${indent} data-row="${index}" role="treeitem">${row.more} more…</div>`;
         }
         const { node, path } = row;
+        const integer = integerText(node, this.radixOf(row.key));
+        const text = integer ?? node.summary;
         const classes = ['tree-row'];
         if (selected !== null && key(path) === selected) classes.push('selected');
         if (node.instance) classes.push('instance');
@@ -130,7 +136,7 @@ export class TreeView {
         const parts = [
           `<span class="name">${escape(node.name)}</span>`,
           node.type ? `<span class="type">${escape(node.type)}</span>` : '',
-          node.summary !== null ? `<span class="summary ${valueKind(node.summary) ?? ''}">${escape(node.summary)}</span>` : '',
+          text !== null ? `<span class="summary ${node.integer ? (node.integer.name === null ? 'number' : 'enum') : (valueKind(text) ?? '')}">${escape(text)}</span>` : '',
           range ? `<span class="range">${escape(range)}</span>` : node.instance ? '<span class="range">computed</span>' : '',
           node.failed ? '<span class="flag">failed here</span>' : '',
         ];
@@ -192,6 +198,25 @@ export class TreeView {
         return;
     }
     event.preventDefault();
+  }
+
+  /** Draw the rows again (the radix of some integers changed). */
+  refresh(): void {
+    if (this.root) this.render();
+  }
+
+  /** The name under which the radix of the node at `path` is kept: null for the root. */
+  fieldAt(path: Path): string | null {
+    if (!this.root || path.length === 0) return null;
+    let field = '';
+    let node = this.root;
+    for (const index of path) {
+      const child = node.children[index];
+      if (!child) return null;
+      field = fieldKey(field, node, child);
+      node = child;
+    }
+    return field;
   }
 
   /** The node shown at a path, for the status line. */
