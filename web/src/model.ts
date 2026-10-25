@@ -17,6 +17,19 @@ export function checkSize(size: number): string | null {
   return `The file is ${mib(size)} MiB; the most that can be parsed in the browser is ${mib(MAX_INPUT_BYTES)} MiB (WebAssembly memory). The local version, doe --ide, has no such limit.`;
 }
 
+/** What a value in the tree is, from the text `doe` shows for it, for its colour. */
+export type ValueKind = 'number' | 'string' | 'bytes' | 'enum' | 'boolean';
+
+export function valueKind(summary: string | null): ValueKind | null {
+  if (summary === null || summary === '') return null;
+  if (summary.startsWith('"')) return 'string';
+  if (summary.startsWith('<')) return /^<\d+ bytes/.test(summary) ? 'bytes' : null;
+  if (summary === 'true' || summary === 'false') return 'boolean';
+  if (/^-?(\d|inf$|NaN$)/.test(summary)) return 'number';
+  if (/^\S+ \(-?\d+\)$/.test(summary)) return 'enum';
+  return null;
+}
+
 export function nodeAt(root: TraceNode, path: Path): TraceNode | null {
   let node: TraceNode = root;
   for (const index of path) {

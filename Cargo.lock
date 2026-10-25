@@ -441,8 +441,10 @@ dependencies = [
  "doe",
  "log",
  "ratatui",
+ "serde",
  "signal-hook",
  "tempfile",
+ "toml",
  "unicode-segmentation",
  "unicode-width",
 ]

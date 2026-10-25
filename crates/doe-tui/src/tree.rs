@@ -753,6 +753,8 @@ pub(crate) mod tests {
             include_paths: Vec::new(),
             color: false,
             watch: false,
+            theme: None,
+            theme_dir: None,
         })
         .unwrap();
         let error = loaded.error.as_ref().map(ToString::to_string);

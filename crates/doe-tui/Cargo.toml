@@ -11,6 +11,8 @@ authors.workspace = true
 [dependencies]
 doe = { version = "0.4.0", path = "../doe" }
 anyhow = { workspace = true, features = ["std"] }
+serde = { workspace = true, features = ["std", "derive"] }
+toml = { workspace = true, features = ["std", "parse", "serde"] }
 log.workspace = true
 ratatui = { workspace = true, features = ["crossterm"] }
 crossterm = { workspace = true, features = ["events", "bracketed-paste"] }

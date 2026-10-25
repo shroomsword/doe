@@ -88,6 +88,8 @@ fn the_tree_and_the_bytes_agree_on_the_conformance_samples() {
                 include_paths: include_paths.clone(),
                 color: false,
                 watch: false,
+                theme: None,
+                theme_dir: None,
             })
             .unwrap_or_else(|e| panic!("{label}: {e}"));
             let size = loaded.size;

@@ -1103,7 +1103,10 @@ mod tui_in_a_terminal {
                 .unwrap();
             let mut command = CommandBuilder::new(assert_cmd::cargo::cargo_bin("doe"));
             command.args(extra);
-            command.args(["--tui", "-c", NO_CONFIG]);
+            command.arg("--tui");
+            if !extra.contains(&"-c") {
+                command.args(["-c", NO_CONFIG]);
+            }
             command.arg(binary);
             command.arg(schema);
             command.env("XDG_STATE_HOME", sandbox().join("state"));
@@ -1418,5 +1421,164 @@ mod tui_in_a_terminal {
         assert!(!has_colour(&first_screen(&[], &[("NO_COLOR", "1")])));
         assert!(!has_colour(&first_screen(&["--color", "never"], &[])));
         assert!(has_colour(&first_screen(&["--color", "always"], &[])));
+    }
+
+    // The escape codes that ask for a colour, in the three depths. Nord: the
+    // background #2e3440 (46, 52, 64) and the text #d8dee9 (216, 222, 233).
+    const NORD_BACKGROUND: &str = "48;2;46;52;64";
+
+    #[test]
+    fn a_theme_is_drawn_with_its_colours_at_the_depth_of_the_terminal() {
+        let truecolor = [("COLORTERM", "truecolor"), ("TERM", "xterm-256color")];
+        let seen = first_screen(&["--theme", "nord"], &truecolor);
+        assert!(seen.contains(NORD_BACKGROUND), "{seen:?}");
+        assert!(seen.contains("38;2;216;222;233"), "{seen:?}");
+        // the name may be written as it is in the table
+        let seen = first_screen(&["--theme", "Nord"], &truecolor);
+        assert!(seen.contains(NORD_BACKGROUND), "{seen:?}");
+
+        // 256 colours: indexed colours and no 24-bit ones
+        let seen = first_screen(
+            &["--theme", "nord"],
+            &[("COLORTERM", ""), ("TERM", "xterm-256color")],
+        );
+        assert!(indexed(&seen).iter().any(|&n| n >= 16), "{seen:?}");
+        assert!(
+            !seen.contains("38;2;") && !seen.contains("48;2;"),
+            "{seen:?}"
+        );
+
+        // 16 colours: no extended colours at all
+        let seen = first_screen(
+            &["--theme", "nord"],
+            &[("COLORTERM", ""), ("TERM", "xterm")],
+        );
+        assert!(
+            !seen.contains("38;2;") && !seen.contains("48;2;"),
+            "{seen:?}"
+        );
+        // (the bright colours are written by the terminal library as 8 to 15 of the 256)
+        assert!(indexed(&seen).iter().all(|&n| n < 16), "{seen:?}");
+        assert!(has_colour(&seen), "{seen:?}");
+    }
+
+    /// The numbers of the colours that are asked for as `38;5;N` or `48;5;N`.
+    fn indexed(seen: &str) -> Vec<u32> {
+        let mut numbers = Vec::new();
+        for prefix in ["38;5;", "48;5;"] {
+            for part in seen.split(prefix).skip(1) {
+                let digits: String = part.chars().take_while(char::is_ascii_digit).collect();
+                numbers.extend(digits.parse::<u32>());
+            }
+        }
+        numbers
+    }
+
+    #[test]
+    fn terminal_is_the_terminals_own_colours_and_no_color_wins_over_a_theme() {
+        let truecolor = [("COLORTERM", "truecolor")];
+        let seen = first_screen(&["--theme", "terminal"], &truecolor);
+        assert!(
+            !seen.contains("48;2;") && !seen.contains("38;2;"),
+            "{seen:?}"
+        );
+        assert!(has_colour(&seen));
+        assert!(!has_colour(&first_screen(
+            &["--theme", "nord", "--color", "never"],
+            &truecolor
+        )));
+        assert!(!has_colour(&first_screen(
+            &["--theme", "nord"],
+            &[("COLORTERM", "truecolor"), ("NO_COLOR", "1")]
+        )));
+    }
+
+    #[test]
+    fn a_theme_that_is_not_there_is_refused_before_the_screen_is_touched() {
+        let session = Session::start(&["--theme", "nope"], &[]);
+        let (success, seen) = session.finish();
+        assert!(!success);
+        assert!(seen.contains("nope"), "{seen:?}");
+        assert!(
+            seen.contains("solarized-dark"),
+            "the themes there are: {seen:?}"
+        );
+        assert!(!seen.contains(ENTER_SCREEN), "{seen:?}");
+    }
+
+    /// A config file with `theme = "<name>"` and a theme `mine` next to it.
+    fn config_with_theme(name: &str) -> (TempDir, String) {
+        let dir = TempDir::new().unwrap();
+        let config = dir.path().join("config.toml");
+        std::fs::write(&config, format!("theme = \"{name}\"\n")).unwrap();
+        let themes = dir.path().join("themes");
+        std::fs::create_dir(&themes).unwrap();
+        let mut theme = String::from("name = \"Mine\"\n[colors]\n");
+        for (key, color) in [
+            ("background", "#010203"),
+            ("foreground", "#fafbfc"),
+            ("muted", "#888888"),
+            ("line", "#444444"),
+            ("panel", "#111111"),
+            ("accent", "#66ccff"),
+            ("selection", "#223344"),
+            ("selection_part", "#112233"),
+            ("error", "#ff8888"),
+            ("warning", "#ffcc66"),
+            ("number", "#ffaa44"),
+            ("string", "#88ee88"),
+            ("bytes", "#ee8844"),
+            ("enum", "#cc88ff"),
+            ("boolean", "#66eeee"),
+            ("offset", "#888888"),
+            ("type", "#66ccff"),
+            ("instance", "#888888"),
+        ] {
+            std::fmt::Write::write_fmt(&mut theme, format_args!("{key} = \"{color}\"\n")).unwrap();
+        }
+        std::fs::write(themes.join("mine.toml"), theme).unwrap();
+        let path = config.to_string_lossy().into_owned();
+        (dir, path)
+    }
+
+    #[test]
+    fn the_config_file_chooses_a_theme_and_the_flag_overrides_it() {
+        let truecolor = [("COLORTERM", "truecolor")];
+        let (_dir, config) = config_with_theme("nord");
+        let seen = first_screen(&["-c", &config], &truecolor);
+        assert!(seen.contains(NORD_BACKGROUND), "{seen:?}");
+        let seen = first_screen(&["-c", &config, "--theme", "dracula"], &truecolor);
+        assert!(!seen.contains(NORD_BACKGROUND), "{seen:?}");
+        assert!(
+            seen.contains("48;2;40;42;54"),
+            "dracula's #282a36: {seen:?}"
+        );
+    }
+
+    #[test]
+    fn a_theme_in_the_directory_next_to_the_config_file_is_found_by_its_name() {
+        let truecolor = [("COLORTERM", "truecolor")];
+        let (_dir, config) = config_with_theme("mine");
+        let seen = first_screen(&["-c", &config], &truecolor);
+        assert!(seen.contains("48;2;1;2;3"), "#010203: {seen:?}");
+        // and a theme file by its path
+        let (dir, config) = config_with_theme("nord");
+        let file = dir.path().join("themes/mine.toml");
+        let seen = first_screen(
+            &["-c", &config, "--theme", &file.to_string_lossy()],
+            &truecolor,
+        );
+        assert!(seen.contains("48;2;1;2;3"), "{seen:?}");
+    }
+
+    #[test]
+    fn a_theme_key_that_is_not_a_theme_is_refused_with_the_name_of_the_file() {
+        let (dir, config) = config_with_theme("nope");
+        let session = Session::start(&["-c", &config], &[]);
+        let (success, seen) = session.finish();
+        drop(dir);
+        assert!(!success);
+        assert!(seen.contains("nope"), "{seen:?}");
+        assert!(!seen.contains(ENTER_SCREEN), "{seen:?}");
     }
 }

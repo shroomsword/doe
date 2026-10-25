@@ -273,7 +273,7 @@ pub fn hex_line(
         selection.map_or(Cover::No, |s| s.cover(at))
     };
     let mut spans = vec![
-        Span::styled(format!("{offset:0digits$x}"), theme.dim()),
+        Span::styled(format!("{offset:0digits$x}"), theme.offset()),
         Span::raw("  "),
     ];
     for index in 0..per_line {
@@ -392,6 +392,8 @@ mod tests {
             include_paths: Vec::new(),
             color: false,
             watch: false,
+            theme: None,
+            theme_dir: None,
         })
         .unwrap();
         let bytes = FileBytes::open(&file).unwrap();

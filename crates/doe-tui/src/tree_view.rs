@@ -3,7 +3,7 @@
 
 use ratatui::Frame;
 use ratatui::layout::{Margin, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState};
 
@@ -96,7 +96,7 @@ fn pieces(row: &Row, theme: Theme) -> Vec<Piece> {
     if row.instance {
         // an instance is not in the sequence of the type: dimmed all over
         for piece in &mut out {
-            piece.1 = piece.1.add_modifier(Modifier::DIM);
+            piece.1 = theme.faded(piece.1);
         }
     }
     out
@@ -188,6 +188,7 @@ mod tests {
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
     use ratatui::buffer::Buffer;
+    use ratatui::style::Modifier;
 
     use super::*;
     use crate::tree::tests::model;

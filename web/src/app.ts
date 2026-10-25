@@ -11,6 +11,7 @@ import { type LocalApi, detectLocal } from './local.js';
 import { type Path, byteRange, checkSize, describeRange, findByte, nodeAt, pathName } from './model.js';
 import { ProblemsView } from './problems.js';
 import { MAX_LINK, type Work, codeOfHash, decodeWork, encodeWork, forget, recall, remember } from './share.js';
+import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { TreeView } from './tree.js';
 
 /** How long the schema is left alone before it is checked again. */
@@ -49,14 +50,55 @@ export class App {
   private readonly tree: TreeView;
   private readonly hex: HexView;
   private readonly problems: ProblemsView;
+  private readonly themes: Themes;
 
   constructor(workerUrl: URL, wasmUrl: URL) {
     this.client = new DoeClient(workerUrl, wasmUrl);
     this.editor = new SchemaEditor(element('editor'), EXAMPLE_SCHEMA, () => this.later());
+    this.themes = new Themes((theme) => this.editor.setTheme(theme));
     this.tree = new TreeView(element('tree'), (path) => this.select(path, 'tree'));
     this.hex = new HexView(element('hex'), (byte) => this.pickByte(byte));
     this.problems = new ProblemsView(element('problems'), (item) => this.pickProblem(item));
     this.wire();
+    this.showThemes();
+    this.themes.apply();
+  }
+
+  // ── the theme ───────────────────────────────────────────────────────────────
+
+  /** Fill the picker: the system's setting, the built-in themes by variant, and the one that was loaded. */
+  private showThemes(): void {
+    const picker = element<HTMLSelectElement>('theme');
+    const option = (value: string, text: string): HTMLOptionElement => {
+      const item = document.createElement('option');
+      item.value = value;
+      item.textContent = text;
+      return item;
+    };
+    picker.replaceChildren(option(SYSTEM, 'System (light or dark)'));
+    for (const [label, variant] of [
+      ['Dark', 'dark'],
+      ['Light', 'light'],
+    ] as const) {
+      const group = document.createElement('optgroup');
+      group.label = label;
+      for (const theme of THEMES.filter((t) => t.variant === variant)) group.append(option(theme.id, theme.name));
+      picker.append(group);
+    }
+    const loaded = this.themes.loaded;
+    if (loaded) picker.append(option(CUSTOM, `${loaded.name} (loaded file)`));
+    picker.value = this.themes.chosen;
+  }
+
+  private async openTheme(file: File | undefined): Promise<void> {
+    if (!file) return;
+    try {
+      const theme = this.themes.load(await file.text());
+      element('status').textContent = `theme ${theme.name} loaded from ${file.name}`;
+      this.showThemes();
+    } catch (error) {
+      element('status').textContent = `${file.name} is not a theme: ${error instanceof Error ? error.message : String(error)}`;
+    }
   }
 
   /** Load the module and show the example. */
@@ -289,6 +331,10 @@ export class App {
     input('open-schema', (files) => void this.openSchema(files[0]));
     input('add-files', (files) => void this.addFiles(files));
     input('open-input', (files) => void this.openInput(files[0]));
+    input('open-theme', (files) => void this.openTheme(files[0]));
+    element<HTMLSelectElement>('theme').addEventListener('change', (event) => {
+      this.themes.choose((event.target as HTMLSelectElement).value);
+    });
     element('cancel').addEventListener('click', () => {
       this.client.cancel();
       this.abort?.abort();
