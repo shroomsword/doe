@@ -32,6 +32,7 @@ pub mod config;
 pub mod error;
 pub mod inspect;
 pub mod parser;
+pub mod radix;
 pub mod render;
 pub mod schema;
 pub mod value;

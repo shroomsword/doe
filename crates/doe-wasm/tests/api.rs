@@ -133,6 +133,8 @@ fn a_parse_gives_the_value_and_where_each_part_came_from() {
     let count = &trace["children"][0];
     assert_eq!(count["name"], "count");
     assert_eq!(count["summary"], "2");
+    assert_eq!(count["integer"]["value"], "2");
+    assert_eq!(count["integer"]["name"], Value::Null);
     assert_eq!(
         (count["start"].as_u64(), count["end"].as_u64()),
         (Some(0), Some(8))
@@ -151,6 +153,9 @@ fn a_parse_gives_the_value_and_where_each_part_came_from() {
     let kind = &first["children"][0];
     assert_eq!(kind["name"], "kind");
     assert_eq!(kind["summary"], "text (1)");
+    assert_eq!(kind["integer"]["value"], "1");
+    assert_eq!(kind["integer"]["name"], "text");
+    assert_eq!(items["integer"], Value::Null);
     let second_kind = &items["children"][1]["children"][0];
     assert_eq!(
         (second_kind["start"].as_u64(), second_kind["end"].as_u64()),

@@ -7,7 +7,10 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState};
 
+use doe::radix::Radix;
+
 use crate::format;
+use crate::radixes::Radixes;
 use crate::tree::{Row, RowKind, TreeModel};
 use crate::ui::Theme;
 
@@ -59,7 +62,7 @@ impl TreeView {
 type Piece = (String, Style);
 
 /// The pieces of a row, before they are cut to the width.
-fn pieces(row: &Row, theme: Theme) -> Vec<Piece> {
+fn pieces(row: &Row, theme: Theme, radix: Radix) -> Vec<Piece> {
     let mut out: Vec<Piece> = Vec::new();
     // the first cell says that the parse failed here
     out.push(if row.failed {
@@ -91,7 +94,7 @@ fn pieces(row: &Row, theme: Theme) -> Vec<Piece> {
     }
     if let Some(shown) = &row.shown {
         out.push((" = ".to_owned(), theme.dim()));
-        out.push((format::shown(shown), theme.value(shown)));
+        out.push((format::shown(shown, row.bits(), radix), theme.value(shown)));
     }
     if row.instance {
         // an instance is not in the sequence of the type: dimmed all over
@@ -105,10 +108,16 @@ fn pieces(row: &Row, theme: Theme) -> Vec<Piece> {
 /// A row as a line `width` cells wide: cut with `…` if it is longer, and
 /// filled with blanks (so a selected row is highlighted to the edge).
 #[must_use]
-pub fn row_line(row: &Row, selected: bool, width: usize, theme: &Theme) -> Line<'static> {
+pub fn row_line(
+    row: &Row,
+    selected: bool,
+    width: usize,
+    theme: &Theme,
+    radix: Radix,
+) -> Line<'static> {
     let mut spans: Vec<Span<'static>> = Vec::new();
     let mut left = width;
-    for (text, style) in pieces(row, *theme) {
+    for (text, style) in pieces(row, *theme, radix) {
         if left == 0 {
             break;
         }
@@ -140,6 +149,7 @@ pub fn render(
     model: &TreeModel,
     view: &mut TreeView,
     theme: &Theme,
+    radixes: &Radixes,
 ) {
     let rows = model.rows();
     view.follow(model.selected_index(), rows.len(), usize::from(area.height));
@@ -153,7 +163,12 @@ pub fn render(
         .enumerate()
         .skip(view.top)
         .take(usize::from(area.height))
-        .map(|(index, row)| row_line(row, index == model.selected_index(), width, theme))
+        .map(|(index, row)| {
+            let radix = model
+                .field_key(&row.path)
+                .map_or(radixes.global, |key| radixes.of(&key));
+            row_line(row, index == model.selected_index(), width, theme, radix)
+        })
         .collect();
     let body = Rect {
         width: u16::try_from(width).unwrap_or(area.width),
@@ -257,7 +272,15 @@ instances:
         tree.rows()
             .iter()
             .enumerate()
-            .map(|(i, row)| text(&row_line(row, i == tree.selected_index(), width, &theme)))
+            .map(|(i, row)| {
+                text(&row_line(
+                    row,
+                    i == tree.selected_index(),
+                    width,
+                    &theme,
+                    Radix::Decimal,
+                ))
+            })
             .collect()
     }
 
@@ -317,12 +340,12 @@ instances:
     fn a_selected_row_is_reversed_and_an_instance_is_dimmed() {
         let theme = Theme::new(true);
         let tree = kinds();
-        let selected = row_line(&tree.rows()[0], true, 30, &theme);
+        let selected = row_line(&tree.rows()[0], true, 30, &theme, Radix::Decimal);
         assert!(selected.style.add_modifier.contains(Modifier::REVERSED));
-        let plain = row_line(&tree.rows()[1], false, 30, &theme);
+        let plain = row_line(&tree.rows()[1], false, 30, &theme, Radix::Decimal);
         assert!(!plain.style.add_modifier.contains(Modifier::REVERSED));
         let instance = tree.rows().iter().find(|r| r.instance).unwrap();
-        let line = row_line(instance, false, 40, &theme);
+        let line = row_line(instance, false, 40, &theme, Radix::Decimal);
         assert!(
             line.spans
                 .iter()
@@ -392,7 +415,16 @@ instances:
     fn drawn(tree: &TreeModel, view: &mut TreeView, width: u16, height: u16) -> Buffer {
         let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
         terminal
-            .draw(|frame| render(frame, frame.area(), tree, view, &Theme::new(false)))
+            .draw(|frame| {
+                render(
+                    frame,
+                    frame.area(),
+                    tree,
+                    view,
+                    &Theme::new(false),
+                    &Radixes::default(),
+                );
+            })
             .unwrap();
         terminal.backend().buffer().clone()
     }
@@ -464,7 +496,7 @@ instances:
         tree.expand();
         let theme = Theme::new(true);
         let last = tree.rows().last().unwrap();
-        let line = row_line(last, false, 40, &theme);
+        let line = row_line(last, false, 40, &theme, Radix::Decimal);
         assert!(text(&line).contains("100 more…"), "{}", text(&line));
         assert!(
             line.spans

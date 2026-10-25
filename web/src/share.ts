@@ -4,6 +4,8 @@
 /** Where a schema came from: typed in the editor, opened from a file, added as an import, or taken from the gallery or the library. */
 export type Origin = 'typed' | 'file' | 'added' | 'gallery' | 'library';
 
+import { type Radix, isRadix } from './radix.js';
+
 const ORIGINS: readonly string[] = ['typed', 'file', 'added', 'gallery', 'library'];
 
 /** What is shared and remembered. */
@@ -18,6 +20,8 @@ export interface Work {
   origin?: Origin;
   /** Where each imported file came from; `added` for those that are not named. */
   origins?: Record<string, Origin>;
+  /** The radix of fields that have one of their own, by the name of the field (type and name). */
+  radixes?: Record<string, Radix>;
 }
 
 /** The longest link that is made, in characters. */
@@ -81,7 +85,9 @@ function isWork(value: unknown): value is Work {
     (work.origins === undefined ||
       (typeof work.origins === 'object' &&
         work.origins !== null &&
-        Object.values(work.origins).every((origin) => typeof origin === 'string' && ORIGINS.includes(origin))))
+        Object.values(work.origins).every((origin) => typeof origin === 'string' && ORIGINS.includes(origin)))) &&
+    (work.radixes === undefined ||
+      (typeof work.radixes === 'object' && work.radixes !== null && Object.values(work.radixes).every((radix) => isRadix(radix))))
   );
 }
 

@@ -15,7 +15,7 @@ import {
 } from '../src/model.js';
 
 function node(name: string, start: number | null, end: number | null, children: TraceNode[] = [], extra: Partial<TraceNode> = {}): TraceNode {
-  return { name, type: null, start, end, instance: false, failed: false, processed: false, summary: null, children, ...extra };
+  return { name, type: null, start, end, instance: false, failed: false, processed: false, summary: null, integer: null, children, ...extra };
 }
 
 // root: bytes 0-7; a: byte 0; items: bytes 1-6 with [0]: bytes 1-3 (kind: 1, len: 2-3), [1]: bytes 4-6;

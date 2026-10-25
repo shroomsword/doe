@@ -889,6 +889,17 @@ makes it the person's own. *Parse as* chooses the type to parse with from the ty
 open schemas (the main schema's own, by default); the choice is part of a share
 link and of the saved work, and the status line says which type was parsed.
 
+**Integers** are decimal at first. *Integers* in the header writes all of them in
+hexadecimal (`0x001f`), binary (`0b00011111`) or octal (`0o37`), with the digits
+padded to the width of the type (a bit field has as many binary digits as bits),
+negative numbers as a sign and magnitude (`-0x1f`), and enum members with their
+number in the radix next to the name (`text (0x01)`). Selecting an integer field
+shows *This field*, a radix of its own that holds for every element of a list and
+every parse of the same schema (it is kept by the type and the name of the field,
+saved with the work and carried by a share link). A 64-bit number is exact: it is
+never turned into a JavaScript number. The choice of the header is remembered in
+the browser; export and the command line print decimal, as they did.
+
 Four things make the page pleasant to come back to:
 
 - **Share link:** *Share link* copies a link with the schema and its imports in
@@ -954,6 +965,8 @@ Options:
       --man[=<PAGE>]         Print a manual page (roff) to stdout and exit: `doe` (the default) or `schema`, the schema format [possible values: doe, schema]
       --tui                  Show FILE decoded with the given type or schema in an interactive viewer in the terminal, instead of printing it. Needs a terminal on stdin and stdout
       --watch                With `--tui`: read the schema and the file again when either changes on disk (the modification times are looked at twice a second)
+      --theme <NAME|FILE>    With `--tui`: the colour theme, a built-in one by its id (`nord`, `solarized-dark`, `catppuccin-mocha`...), a file `NAME.toml` in the `themes` directory next to the config file, or the path of a theme file; `terminal` is the colours of the terminal itself, which is the default (the `theme` key of the config file changes that)
+      --radix <RADIX>        With `--tui`: the radix in which integers are first shown, `dec` (the default), `hex`, `bin` or `oct`; `x` in the viewer goes through them, and `X` chooses one for the selected field (the `radix` key of the config file changes the default)
       --ide                  Serve the web IDE on this machine and print its address, instead of parsing a file. Only the loopback address is used. A FILE is offered to the page as the input, however large it is; the types found through the include paths and the config are offered too
       --port <PORT>          With `--ide`: the port to serve on (0 for any free one) [default: 8765]
       --open                 With `--ide`: open the page in the browser
@@ -1097,6 +1110,21 @@ marked), and `Enter` on a type reads the file again and parses it with that type
 as `doe --tui FILE SCHEMA::TYPE` does; the type that is parsed has a `●`. `r`
 reads everything again, and `Esc` closes the list. If the new type cannot be used,
 the old tree stays and the error is shown.
+
+`x` writes the integers in the next **radix**: decimal (the first one, with the hex
+next to the numbers from 16 up), hexadecimal (`0x001f`), binary (`0b00011111`),
+octal (`0o37`), and decimal again. The digits are padded to the width of the
+type, so a `u2` is four hex digits and a bit field has as many binary digits as
+bits; a negative number is its sign and magnitude (`-0x1f`), not two's complement,
+and the inspector adds the two's complement. An enum member keeps its name and
+has its number in the radix (`text (0x01)`). Floats, strings and byte sequences
+do not change, and the search matches values as they are in decimal. `X` gives
+the selected integer field a radix of its own (decimal, hex, binary, octal, and
+back to following `x`), kept by the field's type and name, so that it holds for
+every element of a list and after `r` reads the schema again; one flags field can
+be binary while the rest stay hex. `--radix hex` (or `radix = "hex"` in the
+config file) starts with another radix than decimal. The text of a number is
+made by `doe::radix::format_integer`, and the web IDE writes the same strings.
 The line that is typed for `/` and `g` is edited as a shell line is: the arrow keys,
 `Home`/`End`, `Backspace`/`Delete`, `Ctrl-W` (a word), `Ctrl-U`, `Ctrl-K`, and a
 paste (one line) is inserted at the cursor; `Enter` runs it, `Esc` cancels it.
@@ -1277,6 +1305,7 @@ level = "debug"
 |-----|------|---------|-----------------|
 | `include_paths` | list of paths | Directories searched for bare type names, in order. `~/` is expanded. | `-I`/`--include-path` (these come first) |
 | `theme` | text | The colour theme of `doe --tui`: a built-in id, a file in the `themes` directory next to this file, or a path (see [Themes](#themes)). Default: the terminal's own colours. | `--theme` |
+| `radix` | `dec`, `hex`, `bin`, `oct` | The radix in which `doe --tui` first shows integers (`x` changes it in the viewer). Default `dec`. | `--radix` |
 | `log.level` | `off`, `error`, `warn`, `info`, `debug`, `trace` | Verbosity of the log file. Default `debug`. | `--log-level` |
 
 > **Upgrading:** earlier versions read `~/.doe/config/config.yaml`. That file

@@ -49,6 +49,25 @@
       </section>
       <section id="pane-tree" aria-labelledby="h-parsed">
         <h2 id="h-parsed">Parsed</h2>
+        <div class="pane-tools">
+          <label id="radix-box" title="How integers are written; the choice is kept in this browser">Integers
+            <select id="radix">
+              <option value="dec">decimal</option>
+              <option value="hex">hexadecimal</option>
+              <option value="bin">binary</option>
+              <option value="oct">octal</option>
+            </select>
+          </label>
+          <label id="field-radix-box" hidden title="Write this field, in every element and every parse of this schema, in a radix of its own">This field
+            <select id="field-radix">
+              <option value="">as above</option>
+              <option value="dec">decimal</option>
+              <option value="hex">hexadecimal</option>
+              <option value="bin">binary</option>
+              <option value="oct">octal</option>
+            </select>
+          </label>
+        </div>
         <div id="tree-box"><div id="tree"></div></div>
       </section>
       <section id="pane-hex" aria-labelledby="h-bytes">

@@ -160,6 +160,7 @@ mod tests {
             watch: false,
             theme: None,
             theme_dir: None,
+            radix: None,
         }
     }
 

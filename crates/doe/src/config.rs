@@ -57,6 +57,11 @@ pub struct Config {
     #[serde(default)]
     pub theme: Option<String>,
 
+    /// The radix in which the terminal viewer (`doe --tui`) first shows
+    /// integers: `dec`, `hex`, `bin` or `oct`. `--radix` overrides it.
+    #[serde(default)]
+    pub radix: Option<String>,
+
     /// Logging settings.
     #[serde(default)]
     pub log: LogConfig,

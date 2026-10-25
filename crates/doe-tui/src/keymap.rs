@@ -29,6 +29,10 @@ pub enum Action {
     Goto,
     /// List the schemas and their types.
     Schemas,
+    /// Write all integers in the next radix.
+    Radix,
+    /// Choose a radix for the selected integer field.
+    FieldRadix,
     /// Tree: one row up.
     TreeUp,
     /// Tree: one row down.
@@ -180,6 +184,18 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::Schemas,
         help: "list the schemas and types (Enter reads a schema, or chooses the type to parse)",
+    },
+    Binding {
+        keys: &[ch('x')],
+        scope: Scope::Anywhere,
+        action: Action::Radix,
+        help: "write the integers in the next radix: decimal, hex, binary, octal",
+    },
+    Binding {
+        keys: &[ch('X')],
+        scope: Scope::Anywhere,
+        action: Action::FieldRadix,
+        help: "choose a radix for the selected integer field (every element, and after a reload)",
     },
     Binding {
         keys: &[ch('e')],

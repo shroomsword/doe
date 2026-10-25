@@ -90,6 +90,10 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         color,
         watch: cli.watch,
         theme: cli.theme.clone().or_else(|| config.theme.clone()),
+        radix: match cli.radix {
+            Some(radix) => Some(radix),
+            None => config.radix.as_deref().map(str::parse).transpose()?,
+        },
         theme_dir: doe_tui::theme::user_dir(
             cli.config.clone().or_else(Config::default_path).as_deref(),
         ),

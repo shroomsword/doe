@@ -13,10 +13,11 @@ use crate::hex_view::{HexState, Selection};
 use crate::keymap::{self, Action, Scope};
 use crate::load::{self, LoadFailure, Loaded};
 use crate::prompt::{Kind, LineEditor, Outcome as PromptOutcome};
+use crate::radixes::Radixes;
 use crate::report::Report;
 use crate::schemas::{Outcome as SchemasOutcome, SchemaList};
 use crate::search::{Needle, Outcome as SearchOutcome, Search};
-use crate::tree::TreeModel;
+use crate::tree::{Shown, TreeModel};
 use crate::tree_view::TreeView;
 
 /// How many fields a search looks at between two redraws of the screen.
@@ -88,6 +89,8 @@ pub struct App {
     pub schema_files: Vec<std::path::PathBuf>,
     /// The list of the schemas and their types, while it is open.
     pub schemas: Option<SchemaList>,
+    /// The radix of the integers: one for all, and some of the fields.
+    pub radixes: Radixes,
     /// What was last searched for, for `n` and `N`.
     pub last_query: Option<String>,
     /// A message for the status bar, until the next key.
@@ -141,6 +144,7 @@ impl App {
             options: None,
             schema_files: loaded.schema_files,
             schemas: None,
+            radixes: Radixes::default(),
             prompt: None,
             search: None,
             last_query: None,
@@ -190,6 +194,7 @@ impl App {
             options: None,
             schema_files: failure.schema_files.clone(),
             schemas: None,
+            radixes: Radixes::default(),
             prompt: None,
             search: None,
             last_query: None,
@@ -224,6 +229,7 @@ impl App {
             options: None,
             schema_files: Vec::new(),
             schemas: None,
+            radixes: Radixes::default(),
             prompt: None,
             search: None,
             last_query: None,
@@ -290,6 +296,27 @@ impl App {
             Ok(loaded) => self.adopt(loaded),
             Err(failure) => self.reload_failed(&failure, &options),
         }
+    }
+
+    /// The next radix for the selected field, which holds for every element and
+    /// after the schema is read again.
+    fn cycle_field_radix(&mut self) {
+        let row = self.tree.selected();
+        let integer = matches!(
+            row.shown,
+            Some(Shown::UInt(_) | Shown::SInt(_) | Shown::Enum { .. })
+        );
+        let Some(key) = self.tree.field_key(&row.path).filter(|_| integer) else {
+            self.notice = Some("the selected field is not an integer".to_owned());
+            return;
+        };
+        self.notice = Some(match self.radixes.cycle_field(&key) {
+            Some(radix) => format!("this field in {}", radix.name()),
+            None => format!(
+                "this field follows the others ({})",
+                self.radixes.global.name()
+            ),
+        });
     }
 
     /// Take a new parse in the place of the old, keeping the place.
@@ -640,6 +667,19 @@ impl App {
             },
             Action::Goto => self.open_prompt(Kind::Goto),
             Action::Schemas => self.open_schemas(),
+            Action::Radix => {
+                self.radixes.cycle_global();
+                self.notice = Some(format!(
+                    "integers in {}{}",
+                    self.radixes.global.name(),
+                    if self.radixes.fields() > 0 {
+                        " (except the fields that have a radix of their own)"
+                    } else {
+                        ""
+                    }
+                ));
+            }
+            Action::FieldRadix => self.cycle_field_radix(),
             Action::HexLeft
             | Action::HexRight
             | Action::HexUp
@@ -765,6 +805,7 @@ pub(crate) mod tests {
             watch: false,
             theme: None,
             theme_dir: None,
+            radix: None,
         };
         (App::new(file, load(&options).unwrap()), dir)
     }
@@ -811,6 +852,7 @@ pub(crate) mod tests {
             watch: false,
             theme: None,
             theme_dir: None,
+            radix: None,
         };
         let loaded = load(&options).unwrap();
         let mut app = App::new(file, loaded);
@@ -1251,6 +1293,7 @@ seq:
             watch: false,
             theme: None,
             theme_dir: None,
+            radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
         let schema = crate::load::schema_file(&options);
@@ -1548,6 +1591,7 @@ types:
             watch: false,
             theme: None,
             theme_dir: None,
+            radix: None,
         };
         let mut app = App::new(options.file.clone(), load(&options).unwrap());
         app.options = Some(options);
@@ -1605,6 +1649,7 @@ types:
             watch: false,
             theme: None,
             theme_dir: None,
+            radix: None,
         }
     }
 
@@ -1774,6 +1819,7 @@ types:
             watch: false,
             theme: None,
             theme_dir: None,
+            radix: None,
         })
         .unwrap();
         let mut app = App::new(file, loaded);

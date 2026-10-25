@@ -411,6 +411,7 @@ fn the_screens_of(id: &str, depth: Depth) {
         watch: false,
         theme: Some(id.to_owned()),
         theme_dir: None,
+        radix: None,
     };
     let loaded = load(&options).unwrap();
     let styles = options.theme(depth).unwrap();
@@ -525,6 +526,7 @@ fn without_colour_a_theme_is_not_used() {
         watch: false,
         theme: Some("nord".to_owned()),
         theme_dir: None,
+        radix: None,
     };
     assert_eq!(options.theme(Depth::True).unwrap(), Theme::new(false));
     // not even a theme that is not there: NO_COLOR says no colour

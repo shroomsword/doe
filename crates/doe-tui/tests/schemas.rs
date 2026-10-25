@@ -72,6 +72,7 @@ fn options(f: &Fixture, type_or_schema: &str) -> Options {
         watch: false,
         theme: None,
         theme_dir: None,
+        radix: None,
     }
 }
 

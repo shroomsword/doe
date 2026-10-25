@@ -13,6 +13,7 @@ import { ProblemsView } from './problems.js';
 import { type Origin, SchemaList, editable, isKnownType, listing } from './schemas.js';
 import { MAX_LINK, type Work, codeOfHash, decodeWork, encodeWork, forget, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
+import { Radixes, isRadix } from './radix.js';
 import { TreeView } from './tree.js';
 
 /** How long the schema is left alone before it is checked again. */
@@ -66,6 +67,7 @@ export class App {
   private readonly hex: HexView;
   private readonly problems: ProblemsView;
   private readonly themes: Themes;
+  private readonly radixes: Radixes;
   private readonly schemas: SchemaList;
 
   constructor(workerUrl: URL, wasmUrl: URL) {
@@ -78,7 +80,16 @@ export class App {
       copy: (path) => this.copyFile(path),
     });
     this.themes = new Themes((theme) => this.editor.setTheme(theme));
-    this.tree = new TreeView(element('tree'), (path) => this.select(path, 'tree'));
+    this.radixes = new Radixes(() => {
+      this.tree.refresh();
+      this.showFieldRadix();
+    });
+    this.tree = new TreeView(
+      element('tree'),
+      (path) => this.select(path, 'tree'),
+      (key) => this.radixes.of(key),
+    );
+    element<HTMLSelectElement>('radix').value = this.radixes.global;
     this.hex = new HexView(element('hex'), (byte) => this.pickByte(byte));
     this.problems = new ProblemsView(element('problems'), (item) => this.pickProblem(item));
     this.wire();
@@ -143,6 +154,7 @@ export class App {
     if (this.parseType) work.type = this.parseType;
     if (this.mainOrigin !== 'typed') work.origin = this.mainOrigin;
     if (this.origins.size > 0) work.origins = Object.fromEntries(this.origins);
+    if (this.radixes.count > 0) work.radixes = this.radixes.toJSON();
     return work;
   }
 
@@ -155,6 +167,7 @@ export class App {
     this.includePaths = work.include_paths;
     this.mainOrigin = work.origin ?? 'typed';
     this.parseType = work.type ?? null;
+    this.radixes.replace(work.radixes);
     this.found = null;
     this.setMain(work.schema);
   }
@@ -387,6 +400,17 @@ export class App {
     input('open-theme', (files) => void this.openTheme(files[0]));
     element<HTMLSelectElement>('theme').addEventListener('change', (event) => {
       this.themes.choose((event.target as HTMLSelectElement).value);
+    });
+    element<HTMLSelectElement>('radix').addEventListener('change', (event) => {
+      const radix = (event.target as HTMLSelectElement).value;
+      if (isRadix(radix)) this.radixes.setGlobal(radix);
+    });
+    element<HTMLSelectElement>('field-radix').addEventListener('change', (event) => {
+      const key = this.selectedField();
+      if (key === null) return;
+      const radix = (event.target as HTMLSelectElement).value;
+      this.radixes.setField(key, isRadix(radix) ? radix : null);
+      this.persist();
     });
     element('cancel').addEventListener('click', () => {
       this.client.cancel();
@@ -649,6 +673,20 @@ export class App {
       if (from === 'tree') this.hex.reveal(range.first);
     } else this.hex.setSelection(null);
     this.showSelection(node);
+    this.showFieldRadix();
+  }
+
+  /** The name under which the radix of the selected field is kept, when it is an integer. */
+  private selectedField(): string | null {
+    const node = this.selection && this.trace ? nodeAt(this.trace, this.selection) : null;
+    return node?.integer && this.selection ? this.tree.fieldAt(this.selection) : null;
+  }
+
+  /** Show the choice of radix for the selected field, only when it is an integer. */
+  private showFieldRadix(): void {
+    const key = this.selectedField();
+    element('field-radix-box').hidden = key === null;
+    if (key !== null) element<HTMLSelectElement>('field-radix').value = this.radixes.own(key) ?? '';
   }
 
   private pickByte(byte: number): void {

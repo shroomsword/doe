@@ -132,8 +132,23 @@ pub struct TraceOut {
     pub processed: bool,
     /// The value as text, for one that is not a type or a list; cut when long.
     pub summary: Option<String>,
+    /// For an integer (or an enum, which is one): the number with all its
+    /// digits, so that a viewer can show it in another radix.
+    pub integer: Option<IntegerOut>,
     /// The parts inside.
     pub children: Vec<TraceOut>,
+}
+
+/// An integer of the trace, for a viewer that shows it in a radix of its own
+/// choice (see [`crate::radix`]). The width in bits is that of the node
+/// (`end - start`), when it has one.
+#[derive(Debug, Serialize)]
+pub struct IntegerOut {
+    /// The number in decimal, with all its digits (a JavaScript number would
+    /// lose some of a 64-bit one).
+    pub value: String,
+    /// The name of the enum member, when the integer is one.
+    pub name: Option<String>,
 }
 
 /// The answer to [`parse`].
@@ -516,6 +531,7 @@ fn trace_out(node: &TraceNode) -> TraceOut {
         failed: node.failed,
         processed: node.processed,
         summary: None,
+        integer: None,
         children: node.children.iter().map(trace_out).collect(),
     }
 }
@@ -528,6 +544,21 @@ fn annotate(node: &mut TraceOut, value: Option<&Value>) {
         other => other,
     };
     node.summary = value.and_then(value_summary);
+    node.integer = value.and_then(|value| match value {
+        Value::UInt(n) => Some(IntegerOut {
+            value: n.to_string(),
+            name: None,
+        }),
+        Value::SInt(n) => Some(IntegerOut {
+            value: n.to_string(),
+            name: None,
+        }),
+        Value::Enum { value, name } => Some(IntegerOut {
+            value: value.to_string(),
+            name: name.clone(),
+        }),
+        _ => None,
+    });
     for child in &mut node.children {
         let inner = match value {
             Some(Value::Struct { fields, .. }) => fields
