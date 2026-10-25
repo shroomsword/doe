@@ -340,7 +340,10 @@ fn the_web_ides_file_is_what_the_table_makes() {
         std::fs::write(&path, &expected).unwrap();
         return;
     }
-    let current = std::fs::read_to_string(&path).unwrap_or_default();
+    // git may have checked the file out with the line ends of the platform
+    let current = std::fs::read_to_string(&path)
+        .unwrap_or_default()
+        .replace("\r\n", "\n");
     assert!(
         current == expected,
         "web/src/themes.generated.ts is not what crates/doe-tui/themes/themes.toml makes: \
