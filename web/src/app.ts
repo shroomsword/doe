@@ -248,7 +248,11 @@ export class App {
         }
         const option = document.createElement('option');
         option.value = String(index);
-        option.textContent = format.title ? `${format.id} — ${format.title}` : format.id;
+        const label = format.title ? `${format.id} — ${format.title}` : format.id;
+        // ✓ a file written by the format's own tool is parsed in the tests; ○ a file built by hand is
+        const mark = format.verified === 'real' ? ' ✓' : format.verified === 'crafted' ? ' ○' : '';
+        option.textContent = label + mark;
+        if (format.verified) option.title = format.verified === 'real' ? 'tried on a file written by the tool that makes the format' : 'tried on a valid file built by hand';
         group.append(option);
       }
       element('gallery-box').hidden = false;

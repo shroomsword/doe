@@ -171,3 +171,14 @@ test('with the setting on, opening a file looks for the schema, and the setting 
   // the editor still has the example, so the schema is looked for at once
   await expect(page.locator('#detect-report')).toContainText('gif parses the file', { timeout: 30_000 });
 });
+
+test('the picker marks the formats that have been tried on a file, and says how', async ({ page }) => {
+  test.skip(!hasGallery, 'the gallery is not checked out');
+  await ready(page);
+  const option = (text: RegExp) => page.locator('#gallery option', { hasText: text });
+  await expect(option(/^elf — /)).toHaveText(/ ✓$/);
+  await expect(option(/^png — /)).toHaveText(/ ○$/);
+  await expect(option(/^png — /)).toHaveAttribute('title', /built by hand/);
+  // a format with no file is not marked
+  await expect(option(/^sqlite3 — /)).not.toHaveText(/[✓○]$/);
+});

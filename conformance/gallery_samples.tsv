@@ -1,0 +1,191 @@
+format	status	sample	source	licence	note
+3d/gltf_binary	none	-	-	-	
+archive/android_bootldr_asus	none	-	-	-	
+archive/android_bootldr_huawei	none	-	-	-	
+archive/android_bootldr_qcom	none	-	-	-	
+archive/android_dto	none	-	-	-	
+archive/android_img	none	-	-	-	
+archive/android_sparse	none	-	-	-	
+archive/cpio_old_le	none	-	-	-	
+archive/gzip	real	archive/gzip	gzip module of Python, run by make_gallery_samples.py	MIT (this repository)	
+archive/lzh	none	-	-	-	
+archive/mozilla_mar	none	-	-	-	
+archive/phar_without_stub	none	-	-	-	
+archive/rar	none	-	-	-	
+archive/respack	none	-	-	-	
+archive/rpm	none	-	-	-	
+archive/xar	none	-	-	-	
+archive/zchunk	none	-	-	-	
+archive/zip	real	archive/zip	zipfile module of Python, run by make_gallery_samples.py	MIT (this repository)	
+archive/zisofs	none	-	-	-	
+cad/monomakh_sapr_chg	none	-	-	-	
+common/bcd	none	-	-	-	made to be imported by other definitions; none of the gallery does
+common/bytes_with_io	part-of	-	-	-	imported by font/pcf_font, macos/compressed_resource, macos/resource_compression/dcmp_2, macos/resource_fork
+common/dos_datetime	part-of	-	-	-	imported by archive/lzh, archive/rar, archive/zip, filesystem/vfat
+common/riff	part-of	-	-	-	imported by media/wav
+common/utf16_with_bom	none	-	-	-	made to be imported by other definitions; none of the gallery does
+common/utf8_string	none	-	-	-	made to be imported by other definitions; none of the gallery does
+common/vlq_base128_be	part-of	-	-	-	imported by database/sqlite3, media/standard_midi_file
+common/vlq_base128_le	part-of	-	-	-	imported by executable/dex, serialization/google_protobuf
+database/dbf	crafted	database/dbf	built by make_gallery_samples.py	MIT (this repository)	
+database/gettext_mo	none	-	-	-	
+database/sqlite3	none	-	-	-	left out of the conformance suite on purpose: the definition reads every column as a string, which only works in the reference's JavaScript runtime (see the README)
+database/tsm	none	-	-	-	
+executable/android_nanoapp_header	none	-	-	-	
+executable/dex	none	-	-	-	
+executable/dos_mz	none	-	-	-	
+executable/elf	real	executable/elf	the C compiler (cc), run by make_gallery_samples.py	MIT (this repository)	
+executable/java_class	crafted	executable/java_class	built by make_gallery_samples.py	MIT (this repository)	
+executable/mach_o	real	executable/mach_o	clang for the macOS targets, run by make_gallery_samples.py	MIT (this repository)	
+executable/mach_o_fat	none	-	-	-	
+executable/microsoft_pe	crafted	executable/microsoft_pe	built by make_gallery_samples.py	MIT (this repository)	
+executable/python_pyc_27	none	-	-	-	
+executable/swf	none	-	-	-	
+executable/uefi_te	none	-	-	-	
+filesystem/amlogic_emmc_partitions	none	-	-	-	
+filesystem/android_super	none	-	-	-	
+filesystem/apm_partition_table	none	-	-	-	
+filesystem/apple_single_double	none	-	-	-	
+filesystem/btrfs_stream	none	-	-	-	
+filesystem/cramfs	none	-	-	-	
+filesystem/ext2	none	-	-	-	
+filesystem/gpt_partition_table	none	-	-	-	
+filesystem/iso9660	none	-	-	-	
+filesystem/luks	none	-	-	-	
+filesystem/lvm2	none	-	-	-	
+filesystem/mbr_partition_table	none	-	-	-	
+filesystem/tr_dos_image	none	-	-	-	
+filesystem/ubifs	none	-	-	-	
+filesystem/vdi	none	-	-	-	
+filesystem/vfat	none	-	-	-	
+filesystem/vmware_vmdk	none	-	-	-	
+filesystem/zx_spectrum_tap	none	-	-	-	
+firmware/andes_firmware	none	-	-	-	
+firmware/broadcom_trx	none	-	-	-	
+firmware/ines	none	-	-	-	
+firmware/uf2	none	-	-	-	
+firmware/uimage	none	-	-	-	
+font/grub2_font	none	-	-	-	
+font/pcf_font	none	-	-	-	
+font/ttf	none	-	-	-	
+game/allegro_dat	none	-	-	-	
+game/doom_wad	none	-	-	-	
+game/dune_2_pak	none	-	-	-	
+game/fallout2_dat	none	-	-	-	
+game/fallout_dat	none	-	-	-	
+game/ftl_dat	none	-	-	-	
+game/gran_turismo_vol	none	-	-	-	
+game/heaps_pak	none	-	-	-	
+game/heroes_of_might_and_magic_agg	none	-	-	-	
+game/heroes_of_might_and_magic_bmp	none	-	-	-	
+game/minecraft_nbt	none	-	-	-	
+game/quake2_md2	none	-	-	-	
+game/quake_mdl	none	-	-	-	
+game/quake_pak	none	-	-	-	
+game/renderware_binary_stream	none	-	-	-	
+game/saints_row_2_vpp_pc	none	-	-	-	
+game/warcraft_2_pud	none	-	-	-	
+geospatial/shapefile_index	none	-	-	-	
+geospatial/shapefile_main	none	-	-	-	
+hardware/dtb	none	-	-	-	
+hardware/edid	none	-	-	-	
+hardware/mifare/mifare_classic	none	-	-	-	
+image/bmp	crafted	image/bmp	built by make_gallery_samples.py	MIT (this repository)	
+image/dicom	none	-	-	-	
+image/exif	none	-	-	-	
+image/gif	crafted	image/gif	built by make_gallery_samples.py	MIT (this repository)	
+image/gimp_brush	none	-	-	-	
+image/icc_4	none	-	-	-	
+image/ico	none	-	-	-	
+image/jpeg	crafted	image/jpeg	built by make_gallery_samples.py	MIT (this repository)	
+image/nitf	none	-	-	-	
+image/pcx	none	-	-	-	
+image/pcx_dcx	none	-	-	-	
+image/pif	none	-	-	-	
+image/png	crafted	image/png	built by make_gallery_samples.py	MIT (this repository)	
+image/psx_tim	none	-	-	-	
+image/tga	none	-	-	-	
+image/webp	none	-	-	-	
+image/wmf	none	-	-	-	
+image/xwd	none	-	-	-	
+log/aix_utmp	none	-	-	-	
+log/glibc_utmp	none	-	-	-	
+log/hashcat_restore	none	-	-	-	
+log/mcap	none	-	-	-	
+log/sudoers_ts	none	-	-	-	
+log/systemd_journal	none	-	-	-	
+log/windows_evt_log	none	-	-	-	
+machine_code/code_6502	none	-	-	-	
+macos/compressed_resource	none	-	-	-	
+macos/ds_store	none	-	-	-	
+macos/mac_os_resource_snd	none	-	-	-	
+macos/resource_compression/dcmp_0	none	-	-	-	
+macos/resource_compression/dcmp_1	none	-	-	-	
+macos/resource_compression/dcmp_2	none	-	-	-	
+macos/resource_compression/dcmp_variable_length_integer	none	-	-	-	
+macos/resource_fork	none	-	-	-	
+media/android_opengl_shaders_cache	none	-	-	-	
+media/au	none	-	-	-	
+media/avi	none	-	-	-	
+media/blender_blend	none	-	-	-	
+media/creative_voice_file	none	-	-	-	
+media/genmidi_op2	none	-	-	-	
+media/id3v1_1	none	-	-	-	
+media/id3v2_3	none	-	-	-	
+media/id3v2_4	none	-	-	-	
+media/magicavoxel_vox	none	-	-	-	
+media/ogg	none	-	-	-	
+media/quicktime_mov	none	-	-	-	
+media/standard_midi_file	none	-	-	-	
+media/stl	none	-	-	-	
+media/tracker_modules/fasttracker_xm_module	none	-	-	-	
+media/tracker_modules/s3m	none	-	-	-	
+media/vp8_duck_ivf	none	-	-	-	
+media/wav	crafted	media/wav	built by make_gallery_samples.py	MIT (this repository)	
+network/bitcoin_transaction	none	-	-	-	
+network/dime_message	none	-	-	-	
+network/dns_packet	none	-	-	-	
+network/ethernet_frame	crafted	network/ethernet_frame	built by make_gallery_samples.py	MIT (this repository)	with the formats it imports (ipv4_packet, tcp_segment, udp_datagram, ...), which have no sample of their own
+network/hccap	none	-	-	-	
+network/hccapx	none	-	-	-	
+network/icmp_packet	none	-	-	-	
+network/ipv4_packet	none	-	-	-	
+network/ipv6_packet	none	-	-	-	
+network/microsoft_network_monitor_v2	none	-	-	-	
+network/packet_ppi	none	-	-	-	
+network/pcap	crafted	network/pcap	built by make_gallery_samples.py	MIT (this repository)	
+network/protocol_body	none	-	-	-	
+network/rtcp_payload	none	-	-	-	
+network/rtp_packet	none	-	-	-	
+network/rtpdump	none	-	-	-	
+network/some_ip/some_ip	none	-	-	-	
+network/some_ip/some_ip_container	none	-	-	-	
+network/some_ip/some_ip_sd	none	-	-	-	
+network/some_ip/some_ip_sd_entries	none	-	-	-	
+network/some_ip/some_ip_sd_options	none	-	-	-	
+network/tcp_segment	none	-	-	-	
+network/tls_client_hello	none	-	-	-	
+network/udp_datagram	none	-	-	-	
+network/websocket	none	-	-	-	
+scientific/nt_mdt/nt_mdt	none	-	-	-	
+scientific/nt_mdt/nt_mdt_pal	none	-	-	-	
+scientific/spectroscopy/avantes_roh60	none	-	-	-	
+scientific/spectroscopy/specpr	none	-	-	-	
+security/efivar_signature_list	none	-	-	-	
+security/openpgp_message	none	-	-	-	
+security/ssh_public_key	none	-	-	-	
+serialization/asn1/asn1_der	none	-	-	-	
+serialization/bson	none	-	-	-	
+serialization/chrome_pak	none	-	-	-	
+serialization/google_protobuf	none	-	-	-	
+serialization/microsoft_cfb	none	-	-	-	
+serialization/msgpack	none	-	-	-	
+serialization/php_serialized_value	none	-	-	-	
+serialization/python_pickle	none	-	-	-	
+serialization/ruby_marshal	none	-	-	-	
+windows/regf	none	-	-	-	
+windows/windows_lnk_file	none	-	-	-	
+windows/windows_minidump	none	-	-	-	
+windows/windows_resource_file	none	-	-	-	
+windows/windows_shell_items	none	-	-	-	
+windows/windows_systemtime	none	-	-	-	

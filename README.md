@@ -745,8 +745,21 @@ to run the tests in a clone without it).
 ### The Kaitai Struct gallery
 
 All 190 definitions of the [format gallery](https://github.com/kaitai-io/kaitai_struct_formats)
-compile. The conformance suite parses real files with these definitions and
-checks the result against the reference compiler's:
+compile. How much more is known is in a table with a row for every definition,
+[`conformance/gallery_samples.tsv`](conformance/gallery_samples.tsv): the files it
+is tested with, where they come from and what allows them to be here. A test fails
+if a definition has no row, and `python3 conformance/gallery_table.py` adds the rows
+of new ones. The numbers (a test checks that this line is current, and the CI log
+prints it):
+
+> 190 definitions: 4 with a file written by its own tool, 10 with a file built by hand, 5 part of another, 171 without a sample
+
+The first kind are written by the tool that normally makes the format (the
+`gzip` and `zip` modules of Python, the C compiler for ELF, `clang` for Mach-O);
+the second are valid files that `conformance/make_gallery_samples.py` builds byte
+by byte, so they show that `doe` reads the format as the reference compiler does,
+not that it reads files from the world. Both are parsed by the conformance suite
+and compared with the reference compiler's output:
 
 | Directory | Formats |
 | --- | --- |
@@ -757,13 +770,17 @@ checks the result against the reference compiler's:
 | `media` | `wav` |
 | `network` | `ethernet_frame` (with `ipv4_packet`, `tcp_segment`, `udp_datagram` and the other formats it imports), `pcap` |
 
+A file is never made up to fit `doe`: a format without one says so in the table,
+and is a task for whoever has a real file of it.
+
 `sqlite3` is left out on purpose: its definition reads every column as a string
 (the `if` that should limit `as_str` to text columns is commented out), which
 only works in the JavaScript runtime of the reference, where a missing size reads
 as an empty string; doe reports the missing size as an error.
 
 The others compile, but no file has been compared to the reference yet, so one
-of them may still fail on a file, or read it differently. Give the gallery as an
+of them may still fail on a file, or read it differently (the web IDE picker marks
+the formats that have a file: ✓ for one written by its own tool, ○ for one built by hand). Give the gallery as an
 include path, so that the imports between its definitions resolve:
 
 ```sh
