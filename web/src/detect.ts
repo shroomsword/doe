@@ -14,6 +14,8 @@ export interface GalleryFormat {
   imports: string[];
   magic?: { offset: number; bytes: number[] }[];
   names?: string[];
+  /** Parsed in the tests with a file of the format: written by its own tool, or built by hand. */
+  verified?: 'real' | 'crafted';
 }
 
 export interface Attempt {

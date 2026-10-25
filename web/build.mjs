@@ -111,6 +111,20 @@ if (existsSync(join(gallery, 'README.md'))) {
       withSignature += 1;
     }
   }
+  // Which formats have been tried on a file (conformance/gallery_samples.tsv),
+  // so that the picker can say so.
+  const table = join(root, 'conformance', 'gallery_samples.tsv');
+  if (existsSync(table)) {
+    const verified = new Map();
+    for (const line of readFileSync(table, 'utf8').split(/\r?\n/).slice(1)) {
+      const [name, status] = line.split('\t');
+      if (name && (status === 'real' || status === 'crafted')) verified.set(`${name}.ksy`, status);
+    }
+    for (const format of manifest.formats) {
+      const status = verified.get(format.path);
+      if (status) format.verified = status;
+    }
+  }
   console.log(`gallery.json: ${withSignature} of ${manifest.formats.length} formats have a signature`);
 } else {
   console.warn('gallery.json: the submodule conformance/kaitai_struct_formats is not checked out; the picker will be empty');
