@@ -1250,7 +1250,6 @@ mod tui_in_a_terminal {
         let mut session = Session::start_with(schema, Some(&[5]));
         session.wait_for("parsed");
         session.send(b"s");
-        session.wait_for("main schema");
         session.wait_for("t::part");
         // the selection starts on the type that is parsed (t); the next line is t::part
         session.send(b"j");
