@@ -1,0 +1,114 @@
+{
+  "header": {
+    "headersize": 9,
+    "maxrecord": 8,
+    "metafiletype": 1,
+    "numberofmembers": 0,
+    "numberofobjects": 1,
+    "size": 57,
+    "version": 768
+  },
+  "records": [
+    {
+      "function": 524,
+      "params": {
+        "x": 300,
+        "y": 200
+      },
+      "size": 5
+    },
+    {
+      "function": 523,
+      "params": {
+        "x": 0,
+        "y": 0
+      },
+      "size": 5
+    },
+    {
+      "function": 258,
+      "params": {
+        "bkmode": 1
+      },
+      "size": 4
+    },
+    {
+      "function": 513,
+      "params": {
+        "blue": 0,
+        "green": 128,
+        "red": 255,
+        "reserved": 0
+      },
+      "size": 5
+    },
+    {
+      "function": 262,
+      "params": {
+        "polyfillmode": 2
+      },
+      "size": 4
+    },
+    {
+      "function": 260,
+      "params": {
+        "drawmode": 13
+      },
+      "size": 4
+    },
+    {
+      "function": 804,
+      "params": {
+        "numpoints": 3,
+        "points": [
+          {
+            "x": 10,
+            "y": 10
+          },
+          {
+            "x": 190,
+            "y": 20
+          },
+          {
+            "x": 100,
+            "y": 280
+          }
+        ]
+      },
+      "size": 10
+    },
+    {
+      "function": 805,
+      "params": {
+        "numpoints": 2,
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 200,
+            "y": 300
+          }
+        ]
+      },
+      "size": 8
+    },
+    {
+      "function": 0,
+      "params": "",
+      "size": 3
+    }
+  ],
+  "specialheader": {
+    "bottom": 300,
+    "checksum": 21333,
+    "handle": "0000",
+    "inch": 1440,
+    "left": 0,
+    "magic": "d7cdc69a",
+    "reserved": "00000000",
+    "right": 200,
+    "top": 0
+  }
+}

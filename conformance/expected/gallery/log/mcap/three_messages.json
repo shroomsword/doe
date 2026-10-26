@@ -1,0 +1,141 @@
+{
+  "footer": {
+    "body": {
+      "ofssummarycrc32input": 312,
+      "ofssummaryoffsetsection": 0,
+      "ofssummarysection": 0,
+      "summarycrc32": 0,
+      "summarycrc32input": "02140000000000000000000000000000000000000000000000",
+      "summaryoffsetsection": null,
+      "summarysection": null
+    },
+    "lenbody": 20,
+    "op": 2
+  },
+  "footermagic": {
+    "magic": "894d434150300d0a"
+  },
+  "headermagic": {
+    "magic": "894d434150300d0a"
+  },
+  "ofsfooter": 312,
+  "records": [
+    {
+      "body": {
+        "library": {
+          "lenstr": 11,
+          "str": "doe samples"
+        },
+        "profile": {
+          "lenstr": 0,
+          "str": ""
+        }
+      },
+      "lenbody": 19,
+      "op": 1
+    },
+    {
+      "body": {
+        "data": "7b2274797065223a226f626a656374222c2270726f70657274696573223a7b2278223a7b2274797065223a226e756d626572227d7d7d",
+        "encoding": {
+          "lenstr": 10,
+          "str": "jsonschema"
+        },
+        "id": 1,
+        "lendata": 54,
+        "name": {
+          "lenstr": 9,
+          "str": "doe/Point"
+        }
+      },
+      "lenbody": 87,
+      "op": 3
+    },
+    {
+      "body": {
+        "id": 1,
+        "messageencoding": {
+          "lenstr": 4,
+          "str": "json"
+        },
+        "metadata": {
+          "entries": {
+            "entries": [
+              {
+                "key": {
+                  "lenstr": 5,
+                  "str": "frame"
+                },
+                "value": {
+                  "lenstr": 4,
+                  "str": "base"
+                }
+              }
+            ]
+          },
+          "lenentries": 17
+        },
+        "schemaid": 1,
+        "topic": {
+          "lenstr": 7,
+          "str": "/points"
+        }
+      },
+      "lenbody": 44,
+      "op": 4
+    },
+    {
+      "body": {
+        "channelid": 1,
+        "data": "7b2278223a307d",
+        "logtime": 1700000000000000000,
+        "publishtime": 1700000000000000000,
+        "sequence": 0
+      },
+      "lenbody": 29,
+      "op": 5
+    },
+    {
+      "body": {
+        "channelid": 1,
+        "data": "7b2278223a317d",
+        "logtime": 1700000000000000000,
+        "publishtime": 1700000000000000000,
+        "sequence": 1
+      },
+      "lenbody": 29,
+      "op": 5
+    },
+    {
+      "body": {
+        "channelid": 1,
+        "data": "7b2278223a327d",
+        "logtime": 1700000000000000000,
+        "publishtime": 1700000000000000000,
+        "sequence": 2
+      },
+      "lenbody": 29,
+      "op": 5
+    },
+    {
+      "body": {
+        "datasectioncrc32": 0
+      },
+      "lenbody": 4,
+      "op": 15
+    },
+    {
+      "body": {
+        "ofssummarycrc32input": 312,
+        "ofssummaryoffsetsection": 0,
+        "ofssummarysection": 0,
+        "summarycrc32": 0,
+        "summarycrc32input": "02140000000000000000000000000000000000000000000000",
+        "summaryoffsetsection": null,
+        "summarysection": null
+      },
+      "lenbody": 20,
+      "op": 2
+    }
+  ]
+}

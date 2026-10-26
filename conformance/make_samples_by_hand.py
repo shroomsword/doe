@@ -1387,6 +1387,194 @@ def small():
     )
     put("windows/windows_lnk_file", "notes", lnk)
 
+    # Windows metafile (placeable): the header with its checksum, the metafile header, and the records (sizes in 16-bit words)
+    def wmf_record(function, params=b""):
+        return struct.pack("<IH", 3 + len(params) // 2, function) + params
+
+    def points(*pairs):
+        return struct.pack("<h", len(pairs)) + b"".join(struct.pack("<hh", x, y) for x, y in pairs)
+
+    records = (
+        wmf_record(0x020C, struct.pack("<hh", 200, 300))  # window extent
+        + wmf_record(0x020B, struct.pack("<hh", 0, 0))  # window origin
+        + wmf_record(0x0102, struct.pack("<H", 1))  # transparent background
+        + wmf_record(0x0201, bytes([255, 128, 0, 0]))  # background colour
+        + wmf_record(0x0106, struct.pack("<H", 2))
+        + wmf_record(0x0104, struct.pack("<H", 13))
+        + wmf_record(0x0324, points((10, 10), (190, 20), (100, 280)))  # polygon
+        + wmf_record(0x0325, points((0, 0), (200, 300)))  # polyline
+    )
+    eof = wmf_record(0x0000)
+    total_words = 9 + (len(records) + len(eof)) // 2
+    placeable = b"\xd7\xcd\xc6\x9a" + struct.pack("<Hhhhh", 0, 0, 0, 200, 300) + struct.pack("<H", 1440) + bytes(4)
+    checksum = 0
+    for (word,) in struct.iter_unpack("<H", placeable):
+        checksum ^= word
+    placeable += struct.pack("<H", checksum)
+    meta_header = struct.pack("<HHHIHIH", 1, 9, 0x0300, total_words, 1, 8, 0)
+    put("image/wmf", "polygon", placeable + meta_header + records + eof)
+
+    # GENMIDI.OP2 (the OPL2 instrument patches of Doom): 175 instruments of 36 bytes and 175 names of 32
+    def op_settings(i, j):
+        return bytes([(i * 3 + j) & 0xFF, (i * 5 + j) & 0xFF, (i * 7 + j) & 0xFF, j & 3, (i + j) & 0xFF, (i * 2 + j) & 0x3F])
+
+    def patch(i, j):
+        return op_settings(i, j) + bytes([(i + j) & 0xF]) + op_settings(i, j + 1) + b"\0" + struct.pack("<h", -12 + (i % 24))
+
+    op2 = b"#OPL_II#"
+    for i in range(175):
+        op2 += struct.pack("<HBB", i & 1, 128 + (i % 5), 0) + patch(i, 0) + patch(i, 1)
+    for i in range(175):
+        op2 += f"Instrument {i}".encode().ljust(32, b"\0")
+    put("media/genmidi_op2", "patches", op2)
+
+    # Quake II model (.md2): a header of 68 bytes with the offsets, a skin name, texture coordinates, a triangle, two frames, GL commands
+    verts, frames_n = 3, 2
+    skins = [b"models/doe/skin.pcx".ljust(64, b"\0")]
+    tex = b"".join(struct.pack("<HH", s, t) for s, t in [(0, 0), (63, 0), (32, 63)])
+    triangles = struct.pack("<3H3H", 0, 1, 2, 0, 1, 2)
+    frame_size = 40 + 4 * verts
+    frames_blob = b""
+    for number in range(frames_n):
+        frames_blob += struct.pack("<3f3f", 0.1, 0.1, 0.1, -5.0, -5.0, 0.0) + f"stand{number:02d}".encode().ljust(16, b"\0")
+        frames_blob += b"".join(bytes([20 * i + number, 10 * i, 40, i]) for i in range(verts))
+    gl = struct.pack("<i", 3) + b"".join(struct.pack("<ffI", s, t, i) for i, (s, t) in enumerate([(0.0, 0.0), (1.0, 0.0), (0.5, 1.0)])) + struct.pack("<i", 0)
+    offset = 68
+    offsets = []
+    for blob in (b"".join(skins), tex, triangles, frames_blob, gl):
+        offsets.append(offset)
+        offset += len(blob)
+    md2 = b"IDP2" + struct.pack("<16I", 8, 64, 64, frame_size, 1, verts, 3, 1, len(gl) // 4, frames_n, *offsets, offset)
+    put("game/quake2_md2", "triangle", md2 + b"".join(skins) + tex + triangles + frames_blob + gl)
+
+    # Quake model (.mdl, version 6): a header, a skin, texture coordinates, a triangle, and two animation frames
+    skin_w, skin_h, verts, tris, frames = 4, 4, 3, 1, 2
+    mdl = b"IDPO" + struct.pack("<i", 6) + struct.pack("<3f3ff3f", 0.1, 0.1, 0.1, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 12.0)
+    mdl += struct.pack("<iiiiiiiif", 1, skin_w, skin_h, verts, tris, frames, 0, 0, 1.0)
+    mdl += struct.pack("<i", 0) + bytes((i * 16) & 0xFF for i in range(skin_w * skin_h))
+    mdl += b"".join(struct.pack("<iii", 0, s, t) for s, t in [(0, 0), (3, 0), (1, 3)])
+    mdl += struct.pack("<iiii", 1, 0, 1, 2)
+    for number in range(frames):
+        vertices = b"".join(bytes([10 * i + number, 5 * i, 20, i]) for i in range(verts))
+        mdl += struct.pack("<i", 0) + bytes([0, 0, 0, 0, 255, 255, 255, 0]) + f"frame{number}".encode().ljust(16, b"\0") + vertices
+    put("game/quake_mdl", "triangle", mdl)
+
+    # FastTracker 2 module (.xm): the header, a pattern of 4 channels and 4 rows, and an instrument with one 8-bit sample
+    channels, rows = 4, 4
+    order_table = bytes([0]) + bytes(255)
+    xm_header = struct.pack("<HHHHHHHH", 1, 0, channels, 1, 1, 1, 6, 125) + order_table
+    xm = b"Extended Module: " + b"doe sample".ljust(20, b"\0") + b"\x1a" + b"made by hand".ljust(20, b"\0") + bytes([4, 1])
+    xm += struct.pack("<I", 4 + len(xm_header)) + xm_header
+    cells = b"".join(bytes([49 + c if r == 0 else 0, 1 if r == 0 else 0, 0x40 if r == 0 else 0, 0, 0]) for r in range(rows) for c in range(channels))
+    xm += struct.pack("<IBHH", 9, 0, rows, len(cells)) + cells
+    envelope = b"".join(struct.pack("<HH", 8 * i, 64 - 4 * i) for i in range(12))
+    extra = struct.pack("<I", 40) + bytes(96) + envelope + envelope + bytes([4, 2, 1, 0, 3, 0, 0, 1]) + bytes([1, 0, 0, 0, 0, 0]) + struct.pack("<HH", 256, 0)
+    instrument_header = b"sine".ljust(22, b"\0") + bytes([0]) + struct.pack("<H", 1) + extra
+    instrument_header += bytes(20)  # the 20 bytes that the header size of real files holds past what the definition reads
+    sample_data = bytes(((i * 8) & 0xFF) for i in range(32))
+    sample_header = struct.pack("<III", len(sample_data), 0, 0) + bytes([64]) + struct.pack("<b", 0) + bytes([0, 128]) + struct.pack("<b", 0) + bytes([0]) + b"wave".ljust(22, b"\0")
+    xm += struct.pack("<I", 4 + len(instrument_header)) + instrument_header + sample_header + sample_data
+    put("media/tracker_modules/fasttracker_xm_module", "one_pattern", xm)
+
+    # Scream Tracker 3 module (.s3m): the header, channels, orders, pointers in paragraphs of 16 bytes, an instrument, a pattern, a sample
+    def paragraphs(blob):
+        return blob + bytes(-len(blob) % 16)
+
+    head_len = 64 + 32 + 4 + 2 + 2 + 32
+    instrument_at = (head_len + 15) // 16
+    sample = bytes((i * 4) & 0xFF for i in range(64))
+    # a note on channel 0, the end of the row (a zero byte), a note with an effect on channel 1, the end of the row
+    pattern_cells = bytes([0x20 | 0, 60, 1, 0]) + bytes([0xA0 | 1, 64, 1, 3, 0x0C, 0])
+    pattern = struct.pack("<H", 2 + len(pattern_cells)) + pattern_cells
+    pattern_at = instrument_at + 5
+    sample_at = pattern_at + (len(pattern) + 15) // 16
+    instrument = bytes([1]) + b"sample.raw".ljust(12, b"\0") + bytes([0]) + struct.pack("<H", sample_at) + struct.pack("<III", len(sample), 0, 0) + bytes([64, 0, 0, 0]) + struct.pack("<I", 8363) + bytes(12) + b"a sample".ljust(28, b"\0") + b"SCRS"
+    assert len(instrument) == 80, len(instrument)
+    s3m = b"doe module".ljust(28, b"\0") + b"\x1a" + bytes([16]) + bytes(2) + struct.pack("<HHHHHH", 4, 1, 1, 0, 0x1300, 2) + b"SCRM"
+    s3m += bytes([64, 6, 125, 0x80 | 48, 0, 252]) + bytes(8) + struct.pack("<H", 0)
+    assert len(s3m) == 64, len(s3m)
+    s3m += bytes([0, 8] + [255] * 30)  # channels: the first is on the left, the second on the right, the rest are off
+    s3m += bytes([0, 1, 254, 255])  # orders
+    s3m += struct.pack("<H", instrument_at) + struct.pack("<H", pattern_at)
+    s3m += bytes(0x20 | 3 if i < 2 else 0 for i in range(32))  # channel pans
+    s3m = paragraphs(s3m) + paragraphs(instrument) + paragraphs(pattern) + sample
+    put("media/tracker_modules/s3m", "one_pattern", s3m)
+
+    # QuickTime / MP4 (ISO 14496-12): atoms of (size, type, body): a file type, the movie with a header and a track, free space, data
+    def atom(kind, body):
+        return struct.pack(">I", 8 + len(body)) + kind + body
+
+    matrix = struct.pack(">9I", 0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000)
+    mvhd = atom(b"mvhd", bytes(4) + struct.pack(">IIII", 3_700_000_000, 3_700_000_001, 1000, 5000) + struct.pack(">IH", 0x10000, 0x0100) + bytes(10) + matrix + bytes(24) + struct.pack(">I", 2))
+    tkhd = atom(b"tkhd", bytes([0, 0, 0, 3]) + struct.pack(">IIIIIQ", 3_700_000_000, 3_700_000_001, 1, 0, 5000, 0) + struct.pack(">hhhH", 0, 0, 0x0100, 0) + matrix + struct.pack(">II", 320 << 16, 240 << 16))
+    track = atom(b"trak", tkhd + atom(b"mdia", atom(b"minf", atom(b"stbl", b""))))
+    movie = atom(b"moov", mvhd + track)
+    put(
+        "media/quicktime_mov",
+        "movie",
+        atom(b"ftyp", b"isom" + struct.pack(">I", 512) + b"isomiso2mp41") + movie + atom(b"free", bytes(16)) + atom(b"mdat", b"media data " * 8),
+    )
+
+    # Blender file (.blend): a header, blocks of 24 bytes of header and a body, the DNA of the structures, and ENDB
+    def block(code, body, sdna=0, count=1):
+        return code + struct.pack("<I", len(body)) + struct.pack("<Q", 0x7F0000001000 + len(body)) + struct.pack("<II", sdna, count) + body
+
+    names = [b"x", b"y", b"*next", b"name[64]"]
+    types = [b"int", b"char", b"Vec", b"Link"]
+    lengths = [4, 1, 8, 8 + 64]
+
+    def pad(blob):
+        return blob + bytes(-len(blob) % 4)
+
+    dna = b"SDNA" + b"NAME" + struct.pack("<I", len(names)) + pad(b"".join(n + b"\0" for n in names))
+    dna += b"TYPE" + struct.pack("<I", len(types)) + pad(b"".join(t + b"\0" for t in types))
+    dna += b"TLEN" + pad(struct.pack(f"<{len(lengths)}H", *lengths))
+    structs = [(2, [(0, 0), (0, 1)]), (3, [(3, 2), (1, 3)])]  # Vec { int x; int y; } and Link { Link *next; char name[64]; }
+    dna += b"STRC" + struct.pack("<I", len(structs))
+    for idx_type, fields in structs:
+        dna += struct.pack("<HH", idx_type, len(fields)) + b"".join(struct.pack("<HH", t, n) for t, n in fields)
+    blend = b"BLENDER-v280" + block(b"REND", bytes(16)) + block(b"DATA", struct.pack("<ii", 3, 4), sdna=1, count=1)
+    blend += block(b"DNA1", dna) + block(b"ENDB", b"")
+    put("media/blender_blend", "vec", blend)
+
+    # MCAP (a log of messages, mcap.dev): the magic, a header, a schema, a channel, three messages, the end of the data,
+    # and a footer without a summary
+    def mcap_str(text):
+        return struct.pack("<I", len(text)) + text.encode()
+
+    def mcap_record(op, body):
+        return bytes([op]) + struct.pack("<Q", len(body)) + body
+
+    magic = b"\x89MCAP0\r\n"
+    schema_body = struct.pack("<H", 1) + mcap_str("doe/Point") + mcap_str("jsonschema")
+    schema_data = b'{"type":"object","properties":{"x":{"type":"number"}}}'
+    schema_body += struct.pack("<I", len(schema_data)) + schema_data
+    metadata = mcap_str("frame") + mcap_str("base")
+    channel_body = struct.pack("<HH", 1, 1) + mcap_str("/points") + mcap_str("json") + struct.pack("<I", len(metadata)) + metadata
+    out = magic + mcap_record(0x01, mcap_str("") + mcap_str("doe samples"))
+    out += mcap_record(0x03, schema_body) + mcap_record(0x04, channel_body)
+    for sequence in range(3):
+        out += mcap_record(0x05, struct.pack("<HIQQ", 1, sequence, 1_700_000_000_000_000_000 + sequence, 1_700_000_000_000_000_000 + sequence) + b'{"x":%d}' % sequence)
+    out += mcap_record(0x0F, struct.pack("<I", 0))
+    out += mcap_record(0x02, struct.pack("<QQI", 0, 0, 0)) + magic
+    put("log/mcap", "three_messages", out)
+
+    # hashcat .restore: the version, the working directory, positions, and the command line (an argument on each line)
+    arguments = [b"hashcat", b"-m", b"0", b"hashes.txt", b"words.txt"]
+    restore = struct.pack("<I", 0x0000012C) + b"/home/user/work".ljust(256, b"\0") + struct.pack("<II", 1, 0) + bytes(4)
+    restore += struct.pack("<QI", 123456, len(arguments)) + bytes(12) + b"".join(a + b"\n" for a in arguments)
+    put("log/hashcat_restore", "session", restore)
+
+    # 6502 machine code: fill a screen with spaces, call a routine, add, store and loop (opcodes of the MOS 6502)
+    program = bytes(
+        [0xA2, 0x00, 0xA9, 0x20, 0x9D, 0x00, 0x04, 0xE8, 0xD0, 0xF8]  # LDX #0; LDA #$20; STA $0400,X; INX; BNE
+        + [0x20, 0x20, 0x08]  # JSR $0820
+        + [0x18, 0xA5, 0x10, 0x69, 0x05, 0x85, 0x10]  # CLC; LDA $10; ADC #5; STA $10
+        + [0xA0, 0x03, 0x88, 0xD0, 0xFD]  # LDY #3; DEY; BNE
+        + [0x4C, 0x00, 0x08, 0x60]  # JMP $0800; RTS
+    )
+    put("machine_code/code_6502", "fill_screen", program)
+
     # cramfs: a superblock with the root inode, and directories of inodes (a name is padded to 4 bytes). Only
     # directories: the definition reads every inode as a file and a link as well, which only a directory survives.
     import zlib

@@ -1,0 +1,134 @@
+{
+  "atoms": {
+    "items": [
+      {
+        "atomtype": 1718909296,
+        "body": {
+          "compatiblebrands": [
+            1769172845,
+            1769172786,
+            1836069937
+          ],
+          "majorbrand": 1769172845,
+          "minorversion": "00000200"
+        },
+        "len": 20,
+        "len32": 28
+      },
+      {
+        "atomtype": 1836019574,
+        "body": {
+          "items": [
+            {
+              "atomtype": 1836476516,
+              "body": {
+                "creationtime": 3700000000,
+                "currenttime": 0,
+                "duration": 5000,
+                "flags": "000000",
+                "matrix": "000100000000000000000000000000000001000000000000000000000000000040000000",
+                "modificationtime": 3700000001,
+                "nexttrackid": 2,
+                "postertime": 0,
+                "preferredrate": {
+                  "fracpart": 0,
+                  "intpart": 1
+                },
+                "preferredvolume": {
+                  "fracpart": 0,
+                  "intpart": 1
+                },
+                "previewduration": 0,
+                "previewtime": 0,
+                "reserved1": "00000000000000000000",
+                "selectionduration": 0,
+                "selectiontime": 0,
+                "timescale": 1000,
+                "version": 0
+              },
+              "len": 100,
+              "len32": 108
+            },
+            {
+              "atomtype": 1953653099,
+              "body": {
+                "items": [
+                  {
+                    "atomtype": 1953196132,
+                    "body": {
+                      "alternativegroup": 0,
+                      "creationtime": 3700000000,
+                      "duration": 5000,
+                      "flags": "000003",
+                      "height": {
+                        "fracpart": 0,
+                        "intpart": 240
+                      },
+                      "layer": 0,
+                      "matrix": "000100000000000000000000000000000001000000000000000000000000000040000000",
+                      "modificationtime": 3700000001,
+                      "reserved1": "00000000",
+                      "reserved2": "0000000000000000",
+                      "reserved3": 0,
+                      "trackid": 1,
+                      "version": 0,
+                      "volume": 256,
+                      "width": {
+                        "fracpart": 0,
+                        "intpart": 320
+                      }
+                    },
+                    "len": 84,
+                    "len32": 92
+                  },
+                  {
+                    "atomtype": 1835297121,
+                    "body": {
+                      "items": [
+                        {
+                          "atomtype": 1835626086,
+                          "body": {
+                            "items": [
+                              {
+                                "atomtype": 1937007212,
+                                "body": {
+                                  "items": []
+                                },
+                                "len": 0,
+                                "len32": 8
+                              }
+                            ]
+                          },
+                          "len": 8,
+                          "len32": 16
+                        }
+                      ]
+                    },
+                    "len": 16,
+                    "len32": 24
+                  }
+                ]
+              },
+              "len": 116,
+              "len32": 124
+            }
+          ]
+        },
+        "len": 232,
+        "len32": 240
+      },
+      {
+        "atomtype": 1718773093,
+        "body": "00000000000000000000000000000000",
+        "len": 16,
+        "len32": 24
+      },
+      {
+        "atomtype": 1835295092,
+        "body": "6d656469612064617461206d656469612064617461206d656469612064617461206d656469612064617461206d656469612064617461206d656469612064617461206d656469612064617461206d65646961206461746120",
+        "len": 88,
+        "len32": 96
+      }
+    ]
+  }
+}

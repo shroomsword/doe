@@ -1,0 +1,17 @@
+{
+  "argc": 5,
+  "argv": [
+    "hashcat",
+    "-m",
+    "0",
+    "hashes.txt",
+    "words.txt"
+  ],
+  "currentrestorepoint": 123456,
+  "cwd": "/home/user/work",
+  "dictspos": 1,
+  "maskspos": 0,
+  "padding": "00000000",
+  "padding2": "000000000000000000000000",
+  "version": 300
+}

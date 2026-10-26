@@ -1,0 +1,417 @@
+{
+  "channelpans": [
+    {
+      "hascustompan": true,
+      "pan": 3,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": true,
+      "pan": 3,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    },
+    {
+      "hascustompan": false,
+      "pan": 0,
+      "reserved1": 0,
+      "reserved2": false
+    }
+  ],
+  "channels": [
+    {
+      "chtype": 0,
+      "isdisabled": false
+    },
+    {
+      "chtype": 8,
+      "isdisabled": false
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    },
+    {
+      "chtype": 127,
+      "isdisabled": true
+    }
+  ],
+  "filetype": 16,
+  "flags": 0,
+  "globalvolume": 64,
+  "hascustompan": 252,
+  "initialspeed": 6,
+  "initialtempo": 125,
+  "instruments": [
+    {
+      "body": {
+        "body": {
+          "defaultvolume": 64,
+          "flags": 0,
+          "ispacked": 0,
+          "lensample": 64,
+          "loopbegin": 0,
+          "loopend": 0,
+          "paraptrsample": {
+            "hi": 0,
+            "lo": 15,
+            "value": 15
+          },
+          "reserved1": 0,
+          "sample": "0004080c1014181c2024282c3034383c4044484c5054585c6064686c7074787c8084888c9094989ca0a4a8acb0b4b8bcc0c4c8ccd0d4d8dce0e4e8ecf0f4f8fc"
+        },
+        "filename": "73616d706c652e726177",
+        "magic": "53435253",
+        "reserved2": "000000000000000000000000",
+        "samplename": "612073616d706c65",
+        "tuninghz": 8363,
+        "type": 1
+      },
+      "paraptr": 9
+    }
+  ],
+  "isstereo": true,
+  "magic1": "1a",
+  "magic2": "5343524d",
+  "mastervolume": 48,
+  "numinstruments": 1,
+  "numorders": 4,
+  "numpatterns": 1,
+  "ofsspecial": 0,
+  "orders": "0001feff",
+  "patterns": [
+    {
+      "body": {
+        "body": {
+          "cells": [
+            {
+              "channelnum": 0,
+              "hasfx": false,
+              "hasnoteandinstrument": true,
+              "hasvolume": false,
+              "instrument": 1,
+              "note": 60
+            },
+            {
+              "channelnum": 0,
+              "hasfx": false,
+              "hasnoteandinstrument": false,
+              "hasvolume": false
+            },
+            {
+              "channelnum": 1,
+              "fxtype": 3,
+              "fxvalue": 12,
+              "hasfx": true,
+              "hasnoteandinstrument": true,
+              "hasvolume": false,
+              "instrument": 1,
+              "note": 64
+            },
+            {
+              "channelnum": 0,
+              "hasfx": false,
+              "hasnoteandinstrument": false,
+              "hasvolume": false
+            }
+          ]
+        },
+        "size": 12
+      },
+      "paraptr": 14
+    }
+  ],
+  "reserved1": "0000",
+  "reserved2": "0000000000000000",
+  "samplesformat": 2,
+  "songname": "646f65206d6f64756c65",
+  "ultraclickremoval": 0,
+  "version": 4864
+}

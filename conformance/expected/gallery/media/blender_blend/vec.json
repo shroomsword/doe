@@ -1,0 +1,175 @@
+{
+  "blocks": [
+    {
+      "body": "00000000000000000000000000000000",
+      "code": "REND",
+      "count": 1,
+      "lenbody": 16,
+      "memaddr": "10100000007f0000",
+      "sdnaindex": 0,
+      "sdnastruct": null
+    },
+    {
+      "body": "0300000004000000",
+      "code": "DATA",
+      "count": 1,
+      "lenbody": 8,
+      "memaddr": "08100000007f0000",
+      "sdnaindex": 1,
+      "sdnastruct": {
+        "fields": [
+          {
+            "idxname": 2,
+            "idxtype": 3,
+            "name": "*next",
+            "type": "Link"
+          },
+          {
+            "idxname": 3,
+            "idxtype": 1,
+            "name": "name[64]",
+            "type": "char"
+          }
+        ],
+        "idxtype": 3,
+        "numfields": 2,
+        "type": "Link"
+      }
+    },
+    {
+      "body": {
+        "id": "53444e41",
+        "lengths": [
+          4,
+          1,
+          8,
+          72
+        ],
+        "namemagic": "4e414d45",
+        "names": [
+          "x",
+          "y",
+          "*next",
+          "name[64]"
+        ],
+        "numnames": 4,
+        "numstructs": 2,
+        "numtypes": 4,
+        "padding1": "00",
+        "padding2": "0000",
+        "padding3": "",
+        "strcmagic": "53545243",
+        "structs": [
+          {
+            "fields": [
+              {
+                "idxname": 0,
+                "idxtype": 0,
+                "name": "x",
+                "type": "int"
+              },
+              {
+                "idxname": 1,
+                "idxtype": 0,
+                "name": "y",
+                "type": "int"
+              }
+            ],
+            "idxtype": 2,
+            "numfields": 2,
+            "type": "Vec"
+          },
+          {
+            "fields": [
+              {
+                "idxname": 2,
+                "idxtype": 3,
+                "name": "*next",
+                "type": "Link"
+              },
+              {
+                "idxname": 3,
+                "idxtype": 1,
+                "name": "name[64]",
+                "type": "char"
+              }
+            ],
+            "idxtype": 3,
+            "numfields": 2,
+            "type": "Link"
+          }
+        ],
+        "tlenmagic": "544c454e",
+        "typemagic": "54595045",
+        "types": [
+          "int",
+          "char",
+          "Vec",
+          "Link"
+        ]
+      },
+      "code": "DNA1",
+      "count": 1,
+      "lenbody": 104,
+      "memaddr": "68100000007f0000",
+      "sdnaindex": 0,
+      "sdnastruct": null
+    },
+    {
+      "body": "",
+      "code": "ENDB",
+      "count": 1,
+      "lenbody": 0,
+      "memaddr": "00100000007f0000",
+      "sdnaindex": 0,
+      "sdnastruct": null
+    }
+  ],
+  "hdr": {
+    "endian": 118,
+    "magic": "424c454e444552",
+    "psize": 8,
+    "ptrsizeid": 45,
+    "version": "280"
+  },
+  "sdnastructs": [
+    {
+      "fields": [
+        {
+          "idxname": 0,
+          "idxtype": 0,
+          "name": "x",
+          "type": "int"
+        },
+        {
+          "idxname": 1,
+          "idxtype": 0,
+          "name": "y",
+          "type": "int"
+        }
+      ],
+      "idxtype": 2,
+      "numfields": 2,
+      "type": "Vec"
+    },
+    {
+      "fields": [
+        {
+          "idxname": 2,
+          "idxtype": 3,
+          "name": "*next",
+          "type": "Link"
+        },
+        {
+          "idxname": 3,
+          "idxtype": 1,
+          "name": "name[64]",
+          "type": "char"
+        }
+      ],
+      "idxtype": 3,
+      "numfields": 2,
+      "type": "Link"
+    }
+  ]
+}

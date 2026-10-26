@@ -755,7 +755,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 10 with a file written by its own tool, 92 with a file built by hand, 3 failing on a file, 9 part of another, 76 without a sample
+> 190 definitions: 10 with a file written by its own tool, 102 with a file built by hand, 4 failing on a file, 9 part of another, 65 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -776,12 +776,13 @@ and compared with the reference compiler's output:
 | `filesystem` | `amlogic_emmc_partitions`, `apm_partition_table`, `cramfs`, `gpt_partition_table`, `mbr_partition_table`, `zx_spectrum_tap` |
 | `firmware` | `broadcom_trx`, `ines`, `uf2`, `uimage` |
 | `font` | `grub2_font` |
-| `game` | `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake_pak` |
+| `game` | `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake2_md2`, `quake_mdl`, `quake_pak` |
 | `geospatial` | `shapefile_index` |
 | `hardware` | `dtb` |
-| `image` | `bmp`, `gif`, `gimp_brush`, `ico`, `jpeg`, `pcx`, `pcx_dcx`, `png`, `psx_tim`, `tga`, `xwd` |
-| `log` | `aix_utmp`, `glibc_utmp`, `sudoers_ts` |
-| `media` | `au`, `avi`, `creative_voice_file`, `id3v1_1`, `id3v2_3`, `id3v2_4`, `magicavoxel_vox`, `ogg`, `standard_midi_file`, `stl`, `wav` |
+| `image` | `bmp`, `gif`, `gimp_brush`, `ico`, `jpeg`, `pcx`, `pcx_dcx`, `png`, `psx_tim`, `tga`, `wmf`, `xwd` |
+| `log` | `aix_utmp`, `glibc_utmp`, `hashcat_restore`, `sudoers_ts` |
+| `machine_code` | `code_6502` |
+| `media` | `au`, `avi`, `blender_blend`, `creative_voice_file`, `genmidi_op2`, `id3v1_1`, `id3v2_3`, `id3v2_4`, `magicavoxel_vox`, `ogg`, `quicktime_mov`, `standard_midi_file`, `stl`, `tracker_modules/fasttracker_xm_module`, `tracker_modules/s3m`, `wav` |
 | `network` | `bitcoin_transaction`, `dime_message`, `dns_packet`, `ethernet_frame`, `hccap`, `hccapx`, `icmp_packet`, `ipv4_packet`, `ipv6_packet`, `microsoft_network_monitor_v2`, `pcap`, `rtp_packet`, `rtpdump`, `some_ip/some_ip`, `some_ip/some_ip_container`, `some_ip/some_ip_sd`, `tcp_segment`, `tls_client_hello`, `udp_datagram`, `websocket` |
 | `scientific` | `spectroscopy/avantes_roh60` |
 | `security` | `efivar_signature_list`, `ssh_public_key` |
@@ -789,14 +790,16 @@ and compared with the reference compiler's output:
 | `windows` | `windows_lnk_file`, `windows_shell_items` |
 <!-- gallery-formats:end -->
 
-Three formats have a file that `doe` does not read yet, and their rows say
+Four formats have a file that `doe` does not read yet, and their rows say
 `failing` (their files are not in the suite until each is fixed):
 `filesystem/iso9660`, a file written by `genisoimage` that `doe` does not finish
 reading ([#150](https://github.com/shroomsword/doe/issues/150)); `executable/uefi_te`,
 which needs `_io` as a member of a value
 ([#154](https://github.com/shroomsword/doe/issues/154)); and `executable/mach_o_fat`,
 whose imported `mach_o` compares `_root.magic` of the fat file
-([#155](https://github.com/shroomsword/doe/issues/155)).
+([#155](https://github.com/shroomsword/doe/issues/155)); and `log/mcap`, whose
+`ofs_footer` needs the sizes of fields of the footer it places
+([#160](https://github.com/shroomsword/doe/issues/160)).
 
 A file is never made up to fit `doe`: the files built by hand follow the format's
 specification and are checked against the reference compiler, and a format
@@ -1070,8 +1073,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 154 samples of the Kaitai gallery
-in the tests, 58 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 165 samples of the Kaitai gallery
+in the tests, 64 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 
