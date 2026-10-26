@@ -323,7 +323,9 @@ gallery!(
     gallery_executable_mach_o = "gallery/executable/mach_o",
     gallery_executable_microsoft_pe = "gallery/executable/microsoft_pe",
     gallery_executable_swf = "gallery/executable/swf",
+    gallery_filesystem_amlogic_emmc_partitions = "gallery/filesystem/amlogic_emmc_partitions",
     gallery_filesystem_apm_partition_table = "gallery/filesystem/apm_partition_table",
+    gallery_filesystem_cramfs = "gallery/filesystem/cramfs",
     gallery_filesystem_gpt_partition_table = "gallery/filesystem/gpt_partition_table",
     gallery_filesystem_mbr_partition_table = "gallery/filesystem/mbr_partition_table",
     gallery_filesystem_zx_spectrum_tap = "gallery/filesystem/zx_spectrum_tap",
@@ -331,6 +333,7 @@ gallery!(
     gallery_firmware_ines = "gallery/firmware/ines",
     gallery_firmware_uf2 = "gallery/firmware/uf2",
     gallery_firmware_uimage = "gallery/firmware/uimage",
+    gallery_font_grub2_font = "gallery/font/grub2_font",
     gallery_game_doom_wad = "gallery/game/doom_wad",
     gallery_game_dune_2_pak = "gallery/game/dune_2_pak",
     gallery_game_fallout2_dat = "gallery/game/fallout2_dat",
@@ -399,6 +402,8 @@ gallery!(
     gallery_serialization_msgpack = "gallery/serialization/msgpack",
     gallery_serialization_php_serialized_value = "gallery/serialization/php_serialized_value",
     gallery_serialization_python_pickle = "gallery/serialization/python_pickle",
+    gallery_windows_windows_lnk_file = "gallery/windows/windows_lnk_file",
+    gallery_windows_windows_shell_items = "gallery/windows/windows_shell_items",
 );
 
 // ── the trace ────────────────────────────────────────────────────────────────

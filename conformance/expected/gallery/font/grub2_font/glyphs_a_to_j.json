@@ -1,0 +1,210 @@
+{
+  "magic": "46494c450000000450464632",
+  "sections": [
+    {
+      "body": {
+        "fontname": "doe sample Regular 8"
+      },
+      "lenbody": 21,
+      "sectiontype": "NAME"
+    },
+    {
+      "body": {
+        "fontfamilyname": "doe sample"
+      },
+      "lenbody": 11,
+      "sectiontype": "FAMI"
+    },
+    {
+      "body": {
+        "fontweight": "normal"
+      },
+      "lenbody": 7,
+      "sectiontype": "WEIG"
+    },
+    {
+      "body": {
+        "fontslant": "normal"
+      },
+      "lenbody": 7,
+      "sectiontype": "SLAN"
+    },
+    {
+      "body": {
+        "fontpointsize": 8
+      },
+      "lenbody": 2,
+      "sectiontype": "PTSZ"
+    },
+    {
+      "body": {
+        "maximumcharacterwidth": 5
+      },
+      "lenbody": 2,
+      "sectiontype": "MAXW"
+    },
+    {
+      "body": {
+        "maximumcharacterheight": 6
+      },
+      "lenbody": 2,
+      "sectiontype": "MAXH"
+    },
+    {
+      "body": {
+        "ascentinpixels": 6
+      },
+      "lenbody": 2,
+      "sectiontype": "ASCE"
+    },
+    {
+      "body": {
+        "descentinpixels": 1
+      },
+      "lenbody": 2,
+      "sectiontype": "DESC"
+    },
+    {
+      "body": {
+        "characters": [
+          {
+            "codepoint": 65,
+            "definition": {
+              "bitmapdata": "2314a744",
+              "devicewidth": 5,
+              "height": 6,
+              "width": 5,
+              "xoffset": 0,
+              "yoffset": 0
+            },
+            "flags": 0,
+            "ofsdefinition": 246
+          },
+          {
+            "codepoint": 66,
+            "definition": {
+              "bitmapdata": "f6ebc0",
+              "devicewidth": 5,
+              "height": 6,
+              "width": 3,
+              "xoffset": 1,
+              "yoffset": 0
+            },
+            "flags": 0,
+            "ofsdefinition": 260
+          },
+          {
+            "codepoint": 67,
+            "definition": {
+              "bitmapdata": "f249c0",
+              "devicewidth": 5,
+              "height": 6,
+              "width": 3,
+              "xoffset": 1,
+              "yoffset": 0
+            },
+            "flags": 0,
+            "ofsdefinition": 273
+          },
+          {
+            "codepoint": 68,
+            "definition": {
+              "bitmapdata": "d6db80",
+              "devicewidth": 5,
+              "height": 6,
+              "width": 3,
+              "xoffset": 1,
+              "yoffset": 0
+            },
+            "flags": 0,
+            "ofsdefinition": 286
+          },
+          {
+            "codepoint": 69,
+            "definition": {
+              "bitmapdata": "f279c0",
+              "devicewidth": 5,
+              "height": 6,
+              "width": 3,
+              "xoffset": 1,
+              "yoffset": 0
+            },
+            "flags": 0,
+            "ofsdefinition": 299
+          },
+          {
+            "codepoint": 70,
+            "definition": {
+              "bitmapdata": "f27900",
+              "devicewidth": 5,
+              "height": 6,
+              "width": 3,
+              "xoffset": 1,
+              "yoffset": 0
+            },
+            "flags": 0,
+            "ofsdefinition": 312
+          },
+          {
+            "codepoint": 71,
+            "definition": {
+              "bitmapdata": "748957",
+              "devicewidth": 5,
+              "height": 6,
+              "width": 4,
+              "xoffset": 0,
+              "yoffset": 0
+            },
+            "flags": 0,
+            "ofsdefinition": 325
+          },
+          {
+            "codepoint": 72,
+            "definition": {
+              "bitmapdata": "b6fb40",
+              "devicewidth": 5,
+              "height": 6,
+              "width": 3,
+              "xoffset": 1,
+              "yoffset": 0
+            },
+            "flags": 0,
+            "ofsdefinition": 338
+          },
+          {
+            "codepoint": 73,
+            "definition": {
+              "bitmapdata": "e925c0",
+              "devicewidth": 5,
+              "height": 6,
+              "width": 3,
+              "xoffset": 1,
+              "yoffset": 0
+            },
+            "flags": 0,
+            "ofsdefinition": 351
+          },
+          {
+            "codepoint": 74,
+            "definition": {
+              "bitmapdata": "71111e",
+              "devicewidth": 5,
+              "height": 6,
+              "width": 4,
+              "xoffset": 0,
+              "yoffset": 0
+            },
+            "flags": 0,
+            "ofsdefinition": 364
+          }
+        ]
+      },
+      "lenbody": 90,
+      "sectiontype": "CHIX"
+    },
+    {
+      "lenbody": 4294967295,
+      "sectiontype": "DATA"
+    }
+  ]
+}

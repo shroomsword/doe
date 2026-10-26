@@ -1343,6 +1343,83 @@ def executable():
     )
 
 
+# ── windows and other small ones ─────────────────────────────────────────────
+
+def small():
+    # Windows shell item list (ITEMIDLIST of a shortcut): a root folder, a drive, a directory and a file, ended by a zero length
+    def item(code, body):
+        data = bytes([code]) + body
+        return struct.pack("<H", len(data) + 2) + data
+
+    computer = bytes.fromhex("e04fd020ea3a6910a2d808002b30309d")  # My Computer
+    shell_items = (
+        item(0x1F, bytes([0x50]) + computer)
+        + item(0x2F, b"C:\\" + bytes(19))
+        + item(0x31, bytes([0]) + struct.pack("<IIH", 0, 0x58A31B20, 0x10) + b"Users\0")
+        + item(0x32, bytes([0]) + struct.pack("<IIH", 1234, 0x58A31B21, 0x20) + b"notes.txt\0")
+        + struct.pack("<H", 0)
+    )
+    put("windows/windows_shell_items", "path", shell_items)
+
+    # Windows shortcut (.lnk, MS-SHLLINK): the header, the item list of the target, the link info and the strings
+    flags = 0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
+    header = struct.pack("<I", 0x4C) + bytes([0x01, 0x14, 0x02, 0, 0, 0, 0, 0, 0xC0, 0, 0, 0, 0, 0, 0, 0x46])
+    header += struct.pack("<IIQQQIiIH", flags, 0x20, 132000000000000000, 132000000000000000, 132000000000000000, 1234, 0, 1, 0) + bytes(10)
+    assert len(header) == 76, len(header)
+    id_list = shell_items
+    # the volume label is in UTF-16 (offset 0x14): the reference runtime cannot decode the code page 437 of the ANSI one
+    label = "Windows\0".encode("utf-16-le")
+    volume = struct.pack("<IIIII", 20 + len(label), 3, 0x1234ABCD, 0x14, 0x14) + label
+    local_path = b"C:\\Users\\notes.txt\0"
+    suffix = b"\0"
+    link_info_header = 28
+    link_info = struct.pack(
+        "<IIIIIII", link_info_header + len(volume) + len(local_path) + len(suffix), link_info_header, 1,
+        link_info_header, link_info_header + len(volume), 0, link_info_header + len(volume) + len(local_path),
+    ) + volume + local_path + suffix
+
+    def lnk_string(text):
+        return struct.pack("<H", len(text)) + text.encode("utf-16-le")
+
+    lnk = (
+        header + struct.pack("<H", len(id_list)) + id_list + link_info
+        + lnk_string("A shortcut") + lnk_string("..\\notes.txt") + lnk_string("C:\\Users") + lnk_string("--open") + lnk_string("%SystemRoot%\\system32\\SHELL32.dll")
+    )
+    put("windows/windows_lnk_file", "notes", lnk)
+
+    # cramfs: a superblock with the root inode, and directories of inodes (a name is padded to 4 bytes). Only
+    # directories: the definition reads every inode as a file and a link as well, which only a directory survives.
+    import zlib
+
+    def inode(mode, size, name, offset):
+        padded = name.encode().ljust((len(name) + 3) // 4 * 4, b"\0")
+        return struct.pack("<HHII", mode, 0, size, ((offset // 4) << 6) | (len(padded) // 4)) + padded
+
+    dir_mode = 0o40755
+    lib = inode(dir_mode, 0, "lib", 0)
+    etc = inode(dir_mode, 0, "etc", 0)
+    usr_offset = 76 + len(etc) + 16
+    usr = inode(dir_mode, len(lib), "usr", 108)
+    assert usr_offset == 108
+    root_data = etc + usr
+    superblock = (
+        struct.pack("<IIII", 0x28CD3D45, 76 + len(root_data) + len(lib), 0, 0) + b"Compressed ROMFS"
+        + struct.pack("<IIII", 0, 1, 0, 4) + b"doe".ljust(16, b"\0")
+        + inode(dir_mode, len(root_data), "", 76)
+    )
+    image = superblock + root_data + lib
+    image = image[:32] + struct.pack("<I", zlib.crc32(image[:32] + bytes(4) + image[36:])) + image[36:]
+    put("filesystem/cramfs", "empty_directories", image)
+
+    # Amlogic eMMC partition table: "MPT", a version, the number of partitions, a checksum, and 40 bytes for each
+    def partition(name, size, offset, flags):
+        return name.encode().ljust(16, b"\0") + struct.pack("<QQ", size, offset) + struct.pack("<I", flags) + bytes(4)
+
+    parts = [("bootloader", 4 << 20, 0, 1), ("reserved", 64 << 20, 36 << 20, 1), ("cache", 512 << 20, 108 << 20, 2), ("data", 4 << 30, 636 << 20, 4)]
+    table = b"".join(partition(*p) for p in parts)
+    put("filesystem/amlogic_emmc_partitions", "four", b"MPT\0" + b"01.00.00".ljust(12, b"\0") + struct.pack("<iI", len(parts), sum(table) & 0xFFFFFFFF) + table)
+
+
 # ── scientific, geospatial, database, security ──────────────────────────────
 
 def others():
@@ -1436,6 +1513,7 @@ def others():
 
 
 SECTIONS = {
+    "small": small,
     "others": others,
     "network": network, "media": media, "image": image, "serialization": serialization, "game": game, "filesystem": filesystem,
     "firmware": firmware, "hardware": hardware, "log": log, "archive": archive, "executable": executable,
