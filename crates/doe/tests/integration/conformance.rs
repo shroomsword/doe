@@ -290,18 +290,8 @@ macro_rules! gallery {
                     }
                 }
             }
-            // the formats that doe does not read yet have samples and no test: they
-            // are listed as `failing`, with their issue, in gallery_samples.tsv
-            let table = std::fs::read_to_string(conformance_dir().join("gallery_samples.tsv"))
-                .expect("the table of the gallery");
-            let failing: Vec<String> = table
-                .lines()
-                .filter_map(|line| {
-                    let mut cells = line.split('\t');
-                    let name = cells.next()?;
-                    (cells.next()? == "failing").then(|| format!("gallery/{name}"))
-                })
-                .collect();
+            // the formats that doe does not read yet have samples and no test
+            let failing = failing_gallery_formats();
             with_samples.retain(|name| !failing.contains(name));
             with_samples.sort();
             let mut tested = vec![$($path.to_owned()),*];
@@ -337,6 +327,7 @@ gallery!(
 /// Every format that has samples: those of `formats/` and the gallery ones.
 fn formats_with_samples() -> Vec<String> {
     let samples_dir = conformance_dir().join("samples");
+    let failing = failing_gallery_formats();
     let mut formats = Vec::new();
     for entry in std::fs::read_dir(&samples_dir)
         .expect("samples exists")
@@ -347,22 +338,48 @@ fn formats_with_samples() -> Vec<String> {
             formats.push(name);
             continue;
         }
-        for dir in std::fs::read_dir(entry.path())
-            .expect("gallery samples")
-            .flatten()
-        {
-            let dir_name = dir.file_name().into_string().expect("UTF-8");
-            for format in std::fs::read_dir(dir.path())
-                .expect("gallery dir")
-                .flatten()
-            {
-                let format_name = format.file_name().into_string().expect("UTF-8");
-                formats.push(format!("gallery/{dir_name}/{format_name}"));
+        // a directory of samples is the one that has .bin files: the gallery
+        // has formats at different depths (security/ssh_public_key, serialization/asn1/asn1_der)
+        let mut stack = vec![(entry.path(), String::from("gallery"))];
+        while let Some((dir, prefix)) = stack.pop() {
+            for child in std::fs::read_dir(&dir).expect("gallery dir").flatten() {
+                let child_name = child.file_name().into_string().expect("UTF-8");
+                if !child.path().is_dir() {
+                    continue;
+                }
+                let path = format!("{prefix}/{child_name}");
+                let has_bins = std::fs::read_dir(child.path())
+                    .expect("a directory")
+                    .flatten()
+                    .any(|f| f.file_name().to_string_lossy().ends_with(".bin"));
+                if has_bins {
+                    if !failing.contains(&path) {
+                        formats.push(path);
+                    }
+                } else {
+                    stack.push((child.path(), path));
+                }
             }
         }
     }
     formats.sort();
     formats
+}
+
+/// The gallery formats that doe does not read yet (`failing` in
+/// `gallery_samples.tsv`, each with its issue), as `gallery/<path>`: they have
+/// samples, and no test until they are fixed.
+fn failing_gallery_formats() -> Vec<String> {
+    let table = std::fs::read_to_string(conformance_dir().join("gallery_samples.tsv"))
+        .expect("the table of the gallery");
+    table
+        .lines()
+        .filter_map(|line| {
+            let mut cells = line.split('\t');
+            let name = cells.next()?;
+            (cells.next()? == "failing").then(|| format!("gallery/{name}"))
+        })
+        .collect()
 }
 
 /// The spans of a tree lie in the input, in order, and a node's children that
