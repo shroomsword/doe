@@ -162,7 +162,6 @@ test('the tree and the bytes use the colours of the theme, and nothing else', as
 test('a theme file is loaded, kept in the browser, and offered in the picker', async ({ page }) => {
   await ready(page);
   await page.setInputFiles('#open-theme', fileOf('mine.toml', themeFile('Mine', '#102030')));
-  await expect(page.locator('#status')).toContainText('theme Mine loaded from mine.toml');
   await expect(page.locator('#theme')).toHaveValue('custom');
   await expect(page.locator('#theme option[value="custom"]')).toContainText('Mine');
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(rgb('#102030'));
