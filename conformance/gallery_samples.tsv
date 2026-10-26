@@ -28,9 +28,9 @@ common/utf8_string	none	-	-	-	made to be imported by other definitions; none of 
 common/vlq_base128_be	part-of	-	-	-	imported by database/sqlite3, media/standard_midi_file
 common/vlq_base128_le	part-of	-	-	-	imported by executable/dex, serialization/google_protobuf
 database/dbf	crafted	database/dbf	built by make_gallery_samples.py	MIT (this repository)	
-database/gettext_mo	none	-	-	-	
+database/gettext_mo	crafted	database/gettext_mo	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 database/sqlite3	none	-	-	-	left out of the conformance suite on purpose: the definition reads every column as a string, which only works in the reference's JavaScript runtime (see the README)
-database/tsm	none	-	-	-	
+database/tsm	crafted	database/tsm	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/android_nanoapp_header	crafted	executable/android_nanoapp_header	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/dex	none	-	-	-	
 executable/dos_mz	crafted	executable/dos_mz	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -85,7 +85,7 @@ game/quake_pak	crafted	game/quake_pak	built by make_samples_by_hand.py from the 
 game/renderware_binary_stream	none	-	-	-	
 game/saints_row_2_vpp_pc	none	-	-	-	
 game/warcraft_2_pud	none	-	-	-	
-geospatial/shapefile_index	none	-	-	-	
+geospatial/shapefile_index	crafted	geospatial/shapefile_index	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 geospatial/shapefile_main	none	-	-	-	
 hardware/dtb	crafted	hardware/dtb	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 hardware/edid	none	-	-	-	
@@ -169,9 +169,9 @@ network/udp_datagram	crafted	network/udp_datagram	built by make_samples_by_hand.
 network/websocket	crafted	network/websocket	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 scientific/nt_mdt/nt_mdt	none	-	-	-	
 scientific/nt_mdt/nt_mdt_pal	none	-	-	-	
-scientific/spectroscopy/avantes_roh60	none	-	-	-	
+scientific/spectroscopy/avantes_roh60	crafted	scientific/spectroscopy/avantes_roh60	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 scientific/spectroscopy/specpr	none	-	-	-	
-security/efivar_signature_list	none	-	-	-	
+security/efivar_signature_list	crafted	security/efivar_signature_list	built by make_samples_by_hand.py from the format's documentation (the certificate is the openssl one of the asn1_der sample)	MIT (this repository)	
 security/openpgp_message	none	-	-	-	
 security/ssh_public_key	real	security/ssh_public_key	ssh-keygen, run by make_real_samples.py (the key as the base64 of the .pub file holds it)	MIT (this repository)	ed25519, rsa 2048 and ecdsa 256 keys made for the samples
 serialization/asn1/asn1_der	real	serialization/asn1/asn1_der	openssl, run by make_real_samples.py	MIT (this repository)	a self-signed certificate and a request, with a key made for the samples

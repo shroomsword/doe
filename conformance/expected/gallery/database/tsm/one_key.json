@@ -1,0 +1,39 @@
+{
+  "header": {
+    "magic": "16d116d1",
+    "version": 1
+  },
+  "index": {
+    "entries": [
+      {
+        "entrycount": 2,
+        "indexentries": [
+          {
+            "block": {
+              "crc32": 1004404644,
+              "data": "000102030405060708090a0b0c0d0e0f10111213"
+            },
+            "blockoffset": 5,
+            "blocksize": 24,
+            "maxtime": 2000000000,
+            "mintime": 1000000000
+          },
+          {
+            "block": {
+              "crc32": 3311820632,
+              "data": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d"
+            },
+            "blockoffset": 29,
+            "blocksize": 34,
+            "maxtime": 3000000000,
+            "mintime": 2000000001
+          }
+        ],
+        "key": "cpu,host=a#!~#usage",
+        "keylen": 19,
+        "type": 0
+      }
+    ],
+    "offset": 63
+  }
+}

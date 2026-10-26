@@ -1,0 +1,96 @@
+{
+  "mo": {
+    "hashtableitems": [
+      {
+        "issystemdependent": false,
+        "mask": 2147483648,
+        "rawval": 1,
+        "val": 0,
+        "val1": 0
+      },
+      {
+        "issystemdependent": false,
+        "mask": 2147483648,
+        "rawval": 2,
+        "val": 1,
+        "val1": 1
+      },
+      {
+        "issystemdependent": null,
+        "mask": 2147483648,
+        "rawval": 0,
+        "val": null,
+        "val1": null
+      },
+      {
+        "issystemdependent": false,
+        "mask": 2147483648,
+        "rawval": 3,
+        "val": 2,
+        "val1": 2
+      },
+      {
+        "issystemdependent": false,
+        "mask": 2147483648,
+        "rawval": 4,
+        "val": 3,
+        "val1": 3
+      }
+    ],
+    "numhashtableitems": 5,
+    "numtranslations": 4,
+    "ofshashtableitems": 92,
+    "ofsoriginals": 28,
+    "ofstranslations": 60,
+    "originals": [
+      {
+        "lenstr": 0,
+        "ofsstr": 112,
+        "str": ""
+      },
+      {
+        "lenstr": 7,
+        "ofsstr": 113,
+        "str": "Goodbye"
+      },
+      {
+        "lenstr": 5,
+        "ofsstr": 121,
+        "str": "Hello"
+      },
+      {
+        "lenstr": 3,
+        "ofsstr": 127,
+        "str": "Yes"
+      }
+    ],
+    "translations": [
+      {
+        "lenstr": 64,
+        "ofsstr": 131,
+        "str": "Project-Id-Version: doe\nContent-Type: text/plain; charset=UTF-8\n"
+      },
+      {
+        "lenstr": 9,
+        "ofsstr": 196,
+        "str": "Au revoir"
+      },
+      {
+        "lenstr": 7,
+        "ofsstr": 206,
+        "str": "Bonjour"
+      },
+      {
+        "lenstr": 3,
+        "ofsstr": 214,
+        "str": "Oui"
+      }
+    ],
+    "version": {
+      "major": 0,
+      "minor": 0,
+      "versionraw": 0
+    }
+  },
+  "signature": "de120495"
+}

@@ -7,6 +7,7 @@ one row for each definition of the submodule, and what file it is tested with.
     python3 conformance/gallery_table.py --mark STATUS SOURCE NOTE FORMAT...
                                                    # fill the rows of formats that now have samples
     python3 conformance/gallery_table.py --readme  # write the table of formats into the README
+    python3 conformance/gallery_table.py --tests   # write the list of tests of conformance.rs
 
 The columns are tab-separated:
 
@@ -174,7 +175,24 @@ def update_readme():
     readme.write_text(text[:begin] + readme_block(read_table()) + text[end:], encoding="utf-8")
 
 
+def update_tests():
+    """Write the list of tests of conformance.rs: one for each row that is real or crafted."""
+    path = HERE.parent / "crates" / "doe" / "tests" / "integration" / "conformance.rs"
+    text = path.read_text(encoding="utf-8")
+    start = text.index("gallery!(\n")
+    end = text.index("\n);", start)
+    lines = ["gallery!("]
+    for name, cells in sorted(read_table().items()):
+        if cells[1] in ("real", "crafted"):
+            lines.append(f'    gallery_{name.replace("/", "_")} = "gallery/{name}",')
+    path.write_text(text[:start] + "\n".join(lines) + text[end:], encoding="utf-8")
+    print(f"{len(lines) - 1} tests")
+
+
 def main():
+    if sys.argv[1:2] == ["--tests"]:
+        update_tests()
+        return
     if sys.argv[1:2] == ["--readme"]:
         update_readme()
         return
