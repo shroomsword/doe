@@ -202,7 +202,10 @@ fn readme_block(rows: &BTreeMap<String, Row>) -> String {
 #[test]
 fn the_formats_that_are_tested_are_in_the_readme() {
     let rows = table();
-    let readme = std::fs::read_to_string(conformance_dir().join("../README.md")).unwrap();
+    // on Windows the checkout has CRLF line ends
+    let readme = std::fs::read_to_string(conformance_dir().join("../README.md"))
+        .unwrap()
+        .replace("\r\n", "\n");
     let block = readme_block(&rows);
     assert!(
         readme.contains(&block),
