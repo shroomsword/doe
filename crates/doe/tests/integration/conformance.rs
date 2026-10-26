@@ -290,6 +290,19 @@ macro_rules! gallery {
                     }
                 }
             }
+            // the formats that doe does not read yet have samples and no test: they
+            // are listed as `failing`, with their issue, in gallery_samples.tsv
+            let table = std::fs::read_to_string(conformance_dir().join("gallery_samples.tsv"))
+                .expect("the table of the gallery");
+            let failing: Vec<String> = table
+                .lines()
+                .filter_map(|line| {
+                    let mut cells = line.split('\t');
+                    let name = cells.next()?;
+                    (cells.next()? == "failing").then(|| format!("gallery/{name}"))
+                })
+                .collect();
+            with_samples.retain(|name| !failing.contains(name));
             with_samples.sort();
             let mut tested = vec![$($path.to_owned()),*];
             tested.sort();
@@ -299,6 +312,7 @@ macro_rules! gallery {
 }
 
 gallery!(
+    gallery_archive_cpio_old_le = "gallery/archive/cpio_old_le",
     gallery_archive_gzip = "gallery/archive/gzip",
     gallery_archive_zip = "gallery/archive/zip",
     gallery_database_dbf = "gallery/database/dbf",
@@ -313,6 +327,9 @@ gallery!(
     gallery_media_wav = "gallery/media/wav",
     gallery_network_ethernet_frame = "gallery/network/ethernet_frame",
     gallery_network_pcap = "gallery/network/pcap",
+    gallery_security_ssh_public_key = "gallery/security/ssh_public_key",
+    gallery_serialization_asn1_asn1_der = "gallery/serialization/asn1/asn1_der",
+    gallery_serialization_python_pickle = "gallery/serialization/python_pickle",
 );
 
 // ── the trace ────────────────────────────────────────────────────────────────

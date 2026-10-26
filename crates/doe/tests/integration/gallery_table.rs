@@ -82,10 +82,11 @@ fn has_samples(dir: &Path) -> bool {
 fn summary(rows: &BTreeMap<String, Row>) -> String {
     let count = |status: &str| rows.values().filter(|r| r.status == status).count();
     format!(
-        "{} definitions: {} with a file written by its own tool, {} with a file built by hand, {} part of another, {} without a sample",
+        "{} definitions: {} with a file written by its own tool, {} with a file built by hand, {} failing on a file, {} part of another, {} without a sample",
         rows.len(),
         count("real"),
         count("crafted"),
+        count("failing"),
         count("part-of"),
         count("none"),
     )
@@ -114,7 +115,7 @@ fn a_row_says_what_it_is_tested_with_and_where_the_files_come_from() {
     let rows = table();
     for (format, row) in &rows {
         match row.status.as_str() {
-            "real" | "crafted" => {
+            "real" | "crafted" | "failing" => {
                 assert_eq!(
                     row.sample, *format,
                     "{format}: the samples are in the directory of the format"
@@ -144,7 +145,9 @@ fn a_row_says_what_it_is_tested_with_and_where_the_files_come_from() {
                 row.sample, "-",
                 "{format}: a row without a sample names none"
             ),
-            other => panic!("{format}: `{other}` is not a status (real, crafted, part-of, none)"),
+            other => panic!(
+                "{format}: `{other}` is not a status (real, crafted, failing, part-of, none)"
+            ),
         }
     }
     // every directory of samples has its row
@@ -161,8 +164,8 @@ fn a_row_says_what_it_is_tested_with_and_where_the_files_come_from() {
                     .get(&path)
                     .unwrap_or_else(|| panic!("samples/gallery/{path} has no row"));
                 assert!(
-                    matches!(row.status.as_str(), "real" | "crafted"),
-                    "{path}: it has samples, so it is real or crafted"
+                    matches!(row.status.as_str(), "real" | "crafted" | "failing"),
+                    "{path}: it has samples, so it is real, crafted or failing"
                 );
             } else {
                 stack.push((entry.path(), format!("{path}/")));

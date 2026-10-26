@@ -95,6 +95,20 @@ function galleryFormats() {
   return found;
 }
 
+// The gallery definitions that doe does not read yet (status `failing` in
+// gallery_samples.tsv, with the issue). They have samples, but no reference
+// output is made for them: the reference's own dump may not finish either.
+function failingFormats() {
+  const table = path.join(root, 'gallery_samples.tsv');
+  if (!fs.existsSync(table)) return new Set();
+  const failing = new Set();
+  for (const line of fs.readFileSync(table, 'utf8').split(/\r?\n/).slice(1)) {
+    const [name, status] = line.split('\t');
+    if (name && status === 'failing') failing.add(`${galleryPrefix}/${name}`);
+  }
+  return failing;
+}
+
 function className(id) {
   return id
     .split('_')
@@ -106,7 +120,9 @@ async function main() {
   fs.rmSync(generatedDir, { recursive: true, force: true });
   fs.mkdirSync(generatedDir, { recursive: true });
   const only = process.argv[2];
+  const failing = failingFormats();
   const formats = [...listFormats(formatsDir, ''), ...galleryFormats()]
+    .filter((name) => !failing.has(name))
     .filter((name) => !only || name === only)
     .sort();
   if (formats.length === 0) throw new Error('no formats found');

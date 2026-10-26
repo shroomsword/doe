@@ -1,0 +1,19 @@
+{
+  "body": {
+    "keylength": 2048,
+    "rsae": {
+      "body": "010001",
+      "len": 3,
+      "lengthinbits": 16
+    },
+    "rsan": {
+      "body": "00d0ac6728dbe3650d52c1b79bda605a42a5c3f79c3ea5697165b51b111f1deffe01283aed36fe426a3abc3a5593de2ec8ade84a834f58a16ad01ff25fd0be1192a6438b63211f16e17cd7e3bead4a294936cf2f8d4415fb0776ed47b60155915ea1df6e57d7005bf75b6e964b2d9ef21fbe672058e403c7f12807311b568bcd27d2fa97f343ae41e794ca03c8e518e33684fb10b689062b60fc8d622128a73c807442dea6aa9673e3f53b7d212ea82cdaff325d9a2b317043f21b73734fea76b195fa86cab1b2a164900f3c75ee2eb4631073c765127c340d206a6be18614e7b37637151ce7ab9f585eead130b4d38b7488a2591d54080942380e28920e16e5ef",
+      "len": 257,
+      "lengthinbits": 2048
+    }
+  },
+  "keyname": {
+    "len": 7,
+    "value": "ssh-rsa"
+  }
+}

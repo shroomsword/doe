@@ -752,10 +752,12 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 4 with a file written by its own tool, 10 with a file built by hand, 5 part of another, 171 without a sample
+> 190 definitions: 8 with a file written by its own tool, 10 with a file built by hand, 1 failing on a file, 5 part of another, 166 without a sample
 
-The first kind are written by the tool that normally makes the format (the
-`gzip` and `zip` modules of Python, the C compiler for ELF, `clang` for Mach-O);
+The first kind are written by the tool that normally makes the format
+(`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
+`gzip`, `zip` and `pickle` modules of Python, the C compiler for ELF, `clang` for
+Mach-O, `cpio`, `ssh-keygen`, `openssl`);
 the second are valid files that `conformance/make_gallery_samples.py` builds byte
 by byte, so they show that `doe` reads the format as the reference compiler does,
 not that it reads files from the world. Both are parsed by the conformance suite
@@ -763,12 +765,18 @@ and compared with the reference compiler's output:
 
 | Directory | Formats |
 | --- | --- |
-| `archive` | `gzip`, `zip` |
+| `archive` | `cpio_old_le`, `gzip`, `zip` |
 | `database` | `dbf` |
 | `executable` | `elf`, `java_class`, `mach_o`, `microsoft_pe` |
 | `image` | `bmp`, `gif`, `jpeg`, `png` |
 | `media` | `wav` |
 | `network` | `ethernet_frame` (with `ipv4_packet`, `tcp_segment`, `udp_datagram` and the other formats it imports), `pcap` |
+| `security` | `ssh_public_key` |
+| `serialization` | `python_pickle`, `asn1/asn1_der` |
+
+`filesystem/iso9660` has a file written by `genisoimage` that `doe` does not finish
+reading ([#150](https://github.com/shroomsword/doe/issues/150)); its row says
+`failing`, and its file is not in the suite until that is fixed.
 
 A file is never made up to fit `doe`: a format without one says so in the table,
 and is a task for whoever has a real file of it.
@@ -1040,9 +1048,10 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 24 samples of the Kaitai gallery
-in the tests, 16 are found with their own schema, and the rest need their
-name or `--detect all`; a test keeps that number from falling.
+the file are compared with signatures. Of the 34 samples of the Kaitai gallery
+in the tests, 17 are found with their own schema (the formats whose signature is
+read from the schema), and the rest need their name or `--detect all`; a test
+keeps that number from falling.
 
 In the web IDE, *Detect schema* in the header does the same for the opened file
 among the formats of the gallery: the page has each format's signature and names
