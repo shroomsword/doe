@@ -67,6 +67,7 @@ Found while making samples for the gallery; the samples keep clear of them, and
 - It reads bit fields of 32 bits at most (`readBitsIntBe: the maximum supported
   bit length is 32`), so the `decimal128` of `bson`, whose definition reads a
   49-bit field, is left out of the sample.
+- It cannot read the padding of `id3v2_4` (`size: _root.tag.header.size.value - _io.pos`: `_root.tag` is not yet assigned while the tag is being read), so that sample has a footer and no padding.
 - Its dump of a format whose instances point at each other (`iso9660`: the `.`
   entry of a directory is the directory) overflows the stack, so that format has no
   reference output (see `gallery_samples.tsv`).

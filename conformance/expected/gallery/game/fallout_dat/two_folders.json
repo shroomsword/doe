@@ -1,0 +1,67 @@
+{
+  "foldercount": 2,
+  "foldernames": [
+    {
+      "size": 4,
+      "str": "DATA"
+    },
+    {
+      "size": 3,
+      "str": "ART"
+    }
+  ],
+  "folders": [
+    {
+      "filecount": 2,
+      "files": [
+        {
+          "contents": "66697273742066696c65",
+          "flags": 32,
+          "name": {
+            "size": 5,
+            "str": "A.TXT"
+          },
+          "offset": 123,
+          "sizepacked": 10,
+          "sizeunpacked": 10
+        },
+        {
+          "contents": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d",
+          "flags": 32,
+          "name": {
+            "size": 5,
+            "str": "B.BIN"
+          },
+          "offset": 133,
+          "sizepacked": 30,
+          "sizeunpacked": 30
+        }
+      ],
+      "flags": 16,
+      "timestamp": 1700000000,
+      "unknown": 0
+    },
+    {
+      "filecount": 1,
+      "files": [
+        {
+          "contents": "7468697264",
+          "flags": 32,
+          "name": {
+            "size": 5,
+            "str": "C.FRM"
+          },
+          "offset": 163,
+          "sizepacked": 5,
+          "sizeunpacked": 5
+        }
+      ],
+      "flags": 16,
+      "timestamp": 1700000000,
+      "unknown": 0
+    }
+  ],
+  "timestamp": 1700000000,
+  "unknown1": 0,
+  "unknown2": 0
+}

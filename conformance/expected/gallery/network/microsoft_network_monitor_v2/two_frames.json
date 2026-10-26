@@ -1,0 +1,131 @@
+{
+  "commentlen": 0,
+  "commentofs": 0,
+  "conversationstatslen": 0,
+  "conversationstatsofs": 0,
+  "frametable": {
+    "entries": [
+      {
+        "body": {
+          "body": {
+            "body": {
+              "b1": 69,
+              "b2": 0,
+              "b67": 16384,
+              "body": {
+                "body": {
+                  "acknum": 2000,
+                  "body": "474554202f20485454502f312e300d0a0d0a",
+                  "checksum": 0,
+                  "dataoffset": 5,
+                  "dstport": 80,
+                  "flags": {
+                    "ack": true,
+                    "cwr": false,
+                    "ece": false,
+                    "fin": false,
+                    "psh": true,
+                    "rst": false,
+                    "syn": false,
+                    "urg": false
+                  },
+                  "reserved": 0,
+                  "seqnum": 1000,
+                  "srcport": 40000,
+                  "urgentpointer": 0,
+                  "windowsize": 8192
+                },
+                "protocol": 6
+              },
+              "dstipaddr": "0a000002",
+              "headerchecksum": 0,
+              "identification": 4660,
+              "ihl": 5,
+              "ihlbytes": 20,
+              "options": {
+                "entries": []
+              },
+              "protocol": 6,
+              "srcipaddr": "0a000001",
+              "totallength": 58,
+              "ttl": 64,
+              "version": 4
+            },
+            "dstmac": "0a0b0c0d0e0f",
+            "ethertype": 2048,
+            "ethertype1": 2048,
+            "srcmac": "010203040506"
+          },
+          "inclen": 72,
+          "origlen": 72,
+          "tsdelta": 0
+        },
+        "ofs": 72
+      },
+      {
+        "body": {
+          "body": {
+            "body": {
+              "b1": 69,
+              "b2": 0,
+              "b67": 16384,
+              "body": {
+                "body": {
+                  "body": "7175657279",
+                  "checksum": 0,
+                  "dstport": 53,
+                  "length": 13,
+                  "srcport": 5353
+                },
+                "protocol": 17
+              },
+              "dstipaddr": "0a000002",
+              "headerchecksum": 0,
+              "identification": 4660,
+              "ihl": 5,
+              "ihlbytes": 20,
+              "options": {
+                "entries": []
+              },
+              "protocol": 17,
+              "srcipaddr": "0a000001",
+              "totallength": 33,
+              "ttl": 64,
+              "version": 4
+            },
+            "dstmac": "0a0b0c0d0e0f",
+            "ethertype": 2048,
+            "ethertype1": 2048,
+            "srcmac": "010203040506"
+          },
+          "inclen": 47,
+          "origlen": 47,
+          "tsdelta": 1500
+        },
+        "ofs": 160
+      }
+    ]
+  },
+  "frametablelen": 8,
+  "frametableofs": 223,
+  "mactype": 1,
+  "networkinfolen": 0,
+  "networkinfoofs": 0,
+  "signature": "474d4255",
+  "statisticslen": 0,
+  "statisticsofs": 0,
+  "timecapturestart": {
+    "day": 6,
+    "dow": 1,
+    "hour": 12,
+    "min": 30,
+    "month": 5,
+    "msec": 250,
+    "sec": 15,
+    "year": 2024
+  },
+  "userdatalen": 0,
+  "userdataofs": 0,
+  "versionmajor": 2,
+  "versionminor": 0
+}

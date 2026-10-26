@@ -1,0 +1,27 @@
+{
+  "files": [
+    {
+      "meta": {
+        "body": "3c612f3e",
+        "filename": "data/a.xml",
+        "lenfile": 4,
+        "lenfilename": 10
+      },
+      "ofsmeta": 16
+    },
+    {
+      "meta": {
+        "body": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031",
+        "filename": "img/b.png",
+        "lenfile": 50,
+        "lenfilename": 9
+      },
+      "ofsmeta": 38
+    },
+    {
+      "meta": null,
+      "ofsmeta": 0
+    }
+  ],
+  "numfiles": 3
+}

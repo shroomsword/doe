@@ -1,0 +1,14 @@
+{
+  "bpp": 2,
+  "flags": 2,
+  "hasclut": false,
+  "img": {
+    "body": "007ce0031f00ff7f007ce0031f00ff7f",
+    "height": 2,
+    "len": 28,
+    "originx": 640,
+    "originy": 0,
+    "width": 4
+  },
+  "magic": "10000000"
+}

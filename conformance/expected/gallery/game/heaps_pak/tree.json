@@ -1,0 +1,63 @@
+{
+  "header": {
+    "lendata": 52,
+    "lenheader": 77,
+    "magic1": "50414b",
+    "magic2": "44415441",
+    "rootentry": {
+      "body": {
+        "entries": [
+          {
+            "body": {
+              "checksum": "31b52b45",
+              "data": "68656c6c6f2068656170730a",
+              "lendata": 12,
+              "ofsdata": 0
+            },
+            "flags": {
+              "isdir": false,
+              "unused": 0
+            },
+            "lenname": 10,
+            "name": "readme.txt"
+          },
+          {
+            "body": {
+              "entries": [
+                {
+                  "body": {
+                    "checksum": "3c2ea60d",
+                    "data": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627",
+                    "lendata": 40,
+                    "ofsdata": 12
+                  },
+                  "flags": {
+                    "isdir": false,
+                    "unused": 0
+                  },
+                  "lenname": 8,
+                  "name": "data.bin"
+                }
+              ],
+              "numentries": 1
+            },
+            "flags": {
+              "isdir": true,
+              "unused": 0
+            },
+            "lenname": 3,
+            "name": "sub"
+          }
+        ],
+        "numentries": 2
+      },
+      "flags": {
+        "isdir": true,
+        "unused": 0
+      },
+      "lenname": 0,
+      "name": ""
+    },
+    "version": 0
+  }
+}

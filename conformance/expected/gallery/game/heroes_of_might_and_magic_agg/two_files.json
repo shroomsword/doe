@@ -1,0 +1,27 @@
+{
+  "entries": [
+    {
+      "body": "00000200020001020304",
+      "hash": 4096,
+      "offset": 30,
+      "size": 10,
+      "size2": 10
+    },
+    {
+      "body": "74657874206f662074776f",
+      "hash": 4097,
+      "offset": 40,
+      "size": 11,
+      "size2": 11
+    }
+  ],
+  "filenames": [
+    {
+      "str": "ONE.BMP"
+    },
+    {
+      "str": "TWO.TXT"
+    }
+  ],
+  "numfiles": 2
+}

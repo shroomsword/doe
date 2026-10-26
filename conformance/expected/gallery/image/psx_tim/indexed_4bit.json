@@ -1,0 +1,22 @@
+{
+  "bpp": 0,
+  "clut": {
+    "body": "000021044208630c8410a514c618e71c082129254a296b2d8c31ad35ce39ef3d",
+    "height": 1,
+    "len": 44,
+    "originx": 0,
+    "originy": 480,
+    "width": 16
+  },
+  "flags": 8,
+  "hasclut": true,
+  "img": {
+    "body": "1032547698badcfe",
+    "height": 2,
+    "len": 20,
+    "originx": 640,
+    "originy": 256,
+    "width": 2
+  },
+  "magic": "10000000"
+}
