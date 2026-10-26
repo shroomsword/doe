@@ -755,12 +755,12 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 9 with a file written by its own tool, 88 with a file built by hand, 3 failing on a file, 9 part of another, 81 without a sample
+> 190 definitions: 10 with a file written by its own tool, 92 with a file built by hand, 3 failing on a file, 9 part of another, 76 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
 `gzip`, `zip` and `pickle` modules of Python, the C compiler for ELF, `clang` for
-Mach-O, `cpio`, `ssh-keygen`, `openssl`);
+Mach-O, `cpio`, `ssh-keygen`, `openssl`, `grub-mkfont`, and glibc for `utmp`);
 the second are valid files that `conformance/make_gallery_samples.py` and
 `conformance/make_samples_by_hand.py` build byte by byte, from the specification
 of the format (the RFC, the format's documentation) and not from the definition, so they show that `doe` reads the format as the reference compiler does,
@@ -773,8 +773,9 @@ and compared with the reference compiler's output:
 | `archive` | `android_bootldr_asus`, `android_bootldr_huawei`, `android_bootldr_qcom`, `android_dto`, `android_img`, `android_sparse`, `cpio_old_le`, `gzip`, `mozilla_mar`, `respack`, `zip` |
 | `database` | `dbf`, `gettext_mo`, `tsm` |
 | `executable` | `android_nanoapp_header`, `dos_mz`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `swf` |
-| `filesystem` | `apm_partition_table`, `gpt_partition_table`, `mbr_partition_table`, `zx_spectrum_tap` |
+| `filesystem` | `amlogic_emmc_partitions`, `apm_partition_table`, `cramfs`, `gpt_partition_table`, `mbr_partition_table`, `zx_spectrum_tap` |
 | `firmware` | `broadcom_trx`, `ines`, `uf2`, `uimage` |
+| `font` | `grub2_font` |
 | `game` | `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake_pak` |
 | `geospatial` | `shapefile_index` |
 | `hardware` | `dtb` |
@@ -785,6 +786,7 @@ and compared with the reference compiler's output:
 | `scientific` | `spectroscopy/avantes_roh60` |
 | `security` | `efivar_signature_list`, `ssh_public_key` |
 | `serialization` | `asn1/asn1_der`, `bson`, `chrome_pak`, `google_protobuf`, `msgpack`, `php_serialized_value`, `python_pickle` |
+| `windows` | `windows_lnk_file`, `windows_shell_items` |
 <!-- gallery-formats:end -->
 
 Three formats have a file that `doe` does not read yet, and their rows say
@@ -1068,8 +1070,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 149 samples of the Kaitai gallery
-in the tests, 55 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 154 samples of the Kaitai gallery
+in the tests, 58 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 

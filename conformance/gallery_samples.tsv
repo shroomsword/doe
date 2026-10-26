@@ -42,12 +42,12 @@ executable/microsoft_pe	crafted	executable/microsoft_pe	built by make_gallery_sa
 executable/python_pyc_27	none	-	-	-	
 executable/swf	crafted	executable/swf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/uefi_te	failing	executable/uefi_te	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	cannot be read: _io as a member of a value is not known (#154)
-filesystem/amlogic_emmc_partitions	none	-	-	-	
+filesystem/amlogic_emmc_partitions	crafted	filesystem/amlogic_emmc_partitions	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/android_super	none	-	-	-	
 filesystem/apm_partition_table	crafted	filesystem/apm_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/apple_single_double	none	-	-	-	
 filesystem/btrfs_stream	none	-	-	-	
-filesystem/cramfs	none	-	-	-	
+filesystem/cramfs	crafted	filesystem/cramfs	built by make_samples_by_hand.py from the format's documentation (directories only, what the definition reads)	MIT (this repository)	
 filesystem/ext2	none	-	-	-	
 filesystem/gpt_partition_table	crafted	filesystem/gpt_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/iso9660	failing	filesystem/iso9660	genisoimage, run by make_real_samples.py	MIT (this repository)	does not finish: #150
@@ -65,7 +65,7 @@ firmware/broadcom_trx	crafted	firmware/broadcom_trx	built by make_samples_by_han
 firmware/ines	crafted	firmware/ines	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 firmware/uf2	crafted	firmware/uf2	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 firmware/uimage	crafted	firmware/uimage	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-font/grub2_font	none	-	-	-	
+font/grub2_font	real	font/grub2_font	grub-mkfont, run by make_real_samples.py (ten glyphs of DejaVu Sans Mono)	MIT (this repository) for the script; the glyphs are DejaVu Sans Mono, Bitstream Vera licence, shared under another name	
 font/pcf_font	none	-	-	-	
 font/ttf	none	-	-	-	
 game/allegro_dat	none	-	-	-	
@@ -184,8 +184,8 @@ serialization/php_serialized_value	crafted	serialization/php_serialized_value	bu
 serialization/python_pickle	real	serialization/python_pickle	pickle of Python, run by make_real_samples.py	MIT (this repository)	protocols 0, 2 and 4; the text in protocol 0 is ASCII, because Python writes it as Latin-1 and doe, by design, refuses a byte that is not ASCII in an ascii string (the reference does not)
 serialization/ruby_marshal	none	-	-	-	
 windows/regf	none	-	-	-	
-windows/windows_lnk_file	none	-	-	-	
+windows/windows_lnk_file	crafted	windows/windows_lnk_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_minidump	none	-	-	-	
 windows/windows_resource_file	none	-	-	-	
-windows/windows_shell_items	none	-	-	-	
+windows/windows_shell_items	crafted	windows/windows_shell_items	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_systemtime	part-of	-	-	-	imported by network/microsoft_network_monitor_v2, whose sample has a start time

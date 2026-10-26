@@ -117,6 +117,17 @@ def make_iso():
         put("filesystem/iso9660", "small", image.read_bytes())
 
 
+# ── GRUB font ────────────────────────────────────────────────────────────────
+# grub-mkfont makes the PFF2 file from a TrueType font: ten glyphs (A to J) of DejaVu Sans Mono at 8 points. The
+# font has the Bitstream Vera licence, which lets a derived font be shared under another name ("doe sample").
+def make_grub_font():
+    font = Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "font.pf2"
+        run(["grub-mkfont", "-s", "8", "-r", "0x41-0x4a", "--name", "doe sample", "-o", str(out), str(font)])
+        put("font/grub2_font", "glyphs_a_to_j", out.read_bytes())
+
+
 # ── utmp ─────────────────────────────────────────────────────────────────────
 # glibc writes the file: utmpxname and pututxline of the C library, called through ctypes.
 def make_utmp():

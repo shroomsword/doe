@@ -1,0 +1,132 @@
+{
+  "arguments": {
+    "charsstr": 6,
+    "str": "--open"
+  },
+  "header": {
+    "fileattrs": 32,
+    "flags": {
+      "hasarguments": true,
+      "hasiconlocation": true,
+      "haslinkinfo": true,
+      "haslinktargetidlist": true,
+      "hasname": true,
+      "hasrelpath": true,
+      "hasworkdir": true,
+      "isunicode": true,
+      "keeplocalidlistforunctarget": false,
+      "reserved": 0
+    },
+    "hotkey": 0,
+    "iconindex": 0,
+    "lenheader": "4c000000",
+    "linkclsid": "0114020000000000c000000000000046",
+    "reserved": "00000000000000000000",
+    "showcommand": 1,
+    "targetfilesize": 1234,
+    "timeaccess": 132000000000000000,
+    "timecreation": 132000000000000000,
+    "timewrite": 132000000000000000
+  },
+  "iconlocation": {
+    "charsstr": 33,
+    "str": "%SystemRoot%\\system32\\SHELL32.dll"
+  },
+  "info": {
+    "all": {
+      "header": {
+        "flags": {
+          "hascommonnetrellink": false,
+          "hasvolumeidandlocalbasepath": true,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "ofscommonnetrellink": 0,
+        "ofscommonpathsuffix": 83,
+        "ofslocalbasepath": 64,
+        "ofsvolumeid": 28
+      },
+      "lenheader": 28,
+      "localbasepath": "433a5c55736572735c6e6f7465732e747874",
+      "volumeid": {
+        "body": {
+          "driveserialnumber": 305441741,
+          "drivetype": 3,
+          "isunicode": true,
+          "ofsvolumelabel": 20,
+          "ofsvolumelabelunicode": 20,
+          "volumelabelansi": null
+        },
+        "lenall": 36
+      }
+    },
+    "lenall": 84
+  },
+  "name": {
+    "charsstr": 10,
+    "str": "A shortcut"
+  },
+  "relpath": {
+    "charsstr": 12,
+    "str": "..\\notes.txt"
+  },
+  "targetidlist": {
+    "idlist": {
+      "items": [
+        {
+          "data": {
+            "body1": {
+              "shellfolderid": "e04fd020ea3a6910a2d808002b30309d",
+              "sortindex": 80
+            },
+            "code": 31
+          },
+          "lendata": 20
+        },
+        {
+          "data": {
+            "body2": {
+              "flags": 67
+            },
+            "code": 47
+          },
+          "lendata": 25
+        },
+        {
+          "data": {
+            "body2": {
+              "fileattrs": 16,
+              "filesize": 0,
+              "isdir": true,
+              "isfile": false,
+              "lastmodtime": 1487084320
+            },
+            "code": 49
+          },
+          "lendata": 20
+        },
+        {
+          "data": {
+            "body2": {
+              "fileattrs": 32,
+              "filesize": 1234,
+              "isdir": false,
+              "isfile": true,
+              "lastmodtime": 1487084321
+            },
+            "code": 50
+          },
+          "lendata": 24
+        },
+        {
+          "lendata": 0
+        }
+      ]
+    },
+    "lenidlist": 91
+  },
+  "workdir": {
+    "charsstr": 8,
+    "str": "C:\\Users"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "items": [
+    {
+      "data": {
+        "body1": {
+          "shellfolderid": "e04fd020ea3a6910a2d808002b30309d",
+          "sortindex": 80
+        },
+        "code": 31
+      },
+      "lendata": 20
+    },
+    {
+      "data": {
+        "body2": {
+          "flags": 67
+        },
+        "code": 47
+      },
+      "lendata": 25
+    },
+    {
+      "data": {
+        "body2": {
+          "fileattrs": 16,
+          "filesize": 0,
+          "isdir": true,
+          "isfile": false,
+          "lastmodtime": 1487084320
+        },
+        "code": 49
+      },
+      "lendata": 20
+    },
+    {
+      "data": {
+        "body2": {
+          "fileattrs": 32,
+          "filesize": 1234,
+          "isdir": false,
+          "isfile": true,
+          "lastmodtime": 1487084321
+        },
+        "code": 50
+      },
+      "lendata": 24
+    },
+    {
+      "lendata": 0
+    }
+  ]
+}

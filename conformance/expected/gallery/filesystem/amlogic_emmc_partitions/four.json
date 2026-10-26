@@ -1,0 +1,52 @@
+{
+  "checksum": 3445,
+  "magic": "4d505400",
+  "numpartitions": 4,
+  "partitions": [
+    {
+      "flags": {
+        "iscache": false,
+        "iscode": true,
+        "isdata": false
+      },
+      "name": "bootloader",
+      "offset": 0,
+      "padding": "00000000",
+      "size": 4194304
+    },
+    {
+      "flags": {
+        "iscache": false,
+        "iscode": true,
+        "isdata": false
+      },
+      "name": "reserved",
+      "offset": 37748736,
+      "padding": "00000000",
+      "size": 67108864
+    },
+    {
+      "flags": {
+        "iscache": true,
+        "iscode": false,
+        "isdata": false
+      },
+      "name": "cache",
+      "offset": 113246208,
+      "padding": "00000000",
+      "size": 536870912
+    },
+    {
+      "flags": {
+        "iscache": false,
+        "iscode": false,
+        "isdata": true
+      },
+      "name": "data",
+      "offset": 666894336,
+      "padding": "00000000",
+      "size": 4294967296
+    }
+  ],
+  "version": "01.00.00"
+}
