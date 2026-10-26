@@ -1,0 +1,32 @@
+{
+  "images": [
+    {
+      "bpp": 32,
+      "height": 2,
+      "img": "89504e470d0a1a0a0000000d494844520000000200000002080600000072b60d240000001349444154789c63f8cfc0f01f0c8134083400004949097828a0db770000000049454e44ae426082",
+      "ispng": true,
+      "lenimg": 76,
+      "numcolors": 0,
+      "numplanes": 1,
+      "ofsimg": 38,
+      "pngheader": "89504e470d0a1a0a",
+      "reserved": "00",
+      "width": 2
+    },
+    {
+      "bpp": 32,
+      "height": 2,
+      "img": "28000000020000000400000001002000000000000000000000000000000000000000000000000000ff0000ffffffff800000ffff00ff00ff0000000000000000",
+      "ispng": false,
+      "lenimg": 64,
+      "numcolors": 0,
+      "numplanes": 1,
+      "ofsimg": 114,
+      "pngheader": "2800000002000000",
+      "reserved": "00",
+      "width": 2
+    }
+  ],
+  "magic": "00000100",
+  "numimages": 2
+}

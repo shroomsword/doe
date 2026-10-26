@@ -1,0 +1,195 @@
+{
+  "index": [
+    {
+      "contents": "",
+      "name": "E1M1",
+      "offset": 12,
+      "size": 0
+    },
+    {
+      "contents": {
+        "entries": [
+          {
+            "angle": 90,
+            "flags": 7,
+            "type": 1,
+            "x": 128,
+            "y": 128
+          },
+          {
+            "angle": 0,
+            "flags": 7,
+            "type": 2001,
+            "x": 64,
+            "y": 64
+          }
+        ]
+      },
+      "name": "THINGS",
+      "offset": 12,
+      "size": 20
+    },
+    {
+      "contents": {
+        "entries": [
+          {
+            "flags": 1,
+            "linetype": 0,
+            "sectortag": 0,
+            "sidedefleftidx": 65535,
+            "sidedefrightidx": 0,
+            "vertexendidx": 1,
+            "vertexstartidx": 0
+          },
+          {
+            "flags": 1,
+            "linetype": 0,
+            "sectortag": 0,
+            "sidedefleftidx": 65535,
+            "sidedefrightidx": 1,
+            "vertexendidx": 2,
+            "vertexstartidx": 1
+          },
+          {
+            "flags": 1,
+            "linetype": 0,
+            "sectortag": 0,
+            "sidedefleftidx": 65535,
+            "sidedefrightidx": 2,
+            "vertexendidx": 3,
+            "vertexstartidx": 2
+          },
+          {
+            "flags": 1,
+            "linetype": 0,
+            "sectortag": 0,
+            "sidedefleftidx": 65535,
+            "sidedefrightidx": 3,
+            "vertexendidx": 0,
+            "vertexstartidx": 3
+          }
+        ]
+      },
+      "name": "LINEDEFS",
+      "offset": 32,
+      "size": 56
+    },
+    {
+      "contents": {
+        "entries": [
+          {
+            "lowertexturename": "-\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+            "normaltexturename": "STARTAN3",
+            "offsetx": 0,
+            "offsety": 0,
+            "sectorid": 0,
+            "uppertexturename": "-\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+          },
+          {
+            "lowertexturename": "-\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+            "normaltexturename": "STARTAN3",
+            "offsetx": 0,
+            "offsety": 0,
+            "sectorid": 0,
+            "uppertexturename": "-\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+          },
+          {
+            "lowertexturename": "-\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+            "normaltexturename": "STARTAN3",
+            "offsetx": 0,
+            "offsety": 0,
+            "sectorid": 0,
+            "uppertexturename": "-\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+          },
+          {
+            "lowertexturename": "-\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+            "normaltexturename": "STARTAN3",
+            "offsetx": 0,
+            "offsety": 0,
+            "sectorid": 0,
+            "uppertexturename": "-\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+          }
+        ]
+      },
+      "name": "SIDEDEFS",
+      "offset": 88,
+      "size": 120
+    },
+    {
+      "contents": {
+        "entries": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 256,
+            "y": 0
+          },
+          {
+            "x": 256,
+            "y": 256
+          },
+          {
+            "x": 0,
+            "y": 256
+          }
+        ]
+      },
+      "name": "VERTEXES",
+      "offset": 208,
+      "size": 16
+    },
+    {
+      "contents": {
+        "entries": [
+          {
+            "ceilflat": "CEIL3_5\u0000",
+            "ceilz": 128,
+            "floorflat": "FLOOR4_8",
+            "floorz": 0,
+            "light": 160,
+            "specialtype": 0,
+            "tag": 0
+          }
+        ]
+      },
+      "name": "SECTORS",
+      "offset": 224,
+      "size": 26
+    },
+    {
+      "contents": {
+        "linedefsinblock": [
+          {
+            "linedefs": [
+              0,
+              0,
+              1,
+              2,
+              3,
+              -1
+            ],
+            "offset": 5
+          }
+        ],
+        "numcols": 1,
+        "numrows": 1,
+        "originx": 0,
+        "originy": 0
+      },
+      "name": "BLOCKMAP",
+      "offset": 250,
+      "size": 22
+    },
+    {
+      "contents": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f",
+      "name": "PLAYPAL",
+      "offset": 272,
+      "size": 48
+    }
+  ],
+  "indexoffset": 320,
+  "magic": "IWAD",
+  "numindexentries": 8
+}

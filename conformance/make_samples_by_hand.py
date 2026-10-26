@@ -292,7 +292,642 @@ def network():
     put("network/bitcoin_transaction", "signed", struct.pack("<IB", 1, 1) + vin + bytes([2]) + vouts + struct.pack("<I", 0))
 
 
-SECTIONS = {"network": network}
+# ── media ────────────────────────────────────────────────────────────────────
+
+def media():
+    # Sun/NeXT audio (.au): the header is 24 bytes and a comment, then the samples
+    def au(encoding, rate, channels, data, comment=b"doe sample\0", unknown_size=False):
+        comment = comment + b"\0" * (-len(comment) % 4)
+        size = 0xFFFFFFFF if unknown_size else len(data)
+        return b".snd" + struct.pack(">IIIII", 24 + len(comment), size, encoding, rate, channels) + comment + data
+
+    samples16 = b"".join(struct.pack(">h", int(12000 * ((i % 8) - 3.5) / 3.5)) for i in range(64))
+    put("media/au", "linear16", au(3, 8000, 1, samples16))
+    put("media/au", "mulaw_unknown_size", au(1, 8000, 1, bytes(range(0, 255, 4)), unknown_size=True))
+    put("media/au", "stereo_no_comment", au(3, 44100, 2, samples16, comment=b""))
+
+    # ID3v1.1 tag at the end of an MP3: one silent MPEG-1 Layer III frame (128 kbit/s, 44.1 kHz: 417 bytes)
+    frame = b"\xff\xfb\x90\x64" + bytes(413)
+    tag = b"TAG" + b"doe sample".ljust(30, b"\0") + b"the doe authors".ljust(30, b"\0") + b"samples".ljust(30, b"\0") + b"2024" + b"made for the tests".ljust(30, b"\0") + bytes([13])
+    put("media/id3v1_1", "silent_frame", frame * 3 + tag)
+
+    # Creative Voice File: a header, then blocks; the terminator has no size
+    def block(kind, body):
+        return bytes([kind]) + struct.pack("<I", len(body))[:3] + body
+
+    voc = b"Creative Voice File\x1a" + struct.pack("<HHH", 26, 0x010A, ~0x010A + 0x1234 & 0xFFFF)
+    voc += block(1, bytes([156, 0]) + bytes(range(64)))  # sound data: 8-bit PCM at 1000000 / (256 - 156) = 10 kHz
+    voc += block(3, struct.pack("<HB", 1000, 156))  # silence
+    voc += block(4, struct.pack("<H", 7))  # marker
+    voc += block(6, struct.pack("<H", 2))  # repeat start
+    voc += block(7, b"")  # repeat end
+    voc += block(5, b"a text block\0")
+    voc += block(8, struct.pack("<HBB", 65536 - 64, 0, 0))  # extra info
+    voc += block(1, bytes([156, 0]) + bytes(16))
+    voc += block(9, struct.pack("<IBBH", 22050, 16, 1, 4) + bytes(4) + bytes(64))  # sound data, new format
+    voc += b"\x00"  # terminator
+    put("media/creative_voice_file", "blocks", voc)
+
+    # binary STL: 80 header bytes, a count, 50 bytes a triangle (a tetrahedron)
+    points = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)]
+    faces = [(0, 2, 1), (0, 1, 3), (0, 3, 2), (1, 2, 3)]
+    triangles = b""
+    for a, b, c in faces:
+        pa, pb, pc = points[a], points[b], points[c]
+        u = [pb[i] - pa[i] for i in range(3)]
+        v = [pc[i] - pa[i] for i in range(3)]
+        n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]
+        length = sum(x * x for x in n) ** 0.5
+        n = [x / length for x in n]
+        triangles += struct.pack("<12fH", *n, *pa, *pb, *pc, 0)
+    put("media/stl", "tetrahedron", b"binary STL made for the tests".ljust(80, b" ") + struct.pack("<I", 4) + triangles)
+
+    # Standard MIDI file, format 1: a tempo track and a track of notes (no running status)
+    def vlq(value):
+        out = [value & 0x7F]
+        value >>= 7
+        while value:
+            out.append(0x80 | (value & 0x7F))
+            value >>= 7
+        return bytes(reversed(out))
+
+    def track(events):
+        body = b"".join(vlq(delta) + data for delta, data in events)
+        return b"MTrk" + struct.pack(">I", len(body)) + body
+
+    tempo = track([
+        (0, b"\xff\x03\x05tempo"),
+        (0, b"\xff\x51\x03\x07\xa1\x20"),
+        (0, b"\xff\x58\x04\x04\x02\x18\x08"),
+        (0, b"\xff\x2f\x00"),
+    ])
+    notes = track([
+        (0, b"\xc0\x00"),
+        (0, b"\xb0\x07\x64"),
+        (0, b"\x90\x3c\x40"),
+        (480, b"\x80\x3c\x40"),
+        (0, b"\xe0\x00\x40"),
+        (0, b"\xf0\x04\x7e\x7f\x09\xf7"),
+        (0, b"\xa0\x3c\x10"),
+        (0, b"\xd0\x20"),
+        (16384, b"\x90\x40\x50"),
+        (240, b"\x80\x40\x00"),
+        (0, b"\xff\x2f\x00"),
+    ])
+    put("media/standard_midi_file", "two_tracks", b"MThd" + struct.pack(">IHHh", 6, 1, 2, 480) + tempo + notes)
+
+    # AVI: RIFF with a header list (main header, a video stream) and the frames; uncompressed 2x2 24-bit frames
+    def chunk(kind, body):
+        assert len(body) % 2 == 0
+        return kind + struct.pack("<I", len(body)) + body
+
+    def lst(kind, body):
+        return chunk(b"LIST", kind + body)
+
+    frame_a = (b"\x00\x00\xff\x00\xff\x00" + b"\x00\x00") + (b"\xff\x00\x00\xff\xff\xff" + b"\x00\x00")
+    frame_b = bytes(reversed(frame_a))
+    avih = struct.pack("<IIIIIIIIII16s", 33333, 1000, 0, 0x10, 2, 0, 1, 16, 2, 2, bytes(16))
+    strh = struct.pack("<4s4sIHHIIIIIIIIhhhh", b"vids", b"DIB ", 0, 0, 0, 0, 1, 30, 0, 2, 16, 0xFFFFFFFF, 0, 0, 0, 2, 2)
+    strf = struct.pack("<IiiHHIIiiII", 40, 2, 2, 1, 24, 0, 16, 0, 0, 0, 0)
+    hdrl = lst(b"hdrl", chunk(b"avih", avih) + lst(b"strl", chunk(b"strh", strh) + chunk(b"strf", strf)))
+    movi = lst(b"movi", chunk(b"00db", frame_a) + chunk(b"00db", frame_b))
+    index = chunk(b"idx1", b"".join(struct.pack("<4sIII", b"00db", 0x10, 4 + 24 * i + 0, 16) for i in range(2)))
+    body = b"AVI " + hdrl + movi + index
+    put("media/avi", "two_frames", b"RIFF" + struct.pack("<I", len(body)) + body)
+
+
+# ── image ────────────────────────────────────────────────────────────────────
+
+def png(width, height, pixels):
+    """An 8-bit RGBA PNG; pixels is a list of rows of (r, g, b, a)."""
+    import zlib
+
+    def chunk(kind, body):
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
+
+    raw = b"".join(b"\0" + b"".join(bytes(p) for p in row) for row in pixels)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw))
+        + chunk(b"IEND", b"")
+    )
+
+
+def image():
+    # Windows icon: a directory, then an image each as a PNG or as a DIB without a file header
+    small = png(2, 2, [[(255, 0, 0, 255), (0, 255, 0, 255)], [(0, 0, 255, 255), (255, 255, 255, 128)]])
+    # a 2x2 32-bit DIB: a BITMAPINFOHEADER with the height of the image and the mask together, bottom row first, then the AND mask
+    dib = struct.pack("<IiiHHIIiiII", 40, 2, 4, 1, 32, 0, 0, 0, 0, 0, 0)
+    dib += b"".join(bytes((b, g, r, a)) for (r, g, b, a) in [(0, 0, 255, 255), (255, 255, 255, 128), (255, 0, 0, 255), (0, 255, 0, 255)])
+    dib += b"\0\0\0\0" * 2
+    images = [(2, 2, 0, 1, 32, small), (2, 2, 0, 1, 32, dib)]
+    directory = b"\0\0\1\0" + struct.pack("<H", len(images))
+    offset = len(directory) + 16 * len(images)
+    entries = b""
+    for width, height, colors, planes, bpp, blob in images:
+        entries += struct.pack("<BBBBHHII", width, height, colors, 0, planes, bpp, len(blob), offset)
+        offset += len(blob)
+    put("image/ico", "png_and_dib", directory + entries + b"".join(i[5] for i in images))
+
+    # Targa: a header of 18 bytes, the image id, a colour map, the pixels, and (TGA 2.0) a footer of 26 bytes.
+    # The first two have no footer, as the original format; a footer with no extension area (offset 0)
+    # is not read by the definition, which reads the extension area at offset 0
+
+    def tga(kind, map_type, map_entries, map_depth, width, height, depth, descriptor, ident, colour_map, pixels, footer):
+        head = struct.pack("<BBBHHBHHHHBB", len(ident), map_type, kind, 0, map_entries, map_depth, 0, 0, width, height, depth, descriptor)
+        return head + ident + colour_map + pixels + footer
+
+    rows = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)]  # BGR order in the file
+    truecolor = b"".join(bytes((b, g, r)) for r, g, b in rows)
+    put("image/tga", "truecolor", tga(2, 0, 0, 0, 2, 2, 24, 0x20, b"", b"", truecolor, b""))
+    palette = b"".join(bytes((b, g, r)) for r, g, b in [(0, 0, 0), (255, 0, 0), (0, 255, 0), (0, 0, 255)])
+    put("image/tga", "color_mapped", tga(1, 1, 4, 24, 2, 2, 8, 0x20, b"doe", palette, bytes([0, 1, 2, 3]), b""))
+    # with an extension area (TGA 2.0): 495 bytes that the footer points to
+    def text(value, size):
+        return value.encode().ljust(size, b"\0")
+
+    extension = (
+        struct.pack("<H", 495)
+        + text("doe authors", 41)
+        + b"".join(text(f"comment {i}", 81) for i in range(4))
+        + struct.pack("<6H", 10, 26, 2024, 12, 0, 0)  # month, day, year, hour, minute, second
+        + text("job", 41)
+        + struct.pack("<3H", 0, 1, 2)  # hours, minutes, seconds
+        + text("doe", 41)
+        + struct.pack("<HB", 100, 32)  # version 1.00, letter ' '
+        + struct.pack("<I", 0)  # key colour
+        + struct.pack("<HH", 1, 1)  # pixel aspect ratio, numerator and denominator
+        + struct.pack("<HH", 22, 10)  # gamma 2.2
+        + struct.pack("<3I", 0, 0, 0)  # offsets of the colour correction table, the postage stamp, the scan line table
+        + b"\3"  # attributes: useful alpha
+    )
+    assert len(extension) == 495, len(extension)
+    image_bytes = tga(2, 0, 0, 0, 2, 2, 24, 0x20, b"", b"", truecolor, b"")
+    ext_offset = len(image_bytes)
+    put("image/tga", "extension_area", image_bytes + extension + struct.pack("<II", ext_offset, 0) + b"TRUEVISION-XFILE.\0")
+
+    # PCX: a header of 128 bytes, run-length coded scan lines, and for 256 colours a palette at the end
+    def rle(line):
+        out = b""
+        i = 0
+        while i < len(line):
+            run = 1
+            while i + run < len(line) and line[i + run] == line[i] and run < 63:
+                run += 1
+            if run > 1 or line[i] >= 0xC0:
+                out += bytes([0xC0 | run, line[i]])
+            else:
+                out += bytes([line[i]])
+            i += run
+        return out
+
+    def pcx_header(width, height, planes, bytes_per_line):
+        head = struct.pack("<BBBBHHHHHH", 0x0A, 5, 1, 8, 0, 0, width - 1, height - 1, 72, 72)
+        head += bytes(48) + b"\0" + bytes([planes]) + struct.pack("<HHHH", bytes_per_line, 1, width, height)
+        return head.ljust(128, b"\0")
+
+    indexes = [bytes([0, 0, 0, 0, 5, 7, 7, 200]), bytes([1, 2, 3, 4, 4, 4, 4, 255])]
+    palette256 = b"\x0c" + b"".join(bytes((i, 255 - i, (i * 3) & 255)) for i in range(256))
+    put("image/pcx", "indexed256", pcx_header(8, 2, 1, 8) + b"".join(rle(r) for r in indexes) + palette256)
+    reds, greens, blues = bytes([255] * 4 + [0] * 4), bytes([0] * 4 + [255] * 4), bytes([0, 64, 128, 255] * 2)
+    planes = b"".join(rle(r) for r in (reds, greens, blues))
+    put("image/pcx", "truecolor_planes", pcx_header(8, 1, 3, 8) + planes)
+
+    # X Window Dump: a header, the colour map, then the pixels (as xwd writes a ZPixmap)
+    def xwd(width, height, depth, bits, visual, masks, colors, creator, pixels):
+        fields = (
+            7, 2, depth, width, height, 0, 1, 32, 1, 32, bits, (width * bits + 31) // 32 * 4, visual,
+            *masks, 8, len(colors), len(colors), width, height, 0, 0, 0,
+        )
+        head = struct.pack(">24I", *fields) + creator.encode() + b"\0"
+        table = b"".join(struct.pack(">IHHHBB", n, r, g, b, 7, 0) for n, (r, g, b) in enumerate(colors))
+        return struct.pack(">I", 4 + len(head)) + head + table + pixels
+
+    pixel_data = b"".join(bytes((0, r, g, b)) for r, g, b in [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255)])
+    put("image/xwd", "truecolor", xwd(2, 2, 24, 32, 4, (0xFF0000, 0xFF00, 0xFF), [], "doe", pixel_data))
+    put(
+        "image/xwd",
+        "pseudocolor",
+        xwd(4, 2, 8, 8, 3, (0, 0, 0), [(0, 0, 0), (65535, 0, 0), (0, 65535, 0), (0, 0, 65535)], "doe", bytes([0, 1, 2, 3, 3, 2, 1, 0])),
+    )
+
+
+# ── serialization ────────────────────────────────────────────────────────────
+
+def bson_document(elements):
+    """A BSON document (bsonspec.org); elements is a list of (type byte, name, encoded value)."""
+    body = b"".join(bytes([kind]) + name.encode() + b"\0" + value for kind, name, value in elements)
+    return struct.pack("<i", len(body) + 5) + body + b"\0"
+
+
+def bson_string(text):
+    return struct.pack("<i", len(text.encode()) + 1) + text.encode() + b"\0"
+
+
+def varint(value):
+    out = bytearray()
+    while True:
+        low = value & 0x7F
+        value >>= 7
+        if value:
+            out.append(low | 0x80)
+        else:
+            out.append(low)
+            return bytes(out)
+
+
+def serialization():
+    inner = bson_document([(0x10, "depth", struct.pack("<i", 2)), (0x08, "deep", b"\1")])
+    array = bson_document([(0x10, str(i), struct.pack("<i", v)) for i, v in enumerate((10, 20, 30))])
+    elements = [
+        (0x01, "double", struct.pack("<d", 3.25)),
+        (0x02, "string", bson_string("héllo")),
+        (0x03, "document", inner),
+        (0x04, "array", array),
+        (0x05, "binary", struct.pack("<iB", 4, 0) + b"\x00\x01\x02\x03"),
+        (0x05, "uuid", struct.pack("<iB", 16, 4) + bytes(range(16))),
+        (0x07, "object_id", bytes.fromhex("507f1f77bcf86cd799439011")),
+        (0x08, "false", b"\0"),
+        (0x08, "true", b"\1"),
+        (0x09, "datetime", struct.pack("<q", 1700000000000)),
+        (0x0A, "null", b""),
+        (0x0B, "regex", b"^doe\0i\0"),
+        (0x0D, "javascript", bson_string("function () { return 1; }")),
+        (0x0E, "symbol", bson_string("sym")),
+        (0x10, "int32", struct.pack("<i", -42)),
+        (0x11, "timestamp", struct.pack("<II", 1, 1700000000)),
+        (0x12, "int64", struct.pack("<q", 1 << 40)),
+        # no decimal128: the definition reads its significand as 49 bits, which the reference runtime cannot (32 at most)
+        (0x7F, "max_key", b""),
+    ]
+    put("serialization/bson", "all_types", bson_document(elements))
+    put("serialization/bson", "empty", bson_document([]))
+
+    # MessagePack (msgpack.org): fixints, sized ints, floats, strings, arrays and maps of each size
+    def mp_str(text):
+        raw = text.encode()
+        if len(raw) < 32:
+            return bytes([0xA0 | len(raw)]) + raw
+        if len(raw) < 256:
+            return b"\xd9" + bytes([len(raw)]) + raw
+        return b"\xda" + struct.pack(">H", len(raw)) + raw
+
+    numbers = [
+        b"\x00", b"\x7f", b"\xcc\xff", b"\xcd\x01\x00", b"\xce\x00\x01\x11\x70", b"\xcf" + struct.pack(">Q", 1 << 40),
+        b"\xd0\x80", b"\xd1\xff\x00", b"\xd2" + struct.pack(">i", -70000), b"\xd3" + struct.pack(">q", -5_000_000_000),
+        b"\xca" + struct.pack(">f", 1.5), b"\xcb" + struct.pack(">d", -2.25), b"\xc0", b"\xc2", b"\xc3",
+    ]
+    mapped = b"\x83" + mp_str("name") + mp_str("doe") + mp_str("numbers") + b"\xdc" + struct.pack(">H", len(numbers)) + b"".join(numbers) + mp_str("nested") + b"\x81" + mp_str("long") + mp_str("x" * 300)
+    put("serialization/msgpack", "document", mapped)
+    put("serialization/msgpack", "small_array", b"\x93\x01\x02\x03")
+    put("serialization/msgpack", "map16", b"\xde" + struct.pack(">H", 2) + mp_str("a") + b"\x01" + mp_str("b") + b"\xdd" + struct.pack(">I", 1) + b"\xc3")
+
+    # PHP serialize() output
+    put(
+        "serialization/php_serialized_value",
+        "array",
+        b'a:5:{i:0;s:3:"foo";i:1;d:1.5;s:1:"k";b:1;s:4:"null";N;i:4;a:2:{i:0;i:-7;i:1;b:0;}}',
+    )
+    put(
+        "serialization/php_serialized_value",
+        "object",
+        b'O:8:"stdClass":2:{s:1:"a";i:1;s:5:"\0*\0pr";s:2:"hi";}',
+    )
+
+    # protocol buffers wire format: varint, 64-bit, length-delimited (a string and a nested message), 32-bit
+    def key(field, wire):
+        return varint(field << 3 | wire)
+
+    nested = key(1, 0) + varint(150) + key(2, 2) + varint(3) + b"abc"
+    message = (
+        key(1, 0) + varint(300)
+        + key(2, 2) + varint(len("testing")) + b"testing"
+        + key(3, 2) + varint(len(nested)) + nested
+        + key(4, 1) + struct.pack("<Q", 1 << 40)
+        + key(5, 5) + struct.pack("<f", 1.5)
+        + key(6, 0) + varint((1 << 49) - 1)
+    )
+    put("serialization/google_protobuf", "message", message)
+
+    # Chrome resource pack (.pak), versions 4 and 5: a table of (id, offset) and then the resources
+    def pak(version):
+        bodies = [(100, b"<html>one</html>"), (101, b"two"), (7, b"\x00\x01\x02")]
+        if version == 4:
+            header = struct.pack("<IIB", 4, len(bodies), 1)
+            table_size = 6 * (len(bodies) + 1)
+            aliases = b""
+        else:
+            header = struct.pack("<IB3xHH", 5, 1, len(bodies), 1)
+            aliases = struct.pack("<HH", 200, 0)  # id 200 is another name for the first resource
+            table_size = 6 * (len(bodies) + 1)
+        offset = len(header) + table_size + len(aliases)
+        table = b""
+        for ident, body in bodies:
+            table += struct.pack("<HI", ident, offset)
+            offset += len(body)
+        table += struct.pack("<HI", 0, offset)
+        return header + table + aliases + b"".join(body for _, body in bodies)
+
+    put("serialization/chrome_pak", "version4", pak(4))
+    put("serialization/chrome_pak", "version5", pak(5))
+
+
+# ── game ─────────────────────────────────────────────────────────────────────
+
+def game():
+    # Quake PACK: "PACK", the offset and size of the directory, the files, the directory (56-byte names)
+    files = [("maps/start.bsp", bytes(range(64))), ("progs/player.mdl", b"IDPO" + bytes(20)), ("readme.txt", b"hello pak\n")]
+    body = b""
+    directory = b""
+    for name, data in files:
+        directory += name.encode().ljust(56, b"\0") + struct.pack("<II", 12 + len(body), len(data))
+        body += data
+    put("game/quake_pak", "three_files", b"PACK" + struct.pack("<II", 12 + len(body), len(directory)) + body + directory)
+
+    # Doom WAD: a header, the lumps, and the directory at the end; a map with one room
+    vertexes = b"".join(struct.pack("<hh", x, y) for x, y in [(0, 0), (256, 0), (256, 256), (0, 256)])
+    sidedefs = b"".join(struct.pack("<hh8s8s8sh", 0, 0, b"-", b"-", b"STARTAN3", 0) for _ in range(4))
+    linedefs = b"".join(struct.pack("<7H", i, (i + 1) % 4, 1, 0, 0, i, 0xFFFF) for i in range(4))
+    things = struct.pack("<hhHHH", 128, 128, 90, 1, 7) + struct.pack("<hhHHH", 64, 64, 0, 2001, 7)
+    sectors = struct.pack("<hh8s8shHH", 0, 128, b"FLOOR4_8", b"CEIL3_5", 160, 0, 0)
+    # a blockmap of 1x1 block: origin, size, one offset (in words), then 0, the linedefs, -1
+    blockmap = struct.pack("<hhhh", 0, 0, 1, 1) + struct.pack("<H", 5) + struct.pack("<7h", 0, 0, 1, 2, 3, -1, 0)[:12]
+    lumps = [
+        ("E1M1", b""), ("THINGS", things), ("LINEDEFS", linedefs), ("SIDEDEFS", sidedefs),
+        ("VERTEXES", vertexes), ("SECTORS", sectors), ("BLOCKMAP", blockmap), ("PLAYPAL", bytes(range(48))),
+    ]
+    data = b""
+    entries = b""
+    for name, blob in lumps:
+        entries += struct.pack("<ii8s", 12 + len(data), len(blob), name.encode().ljust(8, b"\0"))
+        data += blob
+    for magic in (b"IWAD", b"PWAD"):
+        put("game/doom_wad", magic.decode().lower(), magic + struct.pack("<ii", len(lumps), 12 + len(data)) + data + entries)
+
+    # Dune II PAK: the directory is a list of (offset, name), ended by a zero offset; the first offset is the size of the directory
+    names = [("INTRO.HSQ", b"intro data"), ("DUNE.CFG", b"cfg"), ("LAST", b"\x01\x02\x03\x04\x05")]
+    directory_size = sum(4 + len(n) + 1 for n, _ in names) + 4
+    out = b""
+    offset = directory_size
+    for name, blob in names:
+        out += struct.pack("<I", offset) + name.encode() + b"\0"
+        offset += len(blob)
+    out += struct.pack("<I", 0) + b"".join(blob for _, blob in names)
+    put("game/dune_2_pak", "three_files", out)
+
+    # Minecraft NBT (uncompressed, as it is inside a level.dat before gzip): a named compound of every tag
+    def name(text):
+        return struct.pack(">H", len(text.encode())) + text.encode()
+
+    def tag(kind, text, payload):
+        return bytes([kind]) + name(text) + payload
+
+    compound = (
+        tag(1, "byte", struct.pack(">b", -5))
+        + tag(2, "short", struct.pack(">h", 1000))
+        + tag(3, "int", struct.pack(">i", -100000))
+        + tag(4, "long", struct.pack(">q", 1 << 40))
+        + tag(5, "float", struct.pack(">f", 1.5))
+        + tag(6, "double", struct.pack(">d", -0.25))
+        + tag(7, "bytes", struct.pack(">i", 4) + b"\x00\x01\x02\x03")
+        + tag(8, "string", name("héllo"))
+        + tag(9, "ints", bytes([3]) + struct.pack(">i", 3) + struct.pack(">3i", 1, 2, 3))
+        + tag(9, "empty_list", bytes([0]) + struct.pack(">i", 0))
+        + tag(9, "compounds", bytes([10]) + struct.pack(">i", 2) + tag(1, "a", b"\x01") + b"\0" + tag(8, "b", name("x")) + b"\0")
+        + tag(10, "inner", tag(3, "depth", struct.pack(">i", 1)) + b"\0")
+        + tag(11, "int_array", struct.pack(">i", 2) + struct.pack(">2i", 7, -7))
+        + tag(12, "long_array", struct.pack(">i", 2) + struct.pack(">2q", 1, -1))
+        + b"\0"
+    )
+    put("game/minecraft_nbt", "level", tag(10, "Data", compound[:-1] + b"\0"))
+
+
+# ── filesystem ───────────────────────────────────────────────────────────────
+
+def chs(lba):
+    """CHS of a block for a disk of 255 heads and 63 sectors, as an MBR holds it."""
+    cylinder, rest = divmod(lba, 255 * 63)
+    head, sector = divmod(rest, 63)
+    sector += 1
+    cylinder = min(cylinder, 1023)
+    return bytes([head, (sector & 0x3F) | ((cylinder >> 2) & 0xC0), cylinder & 0xFF])
+
+
+def mbr_entry(status, kind, start, count):
+    return bytes([status]) + chs(start) + bytes([kind]) + chs(start + count - 1) + struct.pack("<II", start, count)
+
+
+def filesystem():
+    import zlib
+    import uuid
+
+    # MBR: boot code, four entries (two used), and the signature
+    boot = bytes([0xEB, 0x3C, 0x90]) + b"doe sample".ljust(443, b"\0")
+    entries = mbr_entry(0x80, 0x0C, 2048, 20480) + mbr_entry(0x00, 0x83, 22528, 40960) + bytes(32)
+    put("filesystem/mbr_partition_table", "two_partitions", boot + entries + b"\x55\xaa")
+
+    # GPT (UEFI specification): a protective MBR, the header at LBA 1, 128 entries of 128 bytes at LBA 2, the same at the end
+    sectors = 80
+    entries_sectors = 32
+    types = [uuid.UUID("c12a7328-f81f-11d2-ba4b-00a0c93ec93b"), uuid.UUID("0fc63daf-8483-4772-8e79-3d69d8477de4")]
+    entry_blob = b""
+    for index, (kind, name) in enumerate(zip(types, ("EFI System", "Linux data"))):
+        first = 34 + index * 10
+        entry_blob += kind.bytes_le + uuid.UUID(int=0x1000 + index).bytes_le + struct.pack("<QQQ", first, first + 9, 0) + name.encode("utf-16-le").ljust(72, b"\0")
+    entry_blob = entry_blob.ljust(128 * 128, b"\0")
+
+    def header(current, backup, entries_lba):
+        head = b"EFI PART" + struct.pack("<IIII", 0x00010000, 92, 0, 0)
+        head += struct.pack("<QQQQ", current, backup, 34, sectors - 34)
+        head += uuid.UUID(int=0xD0E).bytes_le + struct.pack("<QIII", entries_lba, 128, 128, zlib.crc32(entry_blob))
+        crc = zlib.crc32(head)
+        return (head[:16] + struct.pack("<I", crc) + head[20:]).ljust(512, b"\0")
+
+    protective = bytes(446) + mbr_entry(0, 0xEE, 1, sectors - 1) + bytes(48) + b"\x55\xaa"
+    disk = (
+        protective + header(1, sectors - 1, 2) + entry_blob + bytes((sectors - 34 - 33) * 512)
+        + entry_blob + header(sectors - 1, 1, sectors - 33)
+    )
+    assert len(disk) == sectors * 512, len(disk)
+    put("filesystem/gpt_partition_table", "two_partitions", disk)
+
+    # Apple partition map: the driver descriptor at block 0, the map from block 1
+    def apm_entry(count, start, size, name, kind, status):
+        return (
+            b"PM\0\0"
+            + struct.pack(">III", count, start, size)
+            + name.encode().ljust(32, b"\0")
+            + kind.encode().ljust(32, b"\0")
+            + struct.pack(">IIIIII", 0, size, status, 0, 0, 0)  # data start (in the partition) and size, status, boot code start and size, load address
+            + bytes(4) + struct.pack(">I", 0) + bytes(4) + struct.pack(">I", 0)  # reserved, entry point, reserved, checksum
+            + b"68000".ljust(16, b"\0")
+        ).ljust(512, b"\0")
+
+    blocks = 16
+    map_entries = [
+        apm_entry(3, 1, 3, "Apple", "Apple_partition_map", 0x3),
+        apm_entry(3, 4, 8, "disk image", "Apple_HFS", 0x40000033),
+        apm_entry(3, 12, 4, "Extra", "Apple_Free", 0x0),
+    ]
+    image = b"ER" + bytes(510) + b"".join(map_entries) + bytes((blocks - 4) * 512)
+    put("filesystem/apm_partition_table", "three_entries", image)
+
+    # ZX Spectrum tape: blocks of (length, flag, data, checksum); a program and its data, then code
+    def tap_block(flag, data):
+        payload = bytes([flag]) + data
+        check = 0
+        for byte in payload:
+            check ^= byte
+        return struct.pack("<H", len(payload) + 1) + payload + bytes([check])
+
+    def tap_header(kind, name, length, param1, param2):
+        return tap_block(0, bytes([kind]) + name.encode().ljust(10, b" ") + struct.pack("<HHH", length, param1, param2))
+
+    basic = b"\x00\x0a\x0d\x00\xf5 \"Hello\"\x0d"
+    tape = tap_header(0, "hello", len(basic), 10, len(basic)) + tap_block(0xFF, basic)
+    code = bytes(range(16))
+    tape += tap_header(3, "codeblock", len(code), 32768, 0) + tap_block(0xFF, code)
+    tape += tap_block(0xFF, b"headerless")
+    put("filesystem/zx_spectrum_tap", "program_and_code", tape)
+
+
+# ── firmware ─────────────────────────────────────────────────────────────────
+
+def firmware():
+    import zlib
+
+    # UF2 (Microsoft's USB Flashing Format): blocks of 512 bytes, each with 256 bytes of a program
+    blocks = 3
+    out = b""
+    for number in range(blocks):
+        payload = bytes((number * 16 + i) & 0xFF for i in range(256))
+        out += struct.pack("<IIIIIIII", 0x0A324655, 0x9E5D5157, 0x2000, 0x10000000 + number * 256, 256, number, blocks, 0xE48BFF56)
+        out += payload.ljust(476, b"\0") + struct.pack("<I", 0x0AB16F30)
+    put("firmware/uf2", "rp2040", out)
+
+    # iNES: a header of 16 bytes, one bank of PRG ROM (16 KiB), one of CHR ROM (8 KiB), and a title
+    header = b"NES\x1a" + bytes([1, 1, 0x01, 0x00, 0, 0, 0]) + bytes(5)
+    prg = bytes((i * 7) & 0xFF for i in range(16384))
+    chr_rom = bytes((i * 3) & 0xFF for i in range(8192))
+    put("firmware/ines", "mapper0", header + prg + chr_rom + b"DOE TEST ROM")
+
+    # U-Boot legacy image: a header of 64 bytes (with the CRC-32 of the header, computed with that field zero), then the data
+    data = b"\xde\xad\xbe\xef" * 64
+    fields = struct.pack(">IIIIIIIBBBB32s", 0x27051956, 0, 1700000000, len(data), 0x80008000, 0x80008000, zlib.crc32(data), 5, 2, 2, 0, b"Linux-doe-sample")
+    header_crc = zlib.crc32(fields)
+    put("firmware/uimage", "kernel", fields[:4] + struct.pack(">I", header_crc) + fields[8:] + data)
+
+    # Broadcom TRX: a header of 28 bytes (the offsets of up to three parts), the parts, and an ASUS tail
+    parts = [b"loader " * 10, b"kernel " * 40, b"rootfs " * 100]
+    tail = bytes([1, 2, 3, 4]) + b"RT-AC68U".ljust(12, b"\0") + struct.pack("<8H", 0, 0, 1, 1, 2, 2, 3, 3) + bytes(32)
+    offsets, position = [], 28
+    for part in parts:
+        offsets.append(position)
+        position += len(part)
+    offsets.append(0)
+    body = b"".join(parts) + tail
+    after_crc = struct.pack("<HH", 0, 1) + struct.pack("<4I", *offsets) + body
+    length = 12 + len(after_crc)
+    trx = b"HDR0" + struct.pack("<II", length, zlib.crc32(after_crc)) + after_crc
+    put("firmware/broadcom_trx", "asus_tail", trx)
+
+
+# ── hardware ─────────────────────────────────────────────────────────────────
+
+def hardware():
+    # Flattened device tree (Devicetree Specification, chapter 5): a header, the memory reservations,
+    # the structure block and the strings block, as dtc writes them
+    strings = bytearray()
+    offsets = {}
+
+    def string_offset(name):
+        if name not in offsets:
+            offsets[name] = len(strings)
+            strings.extend(name.encode() + b"\0")
+        return offsets[name]
+
+    def pad4(blob):
+        return blob + b"\0" * (-len(blob) % 4)
+
+    def node(name, properties, children=()):
+        out = struct.pack(">I", 1) + pad4(name.encode() + b"\0")
+        for prop, value in properties:
+            out += struct.pack(">III", 3, len(value), string_offset(prop)) + pad4(value)
+        for child in children:
+            out += child
+        return out + struct.pack(">I", 2)
+
+    def cells(*values):
+        return b"".join(struct.pack(">I", v) for v in values)
+
+    def text(*values):
+        return b"".join(v.encode() + b"\0" for v in values)
+
+    tree = node(
+        "",
+        [("#address-cells", cells(2)), ("#size-cells", cells(2)), ("compatible", text("doe,sample-board", "doe,generic")), ("model", text("Doe sample board"))],
+        [
+            node("chosen", [("bootargs", text("console=ttyS0,115200")), ("stdout-path", text("/serial@10000000"))]),
+            node("memory@80000000", [("device_type", text("memory")), ("reg", cells(0, 0x80000000, 0, 0x10000000))]),
+            node("cpus", [("#address-cells", cells(1)), ("#size-cells", cells(0))], [
+                node("cpu@0", [("device_type", text("cpu")), ("reg", cells(0)), ("clock-frequency", cells(1000000000))]),
+            ]),
+            node("serial@10000000", [("compatible", text("ns16550a")), ("reg", cells(0, 0x10000000, 0, 0x100)), ("status", text("okay"))]),
+        ],
+    )
+    structure = tree + struct.pack(">I", 9)
+    reservations = struct.pack(">QQ", 0x7FF00000, 0x100000) + struct.pack(">QQ", 0, 0)
+    header_size = 40
+    off_rsv = header_size
+    off_struct = off_rsv + len(reservations)
+    off_strings = off_struct + len(structure)
+    total = off_strings + len(strings)
+    header = struct.pack(">10I", 0xD00DFEED, total, off_struct, off_strings, off_rsv, 17, 16, 0, len(strings), len(structure))
+    put("hardware/dtb", "board", header + reservations + structure + bytes(strings))
+
+
+# ── log ──────────────────────────────────────────────────────────────────────
+
+def log():
+    # AIX utmp: records of 0x2a0 bytes (big-endian)
+    def aix(user, ident, device, pid, kind, when, host):
+        return (
+            user.ljust(256, b"\0") + ident.ljust(14, b"\0") + device.ljust(64, b"\0") + struct.pack(">QhqHH", pid, kind, when, 0, 0)
+            + host.ljust(256, b"\0") + struct.pack(">i", 0) + bytes(8) + bytes(24)
+        )
+
+    out = aix(b"root", b"si", b"vty0", 1, 8, 1700000000, b"") + aix(b"doe", b"p0", b"pts/0", 4242, 7, 1700000100, b"host.example") + aix(b"", b"", b"", 0, 0, 0, b"")
+    put("log/aix_utmp", "three_records", out)
+
+    # sudo's timestamp file (/var/run/sudo/ts/USER): records of version 2 (and one of version 1)
+    def flags(any_uid=0, disabled=0):
+        # two bytes: the first holds six reserved bits and then anyuid, disabled
+        return bytes([(any_uid << 1) | disabled, 0])
+
+    def record_v2(kind, uid, sid, start, now, extra=None):
+        body = struct.pack("<H", kind) + flags() + struct.pack("<II", uid, sid) + struct.pack("<qq", *start) + struct.pack("<qq", *now)
+        if extra is not None:
+            body += struct.pack("<I", extra)
+        return struct.pack("<HH", 2, len(body) + 4) + body
+
+    def record_v1(kind, uid, sid, now, extra=None):
+        body = struct.pack("<H", kind) + flags(any_uid=1) + struct.pack("<II", uid, sid) + struct.pack("<qq", *now)
+        if extra is not None:
+            body += struct.pack("<I", extra)
+        return struct.pack("<HH", 1, len(body) + 4) + body
+
+    out = record_v2(1, 1000, 1, (1700000000, 0), (1700000300, 500))
+    out += record_v2(2, 1000, 2000, (1700000000, 1), (1700000400, 2), extra=0x8800)
+    out += record_v2(3, 1000, 2000, (1700000000, 1), (1700000400, 2), extra=4321)
+    out += record_v1(2, 0, 7, (1700000500, 3), extra=0x8801)
+    put("log/sudoers_ts", "records", out)
+
+
+SECTIONS = {
+    "network": network, "media": media, "image": image, "serialization": serialization, "game": game, "filesystem": filesystem,
+    "firmware": firmware, "hardware": hardware, "log": log,
+}
 
 if __name__ == "__main__":
     chosen = sys.argv[1:] or list(SECTIONS)

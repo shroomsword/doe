@@ -1,0 +1,166 @@
+{
+  "contents": {
+    "colon": "3a",
+    "elements": {
+      "closingbrace": "7d",
+      "entries": [
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "value": 0,
+              "valuedec": "0"
+            },
+            "type": 105
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "666f6f",
+                "lendata": 3,
+                "lendatadec": "3",
+                "openingquote": "22"
+              },
+              "value": "666f6f"
+            },
+            "type": 115
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "value": 1,
+              "valuedec": "1"
+            },
+            "type": 105
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "valuedec": "1.5"
+            },
+            "type": 100
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "6b",
+                "lendata": 1,
+                "lendatadec": "1",
+                "openingquote": "22"
+              },
+              "value": "6b"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "value": true,
+              "valuedec": 49
+            },
+            "type": 98
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "6e756c6c",
+                "lendata": 4,
+                "lendatadec": "4",
+                "openingquote": "22"
+              },
+              "value": "6e756c6c"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "semicolon": "3b"
+            },
+            "type": 78
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "value": 4,
+              "valuedec": "4"
+            },
+            "type": 105
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "elements": {
+                "closingbrace": "7d",
+                "entries": [
+                  {
+                    "key": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 0,
+                        "valuedec": "0"
+                      },
+                      "type": 105
+                    },
+                    "value": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": -7,
+                        "valuedec": "-7"
+                      },
+                      "type": 105
+                    }
+                  },
+                  {
+                    "key": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 1,
+                        "valuedec": "1"
+                      },
+                      "type": 105
+                    },
+                    "value": {
+                      "contents": {
+                        "colon": "3a",
+                        "semicolon": "3b",
+                        "value": false,
+                        "valuedec": 48
+                      },
+                      "type": 98
+                    }
+                  }
+                ],
+                "numentries": 2,
+                "numentriesdec": "2",
+                "openingbrace": "7b"
+              }
+            },
+            "type": 97
+          }
+        }
+      ],
+      "numentries": 5,
+      "numentriesdec": "5",
+      "openingbrace": "7b"
+    }
+  },
+  "type": 97
+}

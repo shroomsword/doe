@@ -44,33 +44,33 @@ executable/swf	none	-	-	-
 executable/uefi_te	none	-	-	-	
 filesystem/amlogic_emmc_partitions	none	-	-	-	
 filesystem/android_super	none	-	-	-	
-filesystem/apm_partition_table	none	-	-	-	
+filesystem/apm_partition_table	crafted	filesystem/apm_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/apple_single_double	none	-	-	-	
 filesystem/btrfs_stream	none	-	-	-	
 filesystem/cramfs	none	-	-	-	
 filesystem/ext2	none	-	-	-	
-filesystem/gpt_partition_table	none	-	-	-	
+filesystem/gpt_partition_table	crafted	filesystem/gpt_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/iso9660	failing	filesystem/iso9660	genisoimage, run by make_real_samples.py	MIT (this repository)	does not finish: #150
 filesystem/luks	none	-	-	-	
 filesystem/lvm2	none	-	-	-	
-filesystem/mbr_partition_table	none	-	-	-	
+filesystem/mbr_partition_table	crafted	filesystem/mbr_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/tr_dos_image	none	-	-	-	
 filesystem/ubifs	none	-	-	-	
 filesystem/vdi	none	-	-	-	
 filesystem/vfat	none	-	-	-	
 filesystem/vmware_vmdk	none	-	-	-	
-filesystem/zx_spectrum_tap	none	-	-	-	
+filesystem/zx_spectrum_tap	crafted	filesystem/zx_spectrum_tap	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 firmware/andes_firmware	none	-	-	-	
-firmware/broadcom_trx	none	-	-	-	
-firmware/ines	none	-	-	-	
-firmware/uf2	none	-	-	-	
-firmware/uimage	none	-	-	-	
+firmware/broadcom_trx	crafted	firmware/broadcom_trx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+firmware/ines	crafted	firmware/ines	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+firmware/uf2	crafted	firmware/uf2	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+firmware/uimage	crafted	firmware/uimage	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 font/grub2_font	none	-	-	-	
 font/pcf_font	none	-	-	-	
 font/ttf	none	-	-	-	
 game/allegro_dat	none	-	-	-	
-game/doom_wad	none	-	-	-	
-game/dune_2_pak	none	-	-	-	
+game/doom_wad	crafted	game/doom_wad	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+game/dune_2_pak	crafted	game/dune_2_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/fallout2_dat	none	-	-	-	
 game/fallout_dat	none	-	-	-	
 game/ftl_dat	none	-	-	-	
@@ -78,16 +78,16 @@ game/gran_turismo_vol	none	-	-	-
 game/heaps_pak	none	-	-	-	
 game/heroes_of_might_and_magic_agg	none	-	-	-	
 game/heroes_of_might_and_magic_bmp	none	-	-	-	
-game/minecraft_nbt	none	-	-	-	
+game/minecraft_nbt	crafted	game/minecraft_nbt	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/quake2_md2	none	-	-	-	
 game/quake_mdl	none	-	-	-	
-game/quake_pak	none	-	-	-	
+game/quake_pak	crafted	game/quake_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/renderware_binary_stream	none	-	-	-	
 game/saints_row_2_vpp_pc	none	-	-	-	
 game/warcraft_2_pud	none	-	-	-	
 geospatial/shapefile_index	none	-	-	-	
 geospatial/shapefile_main	none	-	-	-	
-hardware/dtb	none	-	-	-	
+hardware/dtb	crafted	hardware/dtb	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 hardware/edid	none	-	-	-	
 hardware/mifare/mifare_classic	none	-	-	-	
 image/bmp	crafted	image/bmp	built by make_gallery_samples.py	MIT (this repository)	
@@ -96,23 +96,23 @@ image/exif	none	-	-	-
 image/gif	crafted	image/gif	built by make_gallery_samples.py	MIT (this repository)	
 image/gimp_brush	none	-	-	-	
 image/icc_4	none	-	-	-	
-image/ico	none	-	-	-	
+image/ico	crafted	image/ico	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/jpeg	crafted	image/jpeg	built by make_gallery_samples.py	MIT (this repository)	
 image/nitf	none	-	-	-	
-image/pcx	none	-	-	-	
+image/pcx	crafted	image/pcx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/pcx_dcx	none	-	-	-	
 image/pif	none	-	-	-	
 image/png	crafted	image/png	built by make_gallery_samples.py	MIT (this repository)	
 image/psx_tim	none	-	-	-	
-image/tga	none	-	-	-	
+image/tga	crafted	image/tga	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/webp	none	-	-	-	
 image/wmf	none	-	-	-	
-image/xwd	none	-	-	-	
-log/aix_utmp	none	-	-	-	
-log/glibc_utmp	none	-	-	-	
+image/xwd	crafted	image/xwd	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+log/aix_utmp	crafted	log/aix_utmp	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+log/glibc_utmp	real	log/glibc_utmp	glibc (pututxline), run by make_real_samples.py	MIT (this repository)	
 log/hashcat_restore	none	-	-	-	
 log/mcap	none	-	-	-	
-log/sudoers_ts	none	-	-	-	
+log/sudoers_ts	crafted	log/sudoers_ts	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/systemd_journal	none	-	-	-	
 log/windows_evt_log	none	-	-	-	
 machine_code/code_6502	none	-	-	-	
@@ -125,19 +125,19 @@ macos/resource_compression/dcmp_2	none	-	-	-
 macos/resource_compression/dcmp_variable_length_integer	none	-	-	-	
 macos/resource_fork	none	-	-	-	
 media/android_opengl_shaders_cache	none	-	-	-	
-media/au	none	-	-	-	
-media/avi	none	-	-	-	
+media/au	crafted	media/au	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+media/avi	crafted	media/avi	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/blender_blend	none	-	-	-	
-media/creative_voice_file	none	-	-	-	
+media/creative_voice_file	crafted	media/creative_voice_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/genmidi_op2	none	-	-	-	
-media/id3v1_1	none	-	-	-	
+media/id3v1_1	crafted	media/id3v1_1	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/id3v2_3	none	-	-	-	
 media/id3v2_4	none	-	-	-	
 media/magicavoxel_vox	none	-	-	-	
 media/ogg	none	-	-	-	
 media/quicktime_mov	none	-	-	-	
-media/standard_midi_file	none	-	-	-	
-media/stl	none	-	-	-	
+media/standard_midi_file	crafted	media/standard_midi_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+media/stl	crafted	media/stl	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/tracker_modules/fasttracker_xm_module	none	-	-	-	
 media/tracker_modules/s3m	none	-	-	-	
 media/vp8_duck_ivf	none	-	-	-	
@@ -175,12 +175,12 @@ security/efivar_signature_list	none	-	-	-
 security/openpgp_message	none	-	-	-	
 security/ssh_public_key	real	security/ssh_public_key	ssh-keygen, run by make_real_samples.py (the key as the base64 of the .pub file holds it)	MIT (this repository)	ed25519, rsa 2048 and ecdsa 256 keys made for the samples
 serialization/asn1/asn1_der	real	serialization/asn1/asn1_der	openssl, run by make_real_samples.py	MIT (this repository)	a self-signed certificate and a request, with a key made for the samples
-serialization/bson	none	-	-	-	
-serialization/chrome_pak	none	-	-	-	
-serialization/google_protobuf	none	-	-	-	
+serialization/bson	crafted	serialization/bson	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+serialization/chrome_pak	crafted	serialization/chrome_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+serialization/google_protobuf	crafted	serialization/google_protobuf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 serialization/microsoft_cfb	none	-	-	-	
-serialization/msgpack	none	-	-	-	
-serialization/php_serialized_value	none	-	-	-	
+serialization/msgpack	crafted	serialization/msgpack	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+serialization/php_serialized_value	crafted	serialization/php_serialized_value	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 serialization/python_pickle	real	serialization/python_pickle	pickle of Python, run by make_real_samples.py	MIT (this repository)	protocols 0, 2 and 4; the text in protocol 0 is ASCII, because Python writes it as Latin-1 and doe, by design, refuses a byte that is not ASCII in an ascii string (the reference does not)
 serialization/ruby_marshal	none	-	-	-	
 windows/regf	none	-	-	-	

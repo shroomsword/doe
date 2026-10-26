@@ -6,6 +6,7 @@ one row for each definition of the submodule, and what file it is tested with.
     python3 conformance/gallery_table.py --check   # change nothing; fail if the table is out of date
     python3 conformance/gallery_table.py --mark STATUS SOURCE NOTE FORMAT...
                                                    # fill the rows of formats that now have samples
+    python3 conformance/gallery_table.py --readme  # write the table of formats into the README
 
 The columns are tab-separated:
 
@@ -150,7 +151,33 @@ def mark(arguments):
     print(f"{len(names)} rows marked {status}")
 
 
+def readme_block(rows):
+    """The table of directories and the formats that are tested, as the README shows it."""
+    by_dir = {}
+    for name, cells in rows.items():
+        if cells[1] in ("real", "crafted"):
+            directory, _, leaf = name.partition("/")
+            by_dir.setdefault(directory, []).append(leaf)
+    lines = ["<!-- gallery-formats:begin -->", "| Directory | Formats |", "| --- | --- |"]
+    for directory in sorted(by_dir):
+        formats = ", ".join(f"`{leaf}`" for leaf in sorted(by_dir[directory]))
+        lines.append(f"| `{directory}` | {formats} |")
+    lines.append("<!-- gallery-formats:end -->")
+    return "\n".join(lines)
+
+
+def update_readme():
+    readme = HERE.parent / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    begin = text.index("<!-- gallery-formats:begin -->")
+    end = text.index("<!-- gallery-formats:end -->") + len("<!-- gallery-formats:end -->")
+    readme.write_text(text[:begin] + readme_block(read_table()) + text[end:], encoding="utf-8")
+
+
 def main():
+    if sys.argv[1:2] == ["--readme"]:
+        update_readme()
+        return
     if sys.argv[1:2] == ["--mark"]:
         mark(sys.argv[2:])
         return

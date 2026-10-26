@@ -1,0 +1,79 @@
+{
+  "contents": {
+    "classname": {
+      "closingquote": "22",
+      "data": "737464436c617373",
+      "lendata": 8,
+      "lendatadec": "8",
+      "openingquote": "22"
+    },
+    "colon1": "3a",
+    "colon2": "3a",
+    "properties": {
+      "closingbrace": "7d",
+      "entries": [
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "61",
+                "lendata": 1,
+                "lendatadec": "1",
+                "openingquote": "22"
+              },
+              "value": "61"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "value": 1,
+              "valuedec": "1"
+            },
+            "type": 105
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "002a007072",
+                "lendata": 5,
+                "lendatadec": "5",
+                "openingquote": "22"
+              },
+              "value": "002a007072"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "6869",
+                "lendata": 2,
+                "lendatadec": "2",
+                "openingquote": "22"
+              },
+              "value": "6869"
+            },
+            "type": 115
+          }
+        }
+      ],
+      "numentries": 2,
+      "numentriesdec": "2",
+      "openingbrace": "7b"
+    }
+  },
+  "type": 79
+}

@@ -1,0 +1,49 @@
+{
+  "aliases": [
+    {
+      "id": 200,
+      "resource": {
+        "body": "3c68746d6c3e6f6e653c2f68746d6c3e",
+        "id": 100,
+        "lenbody": 16,
+        "ofsbody": 40
+      },
+      "resourceidx": 0
+    }
+  ],
+  "encoding": 1,
+  "numaliases": 1,
+  "numresources": 3,
+  "resources": [
+    {
+      "body": "3c68746d6c3e6f6e653c2f68746d6c3e",
+      "id": 100,
+      "lenbody": 16,
+      "ofsbody": 40
+    },
+    {
+      "body": "74776f",
+      "id": 101,
+      "lenbody": 3,
+      "ofsbody": 56
+    },
+    {
+      "body": "000102",
+      "id": 7,
+      "lenbody": 3,
+      "ofsbody": 59
+    },
+    {
+      "body": null,
+      "id": 0,
+      "lenbody": null,
+      "ofsbody": 62
+    }
+  ],
+  "v5part": {
+    "encodingpadding": "000000",
+    "numaliases": 1,
+    "numresources": 3
+  },
+  "version": 5
+}

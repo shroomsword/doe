@@ -1,0 +1,22 @@
+{
+  "data": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+  "header": {
+    "architecture": 2,
+    "compressiontype": 0,
+    "datacrc": 145266307,
+    "entryaddress": 2147516416,
+    "headercrc": 2749110384,
+    "imagetype": 2,
+    "lenimage": 256,
+    "loadaddress": 2147516416,
+    "magic": 654645590,
+    "nameorasusinfo": {
+      "byte0": 76,
+      "byte4": 120,
+      "hasasusinfo": false,
+      "name": "Linux-doe-sample"
+    },
+    "ostype": 5,
+    "timestamp": 1700000000
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "index": {
+    "entries": [
+      {
+        "body": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+        "name": "maps/start.bsp",
+        "ofs": 12,
+        "size": 64
+      },
+      {
+        "body": "4944504f0000000000000000000000000000000000000000",
+        "name": "progs/player.mdl",
+        "ofs": 76,
+        "size": 24
+      },
+      {
+        "body": "68656c6c6f2070616b0a",
+        "name": "readme.txt",
+        "ofs": 100,
+        "size": 10
+      }
+    ]
+  },
+  "lenindex": 192,
+  "magic": "5041434b",
+  "ofsindex": 110
+}

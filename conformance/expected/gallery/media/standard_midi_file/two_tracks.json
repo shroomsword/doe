@@ -1,0 +1,387 @@
+{
+  "hdr": {
+    "division": 480,
+    "format": 1,
+    "lenheader": 6,
+    "magic": "4d546864",
+    "numtracks": 2
+  },
+  "tracks": [
+    {
+      "events": {
+        "event": [
+          {
+            "channel": null,
+            "eventheader": 255,
+            "eventtype": 240,
+            "metaeventbody": {
+              "body": "74656d706f",
+              "len": {
+                "groups": [
+                  {
+                    "hasnext": false,
+                    "value": 5
+                  }
+                ],
+                "last": 0,
+                "value": 5
+              },
+              "metatype": 3
+            },
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          },
+          {
+            "channel": null,
+            "eventheader": 255,
+            "eventtype": 240,
+            "metaeventbody": {
+              "body": "07a120",
+              "len": {
+                "groups": [
+                  {
+                    "hasnext": false,
+                    "value": 3
+                  }
+                ],
+                "last": 0,
+                "value": 3
+              },
+              "metatype": 81
+            },
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          },
+          {
+            "channel": null,
+            "eventheader": 255,
+            "eventtype": 240,
+            "metaeventbody": {
+              "body": "04021808",
+              "len": {
+                "groups": [
+                  {
+                    "hasnext": false,
+                    "value": 4
+                  }
+                ],
+                "last": 0,
+                "value": 4
+              },
+              "metatype": 88
+            },
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          },
+          {
+            "channel": null,
+            "eventheader": 255,
+            "eventtype": 240,
+            "metaeventbody": {
+              "body": "",
+              "len": {
+                "groups": [
+                  {
+                    "hasnext": false,
+                    "value": 0
+                  }
+                ],
+                "last": 0,
+                "value": 0
+              },
+              "metatype": 47
+            },
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          }
+        ]
+      },
+      "lenevents": 28,
+      "magic": "4d54726b"
+    },
+    {
+      "events": {
+        "event": [
+          {
+            "channel": 0,
+            "eventbody": {
+              "program": 0
+            },
+            "eventheader": 192,
+            "eventtype": 192,
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          },
+          {
+            "channel": 0,
+            "eventbody": {
+              "controller": 7,
+              "value": 100
+            },
+            "eventheader": 176,
+            "eventtype": 176,
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          },
+          {
+            "channel": 0,
+            "eventbody": {
+              "note": 60,
+              "velocity": 64
+            },
+            "eventheader": 144,
+            "eventtype": 144,
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          },
+          {
+            "channel": 0,
+            "eventbody": {
+              "note": 60,
+              "velocity": 64
+            },
+            "eventheader": 128,
+            "eventtype": 128,
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": true,
+                  "value": 3
+                },
+                {
+                  "hasnext": false,
+                  "value": 96
+                }
+              ],
+              "last": 1,
+              "value": 480
+            }
+          },
+          {
+            "channel": 0,
+            "eventbody": {
+              "adjbendvalue": -24576,
+              "b1": 0,
+              "b2": 64,
+              "bendvalue": -8192
+            },
+            "eventheader": 224,
+            "eventtype": 224,
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          },
+          {
+            "channel": null,
+            "eventheader": 240,
+            "eventtype": 240,
+            "sysexbody": {
+              "data": "7e7f09f7",
+              "len": {
+                "groups": [
+                  {
+                    "hasnext": false,
+                    "value": 4
+                  }
+                ],
+                "last": 0,
+                "value": 4
+              }
+            },
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          },
+          {
+            "channel": 0,
+            "eventbody": {
+              "note": 60,
+              "pressure": 16
+            },
+            "eventheader": 160,
+            "eventtype": 160,
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          },
+          {
+            "channel": 0,
+            "eventbody": {
+              "pressure": 32
+            },
+            "eventheader": 208,
+            "eventtype": 208,
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          },
+          {
+            "channel": 0,
+            "eventbody": {
+              "note": 64,
+              "velocity": 80
+            },
+            "eventheader": 144,
+            "eventtype": 144,
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": true,
+                  "value": 1
+                },
+                {
+                  "hasnext": true,
+                  "value": 0
+                },
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 2,
+              "value": 16384
+            }
+          },
+          {
+            "channel": 0,
+            "eventbody": {
+              "note": 64,
+              "velocity": 0
+            },
+            "eventheader": 128,
+            "eventtype": 128,
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": true,
+                  "value": 1
+                },
+                {
+                  "hasnext": false,
+                  "value": 112
+                }
+              ],
+              "last": 1,
+              "value": 240
+            }
+          },
+          {
+            "channel": null,
+            "eventheader": 255,
+            "eventtype": 240,
+            "metaeventbody": {
+              "body": "",
+              "len": {
+                "groups": [
+                  {
+                    "hasnext": false,
+                    "value": 0
+                  }
+                ],
+                "last": 0,
+                "value": 0
+              },
+              "metatype": 47
+            },
+            "vtime": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 0
+                }
+              ],
+              "last": 0,
+              "value": 0
+            }
+          }
+        ]
+      },
+      "lenevents": 49,
+      "magic": "4d54726b"
+    }
+  ]
+}

@@ -1,0 +1,239 @@
+{
+  "root": {
+    "istagend": false,
+    "name": {
+      "data": "Data",
+      "lendata": 4
+    },
+    "payload": {
+      "dumpnumtags": 14,
+      "tags": [
+        {
+          "istagend": false,
+          "name": {
+            "data": "byte",
+            "lendata": 4
+          },
+          "payload": -5,
+          "type": 1
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "short",
+            "lendata": 5
+          },
+          "payload": 1000,
+          "type": 2
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "int",
+            "lendata": 3
+          },
+          "payload": -100000,
+          "type": 3
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "long",
+            "lendata": 4
+          },
+          "payload": 1099511627776,
+          "type": 4
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "float",
+            "lendata": 5
+          },
+          "payload": 1.5,
+          "type": 5
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "double",
+            "lendata": 6
+          },
+          "payload": -0.25,
+          "type": 6
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "bytes",
+            "lendata": 5
+          },
+          "payload": {
+            "data": "00010203",
+            "lendata": 4
+          },
+          "type": 7
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "string",
+            "lendata": 6
+          },
+          "payload": {
+            "data": "héllo",
+            "lendata": 6
+          },
+          "type": 8
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "ints",
+            "lendata": 4
+          },
+          "payload": {
+            "numtags": 3,
+            "tags": [
+              1,
+              2,
+              3
+            ],
+            "tagstype": 3
+          },
+          "type": 9
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "empty_list",
+            "lendata": 10
+          },
+          "payload": {
+            "numtags": 0,
+            "tags": [],
+            "tagstype": 0
+          },
+          "type": 9
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "compounds",
+            "lendata": 9
+          },
+          "payload": {
+            "numtags": 2,
+            "tags": [
+              {
+                "dumpnumtags": 1,
+                "tags": [
+                  {
+                    "istagend": false,
+                    "name": {
+                      "data": "a",
+                      "lendata": 1
+                    },
+                    "payload": 1,
+                    "type": 1
+                  },
+                  {
+                    "istagend": true,
+                    "type": 0
+                  }
+                ]
+              },
+              {
+                "dumpnumtags": 1,
+                "tags": [
+                  {
+                    "istagend": false,
+                    "name": {
+                      "data": "b",
+                      "lendata": 1
+                    },
+                    "payload": {
+                      "data": "x",
+                      "lendata": 1
+                    },
+                    "type": 8
+                  },
+                  {
+                    "istagend": true,
+                    "type": 0
+                  }
+                ]
+              }
+            ],
+            "tagstype": 10
+          },
+          "type": 9
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "inner",
+            "lendata": 5
+          },
+          "payload": {
+            "dumpnumtags": 1,
+            "tags": [
+              {
+                "istagend": false,
+                "name": {
+                  "data": "depth",
+                  "lendata": 5
+                },
+                "payload": 1,
+                "type": 3
+              },
+              {
+                "istagend": true,
+                "type": 0
+              }
+            ]
+          },
+          "type": 10
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "int_array",
+            "lendata": 9
+          },
+          "payload": {
+            "numtags": 2,
+            "tags": [
+              7,
+              -7
+            ],
+            "tagstype": 3
+          },
+          "type": 11
+        },
+        {
+          "istagend": false,
+          "name": {
+            "data": "long_array",
+            "lendata": 10
+          },
+          "payload": {
+            "numtags": 2,
+            "tags": [
+              1,
+              -1
+            ],
+            "tagstype": 4
+          },
+          "type": 12
+        },
+        {
+          "istagend": true,
+          "type": 0
+        }
+      ]
+    },
+    "type": 10
+  },
+  "roottype": 10
+}

@@ -55,6 +55,22 @@ definitions use:
 | `value_instance_enum` | a value instance with an enum |
 | `import_main`, `import_dep` | `meta.imports` and a type of an imported definition |
 
+## What the reference runtime cannot do
+
+Found while making samples for the gallery; the samples keep clear of them, and
+`doe` is the one that is right in each case:
+
+- It reads a signed 64-bit integer wrongly from about -2^40 down (`readS8be` gives
+  -1095216660480 for -1099511627776), and any number past 2^53 is a JavaScript
+  number with its precision gone (the `protobuf` varint of 2^64 - 1, a `u8` that
+  is a double's bits). `doe` is exact. The samples use values below those.
+- It reads bit fields of 32 bits at most (`readBitsIntBe: the maximum supported
+  bit length is 32`), so the `decimal128` of `bson`, whose definition reads a
+  49-bit field, is left out of the sample.
+- Its dump of a format whose instances point at each other (`iso9660`: the `.`
+  entry of a directory is the directory) overflows the stack, so that format has no
+  reference output (see `gallery_samples.tsv`).
+
 ## A bug in the reference runtime
 
 The JavaScript runtime of Kaitai Struct 0.11.0 skips one byte too many after a

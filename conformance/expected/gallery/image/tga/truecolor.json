@@ -1,0 +1,22 @@
+{
+  "colormapdepth": 0,
+  "colormapofs": 0,
+  "colormaptype": 0,
+  "footer": {
+    "devdirofs": 0,
+    "extarea": null,
+    "extareaofs": 0,
+    "isvalid": false,
+    "versionmagic": "0200020018200000ff00ff00ff000000ffff"
+  },
+  "height": 2,
+  "imagedepth": 24,
+  "imageid": "",
+  "imageidlen": 0,
+  "imagetype": 2,
+  "imgdescriptor": 32,
+  "numcolormap": 0,
+  "width": 2,
+  "xoffset": 0,
+  "yoffset": 0
+}
