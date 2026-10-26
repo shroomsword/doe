@@ -244,17 +244,28 @@ fn a_million_fields_open_scroll_search_and_jump_within_the_budget() {
     });
     let mut search_steps = 0;
     let mut worst_step = Duration::ZERO;
+    let mut step_times = Vec::new();
     while app.searching() {
         let start = Instant::now();
         app.search_step();
+        step_times.push(start.elapsed());
         worst_step = worst_step.max(start.elapsed());
         let took = frame(&mut terminal, &mut app, theme);
         frames.0 = frames.0.max(took);
         search_steps += 1;
     }
     eprintln!("search: {search_steps} steps, the longest {worst_step:?}");
+    // As for the frames: a shared runner can stall one step (104 ms was seen on
+    // macOS where 30-60 ms is usual), so the budget is for 99 steps of 100, and a
+    // stall has a larger bound.
+    step_times.sort();
+    let step_p99 = step_times[step_times.len() * 99 / 100];
     assert!(
-        worst_step < SEARCH_STEP,
+        step_p99 < SEARCH_STEP,
+        "a step of the search at the 99th percentile took {step_p99:?}"
+    );
+    assert!(
+        worst_step < SEARCH_STEP * 5,
         "a step of the search took {worst_step:?}"
     );
     assert!(
