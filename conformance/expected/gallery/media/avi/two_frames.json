@@ -1,0 +1,104 @@
+{
+  "data": {
+    "entries": [
+      {
+        "blocksize": 192,
+        "data": {
+          "data": {
+            "entries": [
+              {
+                "blocksize": 56,
+                "data": {
+                  "flags": 16,
+                  "height": 2,
+                  "initialframes": 0,
+                  "maxbytespersec": 1000,
+                  "microsecperframe": 33333,
+                  "paddinggranularity": 0,
+                  "reserved": "00000000000000000000000000000000",
+                  "streams": 1,
+                  "suggestedbuffersize": 16,
+                  "totalframes": 2,
+                  "width": 2
+                },
+                "fourcc": 1751742049
+              },
+              {
+                "blocksize": 116,
+                "data": {
+                  "data": {
+                    "entries": [
+                      {
+                        "blocksize": 56,
+                        "data": {
+                          "fcchandler": 541215044,
+                          "fcctype": 1935960438,
+                          "flags": 0,
+                          "frame": {
+                            "bottom": 2,
+                            "left": 0,
+                            "right": 2,
+                            "top": 0
+                          },
+                          "initialframes": 0,
+                          "language": 0,
+                          "length": 2,
+                          "priority": 0,
+                          "quality": 4294967295,
+                          "rate": 30,
+                          "samplesize": 0,
+                          "scale": 1,
+                          "start": 0,
+                          "suggestedbuffersize": 16
+                        },
+                        "fourcc": 1752331379
+                      },
+                      {
+                        "blocksize": 40,
+                        "data": "28000000020000000200000001001800000000001000000000000000000000000000000000000000",
+                        "fourcc": 1718776947
+                      }
+                    ]
+                  },
+                  "listtype": 1819440243
+                },
+                "fourcc": 1414744396
+              }
+            ]
+          },
+          "listtype": 1819436136
+        },
+        "fourcc": 1414744396
+      },
+      {
+        "blocksize": 52,
+        "data": {
+          "data": {
+            "entries": [
+              {
+                "blocksize": 16,
+                "data": "0000ff00ff000000ff0000ffffff0000",
+                "fourcc": 1650733104
+              },
+              {
+                "blocksize": 16,
+                "data": "0000ffffff0000ff000000ff00ff0000",
+                "fourcc": 1650733104
+              }
+            ]
+          },
+          "listtype": 1769369453
+        },
+        "fourcc": 1414744396
+      },
+      {
+        "blocksize": 32,
+        "data": "3030646210000000040000001000000030306462100000001c00000010000000",
+        "fourcc": 829973609
+      }
+    ]
+  },
+  "filesize": 304,
+  "magic1": "52494646",
+  "magic2": "41564920"
+}

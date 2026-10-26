@@ -1,0 +1,22 @@
+{
+  "hdr": {
+    "bitsperpixel": 8,
+    "bytesperline": 8,
+    "encoding": 1,
+    "hscreensize": 8,
+    "hdpi": 72,
+    "imgxmax": 7,
+    "imgxmin": 0,
+    "imgymax": 0,
+    "imgymin": 0,
+    "magic": "0a",
+    "numplanes": 3,
+    "palette16": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "paletteinfo": 1,
+    "reserved": "00",
+    "vscreensize": 1,
+    "vdpi": 72,
+    "version": 5
+  },
+  "palette256": null
+}

@@ -359,7 +359,9 @@ element (0 for the first) in its `size`, `type` arguments, `switch-on` and
 took (Kaitai Struct allows it for fields of a fixed size only), `_sizeof` the
 size of the type the expression is in, and `sizeof<type>` and `bitsizeof<type>`
 the size of a type or of a primitive such as `s4` or `b12`, in bytes or bits;
-for a type, it is an error unless every field of the type has a fixed size.
+for a type, it is an error unless every field of the type has a fixed size (a
+field repeated a number of times written in the schema, `repeat-expr: 4`, and a
+string with a terminator cut out of a window of a given `size`, count).
 `x.as<type>` is `x`: it names which type a value of a `switch-on` is, and is not
 checked. A list of integer literals that all fit in a byte (`[0x49, 0x49]`) is a
 byte sequence, so `magic == [0x49, 0x49]` works for a `bytes` field.
@@ -586,8 +588,9 @@ seq:
 
 `eq`, `min`, `max` and the elements of `any-of` are expressions, so they can use
 earlier fields, instances and enum members (`kind_t::data`); `expr` sees the
-value as `_`. The value checked is the one read, before it is named after an
-enum member, and with `repeat` every element is checked. A field with `if:`
+value as `_`, and may use the instances of the type, also those that are
+computed from the value being checked (`is_set`, `value & 1 != 0`). The value
+checked is the one read, before it is named after an enum member, and with `repeat` every element is checked. A field with `if:`
 that is not read is not checked. `in-enum` needs `enum:` on the field; an empty
 `valid`, an empty `any-of`, and `valid` on a `value:` instance are schema
 errors. `valid` also works on an instance that reads.
@@ -752,7 +755,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 8 with a file written by its own tool, 24 with a file built by hand, 1 failing on a file, 6 part of another, 151 without a sample
+> 190 definitions: 9 with a file written by its own tool, 54 with a file built by hand, 1 failing on a file, 6 part of another, 120 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -764,23 +767,32 @@ of the format (the RFC, the format's documentation) and not from the definition,
 not that it reads files from the world. Both are parsed by the conformance suite
 and compared with the reference compiler's output:
 
+<!-- gallery-formats:begin -->
 | Directory | Formats |
 | --- | --- |
 | `archive` | `cpio_old_le`, `gzip`, `zip` |
 | `database` | `dbf` |
 | `executable` | `elf`, `java_class`, `mach_o`, `microsoft_pe` |
-| `image` | `bmp`, `gif`, `jpeg`, `png` |
-| `media` | `wav` |
-| `network` | `bitcoin_transaction`, `dime_message`, `dns_packet`, `ethernet_frame`, `hccap`, `hccapx`, `icmp_packet`, `ipv4_packet` (with `protocol_body`), `ipv6_packet`, `pcap`, `rtp_packet`, `rtpdump`, `tcp_segment`, `tls_client_hello`, `udp_datagram`, `websocket` |
+| `filesystem` | `apm_partition_table`, `gpt_partition_table`, `mbr_partition_table`, `zx_spectrum_tap` |
+| `firmware` | `broadcom_trx`, `ines`, `uf2`, `uimage` |
+| `game` | `doom_wad`, `dune_2_pak`, `minecraft_nbt`, `quake_pak` |
+| `hardware` | `dtb` |
+| `image` | `bmp`, `gif`, `ico`, `jpeg`, `pcx`, `png`, `tga`, `xwd` |
+| `log` | `aix_utmp`, `glibc_utmp`, `sudoers_ts` |
+| `media` | `au`, `avi`, `creative_voice_file`, `id3v1_1`, `standard_midi_file`, `stl`, `wav` |
+| `network` | `bitcoin_transaction`, `dime_message`, `dns_packet`, `ethernet_frame`, `hccap`, `hccapx`, `icmp_packet`, `ipv4_packet`, `ipv6_packet`, `pcap`, `rtp_packet`, `rtpdump`, `tcp_segment`, `tls_client_hello`, `udp_datagram`, `websocket` |
 | `security` | `ssh_public_key` |
-| `serialization` | `python_pickle`, `asn1/asn1_der` |
+| `serialization` | `asn1/asn1_der`, `bson`, `chrome_pak`, `google_protobuf`, `msgpack`, `php_serialized_value`, `python_pickle` |
+<!-- gallery-formats:end -->
 
 `filesystem/iso9660` has a file written by `genisoimage` that `doe` does not finish
 reading ([#150](https://github.com/shroomsword/doe/issues/150)); its row says
 `failing`, and its file is not in the suite until that is fixed.
 
-A file is never made up to fit `doe`: a format without one says so in the table,
-and is a task for whoever has a real file of it.
+A file is never made up to fit `doe`: the files built by hand follow the format's
+specification and are checked against the reference compiler, and a format
+without any says so in the table. A real file of such a format, from a tool or
+from the world, is always welcome in place of a built one.
 
 `sqlite3` is left out on purpose: its definition reads every column as a string
 (the `if` that should limit `as_str` to text columns is commented out), which
@@ -1049,8 +1061,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 66 samples of the Kaitai gallery
-in the tests, 19 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 109 samples of the Kaitai gallery
+in the tests, 32 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 

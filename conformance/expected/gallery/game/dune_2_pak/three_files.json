@@ -1,0 +1,34 @@
+{
+  "dir": {
+    "files": [
+      {
+        "body": "696e74726f2064617461",
+        "filename": "INTRO.HSQ",
+        "nextofs": 50,
+        "nextofs0": 50,
+        "ofs": 40
+      },
+      {
+        "body": "636667",
+        "filename": "DUNE.CFG",
+        "nextofs": 53,
+        "nextofs0": 53,
+        "ofs": 50
+      },
+      {
+        "body": "0102030405",
+        "filename": "LAST",
+        "nextofs": 58,
+        "nextofs0": 0,
+        "ofs": 53
+      },
+      {
+        "body": null,
+        "nextofs": null,
+        "nextofs0": null,
+        "ofs": 0
+      }
+    ]
+  },
+  "dirsize": 40
+}

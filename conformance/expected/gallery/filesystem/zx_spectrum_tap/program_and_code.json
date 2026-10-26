@@ -1,0 +1,39 @@
+{
+  "blocks": [
+    {
+      "data": "1000ff000a0d00f5202248656c6c6f220d62",
+      "flag": 0,
+      "header": {
+        "checksum": 72,
+        "filename": "68656c6c6f",
+        "headertype": 0,
+        "lendata": 14,
+        "params": {
+          "autostartline": 10,
+          "lenprogram": 14
+        }
+      },
+      "lenblock": 19
+    },
+    {
+      "data": "1200ff000102030405060708090a0b0c0d0e0fff",
+      "flag": 0,
+      "header": {
+        "checksum": 215,
+        "filename": "636f6465626c6f636b",
+        "headertype": 3,
+        "lendata": 16,
+        "params": {
+          "reserved": "0000",
+          "startaddress": 32768
+        }
+      },
+      "lenblock": 19
+    },
+    {
+      "flag": 255,
+      "headerlessdata": "6865616465726c657373e9",
+      "lenblock": 12
+    }
+  ]
+}

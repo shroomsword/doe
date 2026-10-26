@@ -1196,8 +1196,9 @@ fn field_paths(exprs: Vec<&expr::Expr>) -> Vec<&Vec<String>> {
 }
 
 /// The size in bytes of `name` if it is always the same: made of fields of a
-/// fixed size that are neither optional (unless empty), repeated, placed with
-/// `pos`, nor bit fields. Cached in `known`.
+/// fixed size that are neither optional (unless empty), repeated (unless a
+/// number of times written as a literal), placed with `pos`, nor bit fields.
+/// Cached in `known`.
 fn static_size(
     registry: &TypeRegistry,
     name: &str,
@@ -1215,7 +1216,13 @@ fn static_size(
     let ty = registry.get(name)?;
     let mut total: u64 = 0;
     for field in &ty.fields {
-        if !matches!(field.repeat, RepeatMode::Once) || field.pos.is_some() {
+        // `repeat: expr` with a number written in the schema reads the field that many times
+        let times = match &field.repeat {
+            RepeatMode::Once => 1,
+            RepeatMode::Count(crate::schema::expr::Expr::Int(n)) => u64::try_from(*n).ok()?,
+            _ => return None,
+        };
+        if field.pos.is_some() {
             return None;
         }
         let size = match &field.kind {
@@ -1240,6 +1247,22 @@ fn static_size(
             | FieldKind::TypeRef {
                 size: Some(SizeExpr::Literal(n)),
                 ..
+            }
+            // a string or bytes cut at a terminator out of a window of a given size takes the window
+            | FieldKind::Str {
+                size:
+                    StrSize::Cut(crate::schema::ir::Cut {
+                        size: Some(SizeExpr::Literal(n)),
+                        ..
+                    }),
+                ..
+            }
+            | FieldKind::BytesCut {
+                cut:
+                    crate::schema::ir::Cut {
+                        size: Some(SizeExpr::Literal(n)),
+                        ..
+                    },
             } => u64::try_from(*n).ok()?,
             FieldKind::TypeRef {
                 type_name,
@@ -1248,6 +1271,7 @@ fn static_size(
             } => static_size(registry, type_name, known, depth + 1)?,
             _ => return None,
         };
+        let size = size.checked_mul(times)?;
         // An optional field has no fixed size, unless it takes no bytes anyway
         // (`- size: 0` with an `if`, which some definitions use to make
         // something be computed first).
@@ -1588,17 +1612,23 @@ fn compile_valid(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<Option<CompiledVa
     if in_enum && raw.enum_ref.is_none() {
         return Err(bad("'in-enum' needs 'enum' on the field".to_owned()));
     }
+    let expr = rules
+        .expr
+        .as_ref()
+        .map(|text| compile_expr(&text.0, ctx).map_err(|e| bad(e.to_string())))
+        .transpose()?;
+    let expr_instances = expr
+        .as_ref()
+        .map(|e| instance_refs(&[e], ctx.instances))
+        .unwrap_or_default();
     Ok(Some(CompiledValid {
         eq: rules.eq.as_ref().map(rule).transpose()?,
         min: rules.min.as_ref().map(rule).transpose()?,
         max: rules.max.as_ref().map(rule).transpose()?,
         any_of,
-        expr: rules
-            .expr
-            .as_ref()
-            .map(|text| compile_expr(&text.0, ctx).map_err(|e| bad(e.to_string())))
-            .transpose()?,
+        expr,
         in_enum,
+        expr_instances,
     }))
 }
 

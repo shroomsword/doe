@@ -1,0 +1,226 @@
+{
+  "fields": {
+    "elements": [
+      {
+        "content": 3.25,
+        "name": {
+          "str": "double"
+        },
+        "typebyte": 1
+      },
+      {
+        "content": {
+          "len": 7,
+          "str": "héllo",
+          "terminator": "00"
+        },
+        "name": {
+          "str": "string"
+        },
+        "typebyte": 2
+      },
+      {
+        "content": {
+          "fields": {
+            "elements": [
+              {
+                "content": 2,
+                "name": {
+                  "str": "depth"
+                },
+                "typebyte": 16
+              },
+              {
+                "content": 1,
+                "name": {
+                  "str": "deep"
+                },
+                "typebyte": 8
+              }
+            ]
+          },
+          "len": 23,
+          "terminator": "00"
+        },
+        "name": {
+          "str": "document"
+        },
+        "typebyte": 3
+      },
+      {
+        "content": {
+          "fields": {
+            "elements": [
+              {
+                "content": 10,
+                "name": {
+                  "str": "0"
+                },
+                "typebyte": 16
+              },
+              {
+                "content": 20,
+                "name": {
+                  "str": "1"
+                },
+                "typebyte": 16
+              },
+              {
+                "content": 30,
+                "name": {
+                  "str": "2"
+                },
+                "typebyte": 16
+              }
+            ]
+          },
+          "len": 26,
+          "terminator": "00"
+        },
+        "name": {
+          "str": "array"
+        },
+        "typebyte": 4
+      },
+      {
+        "content": {
+          "content": "00010203",
+          "len": 4,
+          "subtype": 0
+        },
+        "name": {
+          "str": "binary"
+        },
+        "typebyte": 5
+      },
+      {
+        "content": {
+          "content": "000102030405060708090a0b0c0d0e0f",
+          "len": 16,
+          "subtype": 4
+        },
+        "name": {
+          "str": "uuid"
+        },
+        "typebyte": 5
+      },
+      {
+        "content": {
+          "counter": {
+            "b1": 67,
+            "b2": 144,
+            "b3": 17,
+            "value": 1151043
+          },
+          "epochtime": 1998552912,
+          "machineid": {
+            "b1": 188,
+            "b2": 248,
+            "b3": 108,
+            "value": 7141564
+          },
+          "processid": 39383
+        },
+        "name": {
+          "str": "object_id"
+        },
+        "typebyte": 7
+      },
+      {
+        "content": 0,
+        "name": {
+          "str": "false"
+        },
+        "typebyte": 8
+      },
+      {
+        "content": 1,
+        "name": {
+          "str": "true"
+        },
+        "typebyte": 8
+      },
+      {
+        "content": 1700000000000,
+        "name": {
+          "str": "datetime"
+        },
+        "typebyte": 9
+      },
+      {
+        "name": {
+          "str": "null"
+        },
+        "typebyte": 10
+      },
+      {
+        "content": {
+          "options": {
+            "str": "i"
+          },
+          "pattern": {
+            "str": "^doe"
+          }
+        },
+        "name": {
+          "str": "regex"
+        },
+        "typebyte": 11
+      },
+      {
+        "content": {
+          "len": 26,
+          "str": "function () { return 1; }",
+          "terminator": "00"
+        },
+        "name": {
+          "str": "javascript"
+        },
+        "typebyte": 13
+      },
+      {
+        "content": {
+          "len": 4,
+          "str": "sym",
+          "terminator": "00"
+        },
+        "name": {
+          "str": "symbol"
+        },
+        "typebyte": 14
+      },
+      {
+        "content": -42,
+        "name": {
+          "str": "int32"
+        },
+        "typebyte": 16
+      },
+      {
+        "content": {
+          "increment": 1,
+          "timestamp": 1700000000
+        },
+        "name": {
+          "str": "timestamp"
+        },
+        "typebyte": 17
+      },
+      {
+        "content": 1099511627776,
+        "name": {
+          "str": "int64"
+        },
+        "typebyte": 18
+      },
+      {
+        "name": {
+          "str": "max_key"
+        },
+        "typebyte": 127
+      }
+    ]
+  },
+  "len": 338,
+  "terminator": "00"
+}

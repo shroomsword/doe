@@ -194,6 +194,11 @@ pub struct CompiledValid {
     pub expr: Option<Expr>,
     /// The value must be a member of the field's enum.
     pub in_enum: bool,
+    /// The instances of the same type that `expr` uses. They may depend on the
+    /// field itself (`is_set` is `flags & 1 != 0`, and the rule says `is_set`),
+    /// so they are computed once the value is read, and not before as those of
+    /// the other rules are.
+    pub expr_instances: Vec<String>,
 }
 
 /// A value of a type that is computed or read on demand (`instances:`).

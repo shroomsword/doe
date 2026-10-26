@@ -1,0 +1,201 @@
+{
+  "pairs": [
+    {
+      "fieldtag": 1,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 8,
+            "value": 8
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 8,
+        "valuesigned": 8
+      },
+      "value": {
+        "groups": [
+          {
+            "hasnext": true,
+            "intermvalue": 44,
+            "value": 44
+          },
+          {
+            "hasnext": false,
+            "intermvalue": 300,
+            "value": 2
+          }
+        ],
+        "len": 2,
+        "signbit": 8192,
+        "value": 300,
+        "valuesigned": 300
+      },
+      "wiretype": 0
+    },
+    {
+      "fieldtag": 2,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 18,
+            "value": 18
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 18,
+        "valuesigned": 18
+      },
+      "value": {
+        "body": "74657374696e67",
+        "len": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 7,
+              "value": 7
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 7,
+          "valuesigned": 7
+        }
+      },
+      "wiretype": 2
+    },
+    {
+      "fieldtag": 3,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 26,
+            "value": 26
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 26,
+        "valuesigned": 26
+      },
+      "value": {
+        "body": "0896011203616263",
+        "len": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 8,
+              "value": 8
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 8,
+          "valuesigned": 8
+        }
+      },
+      "wiretype": 2
+    },
+    {
+      "fieldtag": 4,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 33,
+            "value": 33
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 33,
+        "valuesigned": 33
+      },
+      "value": 1099511627776,
+      "wiretype": 1
+    },
+    {
+      "fieldtag": 5,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 45,
+            "value": 45
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 45,
+        "valuesigned": 45
+      },
+      "value": 1069547520,
+      "wiretype": 5
+    },
+    {
+      "fieldtag": 6,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 48,
+            "value": 48
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 48,
+        "valuesigned": 48
+      },
+      "value": {
+        "groups": [
+          {
+            "hasnext": true,
+            "intermvalue": 127,
+            "value": 127
+          },
+          {
+            "hasnext": true,
+            "intermvalue": 16383,
+            "value": 127
+          },
+          {
+            "hasnext": true,
+            "intermvalue": 2097151,
+            "value": 127
+          },
+          {
+            "hasnext": true,
+            "intermvalue": 268435455,
+            "value": 127
+          },
+          {
+            "hasnext": true,
+            "intermvalue": 34359738367,
+            "value": 127
+          },
+          {
+            "hasnext": true,
+            "intermvalue": 4398046511103,
+            "value": 127
+          },
+          {
+            "hasnext": false,
+            "intermvalue": 562949953421311,
+            "value": 127
+          }
+        ],
+        "len": 7,
+        "signbit": 281474976710656,
+        "value": 562949953421311,
+        "valuesigned": -1
+      },
+      "wiretype": 0
+    }
+  ]
+}

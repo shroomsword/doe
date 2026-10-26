@@ -1,0 +1,31 @@
+{
+  "colormap": [],
+  "hdr": {
+    "bitmapbitorder": 1,
+    "bitmappad": 32,
+    "bitmapunit": 32,
+    "bitsperpixel": 32,
+    "bitsperrgb": 8,
+    "bluemask": 255,
+    "byteorder": 1,
+    "bytesperline": 8,
+    "colormapentries": 0,
+    "creator": "doe",
+    "fileversion": 7,
+    "greenmask": 65280,
+    "numberofcolors": 0,
+    "pixmapdepth": 24,
+    "pixmapformat": 2,
+    "pixmapheight": 2,
+    "pixmapwidth": 2,
+    "redmask": 16711680,
+    "visualclass": 4,
+    "windowborderwidth": 0,
+    "windowheight": 2,
+    "windowwidth": 2,
+    "windowx": 0,
+    "windowy": 0,
+    "xoffset": 0
+  },
+  "lenheader": 104
+}

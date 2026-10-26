@@ -1,0 +1,12 @@
+{
+  "header": {
+    "comment": "doe sample",
+    "datasize": 4294967295,
+    "encoding": 1,
+    "numchannels": 1,
+    "samplerate": 8000
+  },
+  "lendata": 64,
+  "magic": "2e736e64",
+  "ofsdata": 36
+}

@@ -117,7 +117,51 @@ def make_iso():
         put("filesystem/iso9660", "small", image.read_bytes())
 
 
+# ── utmp ─────────────────────────────────────────────────────────────────────
+# glibc writes the file: utmpxname and pututxline of the C library, called through ctypes.
+def make_utmp():
+    import ctypes
+    import ctypes.util
+
+    class Timeval(ctypes.Structure):
+        _fields_ = [("tv_sec", ctypes.c_int32), ("tv_usec", ctypes.c_int32)]
+
+    class ExitStatus(ctypes.Structure):
+        _fields_ = [("e_termination", ctypes.c_short), ("e_exit", ctypes.c_short)]
+
+    class Utmpx(ctypes.Structure):
+        _fields_ = [
+            ("ut_type", ctypes.c_short), ("ut_pid", ctypes.c_int), ("ut_line", ctypes.c_char * 32),
+            ("ut_id", ctypes.c_char * 4), ("ut_user", ctypes.c_char * 32), ("ut_host", ctypes.c_char * 256),
+            ("ut_exit", ExitStatus), ("ut_session", ctypes.c_int32), ("ut_tv", Timeval),
+            ("ut_addr_v6", ctypes.c_int32 * 4), ("unused", ctypes.c_char * 20),
+        ]
+
+    libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+    assert ctypes.sizeof(Utmpx) == 384, ctypes.sizeof(Utmpx)
+    libc.pututxline.argtypes = [ctypes.POINTER(Utmpx)]
+    libc.utmpxname.argtypes = [ctypes.c_char_p]
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "utmp"
+        path.write_bytes(b"")
+        assert libc.utmpxname(str(path).encode()) == 0
+        libc.setutxent()
+        records = [
+            (2, 0, b"~", b"~~", b"reboot", b"6.1.0-doe", 1700000000),
+            (1, 0, b"~", b"~~", b"runlevel", b"6.1.0-doe", 1700000010),
+            (7, 4242, b"pts/0", b"s/0", b"doe", b"192.0.2.10", 1700000100),
+            (8, 4242, b"pts/0", b"s/0", b"", b"", 1700000200),
+        ]
+        for kind, pid, line, ident, user, host, when in records:
+            entry = Utmpx(ut_type=kind, ut_pid=pid, ut_line=line, ut_id=ident, ut_user=user, ut_host=host)
+            entry.ut_tv.tv_sec = when
+            assert libc.pututxline(ctypes.byref(entry))
+        libc.endutxent()
+        put("log/glibc_utmp", "four_records", path.read_bytes())
+
+
 if __name__ == "__main__":
+    make_utmp()
     make_cpio()
     make_ssh()
     make_pickle()

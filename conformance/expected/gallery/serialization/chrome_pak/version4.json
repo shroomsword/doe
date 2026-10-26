@@ -1,0 +1,34 @@
+{
+  "aliases": [],
+  "encoding": 1,
+  "numaliases": 0,
+  "numresources": 3,
+  "numresourcesv4": 3,
+  "resources": [
+    {
+      "body": "3c68746d6c3e6f6e653c2f68746d6c3e",
+      "id": 100,
+      "lenbody": 16,
+      "ofsbody": 33
+    },
+    {
+      "body": "74776f",
+      "id": 101,
+      "lenbody": 3,
+      "ofsbody": 49
+    },
+    {
+      "body": "000102",
+      "id": 7,
+      "lenbody": 3,
+      "ofsbody": 52
+    },
+    {
+      "body": null,
+      "id": 0,
+      "lenbody": null,
+      "ofsbody": 55
+    }
+  ],
+  "version": 4
+}

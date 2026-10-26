@@ -174,6 +174,42 @@ fn a_row_says_what_it_is_tested_with_and_where_the_files_come_from() {
     }
 }
 
+/// The table of directories and the formats that are tested, as the README
+/// shows it (`gallery_table.py --readme` writes it).
+fn readme_block(rows: &BTreeMap<String, Row>) -> String {
+    let mut by_dir: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for (name, row) in rows {
+        if matches!(row.status.as_str(), "real" | "crafted")
+            && let Some((directory, leaf)) = name.split_once('/')
+        {
+            by_dir.entry(directory).or_default().push(leaf);
+        }
+    }
+    let mut lines = vec![
+        "<!-- gallery-formats:begin -->".to_owned(),
+        "| Directory | Formats |".to_owned(),
+        "| --- | --- |".to_owned(),
+    ];
+    for (directory, mut formats) in by_dir {
+        formats.sort_unstable();
+        let formats: Vec<String> = formats.iter().map(|f| format!("`{f}`")).collect();
+        lines.push(format!("| `{directory}` | {} |", formats.join(", ")));
+    }
+    lines.push("<!-- gallery-formats:end -->".to_owned());
+    lines.join("\n")
+}
+
+#[test]
+fn the_formats_that_are_tested_are_in_the_readme() {
+    let rows = table();
+    let readme = std::fs::read_to_string(conformance_dir().join("../README.md")).unwrap();
+    let block = readme_block(&rows);
+    assert!(
+        readme.contains(&block),
+        "the table of formats in the README is out of date; run `python3 conformance/gallery_table.py --readme`. It should be:\n{block}"
+    );
+}
+
 #[test]
 fn the_numbers_of_the_gallery_are_in_the_readme_and_in_the_ci_log() {
     let rows = table();

@@ -1,0 +1,95 @@
+{
+  "records": [
+    {
+      "lenrecord": 48,
+      "payload": {
+        "authuid": 1000,
+        "flags": {
+          "anyuid": false,
+          "disabled": false,
+          "reserved0": 0,
+          "reserved1": 0
+        },
+        "sid": 1,
+        "starttime": {
+          "nsec": 0,
+          "sec": 1700000000
+        },
+        "ts": {
+          "nsec": 500,
+          "sec": 1700000300
+        },
+        "type": 1
+      },
+      "version": 2
+    },
+    {
+      "lenrecord": 52,
+      "payload": {
+        "authuid": 1000,
+        "flags": {
+          "anyuid": false,
+          "disabled": false,
+          "reserved0": 0,
+          "reserved1": 0
+        },
+        "sid": 2000,
+        "starttime": {
+          "nsec": 1,
+          "sec": 1700000000
+        },
+        "ts": {
+          "nsec": 2,
+          "sec": 1700000400
+        },
+        "ttydev": 34816,
+        "type": 2
+      },
+      "version": 2
+    },
+    {
+      "lenrecord": 52,
+      "payload": {
+        "authuid": 1000,
+        "flags": {
+          "anyuid": false,
+          "disabled": false,
+          "reserved0": 0,
+          "reserved1": 0
+        },
+        "ppid": 4321,
+        "sid": 2000,
+        "starttime": {
+          "nsec": 1,
+          "sec": 1700000000
+        },
+        "ts": {
+          "nsec": 2,
+          "sec": 1700000400
+        },
+        "type": 3
+      },
+      "version": 2
+    },
+    {
+      "lenrecord": 36,
+      "payload": {
+        "authuid": 0,
+        "flags": {
+          "anyuid": true,
+          "disabled": false,
+          "reserved0": 0,
+          "reserved1": 0
+        },
+        "sid": 7,
+        "ts": {
+          "nsec": 3,
+          "sec": 1700000500
+        },
+        "ttydev": 34817,
+        "type": 2
+      },
+      "version": 1
+    }
+  ]
+}

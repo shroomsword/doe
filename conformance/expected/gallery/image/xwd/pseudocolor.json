@@ -1,0 +1,64 @@
+{
+  "colormap": [
+    {
+      "blue": 0,
+      "entrynumber": 0,
+      "flags": 7,
+      "green": 0,
+      "padding": 0,
+      "red": 0
+    },
+    {
+      "blue": 0,
+      "entrynumber": 1,
+      "flags": 7,
+      "green": 0,
+      "padding": 0,
+      "red": 65535
+    },
+    {
+      "blue": 0,
+      "entrynumber": 2,
+      "flags": 7,
+      "green": 65535,
+      "padding": 0,
+      "red": 0
+    },
+    {
+      "blue": 65535,
+      "entrynumber": 3,
+      "flags": 7,
+      "green": 0,
+      "padding": 0,
+      "red": 0
+    }
+  ],
+  "hdr": {
+    "bitmapbitorder": 1,
+    "bitmappad": 32,
+    "bitmapunit": 32,
+    "bitsperpixel": 8,
+    "bitsperrgb": 8,
+    "bluemask": 0,
+    "byteorder": 1,
+    "bytesperline": 4,
+    "colormapentries": 4,
+    "creator": "doe",
+    "fileversion": 7,
+    "greenmask": 0,
+    "numberofcolors": 4,
+    "pixmapdepth": 8,
+    "pixmapformat": 2,
+    "pixmapheight": 2,
+    "pixmapwidth": 4,
+    "redmask": 0,
+    "visualclass": 3,
+    "windowborderwidth": 0,
+    "windowheight": 2,
+    "windowwidth": 4,
+    "windowx": 0,
+    "windowy": 0,
+    "xoffset": 0
+  },
+  "lenheader": 104
+}

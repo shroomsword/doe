@@ -893,6 +893,16 @@ impl<'reg> Engine<'reg> {
                 })?,
         };
         if let Some(valid) = &field.valid
+            && !valid.expr_instances.is_empty()
+            && let Some(read) = ParseContext::expr_value(&raw)
+        {
+            // the rule uses instances of the type, which may use the value just read
+            ctx.eval_ctx.bind(&field.id, read);
+            for name in &valid.expr_instances {
+                self.ensure_named_instance(parent_ty, name, cursor, ctx)?;
+            }
+        }
+        if let Some(valid) = &field.valid
             && let Err(e) = Self::check_valid(valid, field, parent_ty, &raw, cursor, ctx)
         {
             // The value was read; it is the rule that it fails.

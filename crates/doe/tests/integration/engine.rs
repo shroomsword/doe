@@ -5619,3 +5619,100 @@ fn a_value_copied_from_a_struct_has_the_instances_that_are_computed_later() {
     };
     assert_eq!(get_field(value, "late").as_int(), Some(30));
 }
+
+// ── A type with a fixed number of repeats, or a cut string, has a size ────
+
+#[test]
+fn sizeof_a_type_with_a_literal_repeat_count_and_a_string_in_a_window() {
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: head
+            size: 2
+          - id: tail
+            type: tail
+          - id: sizes
+            type: u1
+            repeat: expr
+            repeat-expr: 1
+        instances:
+          size_of_tail:
+            value: sizeof<tail>
+        types:
+          pair:
+            seq:
+              - id: a
+                type: u1
+              - id: b
+                type: u2le
+          tail:
+            seq:
+              - id: name
+                type: strz
+                size: 12
+                encoding: ASCII
+              - id: pairs
+                type: pair
+                repeat: expr
+                repeat-expr: 4
+    "};
+    let mut data = vec![0xAA, 0xBB];
+    data.extend_from_slice(b"doe\0\0\0\0\0\0\0\0\0");
+    data.extend(std::iter::repeat_n(7_u8, 12));
+    data.push(9);
+    let v = parse(schema, "t", &data);
+    // 12 for the name, and 4 pairs of 3 bytes
+    assert_eq!(get_field(&v, "size_of_tail").to_string(), "24");
+}
+
+#[test]
+fn a_type_repeated_a_number_of_times_that_is_not_a_literal_has_no_size() {
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: count
+            type: u1
+          - id: tail
+            type: tail
+        instances:
+          size_of_tail:
+            value: sizeof<tail>
+        types:
+          tail:
+            seq:
+              - id: items
+                type: u1
+                repeat: expr
+                repeat-expr: _root.count
+    "};
+    let e = parse_err(schema, "t", &[2, 1, 2]);
+    assert!(e.to_string().contains("sizeof"), "{e}");
+}
+
+// ── valid: with an expression that uses an instance of the field itself ──
+
+#[test]
+fn a_valid_expression_may_use_an_instance_that_depends_on_the_value() {
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: flags
+            type: flags
+        types:
+          flags:
+            seq:
+              - id: value
+                type: u1
+                valid:
+                  expr: not (is_set and is_other)
+            instances:
+              is_set:
+                value: value & 1 != 0
+              is_other:
+                value: value & 2 != 0
+    "};
+    let v = parse(schema, "t", &[1]);
+    assert_eq!(get_field(get_field(&v, "flags"), "value"), &Value::UInt(1));
+    let e = parse_err(schema, "t", &[3]);
+    assert!(e.to_string().contains("does not satisfy"), "{e}");
+}
