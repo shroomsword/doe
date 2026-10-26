@@ -1,0 +1,274 @@
+{
+  "body": {
+    "entries": [
+      {
+        "body": {
+          "entries": [
+            {
+              "body": "00",
+              "len": {
+                "b1": 1,
+                "result": 1
+              },
+              "typetag": 2
+            },
+            {
+              "body": {
+                "entries": [
+                  {
+                    "body": {
+                      "entries": [
+                        {
+                          "body": {
+                            "entries": [
+                              {
+                                "body": {
+                                  "first": 2,
+                                  "firstandsecond": 85,
+                                  "rest": "0406",
+                                  "second": 5
+                                },
+                                "len": {
+                                  "b1": 3,
+                                  "result": 3
+                                },
+                                "typetag": 6
+                              },
+                              {
+                                "body": {
+                                  "str": "SE"
+                                },
+                                "len": {
+                                  "b1": 2,
+                                  "result": 2
+                                },
+                                "typetag": 19
+                              }
+                            ]
+                          },
+                          "len": {
+                            "b1": 9,
+                            "result": 9
+                          },
+                          "typetag": 48
+                        }
+                      ]
+                    },
+                    "len": {
+                      "b1": 11,
+                      "result": 11
+                    },
+                    "typetag": 49
+                  },
+                  {
+                    "body": {
+                      "entries": [
+                        {
+                          "body": {
+                            "entries": [
+                              {
+                                "body": {
+                                  "first": 2,
+                                  "firstandsecond": 85,
+                                  "rest": "040a",
+                                  "second": 5
+                                },
+                                "len": {
+                                  "b1": 3,
+                                  "result": 3
+                                },
+                                "typetag": 6
+                              },
+                              {
+                                "body": {
+                                  "str": "doe"
+                                },
+                                "len": {
+                                  "b1": 3,
+                                  "result": 3
+                                },
+                                "typetag": 12
+                              }
+                            ]
+                          },
+                          "len": {
+                            "b1": 10,
+                            "result": 10
+                          },
+                          "typetag": 48
+                        }
+                      ]
+                    },
+                    "len": {
+                      "b1": 12,
+                      "result": 12
+                    },
+                    "typetag": 49
+                  },
+                  {
+                    "body": {
+                      "entries": [
+                        {
+                          "body": {
+                            "entries": [
+                              {
+                                "body": {
+                                  "first": 2,
+                                  "firstandsecond": 85,
+                                  "rest": "0403",
+                                  "second": 5
+                                },
+                                "len": {
+                                  "b1": 3,
+                                  "result": 3
+                                },
+                                "typetag": 6
+                              },
+                              {
+                                "body": {
+                                  "str": "sample"
+                                },
+                                "len": {
+                                  "b1": 6,
+                                  "result": 6
+                                },
+                                "typetag": 12
+                              }
+                            ]
+                          },
+                          "len": {
+                            "b1": 13,
+                            "result": 13
+                          },
+                          "typetag": 48
+                        }
+                      ]
+                    },
+                    "len": {
+                      "b1": 15,
+                      "result": 15
+                    },
+                    "typetag": 49
+                  }
+                ]
+              },
+              "len": {
+                "b1": 44,
+                "result": 44
+              },
+              "typetag": 48
+            },
+            {
+              "body": {
+                "entries": [
+                  {
+                    "body": {
+                      "entries": [
+                        {
+                          "body": {
+                            "first": 1,
+                            "firstandsecond": 42,
+                            "rest": "8648ce3d0201",
+                            "second": 2
+                          },
+                          "len": {
+                            "b1": 7,
+                            "result": 7
+                          },
+                          "typetag": 6
+                        },
+                        {
+                          "body": {
+                            "first": 1,
+                            "firstandsecond": 42,
+                            "rest": "8648ce3d030107",
+                            "second": 2
+                          },
+                          "len": {
+                            "b1": 8,
+                            "result": 8
+                          },
+                          "typetag": 6
+                        }
+                      ]
+                    },
+                    "len": {
+                      "b1": 19,
+                      "result": 19
+                    },
+                    "typetag": 48
+                  },
+                  {
+                    "body": "0004cf88f43b33c690fc868b188a54635f22d3c60f1fb6c54adca51f38feb80a998570cf29cd23e5135978730a99de79f8e706da8120ef0794c9d5303af8561ce653",
+                    "len": {
+                      "b1": 66,
+                      "result": 66
+                    },
+                    "typetag": 3
+                  }
+                ]
+              },
+              "len": {
+                "b1": 89,
+                "result": 89
+              },
+              "typetag": 48
+            },
+            {
+              "body": "",
+              "len": {
+                "b1": 0,
+                "result": 0
+              },
+              "typetag": 160
+            }
+          ]
+        },
+        "len": {
+          "b1": 129,
+          "int1": 142,
+          "result": 142
+        },
+        "typetag": 48
+      },
+      {
+        "body": {
+          "entries": [
+            {
+              "body": {
+                "first": 1,
+                "firstandsecond": 42,
+                "rest": "8648ce3d040302",
+                "second": 2
+              },
+              "len": {
+                "b1": 8,
+                "result": 8
+              },
+              "typetag": 6
+            }
+          ]
+        },
+        "len": {
+          "b1": 10,
+          "result": 10
+        },
+        "typetag": 48
+      },
+      {
+        "body": "00304502200a556fc964f8403d3d9837a9d122bd70f100a132da9169496a455ccc94fef203022100e39aeef3e780e666ce09544232094c4136b74b69322b4b9ba4466648aa273ecc",
+        "len": {
+          "b1": 72,
+          "result": 72
+        },
+        "typetag": 3
+      }
+    ]
+  },
+  "len": {
+    "b1": 129,
+    "int1": 231,
+    "result": 231
+  },
+  "typetag": 48
+}

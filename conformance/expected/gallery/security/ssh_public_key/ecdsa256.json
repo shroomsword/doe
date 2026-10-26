@@ -1,0 +1,16 @@
+{
+  "body": {
+    "curvename": {
+      "len": 8,
+      "value": "nistp256"
+    },
+    "ec": {
+      "body": "0478fbdea020eabd1de9cb67c8f9f52503c93f511481ebde37cc0794293c5681e5a43bd4558071a457bfeacefc4e7efb65c2d5f57efe09d2eaf5d910a6bf12d805",
+      "len": 65
+    }
+  },
+  "keyname": {
+    "len": 19,
+    "value": "ecdsa-sha2-nistp256"
+  }
+}

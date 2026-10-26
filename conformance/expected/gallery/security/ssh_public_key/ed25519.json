@@ -1,0 +1,10 @@
+{
+  "body": {
+    "lenpk": 32,
+    "pk": "0baee3629e2b508dcb09bdbbd4f965939d3ba51c0909551d32467a8d4774ceca"
+  },
+  "keyname": {
+    "len": 11,
+    "value": "ssh-ed25519"
+  }
+}

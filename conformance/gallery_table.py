@@ -11,6 +11,9 @@ The columns are tab-separated:
     status    real      a file written by the tool that makes the format normally
               crafted   a file built by hand by make_gallery_samples.py, checked
                         against the reference compiler; valid, but not from the world
+              failing   there is a file, and doe does not read it as it should; the
+                        note has the issue (#N). Its files are not in the test
+                        until it is fixed
               part-of   only imported by other definitions (the gallery's common/)
               none      no sample yet
     sample    the directory of the samples under samples/gallery/, or -
@@ -31,7 +34,7 @@ HERE = Path(__file__).resolve().parent
 GALLERY = HERE / "kaitai_struct_formats"
 TABLE = HERE / "gallery_samples.tsv"
 HEADER = ["format", "status", "sample", "source", "licence", "note"]
-STATUSES = {"real", "crafted", "part-of", "none"}
+STATUSES = {"real", "crafted", "failing", "part-of", "none"}
 
 # What the rows that were there before the table are, for the first run.
 SCRIPT = "make_gallery_samples.py"

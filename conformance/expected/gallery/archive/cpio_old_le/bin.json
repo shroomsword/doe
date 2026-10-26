@@ -1,0 +1,139 @@
+{
+  "files": [
+    {
+      "filedata": "48656c6c6f2c206370696f2e0a",
+      "filedatapadding": "00",
+      "header": {
+        "devicenumber": 33,
+        "filesize": {
+          "leastsignificantbits": 13,
+          "mostsignificantbits": 0,
+          "value": 13
+        },
+        "groupid": 1001,
+        "inodenumber": 55598,
+        "magic": "c771",
+        "mode": 33204,
+        "modificationtime": {
+          "leastsignificantbits": 41619,
+          "mostsignificantbits": 27358,
+          "value": 1792975507
+        },
+        "numberoflinks": 1,
+        "pathnamesize": 10,
+        "rdevicenumber": 0,
+        "userid": 1001
+      },
+      "pathname": "68656c6c6f2e747874",
+      "stringterminator": "00"
+    },
+    {
+      "filedata": "6f64640a",
+      "header": {
+        "devicenumber": 33,
+        "filesize": {
+          "leastsignificantbits": 4,
+          "mostsignificantbits": 0,
+          "value": 4
+        },
+        "groupid": 1001,
+        "inodenumber": 55599,
+        "magic": "c771",
+        "mode": 33204,
+        "modificationtime": {
+          "leastsignificantbits": 41619,
+          "mostsignificantbits": 27358,
+          "value": 1792975507
+        },
+        "numberoflinks": 1,
+        "pathnamesize": 8,
+        "rdevicenumber": 0,
+        "userid": 1001
+      },
+      "pathname": "6f64642e747874",
+      "stringterminator": "00"
+    },
+    {
+      "filedata": "",
+      "header": {
+        "devicenumber": 33,
+        "filesize": {
+          "leastsignificantbits": 0,
+          "mostsignificantbits": 0,
+          "value": 0
+        },
+        "groupid": 1001,
+        "inodenumber": 55600,
+        "magic": "c771",
+        "mode": 16893,
+        "modificationtime": {
+          "leastsignificantbits": 41619,
+          "mostsignificantbits": 27358,
+          "value": 1792975507
+        },
+        "numberoflinks": 2,
+        "pathnamesize": 4,
+        "rdevicenumber": 0,
+        "userid": 1001
+      },
+      "pathname": "646972",
+      "stringterminator": "00"
+    },
+    {
+      "filedata": "6e65737465640a",
+      "filedatapadding": "00",
+      "header": {
+        "devicenumber": 33,
+        "filesize": {
+          "leastsignificantbits": 7,
+          "mostsignificantbits": 0,
+          "value": 7
+        },
+        "groupid": 1001,
+        "inodenumber": 55601,
+        "magic": "c771",
+        "mode": 33204,
+        "modificationtime": {
+          "leastsignificantbits": 41619,
+          "mostsignificantbits": 27358,
+          "value": 1792975507
+        },
+        "numberoflinks": 1,
+        "pathnamesize": 15,
+        "rdevicenumber": 0,
+        "userid": 1001
+      },
+      "pathname": "6469722f6e65737465642e747874",
+      "pathnamepadding": "00",
+      "stringterminator": "00"
+    },
+    {
+      "endoffilepadding": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "filedata": "",
+      "header": {
+        "devicenumber": 0,
+        "filesize": {
+          "leastsignificantbits": 0,
+          "mostsignificantbits": 0,
+          "value": 0
+        },
+        "groupid": 0,
+        "inodenumber": 0,
+        "magic": "c771",
+        "mode": 0,
+        "modificationtime": {
+          "leastsignificantbits": 0,
+          "mostsignificantbits": 0,
+          "value": 0
+        },
+        "numberoflinks": 1,
+        "pathnamesize": 11,
+        "rdevicenumber": 0,
+        "userid": 0
+      },
+      "pathname": "545241494c4552212121",
+      "pathnamepadding": "00",
+      "stringterminator": "00"
+    }
+  ]
+}

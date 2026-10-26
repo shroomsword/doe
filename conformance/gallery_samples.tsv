@@ -6,7 +6,7 @@ archive/android_bootldr_qcom	none	-	-	-
 archive/android_dto	none	-	-	-	
 archive/android_img	none	-	-	-	
 archive/android_sparse	none	-	-	-	
-archive/cpio_old_le	none	-	-	-	
+archive/cpio_old_le	real	archive/cpio_old_le	cpio -H bin, run by make_real_samples.py	MIT (this repository)	a directory tree of three files and a directory
 archive/gzip	real	archive/gzip	gzip module of Python, run by make_gallery_samples.py	MIT (this repository)	
 archive/lzh	none	-	-	-	
 archive/mozilla_mar	none	-	-	-	
@@ -50,7 +50,7 @@ filesystem/btrfs_stream	none	-	-	-
 filesystem/cramfs	none	-	-	-	
 filesystem/ext2	none	-	-	-	
 filesystem/gpt_partition_table	none	-	-	-	
-filesystem/iso9660	none	-	-	-	
+filesystem/iso9660	failing	filesystem/iso9660	genisoimage, run by make_real_samples.py	MIT (this repository)	does not finish: #150
 filesystem/luks	none	-	-	-	
 filesystem/lvm2	none	-	-	-	
 filesystem/mbr_partition_table	none	-	-	-	
@@ -173,15 +173,15 @@ scientific/spectroscopy/avantes_roh60	none	-	-	-
 scientific/spectroscopy/specpr	none	-	-	-	
 security/efivar_signature_list	none	-	-	-	
 security/openpgp_message	none	-	-	-	
-security/ssh_public_key	none	-	-	-	
-serialization/asn1/asn1_der	none	-	-	-	
+security/ssh_public_key	real	security/ssh_public_key	ssh-keygen, run by make_real_samples.py (the key as the base64 of the .pub file holds it)	MIT (this repository)	ed25519, rsa 2048 and ecdsa 256 keys made for the samples
+serialization/asn1/asn1_der	real	serialization/asn1/asn1_der	openssl, run by make_real_samples.py	MIT (this repository)	a self-signed certificate and a request, with a key made for the samples
 serialization/bson	none	-	-	-	
 serialization/chrome_pak	none	-	-	-	
 serialization/google_protobuf	none	-	-	-	
 serialization/microsoft_cfb	none	-	-	-	
 serialization/msgpack	none	-	-	-	
 serialization/php_serialized_value	none	-	-	-	
-serialization/python_pickle	none	-	-	-	
+serialization/python_pickle	real	serialization/python_pickle	pickle of Python, run by make_real_samples.py	MIT (this repository)	protocols 0, 2 and 4; the text in protocol 0 is ASCII, because Python writes it as Latin-1 and doe, by design, refuses a byte that is not ASCII in an ascii string (the reference does not)
 serialization/ruby_marshal	none	-	-	-	
 windows/regf	none	-	-	-	
 windows/windows_lnk_file	none	-	-	-	
