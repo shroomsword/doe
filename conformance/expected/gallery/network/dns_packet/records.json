@@ -1,0 +1,322 @@
+{
+  "additionals": [],
+  "ancount": 5,
+  "answers": [
+    {
+      "answerclass": 1,
+      "name": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "com"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "payload": {
+        "mx": {
+          "name": [
+            {
+              "ispointer": false,
+              "length": 4,
+              "name": "mail"
+            },
+            {
+              "ispointer": false,
+              "length": 7,
+              "name": "example"
+            },
+            {
+              "ispointer": false,
+              "length": 3,
+              "name": "com"
+            },
+            {
+              "ispointer": false,
+              "length": 0,
+              "name": ""
+            }
+          ]
+        },
+        "preference": 10
+      },
+      "rdlength": 20,
+      "ttl": 3600,
+      "type": 15
+    },
+    {
+      "answerclass": 1,
+      "name": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "com"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "payload": {
+        "data": [
+          {
+            "length": 11,
+            "text": "v=spf1 -all"
+          },
+          {
+            "length": 5,
+            "text": "hello"
+          }
+        ]
+      },
+      "rdlength": 18,
+      "ttl": 3600,
+      "type": 16
+    },
+    {
+      "answerclass": 1,
+      "name": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "com"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "payload": {
+        "expirelimit": 1209600,
+        "minttl": 300,
+        "primaryns": {
+          "name": [
+            {
+              "ispointer": false,
+              "length": 3,
+              "name": "ns1"
+            },
+            {
+              "ispointer": false,
+              "length": 7,
+              "name": "example"
+            },
+            {
+              "ispointer": false,
+              "length": 3,
+              "name": "com"
+            },
+            {
+              "ispointer": false,
+              "length": 0,
+              "name": ""
+            }
+          ]
+        },
+        "refreshinterval": 7200,
+        "responsiblemailbox": {
+          "name": [
+            {
+              "ispointer": false,
+              "length": 10,
+              "name": "hostmaster"
+            },
+            {
+              "ispointer": false,
+              "length": 7,
+              "name": "example"
+            },
+            {
+              "ispointer": false,
+              "length": 3,
+              "name": "com"
+            },
+            {
+              "ispointer": false,
+              "length": 0,
+              "name": ""
+            }
+          ]
+        },
+        "retryinterval": 3600,
+        "serial": 2024010101
+      },
+      "rdlength": 61,
+      "ttl": 3600,
+      "type": 6
+    },
+    {
+      "answerclass": 1,
+      "name": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "com"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "payload": {
+        "port": 5060,
+        "priority": 1,
+        "target": {
+          "name": [
+            {
+              "ispointer": false,
+              "length": 3,
+              "name": "sip"
+            },
+            {
+              "ispointer": false,
+              "length": 7,
+              "name": "example"
+            },
+            {
+              "ispointer": false,
+              "length": 3,
+              "name": "com"
+            },
+            {
+              "ispointer": false,
+              "length": 0,
+              "name": ""
+            }
+          ]
+        },
+        "weight": 5
+      },
+      "rdlength": 23,
+      "ttl": 3600,
+      "type": 33
+    },
+    {
+      "answerclass": 1,
+      "name": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "com"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "payload": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "ns1"
+          },
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "com"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "rdlength": 17,
+      "ttl": 3600,
+      "type": 2
+    }
+  ],
+  "arcount": 0,
+  "authorities": [],
+  "flags": {
+    "aa": 1,
+    "ad": 0,
+    "cd": 0,
+    "flag": 33792,
+    "isopcodevalid": true,
+    "opcode": 0,
+    "qr": 1,
+    "ra": 0,
+    "rcode": 0,
+    "rd": 0,
+    "tc": 0,
+    "z": 0
+  },
+  "nscount": 0,
+  "qdcount": 1,
+  "queries": [
+    {
+      "name": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "com"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "queryclass": 1,
+      "type": 255
+    }
+  ],
+  "transactionid": 7
+}

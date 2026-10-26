@@ -1,0 +1,46 @@
+{
+  "locktime": 0,
+  "numvins": 1,
+  "numvouts": 2,
+  "version": 1,
+  "vins": [
+    {
+      "endofvin": "ffffffff",
+      "lenscript": 138,
+      "outputid": 1,
+      "scriptsig": {
+        "dersig": {
+          "lensig": 68,
+          "lensigr": 32,
+          "lensigs": 32,
+          "sep1": "02",
+          "sep2": "02",
+          "sequence": "30",
+          "sigr": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+          "sigs": "2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40"
+        },
+        "lenpubkeystack": 65,
+        "lensigstack": 71,
+        "pubkey": {
+          "type": 4,
+          "x": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+          "y": "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f"
+        },
+        "sigtype": 1
+      },
+      "txid": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    }
+  ],
+  "vouts": [
+    {
+      "amount": 50000000,
+      "lenscript": 25,
+      "scriptpubkey": "76a914000102030405060708090a0b0c0d0e0f1011121388ac"
+    },
+    {
+      "amount": 1234567,
+      "lenscript": 25,
+      "scriptpubkey": "76a914000102030405060708090a0b0c0d0e0f1011121388ac"
+    }
+  ]
+}

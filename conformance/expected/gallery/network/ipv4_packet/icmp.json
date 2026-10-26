@@ -1,0 +1,31 @@
+{
+  "b1": 69,
+  "b2": 0,
+  "b67": 16384,
+  "body": {
+    "body": {
+      "echo": {
+        "checksum": 6445,
+        "code": "00",
+        "data": "70696e67",
+        "identifier": 1,
+        "seqnum": 1
+      },
+      "icmptype": 8
+    },
+    "protocol": 1
+  },
+  "dstipaddr": "c6336407",
+  "headerchecksum": 12891,
+  "identification": 7238,
+  "ihl": 5,
+  "ihlbytes": 20,
+  "options": {
+    "entries": []
+  },
+  "protocol": 1,
+  "srcipaddr": "c0000201",
+  "totallength": 32,
+  "ttl": 64,
+  "version": 4
+}

@@ -1,0 +1,36 @@
+{
+  "dstipv6addr": "20010db8000000000000000000000002",
+  "flowlabel": 74565,
+  "hoplimit": 64,
+  "nextheader": {
+    "body": {
+      "acknum": 0,
+      "body": "",
+      "checksum": 0,
+      "dataoffset": 5,
+      "dstport": 22,
+      "flags": {
+        "ack": false,
+        "cwr": false,
+        "ece": false,
+        "fin": false,
+        "psh": false,
+        "rst": false,
+        "syn": true,
+        "urg": false
+      },
+      "reserved": 0,
+      "seqnum": 7,
+      "srcport": 40000,
+      "urgentpointer": 0,
+      "windowsize": 65535
+    },
+    "protocol": 6
+  },
+  "nextheadertype": 6,
+  "payloadlength": 20,
+  "rest": "",
+  "srcipv6addr": "20010db8000000000000000000000001",
+  "trafficclass": 0,
+  "version": 6
+}

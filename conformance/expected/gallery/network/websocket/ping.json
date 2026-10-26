@@ -1,0 +1,14 @@
+{
+  "initialframe": {
+    "header": {
+      "finished": true,
+      "ismasked": true,
+      "lenpayload": 4,
+      "lenpayloadprimary": 4,
+      "maskkey": 151521030,
+      "opcode": 9,
+      "reserved": 0
+    },
+    "payloadbytes": "79616961"
+  }
+}

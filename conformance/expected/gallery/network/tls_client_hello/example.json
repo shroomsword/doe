@@ -1,0 +1,74 @@
+{
+  "ciphersuites": {
+    "ciphersuites": [
+      4865,
+      4866,
+      49195,
+      49199,
+      156
+    ],
+    "len": 10
+  },
+  "compressionmethods": {
+    "compressionmethods": "00",
+    "len": 1
+  },
+  "extensions": {
+    "extensions": [
+      {
+        "body": {
+          "listlength": 14,
+          "servernames": [
+            {
+              "hostname": "6578616d706c652e636f6d",
+              "length": 11,
+              "nametype": 0
+            }
+          ]
+        },
+        "len": 16,
+        "type": 0
+      },
+      {
+        "body": "0004001d0017",
+        "len": 6,
+        "type": 10
+      },
+      {
+        "body": {
+          "alpnprotocols": [
+            {
+              "name": "6832",
+              "strlen": 2
+            },
+            {
+              "name": "687474702f312e31",
+              "strlen": 8
+            }
+          ],
+          "extlen": 12
+        },
+        "len": 14,
+        "type": 16
+      },
+      {
+        "body": "020304",
+        "len": 3,
+        "type": 43
+      }
+    ],
+    "len": 55
+  },
+  "random": {
+    "gmtunixtime": 1700000000,
+    "random": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b"
+  },
+  "sessionid": {
+    "len": 32,
+    "sid": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+  },
+  "version": {
+    "major": 3,
+    "minor": 3
+  }
+}

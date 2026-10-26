@@ -1,0 +1,54 @@
+{
+  "additionals": [],
+  "ancount": 0,
+  "answers": [],
+  "arcount": 0,
+  "authorities": [],
+  "flags": {
+    "aa": 0,
+    "ad": 0,
+    "cd": 0,
+    "flag": 256,
+    "isopcodevalid": true,
+    "opcode": 0,
+    "qr": 0,
+    "ra": 0,
+    "rcode": 0,
+    "rd": 1,
+    "tc": 0,
+    "z": 0
+  },
+  "nscount": 0,
+  "qdcount": 1,
+  "queries": [
+    {
+      "name": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "www"
+          },
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "com"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "queryclass": 1,
+      "type": 1
+    }
+  ],
+  "transactionid": 6699
+}

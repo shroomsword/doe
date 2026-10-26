@@ -1,0 +1,38 @@
+{
+  "initialframe": {
+    "header": {
+      "finished": false,
+      "ismasked": false,
+      "lenpayload": 3,
+      "lenpayloadprimary": 3,
+      "opcode": 1,
+      "reserved": 0
+    },
+    "payloadtext": "Hel"
+  },
+  "trailingframes": [
+    {
+      "header": {
+        "finished": false,
+        "ismasked": true,
+        "lenpayload": 4,
+        "lenpayloadprimary": 4,
+        "maskkey": 16909060,
+        "opcode": 0,
+        "reserved": 0
+      },
+      "payloadtext": "mm/$"
+    },
+    {
+      "header": {
+        "finished": true,
+        "ismasked": false,
+        "lenpayload": 5,
+        "lenpayloadprimary": 5,
+        "opcode": 0,
+        "reserved": 0
+      },
+      "payloadtext": "world"
+    }
+  ]
+}
