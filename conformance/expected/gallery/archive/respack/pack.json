@@ -1,0 +1,9 @@
+{
+  "header": {
+    "lenjson": 58,
+    "magic": "5253",
+    "md5": "fe71ef706293dd20b5badb526d218853",
+    "unknown": "0000000000000000"
+  },
+  "json": "{\"name\": \"doe\", \"version\": 1, \"files\": [\"a.png\", \"b.ogg\"]}"
+}

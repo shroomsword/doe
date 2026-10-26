@@ -291,6 +291,37 @@ def network():
     )
     put("network/bitcoin_transaction", "signed", struct.pack("<IB", 1, 1) + vin + bytes([2]) + vouts + struct.pack("<I", 0))
 
+    # SOME/IP (AUTOSAR, Specification of SOME/IP Message Format): a header of 16 bytes, then the payload
+    def some_ip(service, method, client, session, kind, payload, protocol=1, interface=1, code=0):
+        return struct.pack(">HHIHHBBBB", service, method, len(payload) + 8, client, session, protocol, interface, kind, code) + payload
+
+    request = some_ip(0x1234, 0x0001, 0x0100, 7, 0x00, b"\x00\x00\x00\x2a")
+    response = some_ip(0x1234, 0x0001, 0x0100, 7, 0x80, b"\x00\x00\x00\x2b\x01")
+    event = some_ip(0x1234, 0x8001, 0, 1, 0x02, b"temperature")
+    put("network/some_ip/some_ip", "request", request)
+    put("network/some_ip/some_ip_container", "three_messages", request + response + event)
+
+    # SOME/IP-SD: flags, entries (16 bytes: find, offer, subscribe, subscribe acknowledgement) and options
+    def sd_entry(kind, first, second, count_first, count_second, service, instance, major, ttl, tail):
+        return struct.pack(">BBBBHHBBHB", kind, first, second, (count_first << 4) | count_second, service, instance, major, ttl >> 16, ttl & 0xFFFF, 0)[:-1] + tail
+
+    entries = (
+        sd_entry(0x00, 0, 0, 0, 0, 0x1234, 0xFFFF, 0xFF, 3, struct.pack(">I", 0xFFFFFFFF))  # find
+        + sd_entry(0x01, 0, 1, 1, 1, 0x1234, 0x0001, 1, 0xFFFFFF, struct.pack(">I", 5))  # offer, with two options
+        + sd_entry(0x06, 2, 0, 1, 0, 0x1234, 0x0001, 1, 3, bytes([0, 0x80, 0x00, 0x10]))  # subscribe, initial data requested
+        + sd_entry(0x07, 2, 0, 1, 0, 0x1234, 0x0001, 1, 3, bytes([0, 0x00, 0x00, 0x10]))  # subscribe acknowledgement
+    )
+    endpoint = struct.pack(">HBB4sBBH", 9, 0x04, 0, bytes((192, 168, 0, 10)), 0, 0x11, 30490)
+    endpoint6 = struct.pack(">HBB16sBBH", 21, 0x06, 0, bytes(range(16)), 0, 0x06, 30501)
+    multicast = struct.pack(">HBB4sBBH", 9, 0x14, 0, bytes((224, 244, 224, 245)), 0, 0x11, 30490)
+    balancing = struct.pack(">HBBHH", 5, 0x02, 0, 10, 20)
+    config = b"".join(bytes([len(s)]) + s for s in (b"hostname=ecu", b"abc=")) + b"\0"
+    configuration = struct.pack(">HBB", len(config) + 1, 0x01, 0) + config
+    options = endpoint + endpoint6 + multicast + balancing + configuration
+    sd_payload = bytes([0xC0, 0, 0, 0]) + struct.pack(">I", len(entries)) + entries + struct.pack(">I", len(options)) + options
+    put("network/some_ip/some_ip_sd", "offer_and_subscribe", sd_payload)
+    put("network/some_ip/some_ip", "service_discovery", struct.pack(">HHIHHBBBB", 0xFFFF, 0x8100, len(sd_payload) + 8, 0, 1, 1, 1, 0x02, 0) + sd_payload)
+
 
 # ── media ────────────────────────────────────────────────────────────────────
 
@@ -924,9 +955,126 @@ def log():
     put("log/sudoers_ts", "records", out)
 
 
+# ── archive ──────────────────────────────────────────────────────────────────
+
+def archive():
+    # Android sparse image (system/core/libsparse): a header, then chunks of four kinds
+    block = 4096
+    chunks = (
+        struct.pack("<HHII", 0xCAC1, 0, 1, 12 + block) + bytes((i * 5) & 0xFF for i in range(block))  # raw
+        + struct.pack("<HHII", 0xCAC2, 0, 2, 12 + 4) + struct.pack("<I", 0xDEADBEEF)  # fill
+        + struct.pack("<HHII", 0xCAC3, 0, 3, 12)  # don't care
+        + struct.pack("<HHII", 0xCAC4, 0, 0, 12 + 4) + struct.pack("<I", 0x12345678)  # crc32
+    )
+    header = struct.pack("<IHHHHIIII", 0xED26FF3A, 1, 0, 28, 12, block, 6, 4, 0)
+    put("archive/android_sparse", "four_chunks", header + chunks)
+
+    # Mozilla Archive (MAR): a header, a signature, a section of product information, the files, and the index at the end
+    files = [("update.manifest", b'type "partial"\n'), ("bin/app", bytes(range(100)))]
+    signature = struct.pack(">II", 1, 16) + bytes(range(16))
+    product = b"release".ljust(64, b"\0") + b"1.2.3".ljust(32, b"\0")
+    section = struct.pack(">II", 8 + len(product), 1) + product
+    head_size = 4 + 4 + 8 + 4 + len(signature) + 4 + len(section)
+    body = b""
+    index = b""
+    for name, data in files:
+        index += struct.pack(">III", head_size + len(body), len(data), 0o644) + name.encode() + b"\0"
+        body += data
+    index_offset = head_size + len(body)
+    total = index_offset + 4 + len(index)
+    mar = b"MAR1" + struct.pack(">IQI", index_offset, total, 1) + signature + struct.pack(">I", 1) + section + body + struct.pack(">I", len(index)) + index
+    assert len(mar) == total
+    put("archive/mozilla_mar", "update", mar)
+
+    # Respack (a resource pack of a game): "RS", 8 bytes, the size of the JSON, its MD5 in hex, the JSON
+    import hashlib
+
+    document = b'{"name": "doe", "version": 1, "files": ["a.png", "b.ogg"]}'
+    put("archive/respack", "pack", b"RS" + bytes(8) + struct.pack("<I", len(document)) + hashlib.md5(document).hexdigest().encode() + document)
+
+
+# ── executable ───────────────────────────────────────────────────────────────
+
+def executable():
+    import zlib
+
+    # DOS MZ executable: a header of two paragraphs with a relocation, and a program that exits (mov ax, 4C00h; int 21h)
+    code = bytes([0xB8, 0x00, 0x4C, 0xCD, 0x21]) + bytes(3)
+    header_size = 32
+    total = header_size + len(code)
+    header = b"MZ" + struct.pack("<HHHHHHHHHHHHH", total % 512, (total + 511) // 512, 1, 2, 0, 0xFFFF, 0, 0x100, 0, 0, 0, 0x1C, 0)
+    header += struct.pack("<HH", 1, 0)  # the one relocation: offset 1 in segment 0
+    put("executable/dos_mz", "exit", header.ljust(header_size, b"\0") + code)
+
+    # fat Mach-O (what lipo writes): a header, an entry for each architecture, and the objects at aligned offsets,
+    # made of the two objects that clang wrote for the Mach-O samples
+    objects = [
+        (0x01000007, 3, (ROOT / "executable/mach_o/object_x86_64.bin").read_bytes()),
+        (0x0100000C, 0, (ROOT / "executable/mach_o/object_arm64.bin").read_bytes()),
+    ]
+    align = 12
+    out = struct.pack(">II", 0xCAFEBABE, len(objects))
+    offset = 4096
+    entries = b""
+    for cpu, sub, blob in objects:
+        entries += struct.pack(">IIIII", cpu, sub, offset, len(blob), align)
+        offset += (len(blob) + 4095) // 4096 * 4096
+    out += entries
+    position = 4096
+    out = out.ljust(position, b"\0")
+    for cpu, sub, blob in objects:
+        out += blob.ljust((len(blob) + 4095) // 4096 * 4096, b"\0")
+    put("executable/mach_o_fat", "two_architectures", out)
+
+    # SWF (Adobe Flash): a header, a rectangle, the frame rate and count, and tags
+    def rect(x_max, y_max):
+        bits = max(x_max, y_max).bit_length() + 1
+        value = bits
+        for field in (0, x_max, 0, y_max):
+            value = (value << bits) | field
+        total_bits = 5 + 4 * bits
+        padded = value << (-total_bits % 8)
+        return padded.to_bytes((total_bits + 7) // 8, "big")
+
+    def tag(code, body):
+        if len(body) < 0x3F:
+            return struct.pack("<H", code << 6 | len(body)) + body
+        return struct.pack("<Hi", code << 6 | 0x3F, len(body)) + body
+
+    abc = struct.pack("<I", 1) + b"doe\0" + bytes(range(70))
+    symbols = struct.pack("<H", 2) + struct.pack("<H", 1) + b"Main\0" + struct.pack("<H", 2) + b"Other\0"
+    tags = (
+        tag(69, struct.pack("<I", 0x08))  # file attributes: uses the network
+        + tag(9, bytes([255, 128, 0]))  # background colour
+        + tag(65, struct.pack("<HH", 256, 15))  # script limits
+        + tag(82, abc)
+        + tag(76, symbols)
+        + tag(1, b"")  # show frame
+        + tag(0, b"")  # end
+    )
+    body = rect(11000, 8000) + struct.pack("<HH", 0x1800, 1) + tags
+    plain = b"FWS" + bytes([10]) + struct.pack("<I", 8 + len(body)) + body
+    put("executable/swf", "plain", plain)
+    put("executable/swf", "zlib", b"CWS" + bytes([10]) + struct.pack("<I", 8 + len(body)) + zlib.compress(body))
+
+    # UEFI Terse Executable: a header of 40 bytes, section headers, and the sections' bytes
+    stripped = 0x1B8
+    section = b".text".ljust(8, b"\0") + struct.pack("<IIIIIIHHI", 64, 0x1000, 64, stripped + 40, 0, 0, 0, 0, 0x60000020)
+    te = b"VZ" + struct.pack("<HBBHIIQ", 0x8664, 1, 10, stripped, 0x1000, 0x1000, 0x100000000) + struct.pack("<IIII", 0, 0, 0x2000, 28)
+    assert len(te) == 40, len(te)
+    put("executable/uefi_te", "efi_application", te + section + bytes((i * 3) & 0xFF for i in range(64)))
+
+    # Android nanoapp header (the CHRE nanoapp, 40 bytes)
+    put(
+        "executable/android_nanoapp_header",
+        "signed",
+        struct.pack("<I4sQIIQBB6s", 1, b"NANO", 0x0001020304050607, 0x00010203, 0x5, 0x0000476F6F676C00, 1, 5, bytes(6)),
+    )
+
+
 SECTIONS = {
     "network": network, "media": media, "image": image, "serialization": serialization, "game": game, "filesystem": filesystem,
-    "firmware": firmware, "hardware": hardware, "log": log,
+    "firmware": firmware, "hardware": hardware, "log": log, "archive": archive, "executable": executable,
 }
 
 if __name__ == "__main__":

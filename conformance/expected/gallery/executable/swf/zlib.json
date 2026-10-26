@@ -1,0 +1,105 @@
+{
+  "compression": 67,
+  "lenfile": 145,
+  "signature": "5753",
+  "version": 10,
+  "zlibbody": {
+    "fileattributestag": {
+      "recordheader": {
+        "len": 4,
+        "smalllen": 4,
+        "tagcodeandlength": 4420,
+        "tagtype": 69
+      },
+      "tagbody": "08000000"
+    },
+    "framecount": 1,
+    "framerate": 6144,
+    "rect": {
+      "b1": 120,
+      "numbits": 15,
+      "numbytes": 8,
+      "skip": "00055f00000fa000"
+    },
+    "tags": [
+      {
+        "recordheader": {
+          "len": 3,
+          "smalllen": 3,
+          "tagcodeandlength": 579,
+          "tagtype": 9
+        },
+        "tagbody": {
+          "b": 0,
+          "g": 128,
+          "r": 255
+        }
+      },
+      {
+        "recordheader": {
+          "len": 4,
+          "smalllen": 4,
+          "tagcodeandlength": 4164,
+          "tagtype": 65
+        },
+        "tagbody": {
+          "maxrecursiondepth": 256,
+          "scripttimeoutseconds": 15
+        }
+      },
+      {
+        "recordheader": {
+          "biglen": 78,
+          "len": 78,
+          "smalllen": 63,
+          "tagcodeandlength": 5311,
+          "tagtype": 82
+        },
+        "tagbody": {
+          "abcdata": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445",
+          "flags": 1,
+          "name": "doe"
+        }
+      },
+      {
+        "recordheader": {
+          "len": 17,
+          "smalllen": 17,
+          "tagcodeandlength": 4881,
+          "tagtype": 76
+        },
+        "tagbody": {
+          "numsymbols": 2,
+          "symbols": [
+            {
+              "name": "Main",
+              "tag": 1
+            },
+            {
+              "name": "Other",
+              "tag": 2
+            }
+          ]
+        }
+      },
+      {
+        "recordheader": {
+          "len": 0,
+          "smalllen": 0,
+          "tagcodeandlength": 64,
+          "tagtype": 1
+        },
+        "tagbody": ""
+      },
+      {
+        "recordheader": {
+          "len": 0,
+          "smalllen": 0,
+          "tagcodeandlength": 0,
+          "tagtype": 0
+        },
+        "tagbody": ""
+      }
+    ]
+  }
+}

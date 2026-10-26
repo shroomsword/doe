@@ -1,0 +1,14 @@
+{
+  "appid": 283686952306183,
+  "appversion": 66051,
+  "chreapimajorversion": 1,
+  "chreapiminorversion": 5,
+  "flags": 5,
+  "headerversion": 1,
+  "hubtype": 78543935990784,
+  "isencrypted": false,
+  "issigned": true,
+  "istcmcapable": true,
+  "magic": "4e414e4f",
+  "reserved": "000000000000"
+}

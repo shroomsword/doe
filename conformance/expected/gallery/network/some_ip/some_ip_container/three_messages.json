@@ -1,0 +1,70 @@
+{
+  "someippackages": [
+    {
+      "header": {
+        "interfaceversion": 1,
+        "isvalidservicediscovery": false,
+        "length": 12,
+        "messageid": {
+          "methodid": 1,
+          "serviceid": 4660,
+          "subid": false,
+          "value": 305397761
+        },
+        "messagetype": 0,
+        "protocolversion": 1,
+        "requestid": {
+          "clientid": 256,
+          "sessionid": 7,
+          "value": 16777223
+        },
+        "returncode": 0
+      },
+      "payload": "0000002a"
+    },
+    {
+      "header": {
+        "interfaceversion": 1,
+        "isvalidservicediscovery": false,
+        "length": 13,
+        "messageid": {
+          "methodid": 1,
+          "serviceid": 4660,
+          "subid": false,
+          "value": 305397761
+        },
+        "messagetype": 128,
+        "protocolversion": 1,
+        "requestid": {
+          "clientid": 256,
+          "sessionid": 7,
+          "value": 16777223
+        },
+        "returncode": 0
+      },
+      "payload": "0000002b01"
+    },
+    {
+      "header": {
+        "interfaceversion": 1,
+        "isvalidservicediscovery": false,
+        "length": 19,
+        "messageid": {
+          "eventid": 1,
+          "serviceid": 4660,
+          "subid": true,
+          "value": 305430529
+        },
+        "messagetype": 2,
+        "protocolversion": 1,
+        "requestid": {
+          "clientid": 0,
+          "sessionid": 1,
+          "value": 1
+        },
+        "returncode": 0
+      },
+      "payload": "74656d7065726174757265"
+    }
+  ]
+}

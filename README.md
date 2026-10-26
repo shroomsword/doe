@@ -755,7 +755,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 9 with a file written by its own tool, 54 with a file built by hand, 1 failing on a file, 6 part of another, 120 without a sample
+> 190 definitions: 9 with a file written by its own tool, 63 with a file built by hand, 3 failing on a file, 8 part of another, 107 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -770,9 +770,9 @@ and compared with the reference compiler's output:
 <!-- gallery-formats:begin -->
 | Directory | Formats |
 | --- | --- |
-| `archive` | `cpio_old_le`, `gzip`, `zip` |
+| `archive` | `android_sparse`, `cpio_old_le`, `gzip`, `mozilla_mar`, `respack`, `zip` |
 | `database` | `dbf` |
-| `executable` | `elf`, `java_class`, `mach_o`, `microsoft_pe` |
+| `executable` | `android_nanoapp_header`, `dos_mz`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `swf` |
 | `filesystem` | `apm_partition_table`, `gpt_partition_table`, `mbr_partition_table`, `zx_spectrum_tap` |
 | `firmware` | `broadcom_trx`, `ines`, `uf2`, `uimage` |
 | `game` | `doom_wad`, `dune_2_pak`, `minecraft_nbt`, `quake_pak` |
@@ -780,14 +780,19 @@ and compared with the reference compiler's output:
 | `image` | `bmp`, `gif`, `ico`, `jpeg`, `pcx`, `png`, `tga`, `xwd` |
 | `log` | `aix_utmp`, `glibc_utmp`, `sudoers_ts` |
 | `media` | `au`, `avi`, `creative_voice_file`, `id3v1_1`, `standard_midi_file`, `stl`, `wav` |
-| `network` | `bitcoin_transaction`, `dime_message`, `dns_packet`, `ethernet_frame`, `hccap`, `hccapx`, `icmp_packet`, `ipv4_packet`, `ipv6_packet`, `pcap`, `rtp_packet`, `rtpdump`, `tcp_segment`, `tls_client_hello`, `udp_datagram`, `websocket` |
+| `network` | `bitcoin_transaction`, `dime_message`, `dns_packet`, `ethernet_frame`, `hccap`, `hccapx`, `icmp_packet`, `ipv4_packet`, `ipv6_packet`, `pcap`, `rtp_packet`, `rtpdump`, `some_ip/some_ip`, `some_ip/some_ip_container`, `some_ip/some_ip_sd`, `tcp_segment`, `tls_client_hello`, `udp_datagram`, `websocket` |
 | `security` | `ssh_public_key` |
 | `serialization` | `asn1/asn1_der`, `bson`, `chrome_pak`, `google_protobuf`, `msgpack`, `php_serialized_value`, `python_pickle` |
 <!-- gallery-formats:end -->
 
-`filesystem/iso9660` has a file written by `genisoimage` that `doe` does not finish
-reading ([#150](https://github.com/shroomsword/doe/issues/150)); its row says
-`failing`, and its file is not in the suite until that is fixed.
+Three formats have a file that `doe` does not read yet, and their rows say
+`failing` (their files are not in the suite until each is fixed):
+`filesystem/iso9660`, a file written by `genisoimage` that `doe` does not finish
+reading ([#150](https://github.com/shroomsword/doe/issues/150)); `executable/uefi_te`,
+which needs `_io` as a member of a value
+([#154](https://github.com/shroomsword/doe/issues/154)); and `executable/mach_o_fat`,
+whose imported `mach_o` compares `_root.magic` of the fat file
+([#155](https://github.com/shroomsword/doe/issues/155)).
 
 A file is never made up to fit `doe`: the files built by hand follow the format's
 specification and are checked against the reference compiler, and a format
@@ -1061,8 +1066,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 109 samples of the Kaitai gallery
-in the tests, 32 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 122 samples of the Kaitai gallery
+in the tests, 38 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 

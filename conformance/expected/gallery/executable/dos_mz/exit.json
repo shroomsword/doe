@@ -1,0 +1,30 @@
+{
+  "body": "b8004ccd21000000",
+  "header": {
+    "lenbody": 8,
+    "mz": {
+      "checksum": 0,
+      "headersize": 2,
+      "initialcs": 0,
+      "initialip": 0,
+      "initialsp": 256,
+      "initialss": 0,
+      "lastpageextrabytes": 40,
+      "lenheader": 32,
+      "magic": "MZ",
+      "maxallocation": 65535,
+      "minallocation": 0,
+      "numpages": 1,
+      "numrelocations": 1,
+      "ofsrelocations": 28,
+      "overlayid": 0
+    },
+    "restofheader": "01000000"
+  },
+  "relocations": [
+    {
+      "ofs": 1,
+      "seg": 0
+    }
+  ]
+}

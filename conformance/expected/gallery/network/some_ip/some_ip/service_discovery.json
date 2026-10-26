@@ -1,0 +1,192 @@
+{
+  "header": {
+    "interfaceversion": 1,
+    "isvalidservicediscovery": true,
+    "length": 163,
+    "messageid": {
+      "eventid": 256,
+      "serviceid": 65535,
+      "subid": true,
+      "value": 4294934784
+    },
+    "messagetype": 2,
+    "protocolversion": 1,
+    "requestid": {
+      "clientid": 0,
+      "sessionid": 1,
+      "value": 1
+    },
+    "returncode": 0
+  },
+  "payload": {
+    "entries": {
+      "entries": [
+        {
+          "content": {
+            "minorversion": 4294967295
+          },
+          "header": {
+            "indexfirstoptions": 0,
+            "indexsecondoptions": 0,
+            "instanceid": 65535,
+            "majorversion": 255,
+            "numberfirstoptions": 0,
+            "numbersecondoptions": 0,
+            "serviceid": 4660,
+            "ttl": 3,
+            "type": 0
+          }
+        },
+        {
+          "content": {
+            "minorversion": 5
+          },
+          "header": {
+            "indexfirstoptions": 0,
+            "indexsecondoptions": 1,
+            "instanceid": 1,
+            "majorversion": 1,
+            "numberfirstoptions": 1,
+            "numbersecondoptions": 1,
+            "serviceid": 4660,
+            "ttl": 16777215,
+            "type": 1
+          }
+        },
+        {
+          "content": {
+            "counter": 0,
+            "eventgroupid": 16,
+            "initialdatarequested": true,
+            "reserved": 0,
+            "reserved2": 0
+          },
+          "header": {
+            "indexfirstoptions": 2,
+            "indexsecondoptions": 0,
+            "instanceid": 1,
+            "majorversion": 1,
+            "numberfirstoptions": 1,
+            "numbersecondoptions": 0,
+            "serviceid": 4660,
+            "ttl": 3,
+            "type": 6
+          }
+        },
+        {
+          "content": {
+            "counter": 0,
+            "eventgroupid": 16,
+            "initialdatarequested": false,
+            "reserved": 0,
+            "reserved2": 0
+          },
+          "header": {
+            "indexfirstoptions": 2,
+            "indexsecondoptions": 0,
+            "instanceid": 1,
+            "majorversion": 1,
+            "numberfirstoptions": 1,
+            "numbersecondoptions": 0,
+            "serviceid": 4660,
+            "ttl": 3,
+            "type": 7
+          }
+        }
+      ]
+    },
+    "flags": {
+      "initialdata": false,
+      "reboot": true,
+      "reserved": 0,
+      "unicast": true
+    },
+    "lenentries": 64,
+    "lenoptions": 79,
+    "options": {
+      "entries": [
+        {
+          "content": {
+            "address": "c0a8000a",
+            "l4protocol": 17,
+            "port": 30490,
+            "reserved": 0,
+            "reserved2": 0
+          },
+          "header": {
+            "length": 9,
+            "type": 4
+          }
+        },
+        {
+          "content": {
+            "address": "000102030405060708090a0b0c0d0e0f",
+            "l4protocol": 6,
+            "port": 30501,
+            "reserved": 0,
+            "reserved2": 0
+          },
+          "header": {
+            "length": 21,
+            "type": 6
+          }
+        },
+        {
+          "content": {
+            "address": "e0f4e0f5",
+            "l4protocol": 17,
+            "port": 30490,
+            "reserved": 0,
+            "reserved2": 0
+          },
+          "header": {
+            "length": 9,
+            "type": 20
+          }
+        },
+        {
+          "content": {
+            "priority": 10,
+            "reserved": 0,
+            "weight": 20
+          },
+          "header": {
+            "length": 5,
+            "type": 2
+          }
+        },
+        {
+          "content": {
+            "configurations": {
+              "configstrings": [
+                {
+                  "config": {
+                    "key": "hostname",
+                    "value": "ecu"
+                  },
+                  "length": 12
+                },
+                {
+                  "config": {
+                    "key": "abc",
+                    "value": ""
+                  },
+                  "length": 4
+                },
+                {
+                  "length": 0
+                }
+              ]
+            },
+            "reserved": 0
+          },
+          "header": {
+            "length": 20,
+            "type": 1
+          }
+        }
+      ]
+    },
+    "reserved": "000000"
+  }
+}

@@ -1,0 +1,442 @@
+{
+  "fatarchs": [
+    {
+      "align": 12,
+      "cpusubtype": 3,
+      "cputype": 16777223,
+      "lenobject": 552,
+      "object": {
+        "header": {
+          "cpusubtype": 3,
+          "cputype": 16777223,
+          "filetype": 1,
+          "flags": 8192,
+          "flagsobj": {
+            "allmodsbound": false,
+            "allowstackexecution": false,
+            "appextensionsafe": false,
+            "bindatload": false,
+            "bindstoweak": false,
+            "canonical": false,
+            "deadstrippabledylib": false,
+            "dyldlink": false,
+            "forceflat": false,
+            "hastlvdescriptors": false,
+            "incrlink": false,
+            "lazyinit": false,
+            "nofixprebinding": false,
+            "noheapexecution": false,
+            "nomultidefs": false,
+            "noreexporteddylibs": false,
+            "noundefs": false,
+            "pie": false,
+            "prebindable": false,
+            "prebound": false,
+            "rootsafe": false,
+            "setuidsafe": false,
+            "splitsegs": false,
+            "subsectionsviasymbols": true,
+            "twolevel": false,
+            "weakdefines": false
+          },
+          "ncmds": 4,
+          "reserved": 0,
+          "sizeofcmds": 360
+        },
+        "loadcommands": [
+          {
+            "body": {
+              "fileoff": 392,
+              "filesize": 68,
+              "flags": 0,
+              "initprot": {
+                "copy": false,
+                "execute": true,
+                "ismask": false,
+                "nochange": false,
+                "read": true,
+                "reserved0": false,
+                "reserved1": 0,
+                "stripread": false,
+                "write": true
+              },
+              "maxprot": {
+                "copy": false,
+                "execute": true,
+                "ismask": false,
+                "nochange": false,
+                "read": true,
+                "reserved0": false,
+                "reserved1": 0,
+                "stripread": false,
+                "write": true
+              },
+              "nsects": 2,
+              "sections": [
+                {
+                  "addr": 0,
+                  "align": 4,
+                  "data": "554889e54883ec10897dfc8975f88b7dfce8000000000345f80305000000004883c4105dc366662e0f1f840000000000554889e5897dfc8b45fcd1e05dc3",
+                  "flags": 2147484672,
+                  "nreloc": 2,
+                  "offset": 392,
+                  "reloff": 464,
+                  "reserved1": 0,
+                  "reserved2": 0,
+                  "reserved3": 0,
+                  "sectname": "__text",
+                  "segname": "__TEXT",
+                  "size": 62
+                },
+                {
+                  "addr": 64,
+                  "align": 2,
+                  "data": "03000000",
+                  "flags": 0,
+                  "nreloc": 0,
+                  "offset": 456,
+                  "reloff": 0,
+                  "reserved1": 0,
+                  "reserved2": 0,
+                  "reserved3": 0,
+                  "sectname": "__data",
+                  "segname": "__DATA",
+                  "size": 4
+                }
+              ],
+              "segname": "",
+              "vmaddr": 0,
+              "vmsize": 68
+            },
+            "size": 232,
+            "type": 25
+          },
+          {
+            "body": {
+              "minos": 720896,
+              "ntools": 0,
+              "platform": 1,
+              "sdk": 0,
+              "tools": []
+            },
+            "size": 24,
+            "type": 50
+          },
+          {
+            "body": {
+              "nsyms": 3,
+              "stroff": 528,
+              "strsize": 24,
+              "strs": {
+                "items": [
+                  "unter",
+                  "_helper",
+                  "_add",
+                  ""
+                ],
+                "unknown": 1868783360
+              },
+              "symoff": 480,
+              "symbols": [
+                {
+                  "desc": 0,
+                  "name": "_helper",
+                  "sect": 1,
+                  "type": 14,
+                  "un": 10,
+                  "value": 48
+                },
+                {
+                  "desc": 0,
+                  "name": "_add",
+                  "sect": 1,
+                  "type": 15,
+                  "un": 18,
+                  "value": 0
+                },
+                {
+                  "desc": 0,
+                  "name": "_counter",
+                  "sect": 2,
+                  "type": 15,
+                  "un": 1,
+                  "value": 64
+                }
+              ]
+            },
+            "size": 24,
+            "type": 2
+          },
+          {
+            "body": {
+              "extrefsymoff": 0,
+              "extreloff": 0,
+              "iextdefsym": 1,
+              "ilocalsym": 0,
+              "iundefsym": 3,
+              "indirectsymoff": 0,
+              "indirectsymbols": [],
+              "locreloff": 0,
+              "modtaboff": 0,
+              "nextdefsym": 2,
+              "nextrefsyms": 0,
+              "nextrel": 0,
+              "nindirectsyms": 0,
+              "nlocrel": 0,
+              "nlocalsym": 1,
+              "nmodtab": 0,
+              "ntoc": 0,
+              "nundefsym": 0,
+              "tocoff": 0
+            },
+            "size": 80,
+            "type": 11
+          }
+        ],
+        "magic": 3489328638
+      },
+      "ofsobject": 4096
+    },
+    {
+      "align": 12,
+      "cpusubtype": 0,
+      "cputype": 16777228,
+      "lenobject": 808,
+      "object": {
+        "header": {
+          "cpusubtype": 0,
+          "cputype": 16777228,
+          "filetype": 1,
+          "flags": 8192,
+          "flagsobj": {
+            "allmodsbound": false,
+            "allowstackexecution": false,
+            "appextensionsafe": false,
+            "bindatload": false,
+            "bindstoweak": false,
+            "canonical": false,
+            "deadstrippabledylib": false,
+            "dyldlink": false,
+            "forceflat": false,
+            "hastlvdescriptors": false,
+            "incrlink": false,
+            "lazyinit": false,
+            "nofixprebinding": false,
+            "noheapexecution": false,
+            "nomultidefs": false,
+            "noreexporteddylibs": false,
+            "noundefs": false,
+            "pie": false,
+            "prebindable": false,
+            "prebound": false,
+            "rootsafe": false,
+            "setuidsafe": false,
+            "splitsegs": false,
+            "subsectionsviasymbols": true,
+            "twolevel": false,
+            "weakdefines": false
+          },
+          "ncmds": 4,
+          "reserved": 0,
+          "sizeofcmds": 440
+        },
+        "loadcommands": [
+          {
+            "body": {
+              "fileoff": 472,
+              "filesize": 152,
+              "flags": 0,
+              "initprot": {
+                "copy": false,
+                "execute": true,
+                "ismask": false,
+                "nochange": false,
+                "read": true,
+                "reserved0": false,
+                "reserved1": 0,
+                "stripread": false,
+                "write": true
+              },
+              "maxprot": {
+                "copy": false,
+                "execute": true,
+                "ismask": false,
+                "nochange": false,
+                "read": true,
+                "reserved0": false,
+                "reserved1": 0,
+                "stripread": false,
+                "write": true
+              },
+              "nsects": 3,
+              "sections": [
+                {
+                  "addr": 0,
+                  "align": 2,
+                  "data": "ff8300d1fd7b01a9fd430091a0c31fb8e10b00b9a0c35fb800000094e80b40b90800080b09000090290140b90001090bfd7b41a9ff830091c0035fd6ff4300d1e00f00b9e80f40b900791f53ff430091c0035fd6",
+                  "flags": 2147484672,
+                  "nreloc": 3,
+                  "offset": 472,
+                  "reloff": 624,
+                  "reserved1": 0,
+                  "reserved2": 0,
+                  "reserved3": 0,
+                  "sectname": "__text",
+                  "segname": "__TEXT",
+                  "size": 84
+                },
+                {
+                  "addr": 84,
+                  "align": 2,
+                  "data": "03000000",
+                  "flags": 0,
+                  "nreloc": 0,
+                  "offset": 556,
+                  "reloff": 0,
+                  "reserved1": 0,
+                  "reserved2": 0,
+                  "reserved3": 0,
+                  "sectname": "__data",
+                  "segname": "__DATA",
+                  "size": 4
+                },
+                {
+                  "addr": 88,
+                  "align": 3,
+                  "data": "00000000000000003c00000000000004000000000000000000000000000000003c00000000000000180000000010000200000000000000000000000000000000",
+                  "flags": 33554432,
+                  "nreloc": 2,
+                  "offset": 560,
+                  "reloff": 648,
+                  "reserved1": 0,
+                  "reserved2": 0,
+                  "reserved3": 0,
+                  "sectname": "__compact_unwind",
+                  "segname": "__LD",
+                  "size": 64
+                }
+              ],
+              "segname": "",
+              "vmaddr": 0,
+              "vmsize": 152
+            },
+            "size": 312,
+            "type": 25
+          },
+          {
+            "body": {
+              "minos": 720896,
+              "ntools": 0,
+              "platform": 1,
+              "sdk": 0,
+              "tools": []
+            },
+            "size": 24,
+            "type": 50
+          },
+          {
+            "body": {
+              "nsyms": 6,
+              "stroff": 760,
+              "strsize": 48,
+              "strs": {
+                "items": [
+                  "unter",
+                  "_helper",
+                  "_add",
+                  "ltmp2",
+                  "ltmp1",
+                  "ltmp0",
+                  ""
+                ],
+                "unknown": 1868783360
+              },
+              "symoff": 664,
+              "symbols": [
+                {
+                  "desc": 0,
+                  "name": "ltmp0",
+                  "sect": 1,
+                  "type": 14,
+                  "un": 35,
+                  "value": 0
+                },
+                {
+                  "desc": 0,
+                  "name": "_helper",
+                  "sect": 1,
+                  "type": 14,
+                  "un": 10,
+                  "value": 60
+                },
+                {
+                  "desc": 0,
+                  "name": "ltmp1",
+                  "sect": 2,
+                  "type": 14,
+                  "un": 29,
+                  "value": 84
+                },
+                {
+                  "desc": 0,
+                  "name": "ltmp2",
+                  "sect": 3,
+                  "type": 14,
+                  "un": 23,
+                  "value": 88
+                },
+                {
+                  "desc": 0,
+                  "name": "_add",
+                  "sect": 1,
+                  "type": 15,
+                  "un": 18,
+                  "value": 0
+                },
+                {
+                  "desc": 0,
+                  "name": "_counter",
+                  "sect": 2,
+                  "type": 15,
+                  "un": 1,
+                  "value": 84
+                }
+              ]
+            },
+            "size": 24,
+            "type": 2
+          },
+          {
+            "body": {
+              "extrefsymoff": 0,
+              "extreloff": 0,
+              "iextdefsym": 4,
+              "ilocalsym": 0,
+              "iundefsym": 6,
+              "indirectsymoff": 0,
+              "indirectsymbols": [],
+              "locreloff": 0,
+              "modtaboff": 0,
+              "nextdefsym": 2,
+              "nextrefsyms": 0,
+              "nextrel": 0,
+              "nindirectsyms": 0,
+              "nlocrel": 0,
+              "nlocalsym": 4,
+              "nmodtab": 0,
+              "ntoc": 0,
+              "nundefsym": 0,
+              "tocoff": 0
+            },
+            "size": 80,
+            "type": 11
+          }
+        ],
+        "magic": 3489328638
+      },
+      "ofsobject": 8192
+    }
+  ],
+  "magic": "cafebabe",
+  "numfatarch": 2
+}
