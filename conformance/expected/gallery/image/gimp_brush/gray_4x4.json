@@ -1,0 +1,14 @@
+{
+  "body": "00112233445566778899aabbccddeeff",
+  "header": {
+    "brushname": "doe brush",
+    "bytesperpixel": 1,
+    "height": 4,
+    "magic": "47494d50",
+    "spacing": 25,
+    "version": 2,
+    "width": 4
+  },
+  "lenbody": 16,
+  "lenheader": 38
+}

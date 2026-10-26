@@ -1,0 +1,264 @@
+{
+  "tag": {
+    "footer": {
+      "flags": {
+        "flagexperimental": false,
+        "flagfooter": true,
+        "flagheaderex": false,
+        "flagunsynchronization": false,
+        "reserved": 0
+      },
+      "magic": "334449",
+      "size": {
+        "short0": {
+          "byte0": {
+            "padding": false,
+            "value": 0
+          },
+          "byte1": {
+            "padding": false,
+            "value": 0
+          },
+          "value": 0
+        },
+        "short1": {
+          "byte0": {
+            "padding": false,
+            "value": 1
+          },
+          "byte1": {
+            "padding": false,
+            "value": 15
+          },
+          "value": 143
+        },
+        "value": 143
+      },
+      "versionmajor": 4,
+      "versionrevision": 0
+    },
+    "frames": [
+      {
+        "data": "03412074c3ad746c65",
+        "flagsformat": {
+          "flagcompressed": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagindicator": false,
+          "flagunsynchronisated": false,
+          "reserved1": false,
+          "reserved2": 0
+        },
+        "flagsstatus": {
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagreadonly": false,
+          "reserved1": false,
+          "reserved2": 0
+        },
+        "id": "TIT2",
+        "isinvalid": false,
+        "size": {
+          "short0": {
+            "byte0": {
+              "padding": false,
+              "value": 0
+            },
+            "byte1": {
+              "padding": false,
+              "value": 0
+            },
+            "value": 0
+          },
+          "short1": {
+            "byte0": {
+              "padding": false,
+              "value": 0
+            },
+            "byte1": {
+              "padding": false,
+              "value": 9
+            },
+            "value": 9
+          },
+          "value": 9
+        }
+      },
+      {
+        "data": "03416e20617274697374",
+        "flagsformat": {
+          "flagcompressed": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagindicator": false,
+          "flagunsynchronisated": false,
+          "reserved1": false,
+          "reserved2": 0
+        },
+        "flagsstatus": {
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagreadonly": false,
+          "reserved1": false,
+          "reserved2": 0
+        },
+        "id": "TPE1",
+        "isinvalid": false,
+        "size": {
+          "short0": {
+            "byte0": {
+              "padding": false,
+              "value": 0
+            },
+            "byte1": {
+              "padding": false,
+              "value": 0
+            },
+            "value": 0
+          },
+          "short1": {
+            "byte0": {
+              "padding": false,
+              "value": 0
+            },
+            "byte1": {
+              "padding": false,
+              "value": 10
+            },
+            "value": 10
+          },
+          "value": 10
+        }
+      },
+      {
+        "data": "03323032342d30352d3036",
+        "flagsformat": {
+          "flagcompressed": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagindicator": false,
+          "flagunsynchronisated": false,
+          "reserved1": false,
+          "reserved2": 0
+        },
+        "flagsstatus": {
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagreadonly": false,
+          "reserved1": false,
+          "reserved2": 0
+        },
+        "id": "TDRC",
+        "isinvalid": false,
+        "size": {
+          "short0": {
+            "byte0": {
+              "padding": false,
+              "value": 0
+            },
+            "byte1": {
+              "padding": false,
+              "value": 0
+            },
+            "value": 0
+          },
+          "short1": {
+            "byte0": {
+              "padding": false,
+              "value": 0
+            },
+            "byte1": {
+              "padding": false,
+              "value": 11
+            },
+            "value": 11
+          },
+          "value": 11
+        }
+      },
+      {
+        "data": "03656e67006120636f6d6d656e74206f6620736f6d65206c656e6774682c20736f207468617420697420697320746865206c6f6e67657374206672616d65206f662074686520746167",
+        "flagsformat": {
+          "flagcompressed": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagindicator": false,
+          "flagunsynchronisated": false,
+          "reserved1": false,
+          "reserved2": 0
+        },
+        "flagsstatus": {
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagreadonly": false,
+          "reserved1": false,
+          "reserved2": 0
+        },
+        "id": "COMM",
+        "isinvalid": false,
+        "size": {
+          "short0": {
+            "byte0": {
+              "padding": false,
+              "value": 0
+            },
+            "byte1": {
+              "padding": false,
+              "value": 0
+            },
+            "value": 0
+          },
+          "short1": {
+            "byte0": {
+              "padding": false,
+              "value": 0
+            },
+            "byte1": {
+              "padding": false,
+              "value": 73
+            },
+            "value": 73
+          },
+          "value": 73
+        }
+      }
+    ],
+    "header": {
+      "flags": {
+        "flagexperimental": false,
+        "flagfooter": true,
+        "flagheaderex": false,
+        "flagunsynchronization": false,
+        "reserved": 0
+      },
+      "magic": "494433",
+      "size": {
+        "short0": {
+          "byte0": {
+            "padding": false,
+            "value": 0
+          },
+          "byte1": {
+            "padding": false,
+            "value": 0
+          },
+          "value": 0
+        },
+        "short1": {
+          "byte0": {
+            "padding": false,
+            "value": 1
+          },
+          "byte1": {
+            "padding": false,
+            "value": 15
+          },
+          "value": 143
+        },
+        "value": 143
+      },
+      "versionmajor": 4,
+      "versionrevision": 0
+    }
+  }
+}

@@ -1,10 +1,10 @@
 format	status	sample	source	licence	note
 3d/gltf_binary	none	-	-	-	
-archive/android_bootldr_asus	none	-	-	-	
-archive/android_bootldr_huawei	none	-	-	-	
-archive/android_bootldr_qcom	none	-	-	-	
-archive/android_dto	none	-	-	-	
-archive/android_img	none	-	-	-	
+archive/android_bootldr_asus	crafted	archive/android_bootldr_asus	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+archive/android_bootldr_huawei	crafted	archive/android_bootldr_huawei	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+archive/android_bootldr_qcom	crafted	archive/android_bootldr_qcom	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+archive/android_dto	crafted	archive/android_dto	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+archive/android_img	crafted	archive/android_img	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/android_sparse	crafted	archive/android_sparse	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/cpio_old_le	real	archive/cpio_old_le	cpio -H bin, run by make_real_samples.py	MIT (this repository)	a directory tree of three files and a directory
 archive/gzip	real	archive/gzip	gzip module of Python, run by make_gallery_samples.py	MIT (this repository)	
@@ -71,13 +71,13 @@ font/ttf	none	-	-	-
 game/allegro_dat	none	-	-	-	
 game/doom_wad	crafted	game/doom_wad	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/dune_2_pak	crafted	game/dune_2_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-game/fallout2_dat	none	-	-	-	
-game/fallout_dat	none	-	-	-	
-game/ftl_dat	none	-	-	-	
-game/gran_turismo_vol	none	-	-	-	
-game/heaps_pak	none	-	-	-	
-game/heroes_of_might_and_magic_agg	none	-	-	-	
-game/heroes_of_might_and_magic_bmp	none	-	-	-	
+game/fallout2_dat	crafted	game/fallout2_dat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+game/fallout_dat	crafted	game/fallout_dat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+game/ftl_dat	crafted	game/ftl_dat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+game/gran_turismo_vol	crafted	game/gran_turismo_vol	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+game/heaps_pak	crafted	game/heaps_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+game/heroes_of_might_and_magic_agg	crafted	game/heroes_of_might_and_magic_agg	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+game/heroes_of_might_and_magic_bmp	crafted	game/heroes_of_might_and_magic_bmp	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/minecraft_nbt	crafted	game/minecraft_nbt	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/quake2_md2	none	-	-	-	
 game/quake_mdl	none	-	-	-	
@@ -94,16 +94,16 @@ image/bmp	crafted	image/bmp	built by make_gallery_samples.py	MIT (this repositor
 image/dicom	none	-	-	-	
 image/exif	none	-	-	-	
 image/gif	crafted	image/gif	built by make_gallery_samples.py	MIT (this repository)	
-image/gimp_brush	none	-	-	-	
+image/gimp_brush	crafted	image/gimp_brush	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/icc_4	none	-	-	-	
 image/ico	crafted	image/ico	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/jpeg	crafted	image/jpeg	built by make_gallery_samples.py	MIT (this repository)	
 image/nitf	none	-	-	-	
 image/pcx	crafted	image/pcx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-image/pcx_dcx	none	-	-	-	
+image/pcx_dcx	crafted	image/pcx_dcx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/pif	none	-	-	-	
 image/png	crafted	image/png	built by make_gallery_samples.py	MIT (this repository)	
-image/psx_tim	none	-	-	-	
+image/psx_tim	crafted	image/psx_tim	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/tga	crafted	image/tga	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/webp	none	-	-	-	
 image/wmf	none	-	-	-	
@@ -131,10 +131,10 @@ media/blender_blend	none	-	-	-
 media/creative_voice_file	crafted	media/creative_voice_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/genmidi_op2	none	-	-	-	
 media/id3v1_1	crafted	media/id3v1_1	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-media/id3v2_3	none	-	-	-	
-media/id3v2_4	none	-	-	-	
-media/magicavoxel_vox	none	-	-	-	
-media/ogg	none	-	-	-	
+media/id3v2_3	crafted	media/id3v2_3	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+media/id3v2_4	crafted	media/id3v2_4	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+media/magicavoxel_vox	crafted	media/magicavoxel_vox	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+media/ogg	crafted	media/ogg	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/quicktime_mov	none	-	-	-	
 media/standard_midi_file	crafted	media/standard_midi_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/stl	crafted	media/stl	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -151,7 +151,7 @@ network/hccapx	crafted	network/hccapx	built by make_samples_by_hand.py from the 
 network/icmp_packet	crafted	network/icmp_packet	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/ipv4_packet	crafted	network/ipv4_packet	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/ipv6_packet	crafted	network/ipv6_packet	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
-network/microsoft_network_monitor_v2	none	-	-	-	
+network/microsoft_network_monitor_v2	crafted	network/microsoft_network_monitor_v2	built by make_samples_by_hand.py from the format's documentation (the frames are the ethernet_frame samples)	MIT (this repository)	
 network/packet_ppi	none	-	-	-	
 network/pcap	crafted	network/pcap	built by make_gallery_samples.py	MIT (this repository)	
 network/protocol_body	part-of	-	-	-	imported by network/ipv4_packet and network/ipv6_packet, which pass it the protocol number; it is read in every sample of both
@@ -188,4 +188,4 @@ windows/windows_lnk_file	none	-	-	-
 windows/windows_minidump	none	-	-	-	
 windows/windows_resource_file	none	-	-	-	
 windows/windows_shell_items	none	-	-	-	
-windows/windows_systemtime	none	-	-	-	
+windows/windows_systemtime	part-of	-	-	-	imported by network/microsoft_network_monitor_v2, whose sample has a start time

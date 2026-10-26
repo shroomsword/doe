@@ -291,6 +291,24 @@ def network():
     )
     put("network/bitcoin_transaction", "signed", struct.pack("<IB", 1, 1) + vin + bytes([2]) + vouts + struct.pack("<I", 0))
 
+    # Microsoft Network Monitor 2 capture (.cap): a header with the start time, the frames, and the table of the frames
+    frames_in = [
+        (ROOT / "network/ethernet_frame/tcp.bin").read_bytes(),
+        (ROOT / "network/ethernet_frame/udp.bin").read_bytes(),
+    ]
+    frames_blob = b""
+    table = b""
+    position = 72
+    for index, frame in enumerate(frames_in):
+        table += struct.pack("<I", position + len(frames_blob))
+        frames_blob += struct.pack("<QII", index * 1500, len(frame), len(frame)) + frame
+    table_offset = position + len(frames_blob)
+    nm_header = b"GMBU" + bytes([0, 2]) + struct.pack("<H", 1)  # version 2.0, Ethernet
+    nm_header += struct.pack("<8H", 2024, 5, 1, 6, 12, 30, 15, 250)  # SYSTEMTIME: year, month, day of week, day, hour, minute, second, ms
+    nm_header += struct.pack("<II", table_offset, len(table)) + bytes(40)
+    assert len(nm_header) == 72, len(nm_header)
+    put("network/microsoft_network_monitor_v2", "two_frames", nm_header + frames_blob + table)
+
     # SOME/IP (AUTOSAR, Specification of SOME/IP Message Format): a header of 16 bytes, then the payload
     def some_ip(service, method, client, session, kind, payload, protocol=1, interface=1, code=0):
         return struct.pack(">HHIHHBBBB", service, method, len(payload) + 8, client, session, protocol, interface, kind, code) + payload
@@ -426,6 +444,97 @@ def media():
     body = b"AVI " + hdrl + movi + index
     put("media/avi", "two_frames", b"RIFF" + struct.pack("<I", len(body)) + body)
 
+    # Ogg (RFC 3533): pages with a CRC-32 of their own kind (polynomial 0x04C11DB7, no reflection, no final xor)
+    table = []
+    for byte in range(256):
+        crc = byte << 24
+        for _ in range(8):
+            crc = ((crc << 1) ^ 0x04C11DB7) & 0xFFFFFFFF if crc & 0x80000000 else (crc << 1) & 0xFFFFFFFF
+        table.append(crc)
+
+    def ogg_crc(data):
+        crc = 0
+        for byte in data:
+            crc = ((crc << 8) & 0xFFFFFFFF) ^ table[((crc >> 24) ^ byte) & 0xFF]
+        return crc
+
+    def ogg_page(flags, granule, serial, number, packets):
+        lacing = b""
+        for packet in packets:
+            lacing += b"\xff" * (len(packet) // 255) + bytes([len(packet) % 255])
+        header = b"OggS\0" + bytes([flags]) + struct.pack("<QIII", granule, serial, number, 0) + bytes([len(lacing)]) + lacing
+        page = header + b"".join(packets)
+        return page[:22] + struct.pack("<I", ogg_crc(page)) + page[26:]
+
+    stream = (
+        ogg_page(0x02, 0, 0x1234, 0, [b"\x01doe-codec" + bytes(20)])
+        + ogg_page(0x00, 0, 0x1234, 1, [b"\x03comments", bytes(range(256)) * 2])
+        + ogg_page(0x04, 960, 0x1234, 2, [bytes(40), bytes(60)])
+    )
+    put("media/ogg", "three_pages", stream)
+
+    # ID3v2 tags (id3.org): a header with a synchsafe size, frames, and zero padding
+    def synchsafe(value):
+        return bytes([(value >> 21) & 0x7F, (value >> 14) & 0x7F, (value >> 7) & 0x7F, value & 0x7F])
+
+    def id3(version, frames, padding=64, footer=False):
+        body = b"".join(frames) + bytes(padding)
+        flags = 0x10 if footer else 0
+        tag = b"ID3" + bytes([version, 0, flags]) + synchsafe(len(body)) + body
+        if footer:
+            tag += b"3DI" + bytes([version, 0, flags]) + synchsafe(len(body))
+        return tag
+
+    def v3_frame(name, data):
+        return name + struct.pack(">I", len(data)) + b"\0\0" + data
+
+    def v4_frame(name, data):
+        return name + synchsafe(len(data)) + b"\0\0" + data
+
+    put(
+        "media/id3v2_3",
+        "tags",
+        id3(
+            3,
+            [
+                v3_frame(b"TIT2", b"\0" + b"A title"),
+                v3_frame(b"TPE1", b"\0" + b"An artist"),
+                v3_frame(b"TALB", b"\0" + b"An album"),
+                v3_frame(b"TYER", b"\0" + b"2024"),
+                v3_frame(b"TRCK", b"\0" + b"3/12"),
+                v3_frame(b"COMM", b"\0" + b"eng" + b"\0" + b"a comment of some length, so that it is the longest frame of the tag"),
+            ],
+        ),
+    )
+    put(
+        "media/id3v2_4",
+        "tags",
+        id3(
+            4,
+            [
+                v4_frame(b"TIT2", b"\x03" + "A títle".encode()),
+                v4_frame(b"TPE1", b"\x03" + b"An artist"),
+                v4_frame(b"TDRC", b"\x03" + b"2024-05-06"),
+                v4_frame(b"COMM", b"\x03" + b"eng" + b"\0" + b"a comment of some length, so that it is the longest frame of the tag"),
+            ],
+            padding=0,
+            footer=True,  # with a footer, the tag has no padding (the reference runtime cannot read the padding of the definition)
+        ),
+    )
+
+    # MagicaVoxel .vox (version 150): a MAIN chunk whose children are the size, the voxels and the palette
+    def chunk(kind, content=b"", children=b""):
+        return kind + struct.pack("<II", len(content), len(children)) + content + children
+
+    voxels = [(0, 0, 0, 1), (1, 0, 0, 2), (1, 1, 0, 3), (2, 2, 2, 255)]
+    palette = b"".join(bytes((i, 255 - i, (i * 7) & 0xFF, 255)) for i in range(256))
+    children = (
+        chunk(b"SIZE", struct.pack("<III", 3, 3, 3))
+        + chunk(b"XYZI", struct.pack("<I", len(voxels)) + b"".join(bytes(v) for v in voxels))
+        + chunk(b"RGBA", palette)
+    )
+    put("media/magicavoxel_vox", "small_model", b"VOX " + struct.pack("<I", 150) + chunk(b"MAIN", b"", children))
+
 
 # ── image ────────────────────────────────────────────────────────────────────
 
@@ -524,6 +633,36 @@ def image():
     reds, greens, blues = bytes([255] * 4 + [0] * 4), bytes([0] * 4 + [255] * 4), bytes([0, 64, 128, 255] * 2)
     planes = b"".join(rle(r) for r in (reds, greens, blues))
     put("image/pcx", "truecolor_planes", pcx_header(8, 1, 3, 8) + planes)
+
+    # DCX: the magic, a list of offsets ended by 0, and a PCX file at each
+    # (the definition looks for the palette of 256 colours at the end of the whole file, so that page is the last)
+    first = pcx_header(8, 1, 3, 8) + planes
+    second = pcx_header(8, 2, 1, 8) + b"".join(rle(r) for r in indexes) + palette256
+    start = 4 + 4 * 3
+    put(
+        "image/pcx_dcx",
+        "two_pages",
+        b"\xb1\x68\xde\x3a" + struct.pack("<III", start, start + len(first), 0) + first + second,
+    )
+
+    # GIMP brush (.gbr, version 2): the size of the header, the header, then the pixels
+    name = b"doe brush\0"
+    header_size = 28 + len(name)
+    gimp = struct.pack(">IIIII", header_size, 2, 4, 4, 1) + b"GIMP" + struct.pack(">I", 25) + name
+    put("image/gimp_brush", "gray_4x4", gimp + bytes((i * 17) & 0xFF for i in range(16)))
+
+    # PlayStation TIM: 16-bit colour, and 4-bit with a colour lookup table
+    def tim_block(x, y, width, height, data):
+        return struct.pack("<IHHHH", 12 + len(data), x, y, width, height) + data
+
+    pixels16 = b"".join(struct.pack("<H", (r << 10) | (g << 5) | b) for r, g, b in [(31, 0, 0), (0, 31, 0), (0, 0, 31), (31, 31, 31)] * 2)
+    put("image/psx_tim", "direct_16bit", b"\x10\0\0\0" + struct.pack("<I", 2) + tim_block(640, 0, 4, 2, pixels16))
+    clut = b"".join(struct.pack("<H", (i << 10) | (i << 5) | i) for i in range(16))
+    put(
+        "image/psx_tim",
+        "indexed_4bit",
+        b"\x10\0\0\0" + struct.pack("<I", 0b1000) + tim_block(0, 480, 16, 1, clut) + tim_block(640, 256, 2, 2, bytes([0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE])),
+    )
 
     # X Window Dump: a header, the colour map, then the pixels (as xwd writes a ZPixmap)
     def xwd(width, height, depth, bits, visual, masks, colors, creator, pixels):
@@ -732,6 +871,90 @@ def game():
         + b"\0"
     )
     put("game/minecraft_nbt", "level", tag(10, "Data", compound[:-1] + b"\0"))
+
+    import zlib
+
+    # Fallout (big-endian): the folders and the files in them, the index first and the data after
+    def pstr1(text):
+        return bytes([len(text)]) + text.encode()
+
+    def fallout1():
+        folders = ["DATA", "ART"]
+        files = {"DATA": [("A.TXT", b"first file"), ("B.BIN", bytes(range(30)))], "ART": [("C.FRM", b"third")]}
+        index_size = 16 + sum(len(pstr1(f)) for f in folders) + sum(16 + sum(len(pstr1(n)) + 16 for n, _ in files[f]) for f in folders)
+        data, entries, position = b"", b"", index_size
+        out = struct.pack(">IIII", len(folders), 0, 0, 1700000000) + b"".join(pstr1(f) for f in folders)
+        for f in folders:
+            out += struct.pack(">IIII", len(files[f]), 0, 0x10, 1700000000)
+            for name, blob in files[f]:
+                out += pstr1(name) + struct.pack(">IIII", 32, position + len(data), len(blob), len(blob))
+                data += blob
+        return out + data
+
+    put("game/fallout_dat", "two_folders", fallout1())
+
+    # Fallout 2: the data first, then the index and a footer (index size, file size), all little-endian
+    def fallout2():
+        raw = b"stored without compression"
+        text = b"packed with zlib " * 20
+        packed = zlib.compress(text)
+        data = raw + packed
+        index = struct.pack("<I", 2)
+        for name, flags, unpacked, stored, offset in [("DATA/A.TXT", 0, len(raw), len(raw), 0), ("DATA/B.TXT", 1, len(text), len(packed), len(raw))]:
+            index += struct.pack("<I", len(name)) + name.encode() + struct.pack("<BIII", flags, unpacked, stored, offset)
+        total = len(data) + len(index) + 8
+        return data + index + struct.pack("<II", len(index), total)
+
+    put("game/fallout2_dat", "raw_and_zlib", fallout2())
+
+    # FTL: a count, the offsets of the entries, and each entry (size, name length, name, bytes)
+    entries = [("data/a.xml", b"<a/>"), ("img/b.png", bytes(range(50)))]
+    offsets_end = 4 + 4 * 3
+    out, blobs, position = struct.pack("<I", 3), b"", offsets_end
+    for name, data in entries:
+        out += struct.pack("<I", position + len(blobs))
+        blobs += struct.pack("<II", len(data), len(name)) + name.encode() + data
+    out += struct.pack("<I", 0)  # an entry that is not used
+    put("game/ftl_dat", "two_files", out + blobs)
+
+    # Heaps .pak: a header with a tree of directories and files, then the data
+    def heaps_entry(name, body, is_dir):
+        return bytes([len(name)]) + name.encode() + bytes([1 if is_dir else 0]) + body
+
+    def heaps_file(offset, data):
+        return struct.pack("<II", offset, len(data)) + zlib.crc32(data).to_bytes(4, "little")
+
+    first, second = b"hello heaps\n", bytes(range(40))
+    tree = heaps_entry(
+        "",
+        struct.pack("<I", 2)
+        + heaps_entry("readme.txt", heaps_file(0, first), False)
+        + heaps_entry("sub", struct.pack("<I", 1) + heaps_entry("data.bin", heaps_file(len(first), second), False), True),
+        True,
+    )
+    header_size = 16 + len(tree)
+    put("game/heaps_pak", "tree", b"PAK" + bytes([0]) + struct.pack("<II", header_size, len(first) + len(second)) + tree + b"DATA" + first + second)
+
+    # Heroes of Might and Magic: an AGG archive (entries, the files, the names) and a BMP (a size and 8-bit pixels)
+    files = [("ONE.BMP", b"\x00\x00\x02\x00\x02\x00" + bytes([1, 2, 3, 4])), ("TWO.TXT", b"text of two")]
+    entries_size = 2 + 14 * len(files)
+    out, blobs, position = struct.pack("<H", len(files)), b"", entries_size
+    for index, (name, blob) in enumerate(files):
+        out += struct.pack("<HIII", 0x1000 + index, position + len(blobs), len(blob), len(blob))
+        blobs += blob
+    names = b"".join(name.encode().ljust(15, b"\0") for name, _ in files)
+    put("game/heroes_of_might_and_magic_agg", "two_files", out + blobs + names)
+    put("game/heroes_of_might_and_magic_bmp", "four_pixels", files[0][1])
+
+    # Gran Turismo VOL: a header with the offsets (sector 0x800 each), a directory of entries and the files
+    offsets = [0, 0x800, 0x1000, 0x1800, 0x2000]
+    header = b"GTFS\0\0\0\0" + struct.pack("<HH", len(offsets), 2) + bytes(4) + b"".join(struct.pack("<I", o) for o in offsets)
+    directory = (
+        struct.pack("<IHB", 1700000000, 2, 0) + b"first.dat".ljust(25, b"\0")
+        + struct.pack("<IHB", 1700000001, 3, 0x80) + b"second.dat".ljust(25, b"\0")
+    )
+    vol = header.ljust(0x800, b"\0") + directory.ljust(0x800, b"\0") + b"first file".ljust(0x800, b"\0") + bytes(range(100)).ljust(0x800, b"\0")
+    put("game/gran_turismo_vol", "two_files", vol)
 
 
 # ── filesystem ───────────────────────────────────────────────────────────────
@@ -985,6 +1208,54 @@ def archive():
     mar = b"MAR1" + struct.pack(">IQI", index_offset, total, 1) + signature + struct.pack(">I", 1) + section + body + struct.pack(">I", len(index)) + index
     assert len(mar) == total
     put("archive/mozilla_mar", "update", mar)
+
+    # Android boot loader images of three makers: a header, then the images
+    asus = b"BOOTLDR!" + struct.pack("<HHI", 2, 0, 0)
+    for chunk_id, body in [(b"IFWI!!!!", bytes(range(30))), (b"DROIDBT!", b"droidboot"), (b"SPLASHS!", bytes(8))]:
+        asus += chunk_id + struct.pack("<IBBBB", len(body), 1, 0, 0, 0) + body
+    put("archive/android_bootldr_asus", "three_images", asus)
+
+    names = [("sbl1", b"first boot loader"), ("aboot", bytes(range(40)))]
+    huawei_meta_size = 76
+    image_header_size = 80 * 3
+    first_body = huawei_meta_size + image_header_size
+    huawei = b"\x3c\xd6\x1a\xce" + struct.pack("<HH", 1, 2) + b"HUAWEI-1.0".ljust(64, b"\0") + struct.pack("<HH", huawei_meta_size, image_header_size)
+    position = first_body
+    for name, body in names:
+        huawei += name.encode().ljust(72, b"\0") + struct.pack("<II", position, len(body))
+        position += len(body)
+    huawei += bytes(80)  # an entry that is not used
+    put("archive/android_bootldr_huawei", "two_images", huawei + b"".join(body for _, body in names))
+
+    qcom_images = [("kernel", bytes(range(100))), ("modem", b"modem firmware")]
+    qcom_start = 16 + 68 * len(qcom_images)
+    qcom = b"BOOTLDR!" + struct.pack("<III", len(qcom_images), qcom_start, sum(len(b) for _, b in qcom_images))
+    for name, body in qcom_images:
+        qcom += name.encode().ljust(64, b"\0") + struct.pack("<I", len(body))
+    put("archive/android_bootldr_qcom", "two_images", qcom + b"".join(body for _, body in qcom_images))
+
+    # Android device tree table (dtbo.img): a header, the entries, and the device trees (the one of the dtb sample, twice)
+    tree = (ROOT / "hardware/dtb/board.bin").read_bytes()
+    count = 2
+    first_tree = 32 + 32 * count
+    entries = b"".join(struct.pack(">IIIIIIII", len(tree), first_tree + i * len(tree), 100 + i, 0, 0, 0, 0, 0) for i in range(count))
+    dto = b"\xd7\xb7\xab\x1e" + struct.pack(">IIIIIII", first_tree + count * len(tree), 32, 32, count, 32, 4096, 0)
+    put("archive/android_dto", "two_trees", dto + entries + tree * count)
+
+    # Android boot image (header version 2): a page of 2048 bytes with the header, then the kernel, ramdisk and device tree, each padded to a page
+    page = 2048
+    kernel, ramdisk, second, dtb = bytes(range(200)) * 3, b"ramdisk " * 40, b"", tree
+    os_version = (10 << 25) | (24 << 4) | 5  # 10.0.0, May 2024
+    header = b"ANDROID!" + struct.pack(
+        "<10I", len(kernel), 0x10008000, len(ramdisk), 0x11000000, len(second), 0x10F00000, 0x10000100, page, 2, os_version
+    )
+    header += b"doe".ljust(16, b"\0") + b"console=ttyS0".ljust(512, b"\0") + bytes(32) + bytes(1024)
+    header += struct.pack("<IQ", 0, 0) + struct.pack("<I", 1660) + struct.pack("<IQ", len(dtb), 0x11F00000)
+
+    def paged(blob):
+        return blob.ljust((len(blob) + page - 1) // page * page, b"\0")
+
+    put("archive/android_img", "boot_v2", paged(header) + paged(kernel) + paged(ramdisk) + paged(dtb))
 
     # Respack (a resource pack of a game): "RS", 8 bytes, the size of the JSON, its MD5 in hex, the JSON
     import hashlib

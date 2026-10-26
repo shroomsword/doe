@@ -1,0 +1,138 @@
+{
+  "tag": {
+    "frames": [
+      {
+        "data": "0041207469746c65",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "TIT2",
+        "isinvalid": false,
+        "size": 8
+      },
+      {
+        "data": "00416e20617274697374",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "TPE1",
+        "isinvalid": false,
+        "size": 10
+      },
+      {
+        "data": "00416e20616c62756d",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "TALB",
+        "isinvalid": false,
+        "size": 9
+      },
+      {
+        "data": "0032303234",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "TYER",
+        "isinvalid": false,
+        "size": 5
+      },
+      {
+        "data": "00332f3132",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "TRCK",
+        "isinvalid": false,
+        "size": 5
+      },
+      {
+        "data": "00656e67006120636f6d6d656e74206f6620736f6d65206c656e6774682c20736f207468617420697420697320746865206c6f6e67657374206672616d65206f662074686520746167",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "COMM",
+        "isinvalid": false,
+        "size": 73
+      }
+    ],
+    "header": {
+      "flags": {
+        "flagexperimental": false,
+        "flagheaderex": false,
+        "flagunsynchronization": false,
+        "reserved": 0
+      },
+      "magic": "494433",
+      "size": {
+        "short0": {
+          "byte0": {
+            "padding": false,
+            "value": 0
+          },
+          "byte1": {
+            "padding": false,
+            "value": 0
+          },
+          "value": 0
+        },
+        "short1": {
+          "byte0": {
+            "padding": false,
+            "value": 1
+          },
+          "byte1": {
+            "padding": false,
+            "value": 106
+          },
+          "value": 234
+        },
+        "value": 234
+      },
+      "versionmajor": 3,
+      "versionrevision": 0
+    }
+  }
+}

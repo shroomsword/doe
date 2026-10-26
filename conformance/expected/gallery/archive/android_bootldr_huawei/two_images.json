@@ -1,0 +1,38 @@
+{
+  "headerext": "",
+  "imageheader": {
+    "entries": [
+      {
+        "body": "666972737420626f6f74206c6f61646572",
+        "isused": true,
+        "lenbody": 17,
+        "name": "sbl1",
+        "ofsbody": 316
+      },
+      {
+        "body": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627",
+        "isused": true,
+        "lenbody": 40,
+        "name": "aboot",
+        "ofsbody": 333
+      },
+      {
+        "body": null,
+        "isused": false,
+        "lenbody": 0,
+        "name": "",
+        "ofsbody": 0
+      }
+    ]
+  },
+  "metaheader": {
+    "imageversion": "HUAWEI-1.0",
+    "lenimageheader": 240,
+    "lenmetaheader": 76,
+    "magic": "3cd61ace",
+    "version": {
+      "major": 1,
+      "minor": 2
+    }
+  }
+}

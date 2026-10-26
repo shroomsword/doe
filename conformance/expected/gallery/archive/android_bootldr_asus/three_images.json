@@ -1,0 +1,38 @@
+{
+  "images": [
+    {
+      "body": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d",
+      "chunkid": "IFWI!!!!",
+      "filename": "ifwi.bin",
+      "flags": 1,
+      "lenbody": 30,
+      "reserved1": 0,
+      "reserved2": 0,
+      "reserved3": 0
+    },
+    {
+      "body": "64726f6964626f6f74",
+      "chunkid": "DROIDBT!",
+      "filename": "droidboot.img",
+      "flags": 1,
+      "lenbody": 9,
+      "reserved1": 0,
+      "reserved2": 0,
+      "reserved3": 0
+    },
+    {
+      "body": "0000000000000000",
+      "chunkid": "SPLASHS!",
+      "filename": "splashscreen.img",
+      "flags": 1,
+      "lenbody": 8,
+      "reserved1": 0,
+      "reserved2": 0,
+      "reserved3": 0
+    }
+  ],
+  "magic": "424f4f544c445221",
+  "reserved1": 0,
+  "reserved2": 0,
+  "revision": 2
+}

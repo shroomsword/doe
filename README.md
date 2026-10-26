@@ -755,7 +755,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 9 with a file written by its own tool, 63 with a file built by hand, 3 failing on a file, 8 part of another, 107 without a sample
+> 190 definitions: 9 with a file written by its own tool, 83 with a file built by hand, 3 failing on a file, 9 part of another, 86 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -770,17 +770,17 @@ and compared with the reference compiler's output:
 <!-- gallery-formats:begin -->
 | Directory | Formats |
 | --- | --- |
-| `archive` | `android_sparse`, `cpio_old_le`, `gzip`, `mozilla_mar`, `respack`, `zip` |
+| `archive` | `android_bootldr_asus`, `android_bootldr_huawei`, `android_bootldr_qcom`, `android_dto`, `android_img`, `android_sparse`, `cpio_old_le`, `gzip`, `mozilla_mar`, `respack`, `zip` |
 | `database` | `dbf` |
 | `executable` | `android_nanoapp_header`, `dos_mz`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `swf` |
 | `filesystem` | `apm_partition_table`, `gpt_partition_table`, `mbr_partition_table`, `zx_spectrum_tap` |
 | `firmware` | `broadcom_trx`, `ines`, `uf2`, `uimage` |
-| `game` | `doom_wad`, `dune_2_pak`, `minecraft_nbt`, `quake_pak` |
+| `game` | `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake_pak` |
 | `hardware` | `dtb` |
-| `image` | `bmp`, `gif`, `ico`, `jpeg`, `pcx`, `png`, `tga`, `xwd` |
+| `image` | `bmp`, `gif`, `gimp_brush`, `ico`, `jpeg`, `pcx`, `pcx_dcx`, `png`, `psx_tim`, `tga`, `xwd` |
 | `log` | `aix_utmp`, `glibc_utmp`, `sudoers_ts` |
-| `media` | `au`, `avi`, `creative_voice_file`, `id3v1_1`, `standard_midi_file`, `stl`, `wav` |
-| `network` | `bitcoin_transaction`, `dime_message`, `dns_packet`, `ethernet_frame`, `hccap`, `hccapx`, `icmp_packet`, `ipv4_packet`, `ipv6_packet`, `pcap`, `rtp_packet`, `rtpdump`, `some_ip/some_ip`, `some_ip/some_ip_container`, `some_ip/some_ip_sd`, `tcp_segment`, `tls_client_hello`, `udp_datagram`, `websocket` |
+| `media` | `au`, `avi`, `creative_voice_file`, `id3v1_1`, `id3v2_3`, `id3v2_4`, `magicavoxel_vox`, `ogg`, `standard_midi_file`, `stl`, `wav` |
+| `network` | `bitcoin_transaction`, `dime_message`, `dns_packet`, `ethernet_frame`, `hccap`, `hccapx`, `icmp_packet`, `ipv4_packet`, `ipv6_packet`, `microsoft_network_monitor_v2`, `pcap`, `rtp_packet`, `rtpdump`, `some_ip/some_ip`, `some_ip/some_ip_container`, `some_ip/some_ip_sd`, `tcp_segment`, `tls_client_hello`, `udp_datagram`, `websocket` |
 | `security` | `ssh_public_key` |
 | `serialization` | `asn1/asn1_der`, `bson`, `chrome_pak`, `google_protobuf`, `msgpack`, `php_serialized_value`, `python_pickle` |
 <!-- gallery-formats:end -->
@@ -1066,8 +1066,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 122 samples of the Kaitai gallery
-in the tests, 38 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 143 samples of the Kaitai gallery
+in the tests, 53 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 
