@@ -1,0 +1,22 @@
+{
+  "header": {
+    "interfaceversion": 1,
+    "isvalidservicediscovery": false,
+    "length": 12,
+    "messageid": {
+      "methodid": 1,
+      "serviceid": 4660,
+      "subid": false,
+      "value": 305397761
+    },
+    "messagetype": 0,
+    "protocolversion": 1,
+    "requestid": {
+      "clientid": 256,
+      "sessionid": 7,
+      "value": 16777223
+    },
+    "returncode": 0
+  },
+  "payload": "0000002a"
+}

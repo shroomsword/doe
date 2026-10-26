@@ -1,0 +1,37 @@
+{
+  "sections": [
+    {
+      "body": "000306090c0f1215181b1e2124272a2d303336393c3f4245484b4e5154575a5d606366696c6f7275787b7e8184878a8d909396999c9fa2a5a8abaeb1b4b7babd",
+      "characteristics": 1610612768,
+      "name": ".text",
+      "numlinenumbers": 0,
+      "numrelocations": 0,
+      "pointertolinenumbers": 0,
+      "pointertorawdata": 480,
+      "pointertorelocations": 0,
+      "sizeofrawdata": 64,
+      "virtualaddress": 4096,
+      "virtualsize": 64
+    }
+  ],
+  "tehdr": {
+    "baseofcode": 4096,
+    "datadirs": {
+      "baserelocationtable": {
+        "size": 0,
+        "virtualaddress": 0
+      },
+      "debug": {
+        "size": 28,
+        "virtualaddress": 8192
+      }
+    },
+    "entrypointaddr": 4096,
+    "imagebase": 4294967296,
+    "machine": 34404,
+    "magic": "565a",
+    "numsections": 1,
+    "strippedsize": 440,
+    "subsystem": 10
+  }
+}
