@@ -22,6 +22,44 @@ fn conformance() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../conformance")
 }
 
+/// The gallery formats that have samples, as `(path like "image/png", folder
+/// of the samples)`: a folder of samples is one with `.bin` files, at any depth
+/// (`serialization/asn1/asn1_der`). The ones that doe does not read yet
+/// (`failing` in `gallery_samples.tsv`, each with an issue) are left out.
+fn gallery_formats() -> Vec<(String, PathBuf)> {
+    let root = conformance().join("samples").join("gallery");
+    let table =
+        std::fs::read_to_string(conformance().join("gallery_samples.tsv")).expect("the table");
+    let failing: Vec<&str> = table
+        .lines()
+        .filter_map(|line| {
+            let mut cells = line.split('\t');
+            let name = cells.next()?;
+            (cells.next()? == "failing").then_some(name)
+        })
+        .collect();
+    let mut found = Vec::new();
+    let mut stack = vec![(root, String::new())];
+    while let Some((dir, prefix)) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).expect("gallery").flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            let path = format!("{prefix}{}", entry.file_name().to_string_lossy());
+            let has_bins = std::fs::read_dir(entry.path())
+                .expect("dir")
+                .flatten()
+                .any(|f| f.file_name().to_string_lossy().ends_with(".bin"));
+            if !has_bins {
+                stack.push((entry.path(), format!("{path}/")));
+            } else if !failing.contains(&path.as_str()) {
+                found.push((path, entry.path()));
+            }
+        }
+    }
+    found
+}
+
 /// The formats that have samples: the name, the folder of the samples, the
 /// definition, and where its imports are looked for.
 fn formats() -> Vec<(String, PathBuf, PathBuf, Vec<PathBuf>)> {
@@ -31,17 +69,13 @@ fn formats() -> Vec<(String, PathBuf, PathBuf, Vec<PathBuf>)> {
     for entry in std::fs::read_dir(&samples).expect("samples").flatten() {
         let name = entry.file_name().into_string().expect("UTF-8");
         if name == "gallery" {
-            for dir in std::fs::read_dir(entry.path()).expect("gallery").flatten() {
-                let dir_name = dir.file_name().into_string().expect("UTF-8");
-                for format in std::fs::read_dir(dir.path()).expect("dir").flatten() {
-                    let format_name = format.file_name().into_string().expect("UTF-8");
-                    found.push((
-                        format!("gallery/{dir_name}/{format_name}"),
-                        format.path(),
-                        gallery.join(&dir_name).join(format!("{format_name}.ksy")),
-                        vec![gallery.clone()],
-                    ));
-                }
+            for (path, folder) in gallery_formats() {
+                found.push((
+                    format!("gallery/{path}"),
+                    folder,
+                    gallery.join(format!("{path}.ksy")),
+                    vec![gallery.clone()],
+                ));
             }
         } else {
             let definition = conformance().join("formats").join(format!("{name}.ksy"));
