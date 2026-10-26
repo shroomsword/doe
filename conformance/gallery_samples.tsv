@@ -79,8 +79,8 @@ game/heaps_pak	crafted	game/heaps_pak	built by make_samples_by_hand.py from the 
 game/heroes_of_might_and_magic_agg	crafted	game/heroes_of_might_and_magic_agg	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/heroes_of_might_and_magic_bmp	crafted	game/heroes_of_might_and_magic_bmp	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/minecraft_nbt	crafted	game/minecraft_nbt	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-game/quake2_md2	none	-	-	-	
-game/quake_mdl	none	-	-	-	
+game/quake2_md2	crafted	game/quake2_md2	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+game/quake_mdl	crafted	game/quake_mdl	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/quake_pak	crafted	game/quake_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/renderware_binary_stream	none	-	-	-	
 game/saints_row_2_vpp_pc	none	-	-	-	
@@ -106,16 +106,16 @@ image/png	crafted	image/png	built by make_gallery_samples.py	MIT (this repositor
 image/psx_tim	crafted	image/psx_tim	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/tga	crafted	image/tga	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/webp	none	-	-	-	
-image/wmf	none	-	-	-	
+image/wmf	crafted	image/wmf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/xwd	crafted	image/xwd	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/aix_utmp	crafted	log/aix_utmp	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/glibc_utmp	real	log/glibc_utmp	glibc (pututxline), run by make_real_samples.py	MIT (this repository)	
-log/hashcat_restore	none	-	-	-	
-log/mcap	none	-	-	-	
+log/hashcat_restore	crafted	log/hashcat_restore	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+log/mcap	failing	log/mcap	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	cannot be read: ofs_footer needs the size of fields of footer, which needs ofs_footer (#160)
 log/sudoers_ts	crafted	log/sudoers_ts	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/systemd_journal	none	-	-	-	
 log/windows_evt_log	none	-	-	-	
-machine_code/code_6502	none	-	-	-	
+machine_code/code_6502	crafted	machine_code/code_6502	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 macos/compressed_resource	none	-	-	-	
 macos/ds_store	none	-	-	-	
 macos/mac_os_resource_snd	none	-	-	-	
@@ -127,19 +127,19 @@ macos/resource_fork	none	-	-	-
 media/android_opengl_shaders_cache	none	-	-	-	
 media/au	crafted	media/au	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/avi	crafted	media/avi	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-media/blender_blend	none	-	-	-	
+media/blender_blend	crafted	media/blender_blend	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/creative_voice_file	crafted	media/creative_voice_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-media/genmidi_op2	none	-	-	-	
+media/genmidi_op2	crafted	media/genmidi_op2	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/id3v1_1	crafted	media/id3v1_1	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/id3v2_3	crafted	media/id3v2_3	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/id3v2_4	crafted	media/id3v2_4	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/magicavoxel_vox	crafted	media/magicavoxel_vox	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/ogg	crafted	media/ogg	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-media/quicktime_mov	none	-	-	-	
+media/quicktime_mov	crafted	media/quicktime_mov	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/standard_midi_file	crafted	media/standard_midi_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/stl	crafted	media/stl	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-media/tracker_modules/fasttracker_xm_module	none	-	-	-	
-media/tracker_modules/s3m	none	-	-	-	
+media/tracker_modules/fasttracker_xm_module	crafted	media/tracker_modules/fasttracker_xm_module	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+media/tracker_modules/s3m	crafted	media/tracker_modules/s3m	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/vp8_duck_ivf	none	-	-	-	
 media/wav	crafted	media/wav	built by make_gallery_samples.py	MIT (this repository)	
 network/bitcoin_transaction	crafted	network/bitcoin_transaction	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	

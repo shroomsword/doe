@@ -1,0 +1,169 @@
+{
+  "frames": [
+    {
+      "frames": [
+        {
+          "bboxmax": {
+            "normalindex": 0,
+            "values": [
+              255,
+              255,
+              255
+            ]
+          },
+          "bboxmin": {
+            "normalindex": 0,
+            "values": [
+              0,
+              0,
+              0
+            ]
+          },
+          "name": "frame0",
+          "vertices": [
+            {
+              "normalindex": 0,
+              "values": [
+                0,
+                0,
+                20
+              ]
+            },
+            {
+              "normalindex": 1,
+              "values": [
+                10,
+                5,
+                20
+              ]
+            },
+            {
+              "normalindex": 2,
+              "values": [
+                20,
+                10,
+                20
+              ]
+            }
+          ]
+        }
+      ],
+      "numsimpleframes": 1,
+      "type": 0
+    },
+    {
+      "frames": [
+        {
+          "bboxmax": {
+            "normalindex": 0,
+            "values": [
+              255,
+              255,
+              255
+            ]
+          },
+          "bboxmin": {
+            "normalindex": 0,
+            "values": [
+              0,
+              0,
+              0
+            ]
+          },
+          "name": "frame1",
+          "vertices": [
+            {
+              "normalindex": 0,
+              "values": [
+                1,
+                0,
+                20
+              ]
+            },
+            {
+              "normalindex": 1,
+              "values": [
+                11,
+                5,
+                20
+              ]
+            },
+            {
+              "normalindex": 2,
+              "values": [
+                21,
+                10,
+                20
+              ]
+            }
+          ]
+        }
+      ],
+      "numsimpleframes": 1,
+      "type": 0
+    }
+  ],
+  "header": {
+    "eyeposition": {
+      "x": 0,
+      "y": 0,
+      "z": 12
+    },
+    "flags": 0,
+    "ident": "4944504f",
+    "numframes": 2,
+    "numskins": 1,
+    "numtris": 1,
+    "numverts": 3,
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "radius": 10,
+    "scale": {
+      "x": 0.10000000149011612,
+      "y": 0.10000000149011612,
+      "z": 0.10000000149011612
+    },
+    "size": 1,
+    "skinheight": 4,
+    "skinsize": 16,
+    "skinwidth": 4,
+    "synctype": 0,
+    "version": 6
+  },
+  "skins": [
+    {
+      "group": 0,
+      "singletexturedata": "00102030405060708090a0b0c0d0e0f0"
+    }
+  ],
+  "texturecoordinates": [
+    {
+      "onseam": 0,
+      "s": 0,
+      "t": 0
+    },
+    {
+      "onseam": 0,
+      "s": 3,
+      "t": 0
+    },
+    {
+      "onseam": 0,
+      "s": 1,
+      "t": 3
+    }
+  ],
+  "triangles": [
+    {
+      "facesfront": 1,
+      "vertices": [
+        0,
+        1,
+        2
+      ]
+    }
+  ]
+}

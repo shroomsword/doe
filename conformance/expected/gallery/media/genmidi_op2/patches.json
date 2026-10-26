@@ -1,0 +1,8757 @@
+{
+  "instrumentnames": [
+    "Instrument 0",
+    "Instrument 1",
+    "Instrument 2",
+    "Instrument 3",
+    "Instrument 4",
+    "Instrument 5",
+    "Instrument 6",
+    "Instrument 7",
+    "Instrument 8",
+    "Instrument 9",
+    "Instrument 10",
+    "Instrument 11",
+    "Instrument 12",
+    "Instrument 13",
+    "Instrument 14",
+    "Instrument 15",
+    "Instrument 16",
+    "Instrument 17",
+    "Instrument 18",
+    "Instrument 19",
+    "Instrument 20",
+    "Instrument 21",
+    "Instrument 22",
+    "Instrument 23",
+    "Instrument 24",
+    "Instrument 25",
+    "Instrument 26",
+    "Instrument 27",
+    "Instrument 28",
+    "Instrument 29",
+    "Instrument 30",
+    "Instrument 31",
+    "Instrument 32",
+    "Instrument 33",
+    "Instrument 34",
+    "Instrument 35",
+    "Instrument 36",
+    "Instrument 37",
+    "Instrument 38",
+    "Instrument 39",
+    "Instrument 40",
+    "Instrument 41",
+    "Instrument 42",
+    "Instrument 43",
+    "Instrument 44",
+    "Instrument 45",
+    "Instrument 46",
+    "Instrument 47",
+    "Instrument 48",
+    "Instrument 49",
+    "Instrument 50",
+    "Instrument 51",
+    "Instrument 52",
+    "Instrument 53",
+    "Instrument 54",
+    "Instrument 55",
+    "Instrument 56",
+    "Instrument 57",
+    "Instrument 58",
+    "Instrument 59",
+    "Instrument 60",
+    "Instrument 61",
+    "Instrument 62",
+    "Instrument 63",
+    "Instrument 64",
+    "Instrument 65",
+    "Instrument 66",
+    "Instrument 67",
+    "Instrument 68",
+    "Instrument 69",
+    "Instrument 70",
+    "Instrument 71",
+    "Instrument 72",
+    "Instrument 73",
+    "Instrument 74",
+    "Instrument 75",
+    "Instrument 76",
+    "Instrument 77",
+    "Instrument 78",
+    "Instrument 79",
+    "Instrument 80",
+    "Instrument 81",
+    "Instrument 82",
+    "Instrument 83",
+    "Instrument 84",
+    "Instrument 85",
+    "Instrument 86",
+    "Instrument 87",
+    "Instrument 88",
+    "Instrument 89",
+    "Instrument 90",
+    "Instrument 91",
+    "Instrument 92",
+    "Instrument 93",
+    "Instrument 94",
+    "Instrument 95",
+    "Instrument 96",
+    "Instrument 97",
+    "Instrument 98",
+    "Instrument 99",
+    "Instrument 100",
+    "Instrument 101",
+    "Instrument 102",
+    "Instrument 103",
+    "Instrument 104",
+    "Instrument 105",
+    "Instrument 106",
+    "Instrument 107",
+    "Instrument 108",
+    "Instrument 109",
+    "Instrument 110",
+    "Instrument 111",
+    "Instrument 112",
+    "Instrument 113",
+    "Instrument 114",
+    "Instrument 115",
+    "Instrument 116",
+    "Instrument 117",
+    "Instrument 118",
+    "Instrument 119",
+    "Instrument 120",
+    "Instrument 121",
+    "Instrument 122",
+    "Instrument 123",
+    "Instrument 124",
+    "Instrument 125",
+    "Instrument 126",
+    "Instrument 127",
+    "Instrument 128",
+    "Instrument 129",
+    "Instrument 130",
+    "Instrument 131",
+    "Instrument 132",
+    "Instrument 133",
+    "Instrument 134",
+    "Instrument 135",
+    "Instrument 136",
+    "Instrument 137",
+    "Instrument 138",
+    "Instrument 139",
+    "Instrument 140",
+    "Instrument 141",
+    "Instrument 142",
+    "Instrument 143",
+    "Instrument 144",
+    "Instrument 145",
+    "Instrument 146",
+    "Instrument 147",
+    "Instrument 148",
+    "Instrument 149",
+    "Instrument 150",
+    "Instrument 151",
+    "Instrument 152",
+    "Instrument 153",
+    "Instrument 154",
+    "Instrument 155",
+    "Instrument 156",
+    "Instrument 157",
+    "Instrument 158",
+    "Instrument 159",
+    "Instrument 160",
+    "Instrument 161",
+    "Instrument 162",
+    "Instrument 163",
+    "Instrument 164",
+    "Instrument 165",
+    "Instrument 166",
+    "Instrument 167",
+    "Instrument 168",
+    "Instrument 169",
+    "Instrument 170",
+    "Instrument 171",
+    "Instrument 172",
+    "Instrument 173",
+    "Instrument 174"
+  ],
+  "instruments": [
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -12,
+          "feedback": 0,
+          "op1": {
+            "attdec": 0,
+            "level": 0,
+            "scale": 0,
+            "sustrel": 0,
+            "tremvibr": 0,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 1,
+            "level": 1,
+            "scale": 1,
+            "sustrel": 1,
+            "tremvibr": 1,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -12,
+          "feedback": 1,
+          "op1": {
+            "attdec": 1,
+            "level": 1,
+            "scale": 1,
+            "sustrel": 1,
+            "tremvibr": 1,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 2,
+            "level": 2,
+            "scale": 2,
+            "sustrel": 2,
+            "tremvibr": 2,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -11,
+          "feedback": 1,
+          "op1": {
+            "attdec": 5,
+            "level": 2,
+            "scale": 1,
+            "sustrel": 7,
+            "tremvibr": 3,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 6,
+            "level": 3,
+            "scale": 2,
+            "sustrel": 8,
+            "tremvibr": 4,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -11,
+          "feedback": 2,
+          "op1": {
+            "attdec": 6,
+            "level": 3,
+            "scale": 2,
+            "sustrel": 8,
+            "tremvibr": 4,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 7,
+            "level": 4,
+            "scale": 3,
+            "sustrel": 9,
+            "tremvibr": 5,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -10,
+          "feedback": 2,
+          "op1": {
+            "attdec": 10,
+            "level": 4,
+            "scale": 2,
+            "sustrel": 14,
+            "tremvibr": 6,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 11,
+            "level": 5,
+            "scale": 3,
+            "sustrel": 15,
+            "tremvibr": 7,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -10,
+          "feedback": 3,
+          "op1": {
+            "attdec": 11,
+            "level": 5,
+            "scale": 3,
+            "sustrel": 15,
+            "tremvibr": 7,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 12,
+            "level": 6,
+            "scale": 4,
+            "sustrel": 16,
+            "tremvibr": 8,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -9,
+          "feedback": 3,
+          "op1": {
+            "attdec": 15,
+            "level": 6,
+            "scale": 3,
+            "sustrel": 21,
+            "tremvibr": 9,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 16,
+            "level": 7,
+            "scale": 4,
+            "sustrel": 22,
+            "tremvibr": 10,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -9,
+          "feedback": 4,
+          "op1": {
+            "attdec": 16,
+            "level": 7,
+            "scale": 4,
+            "sustrel": 22,
+            "tremvibr": 10,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 17,
+            "level": 8,
+            "scale": 5,
+            "sustrel": 23,
+            "tremvibr": 11,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -8,
+          "feedback": 4,
+          "op1": {
+            "attdec": 20,
+            "level": 8,
+            "scale": 4,
+            "sustrel": 28,
+            "tremvibr": 12,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 21,
+            "level": 9,
+            "scale": 5,
+            "sustrel": 29,
+            "tremvibr": 13,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -8,
+          "feedback": 5,
+          "op1": {
+            "attdec": 21,
+            "level": 9,
+            "scale": 5,
+            "sustrel": 29,
+            "tremvibr": 13,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 22,
+            "level": 10,
+            "scale": 6,
+            "sustrel": 30,
+            "tremvibr": 14,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -7,
+          "feedback": 5,
+          "op1": {
+            "attdec": 25,
+            "level": 10,
+            "scale": 5,
+            "sustrel": 35,
+            "tremvibr": 15,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 26,
+            "level": 11,
+            "scale": 6,
+            "sustrel": 36,
+            "tremvibr": 16,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -7,
+          "feedback": 6,
+          "op1": {
+            "attdec": 26,
+            "level": 11,
+            "scale": 6,
+            "sustrel": 36,
+            "tremvibr": 16,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 27,
+            "level": 12,
+            "scale": 7,
+            "sustrel": 37,
+            "tremvibr": 17,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -6,
+          "feedback": 6,
+          "op1": {
+            "attdec": 30,
+            "level": 12,
+            "scale": 6,
+            "sustrel": 42,
+            "tremvibr": 18,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 31,
+            "level": 13,
+            "scale": 7,
+            "sustrel": 43,
+            "tremvibr": 19,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -6,
+          "feedback": 7,
+          "op1": {
+            "attdec": 31,
+            "level": 13,
+            "scale": 7,
+            "sustrel": 43,
+            "tremvibr": 19,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 32,
+            "level": 14,
+            "scale": 8,
+            "sustrel": 44,
+            "tremvibr": 20,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -5,
+          "feedback": 7,
+          "op1": {
+            "attdec": 35,
+            "level": 14,
+            "scale": 7,
+            "sustrel": 49,
+            "tremvibr": 21,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 36,
+            "level": 15,
+            "scale": 8,
+            "sustrel": 50,
+            "tremvibr": 22,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -5,
+          "feedback": 8,
+          "op1": {
+            "attdec": 36,
+            "level": 15,
+            "scale": 8,
+            "sustrel": 50,
+            "tremvibr": 22,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 37,
+            "level": 16,
+            "scale": 9,
+            "sustrel": 51,
+            "tremvibr": 23,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -4,
+          "feedback": 8,
+          "op1": {
+            "attdec": 40,
+            "level": 16,
+            "scale": 8,
+            "sustrel": 56,
+            "tremvibr": 24,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 41,
+            "level": 17,
+            "scale": 9,
+            "sustrel": 57,
+            "tremvibr": 25,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -4,
+          "feedback": 9,
+          "op1": {
+            "attdec": 41,
+            "level": 17,
+            "scale": 9,
+            "sustrel": 57,
+            "tremvibr": 25,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 42,
+            "level": 18,
+            "scale": 10,
+            "sustrel": 58,
+            "tremvibr": 26,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -3,
+          "feedback": 9,
+          "op1": {
+            "attdec": 45,
+            "level": 18,
+            "scale": 9,
+            "sustrel": 63,
+            "tremvibr": 27,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 46,
+            "level": 19,
+            "scale": 10,
+            "sustrel": 64,
+            "tremvibr": 28,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -3,
+          "feedback": 10,
+          "op1": {
+            "attdec": 46,
+            "level": 19,
+            "scale": 10,
+            "sustrel": 64,
+            "tremvibr": 28,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 47,
+            "level": 20,
+            "scale": 11,
+            "sustrel": 65,
+            "tremvibr": 29,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -2,
+          "feedback": 10,
+          "op1": {
+            "attdec": 50,
+            "level": 20,
+            "scale": 10,
+            "sustrel": 70,
+            "tremvibr": 30,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 51,
+            "level": 21,
+            "scale": 11,
+            "sustrel": 71,
+            "tremvibr": 31,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -2,
+          "feedback": 11,
+          "op1": {
+            "attdec": 51,
+            "level": 21,
+            "scale": 11,
+            "sustrel": 71,
+            "tremvibr": 31,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 52,
+            "level": 22,
+            "scale": 12,
+            "sustrel": 72,
+            "tremvibr": 32,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -1,
+          "feedback": 11,
+          "op1": {
+            "attdec": 55,
+            "level": 22,
+            "scale": 11,
+            "sustrel": 77,
+            "tremvibr": 33,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 56,
+            "level": 23,
+            "scale": 12,
+            "sustrel": 78,
+            "tremvibr": 34,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -1,
+          "feedback": 12,
+          "op1": {
+            "attdec": 56,
+            "level": 23,
+            "scale": 12,
+            "sustrel": 78,
+            "tremvibr": 34,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 57,
+            "level": 24,
+            "scale": 13,
+            "sustrel": 79,
+            "tremvibr": 35,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 0,
+          "feedback": 12,
+          "op1": {
+            "attdec": 60,
+            "level": 24,
+            "scale": 12,
+            "sustrel": 84,
+            "tremvibr": 36,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 61,
+            "level": 25,
+            "scale": 13,
+            "sustrel": 85,
+            "tremvibr": 37,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 0,
+          "feedback": 13,
+          "op1": {
+            "attdec": 61,
+            "level": 25,
+            "scale": 13,
+            "sustrel": 85,
+            "tremvibr": 37,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 62,
+            "level": 26,
+            "scale": 14,
+            "sustrel": 86,
+            "tremvibr": 38,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 1,
+          "feedback": 13,
+          "op1": {
+            "attdec": 65,
+            "level": 26,
+            "scale": 13,
+            "sustrel": 91,
+            "tremvibr": 39,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 66,
+            "level": 27,
+            "scale": 14,
+            "sustrel": 92,
+            "tremvibr": 40,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 1,
+          "feedback": 14,
+          "op1": {
+            "attdec": 66,
+            "level": 27,
+            "scale": 14,
+            "sustrel": 92,
+            "tremvibr": 40,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 67,
+            "level": 28,
+            "scale": 15,
+            "sustrel": 93,
+            "tremvibr": 41,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 2,
+          "feedback": 14,
+          "op1": {
+            "attdec": 70,
+            "level": 28,
+            "scale": 14,
+            "sustrel": 98,
+            "tremvibr": 42,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 71,
+            "level": 29,
+            "scale": 15,
+            "sustrel": 99,
+            "tremvibr": 43,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 2,
+          "feedback": 15,
+          "op1": {
+            "attdec": 71,
+            "level": 29,
+            "scale": 15,
+            "sustrel": 99,
+            "tremvibr": 43,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 72,
+            "level": 30,
+            "scale": 16,
+            "sustrel": 100,
+            "tremvibr": 44,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 3,
+          "feedback": 15,
+          "op1": {
+            "attdec": 75,
+            "level": 30,
+            "scale": 15,
+            "sustrel": 105,
+            "tremvibr": 45,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 76,
+            "level": 31,
+            "scale": 16,
+            "sustrel": 106,
+            "tremvibr": 46,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 3,
+          "feedback": 0,
+          "op1": {
+            "attdec": 76,
+            "level": 31,
+            "scale": 16,
+            "sustrel": 106,
+            "tremvibr": 46,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 77,
+            "level": 32,
+            "scale": 17,
+            "sustrel": 107,
+            "tremvibr": 47,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 4,
+          "feedback": 0,
+          "op1": {
+            "attdec": 80,
+            "level": 32,
+            "scale": 16,
+            "sustrel": 112,
+            "tremvibr": 48,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 81,
+            "level": 33,
+            "scale": 17,
+            "sustrel": 113,
+            "tremvibr": 49,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 4,
+          "feedback": 1,
+          "op1": {
+            "attdec": 81,
+            "level": 33,
+            "scale": 17,
+            "sustrel": 113,
+            "tremvibr": 49,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 82,
+            "level": 34,
+            "scale": 18,
+            "sustrel": 114,
+            "tremvibr": 50,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 5,
+          "feedback": 1,
+          "op1": {
+            "attdec": 85,
+            "level": 34,
+            "scale": 17,
+            "sustrel": 119,
+            "tremvibr": 51,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 86,
+            "level": 35,
+            "scale": 18,
+            "sustrel": 120,
+            "tremvibr": 52,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 5,
+          "feedback": 2,
+          "op1": {
+            "attdec": 86,
+            "level": 35,
+            "scale": 18,
+            "sustrel": 120,
+            "tremvibr": 52,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 87,
+            "level": 36,
+            "scale": 19,
+            "sustrel": 121,
+            "tremvibr": 53,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 6,
+          "feedback": 2,
+          "op1": {
+            "attdec": 90,
+            "level": 36,
+            "scale": 18,
+            "sustrel": 126,
+            "tremvibr": 54,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 91,
+            "level": 37,
+            "scale": 19,
+            "sustrel": 127,
+            "tremvibr": 55,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 6,
+          "feedback": 3,
+          "op1": {
+            "attdec": 91,
+            "level": 37,
+            "scale": 19,
+            "sustrel": 127,
+            "tremvibr": 55,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 92,
+            "level": 38,
+            "scale": 20,
+            "sustrel": 128,
+            "tremvibr": 56,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 7,
+          "feedback": 3,
+          "op1": {
+            "attdec": 95,
+            "level": 38,
+            "scale": 19,
+            "sustrel": 133,
+            "tremvibr": 57,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 96,
+            "level": 39,
+            "scale": 20,
+            "sustrel": 134,
+            "tremvibr": 58,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 7,
+          "feedback": 4,
+          "op1": {
+            "attdec": 96,
+            "level": 39,
+            "scale": 20,
+            "sustrel": 134,
+            "tremvibr": 58,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 97,
+            "level": 40,
+            "scale": 21,
+            "sustrel": 135,
+            "tremvibr": 59,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 8,
+          "feedback": 4,
+          "op1": {
+            "attdec": 100,
+            "level": 40,
+            "scale": 20,
+            "sustrel": 140,
+            "tremvibr": 60,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 101,
+            "level": 41,
+            "scale": 21,
+            "sustrel": 141,
+            "tremvibr": 61,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 8,
+          "feedback": 5,
+          "op1": {
+            "attdec": 101,
+            "level": 41,
+            "scale": 21,
+            "sustrel": 141,
+            "tremvibr": 61,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 102,
+            "level": 42,
+            "scale": 22,
+            "sustrel": 142,
+            "tremvibr": 62,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 9,
+          "feedback": 5,
+          "op1": {
+            "attdec": 105,
+            "level": 42,
+            "scale": 21,
+            "sustrel": 147,
+            "tremvibr": 63,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 106,
+            "level": 43,
+            "scale": 22,
+            "sustrel": 148,
+            "tremvibr": 64,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 9,
+          "feedback": 6,
+          "op1": {
+            "attdec": 106,
+            "level": 43,
+            "scale": 22,
+            "sustrel": 148,
+            "tremvibr": 64,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 107,
+            "level": 44,
+            "scale": 23,
+            "sustrel": 149,
+            "tremvibr": 65,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 10,
+          "feedback": 6,
+          "op1": {
+            "attdec": 110,
+            "level": 44,
+            "scale": 22,
+            "sustrel": 154,
+            "tremvibr": 66,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 111,
+            "level": 45,
+            "scale": 23,
+            "sustrel": 155,
+            "tremvibr": 67,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 10,
+          "feedback": 7,
+          "op1": {
+            "attdec": 111,
+            "level": 45,
+            "scale": 23,
+            "sustrel": 155,
+            "tremvibr": 67,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 112,
+            "level": 46,
+            "scale": 24,
+            "sustrel": 156,
+            "tremvibr": 68,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 11,
+          "feedback": 7,
+          "op1": {
+            "attdec": 115,
+            "level": 46,
+            "scale": 23,
+            "sustrel": 161,
+            "tremvibr": 69,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 116,
+            "level": 47,
+            "scale": 24,
+            "sustrel": 162,
+            "tremvibr": 70,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 11,
+          "feedback": 8,
+          "op1": {
+            "attdec": 116,
+            "level": 47,
+            "scale": 24,
+            "sustrel": 162,
+            "tremvibr": 70,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 117,
+            "level": 48,
+            "scale": 25,
+            "sustrel": 163,
+            "tremvibr": 71,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -12,
+          "feedback": 8,
+          "op1": {
+            "attdec": 120,
+            "level": 48,
+            "scale": 24,
+            "sustrel": 168,
+            "tremvibr": 72,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 121,
+            "level": 49,
+            "scale": 25,
+            "sustrel": 169,
+            "tremvibr": 73,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -12,
+          "feedback": 9,
+          "op1": {
+            "attdec": 121,
+            "level": 49,
+            "scale": 25,
+            "sustrel": 169,
+            "tremvibr": 73,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 122,
+            "level": 50,
+            "scale": 26,
+            "sustrel": 170,
+            "tremvibr": 74,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -11,
+          "feedback": 9,
+          "op1": {
+            "attdec": 125,
+            "level": 50,
+            "scale": 25,
+            "sustrel": 175,
+            "tremvibr": 75,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 126,
+            "level": 51,
+            "scale": 26,
+            "sustrel": 176,
+            "tremvibr": 76,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -11,
+          "feedback": 10,
+          "op1": {
+            "attdec": 126,
+            "level": 51,
+            "scale": 26,
+            "sustrel": 176,
+            "tremvibr": 76,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 127,
+            "level": 52,
+            "scale": 27,
+            "sustrel": 177,
+            "tremvibr": 77,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -10,
+          "feedback": 10,
+          "op1": {
+            "attdec": 130,
+            "level": 52,
+            "scale": 26,
+            "sustrel": 182,
+            "tremvibr": 78,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 131,
+            "level": 53,
+            "scale": 27,
+            "sustrel": 183,
+            "tremvibr": 79,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -10,
+          "feedback": 11,
+          "op1": {
+            "attdec": 131,
+            "level": 53,
+            "scale": 27,
+            "sustrel": 183,
+            "tremvibr": 79,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 132,
+            "level": 54,
+            "scale": 28,
+            "sustrel": 184,
+            "tremvibr": 80,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -9,
+          "feedback": 11,
+          "op1": {
+            "attdec": 135,
+            "level": 54,
+            "scale": 27,
+            "sustrel": 189,
+            "tremvibr": 81,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 136,
+            "level": 55,
+            "scale": 28,
+            "sustrel": 190,
+            "tremvibr": 82,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -9,
+          "feedback": 12,
+          "op1": {
+            "attdec": 136,
+            "level": 55,
+            "scale": 28,
+            "sustrel": 190,
+            "tremvibr": 82,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 137,
+            "level": 56,
+            "scale": 29,
+            "sustrel": 191,
+            "tremvibr": 83,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -8,
+          "feedback": 12,
+          "op1": {
+            "attdec": 140,
+            "level": 56,
+            "scale": 28,
+            "sustrel": 196,
+            "tremvibr": 84,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 141,
+            "level": 57,
+            "scale": 29,
+            "sustrel": 197,
+            "tremvibr": 85,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -8,
+          "feedback": 13,
+          "op1": {
+            "attdec": 141,
+            "level": 57,
+            "scale": 29,
+            "sustrel": 197,
+            "tremvibr": 85,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 142,
+            "level": 58,
+            "scale": 30,
+            "sustrel": 198,
+            "tremvibr": 86,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -7,
+          "feedback": 13,
+          "op1": {
+            "attdec": 145,
+            "level": 58,
+            "scale": 29,
+            "sustrel": 203,
+            "tremvibr": 87,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 146,
+            "level": 59,
+            "scale": 30,
+            "sustrel": 204,
+            "tremvibr": 88,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -7,
+          "feedback": 14,
+          "op1": {
+            "attdec": 146,
+            "level": 59,
+            "scale": 30,
+            "sustrel": 204,
+            "tremvibr": 88,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 147,
+            "level": 60,
+            "scale": 31,
+            "sustrel": 205,
+            "tremvibr": 89,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -6,
+          "feedback": 14,
+          "op1": {
+            "attdec": 150,
+            "level": 60,
+            "scale": 30,
+            "sustrel": 210,
+            "tremvibr": 90,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 151,
+            "level": 61,
+            "scale": 31,
+            "sustrel": 211,
+            "tremvibr": 91,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -6,
+          "feedback": 15,
+          "op1": {
+            "attdec": 151,
+            "level": 61,
+            "scale": 31,
+            "sustrel": 211,
+            "tremvibr": 91,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 152,
+            "level": 62,
+            "scale": 32,
+            "sustrel": 212,
+            "tremvibr": 92,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -5,
+          "feedback": 15,
+          "op1": {
+            "attdec": 155,
+            "level": 62,
+            "scale": 31,
+            "sustrel": 217,
+            "tremvibr": 93,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 156,
+            "level": 63,
+            "scale": 32,
+            "sustrel": 218,
+            "tremvibr": 94,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -5,
+          "feedback": 0,
+          "op1": {
+            "attdec": 156,
+            "level": 63,
+            "scale": 32,
+            "sustrel": 218,
+            "tremvibr": 94,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 157,
+            "level": 0,
+            "scale": 33,
+            "sustrel": 219,
+            "tremvibr": 95,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -4,
+          "feedback": 0,
+          "op1": {
+            "attdec": 160,
+            "level": 0,
+            "scale": 32,
+            "sustrel": 224,
+            "tremvibr": 96,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 161,
+            "level": 1,
+            "scale": 33,
+            "sustrel": 225,
+            "tremvibr": 97,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -4,
+          "feedback": 1,
+          "op1": {
+            "attdec": 161,
+            "level": 1,
+            "scale": 33,
+            "sustrel": 225,
+            "tremvibr": 97,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 162,
+            "level": 2,
+            "scale": 34,
+            "sustrel": 226,
+            "tremvibr": 98,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -3,
+          "feedback": 1,
+          "op1": {
+            "attdec": 165,
+            "level": 2,
+            "scale": 33,
+            "sustrel": 231,
+            "tremvibr": 99,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 166,
+            "level": 3,
+            "scale": 34,
+            "sustrel": 232,
+            "tremvibr": 100,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -3,
+          "feedback": 2,
+          "op1": {
+            "attdec": 166,
+            "level": 3,
+            "scale": 34,
+            "sustrel": 232,
+            "tremvibr": 100,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 167,
+            "level": 4,
+            "scale": 35,
+            "sustrel": 233,
+            "tremvibr": 101,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -2,
+          "feedback": 2,
+          "op1": {
+            "attdec": 170,
+            "level": 4,
+            "scale": 34,
+            "sustrel": 238,
+            "tremvibr": 102,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 171,
+            "level": 5,
+            "scale": 35,
+            "sustrel": 239,
+            "tremvibr": 103,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -2,
+          "feedback": 3,
+          "op1": {
+            "attdec": 171,
+            "level": 5,
+            "scale": 35,
+            "sustrel": 239,
+            "tremvibr": 103,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 172,
+            "level": 6,
+            "scale": 36,
+            "sustrel": 240,
+            "tremvibr": 104,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -1,
+          "feedback": 3,
+          "op1": {
+            "attdec": 175,
+            "level": 6,
+            "scale": 35,
+            "sustrel": 245,
+            "tremvibr": 105,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 176,
+            "level": 7,
+            "scale": 36,
+            "sustrel": 246,
+            "tremvibr": 106,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -1,
+          "feedback": 4,
+          "op1": {
+            "attdec": 176,
+            "level": 7,
+            "scale": 36,
+            "sustrel": 246,
+            "tremvibr": 106,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 177,
+            "level": 8,
+            "scale": 37,
+            "sustrel": 247,
+            "tremvibr": 107,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 0,
+          "feedback": 4,
+          "op1": {
+            "attdec": 180,
+            "level": 8,
+            "scale": 36,
+            "sustrel": 252,
+            "tremvibr": 108,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 181,
+            "level": 9,
+            "scale": 37,
+            "sustrel": 253,
+            "tremvibr": 109,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 0,
+          "feedback": 5,
+          "op1": {
+            "attdec": 181,
+            "level": 9,
+            "scale": 37,
+            "sustrel": 253,
+            "tremvibr": 109,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 182,
+            "level": 10,
+            "scale": 38,
+            "sustrel": 254,
+            "tremvibr": 110,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 1,
+          "feedback": 5,
+          "op1": {
+            "attdec": 185,
+            "level": 10,
+            "scale": 37,
+            "sustrel": 3,
+            "tremvibr": 111,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 186,
+            "level": 11,
+            "scale": 38,
+            "sustrel": 4,
+            "tremvibr": 112,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 1,
+          "feedback": 6,
+          "op1": {
+            "attdec": 186,
+            "level": 11,
+            "scale": 38,
+            "sustrel": 4,
+            "tremvibr": 112,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 187,
+            "level": 12,
+            "scale": 39,
+            "sustrel": 5,
+            "tremvibr": 113,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 2,
+          "feedback": 6,
+          "op1": {
+            "attdec": 190,
+            "level": 12,
+            "scale": 38,
+            "sustrel": 10,
+            "tremvibr": 114,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 191,
+            "level": 13,
+            "scale": 39,
+            "sustrel": 11,
+            "tremvibr": 115,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 2,
+          "feedback": 7,
+          "op1": {
+            "attdec": 191,
+            "level": 13,
+            "scale": 39,
+            "sustrel": 11,
+            "tremvibr": 115,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 192,
+            "level": 14,
+            "scale": 40,
+            "sustrel": 12,
+            "tremvibr": 116,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 3,
+          "feedback": 7,
+          "op1": {
+            "attdec": 195,
+            "level": 14,
+            "scale": 39,
+            "sustrel": 17,
+            "tremvibr": 117,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 196,
+            "level": 15,
+            "scale": 40,
+            "sustrel": 18,
+            "tremvibr": 118,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 3,
+          "feedback": 8,
+          "op1": {
+            "attdec": 196,
+            "level": 15,
+            "scale": 40,
+            "sustrel": 18,
+            "tremvibr": 118,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 197,
+            "level": 16,
+            "scale": 41,
+            "sustrel": 19,
+            "tremvibr": 119,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 4,
+          "feedback": 8,
+          "op1": {
+            "attdec": 200,
+            "level": 16,
+            "scale": 40,
+            "sustrel": 24,
+            "tremvibr": 120,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 201,
+            "level": 17,
+            "scale": 41,
+            "sustrel": 25,
+            "tremvibr": 121,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 4,
+          "feedback": 9,
+          "op1": {
+            "attdec": 201,
+            "level": 17,
+            "scale": 41,
+            "sustrel": 25,
+            "tremvibr": 121,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 202,
+            "level": 18,
+            "scale": 42,
+            "sustrel": 26,
+            "tremvibr": 122,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 5,
+          "feedback": 9,
+          "op1": {
+            "attdec": 205,
+            "level": 18,
+            "scale": 41,
+            "sustrel": 31,
+            "tremvibr": 123,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 206,
+            "level": 19,
+            "scale": 42,
+            "sustrel": 32,
+            "tremvibr": 124,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 5,
+          "feedback": 10,
+          "op1": {
+            "attdec": 206,
+            "level": 19,
+            "scale": 42,
+            "sustrel": 32,
+            "tremvibr": 124,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 207,
+            "level": 20,
+            "scale": 43,
+            "sustrel": 33,
+            "tremvibr": 125,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 6,
+          "feedback": 10,
+          "op1": {
+            "attdec": 210,
+            "level": 20,
+            "scale": 42,
+            "sustrel": 38,
+            "tremvibr": 126,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 211,
+            "level": 21,
+            "scale": 43,
+            "sustrel": 39,
+            "tremvibr": 127,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 6,
+          "feedback": 11,
+          "op1": {
+            "attdec": 211,
+            "level": 21,
+            "scale": 43,
+            "sustrel": 39,
+            "tremvibr": 127,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 212,
+            "level": 22,
+            "scale": 44,
+            "sustrel": 40,
+            "tremvibr": 128,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 7,
+          "feedback": 11,
+          "op1": {
+            "attdec": 215,
+            "level": 22,
+            "scale": 43,
+            "sustrel": 45,
+            "tremvibr": 129,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 216,
+            "level": 23,
+            "scale": 44,
+            "sustrel": 46,
+            "tremvibr": 130,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 7,
+          "feedback": 12,
+          "op1": {
+            "attdec": 216,
+            "level": 23,
+            "scale": 44,
+            "sustrel": 46,
+            "tremvibr": 130,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 217,
+            "level": 24,
+            "scale": 45,
+            "sustrel": 47,
+            "tremvibr": 131,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 8,
+          "feedback": 12,
+          "op1": {
+            "attdec": 220,
+            "level": 24,
+            "scale": 44,
+            "sustrel": 52,
+            "tremvibr": 132,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 221,
+            "level": 25,
+            "scale": 45,
+            "sustrel": 53,
+            "tremvibr": 133,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 8,
+          "feedback": 13,
+          "op1": {
+            "attdec": 221,
+            "level": 25,
+            "scale": 45,
+            "sustrel": 53,
+            "tremvibr": 133,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 222,
+            "level": 26,
+            "scale": 46,
+            "sustrel": 54,
+            "tremvibr": 134,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 9,
+          "feedback": 13,
+          "op1": {
+            "attdec": 225,
+            "level": 26,
+            "scale": 45,
+            "sustrel": 59,
+            "tremvibr": 135,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 226,
+            "level": 27,
+            "scale": 46,
+            "sustrel": 60,
+            "tremvibr": 136,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 9,
+          "feedback": 14,
+          "op1": {
+            "attdec": 226,
+            "level": 27,
+            "scale": 46,
+            "sustrel": 60,
+            "tremvibr": 136,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 227,
+            "level": 28,
+            "scale": 47,
+            "sustrel": 61,
+            "tremvibr": 137,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 10,
+          "feedback": 14,
+          "op1": {
+            "attdec": 230,
+            "level": 28,
+            "scale": 46,
+            "sustrel": 66,
+            "tremvibr": 138,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 231,
+            "level": 29,
+            "scale": 47,
+            "sustrel": 67,
+            "tremvibr": 139,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 10,
+          "feedback": 15,
+          "op1": {
+            "attdec": 231,
+            "level": 29,
+            "scale": 47,
+            "sustrel": 67,
+            "tremvibr": 139,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 232,
+            "level": 30,
+            "scale": 48,
+            "sustrel": 68,
+            "tremvibr": 140,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 11,
+          "feedback": 15,
+          "op1": {
+            "attdec": 235,
+            "level": 30,
+            "scale": 47,
+            "sustrel": 73,
+            "tremvibr": 141,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 236,
+            "level": 31,
+            "scale": 48,
+            "sustrel": 74,
+            "tremvibr": 142,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 11,
+          "feedback": 0,
+          "op1": {
+            "attdec": 236,
+            "level": 31,
+            "scale": 48,
+            "sustrel": 74,
+            "tremvibr": 142,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 237,
+            "level": 32,
+            "scale": 49,
+            "sustrel": 75,
+            "tremvibr": 143,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -12,
+          "feedback": 0,
+          "op1": {
+            "attdec": 240,
+            "level": 32,
+            "scale": 48,
+            "sustrel": 80,
+            "tremvibr": 144,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 241,
+            "level": 33,
+            "scale": 49,
+            "sustrel": 81,
+            "tremvibr": 145,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -12,
+          "feedback": 1,
+          "op1": {
+            "attdec": 241,
+            "level": 33,
+            "scale": 49,
+            "sustrel": 81,
+            "tremvibr": 145,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 242,
+            "level": 34,
+            "scale": 50,
+            "sustrel": 82,
+            "tremvibr": 146,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -11,
+          "feedback": 1,
+          "op1": {
+            "attdec": 245,
+            "level": 34,
+            "scale": 49,
+            "sustrel": 87,
+            "tremvibr": 147,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 246,
+            "level": 35,
+            "scale": 50,
+            "sustrel": 88,
+            "tremvibr": 148,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -11,
+          "feedback": 2,
+          "op1": {
+            "attdec": 246,
+            "level": 35,
+            "scale": 50,
+            "sustrel": 88,
+            "tremvibr": 148,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 247,
+            "level": 36,
+            "scale": 51,
+            "sustrel": 89,
+            "tremvibr": 149,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -10,
+          "feedback": 2,
+          "op1": {
+            "attdec": 250,
+            "level": 36,
+            "scale": 50,
+            "sustrel": 94,
+            "tremvibr": 150,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 251,
+            "level": 37,
+            "scale": 51,
+            "sustrel": 95,
+            "tremvibr": 151,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -10,
+          "feedback": 3,
+          "op1": {
+            "attdec": 251,
+            "level": 37,
+            "scale": 51,
+            "sustrel": 95,
+            "tremvibr": 151,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 252,
+            "level": 38,
+            "scale": 52,
+            "sustrel": 96,
+            "tremvibr": 152,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -9,
+          "feedback": 3,
+          "op1": {
+            "attdec": 255,
+            "level": 38,
+            "scale": 51,
+            "sustrel": 101,
+            "tremvibr": 153,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 0,
+            "level": 39,
+            "scale": 52,
+            "sustrel": 102,
+            "tremvibr": 154,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -9,
+          "feedback": 4,
+          "op1": {
+            "attdec": 0,
+            "level": 39,
+            "scale": 52,
+            "sustrel": 102,
+            "tremvibr": 154,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 1,
+            "level": 40,
+            "scale": 53,
+            "sustrel": 103,
+            "tremvibr": 155,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -8,
+          "feedback": 4,
+          "op1": {
+            "attdec": 4,
+            "level": 40,
+            "scale": 52,
+            "sustrel": 108,
+            "tremvibr": 156,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 5,
+            "level": 41,
+            "scale": 53,
+            "sustrel": 109,
+            "tremvibr": 157,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -8,
+          "feedback": 5,
+          "op1": {
+            "attdec": 5,
+            "level": 41,
+            "scale": 53,
+            "sustrel": 109,
+            "tremvibr": 157,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 6,
+            "level": 42,
+            "scale": 54,
+            "sustrel": 110,
+            "tremvibr": 158,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -7,
+          "feedback": 5,
+          "op1": {
+            "attdec": 9,
+            "level": 42,
+            "scale": 53,
+            "sustrel": 115,
+            "tremvibr": 159,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 10,
+            "level": 43,
+            "scale": 54,
+            "sustrel": 116,
+            "tremvibr": 160,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -7,
+          "feedback": 6,
+          "op1": {
+            "attdec": 10,
+            "level": 43,
+            "scale": 54,
+            "sustrel": 116,
+            "tremvibr": 160,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 11,
+            "level": 44,
+            "scale": 55,
+            "sustrel": 117,
+            "tremvibr": 161,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -6,
+          "feedback": 6,
+          "op1": {
+            "attdec": 14,
+            "level": 44,
+            "scale": 54,
+            "sustrel": 122,
+            "tremvibr": 162,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 15,
+            "level": 45,
+            "scale": 55,
+            "sustrel": 123,
+            "tremvibr": 163,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -6,
+          "feedback": 7,
+          "op1": {
+            "attdec": 15,
+            "level": 45,
+            "scale": 55,
+            "sustrel": 123,
+            "tremvibr": 163,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 16,
+            "level": 46,
+            "scale": 56,
+            "sustrel": 124,
+            "tremvibr": 164,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -5,
+          "feedback": 7,
+          "op1": {
+            "attdec": 19,
+            "level": 46,
+            "scale": 55,
+            "sustrel": 129,
+            "tremvibr": 165,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 20,
+            "level": 47,
+            "scale": 56,
+            "sustrel": 130,
+            "tremvibr": 166,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -5,
+          "feedback": 8,
+          "op1": {
+            "attdec": 20,
+            "level": 47,
+            "scale": 56,
+            "sustrel": 130,
+            "tremvibr": 166,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 21,
+            "level": 48,
+            "scale": 57,
+            "sustrel": 131,
+            "tremvibr": 167,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -4,
+          "feedback": 8,
+          "op1": {
+            "attdec": 24,
+            "level": 48,
+            "scale": 56,
+            "sustrel": 136,
+            "tremvibr": 168,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 25,
+            "level": 49,
+            "scale": 57,
+            "sustrel": 137,
+            "tremvibr": 169,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -4,
+          "feedback": 9,
+          "op1": {
+            "attdec": 25,
+            "level": 49,
+            "scale": 57,
+            "sustrel": 137,
+            "tremvibr": 169,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 26,
+            "level": 50,
+            "scale": 58,
+            "sustrel": 138,
+            "tremvibr": 170,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -3,
+          "feedback": 9,
+          "op1": {
+            "attdec": 29,
+            "level": 50,
+            "scale": 57,
+            "sustrel": 143,
+            "tremvibr": 171,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 30,
+            "level": 51,
+            "scale": 58,
+            "sustrel": 144,
+            "tremvibr": 172,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -3,
+          "feedback": 10,
+          "op1": {
+            "attdec": 30,
+            "level": 51,
+            "scale": 58,
+            "sustrel": 144,
+            "tremvibr": 172,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 31,
+            "level": 52,
+            "scale": 59,
+            "sustrel": 145,
+            "tremvibr": 173,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -2,
+          "feedback": 10,
+          "op1": {
+            "attdec": 34,
+            "level": 52,
+            "scale": 58,
+            "sustrel": 150,
+            "tremvibr": 174,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 35,
+            "level": 53,
+            "scale": 59,
+            "sustrel": 151,
+            "tremvibr": 175,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -2,
+          "feedback": 11,
+          "op1": {
+            "attdec": 35,
+            "level": 53,
+            "scale": 59,
+            "sustrel": 151,
+            "tremvibr": 175,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 36,
+            "level": 54,
+            "scale": 60,
+            "sustrel": 152,
+            "tremvibr": 176,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -1,
+          "feedback": 11,
+          "op1": {
+            "attdec": 39,
+            "level": 54,
+            "scale": 59,
+            "sustrel": 157,
+            "tremvibr": 177,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 40,
+            "level": 55,
+            "scale": 60,
+            "sustrel": 158,
+            "tremvibr": 178,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -1,
+          "feedback": 12,
+          "op1": {
+            "attdec": 40,
+            "level": 55,
+            "scale": 60,
+            "sustrel": 158,
+            "tremvibr": 178,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 41,
+            "level": 56,
+            "scale": 61,
+            "sustrel": 159,
+            "tremvibr": 179,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 0,
+          "feedback": 12,
+          "op1": {
+            "attdec": 44,
+            "level": 56,
+            "scale": 60,
+            "sustrel": 164,
+            "tremvibr": 180,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 45,
+            "level": 57,
+            "scale": 61,
+            "sustrel": 165,
+            "tremvibr": 181,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 0,
+          "feedback": 13,
+          "op1": {
+            "attdec": 45,
+            "level": 57,
+            "scale": 61,
+            "sustrel": 165,
+            "tremvibr": 181,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 46,
+            "level": 58,
+            "scale": 62,
+            "sustrel": 166,
+            "tremvibr": 182,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 1,
+          "feedback": 13,
+          "op1": {
+            "attdec": 49,
+            "level": 58,
+            "scale": 61,
+            "sustrel": 171,
+            "tremvibr": 183,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 50,
+            "level": 59,
+            "scale": 62,
+            "sustrel": 172,
+            "tremvibr": 184,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 1,
+          "feedback": 14,
+          "op1": {
+            "attdec": 50,
+            "level": 59,
+            "scale": 62,
+            "sustrel": 172,
+            "tremvibr": 184,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 51,
+            "level": 60,
+            "scale": 63,
+            "sustrel": 173,
+            "tremvibr": 185,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 2,
+          "feedback": 14,
+          "op1": {
+            "attdec": 54,
+            "level": 60,
+            "scale": 62,
+            "sustrel": 178,
+            "tremvibr": 186,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 55,
+            "level": 61,
+            "scale": 63,
+            "sustrel": 179,
+            "tremvibr": 187,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 2,
+          "feedback": 15,
+          "op1": {
+            "attdec": 55,
+            "level": 61,
+            "scale": 63,
+            "sustrel": 179,
+            "tremvibr": 187,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 56,
+            "level": 62,
+            "scale": 64,
+            "sustrel": 180,
+            "tremvibr": 188,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 3,
+          "feedback": 15,
+          "op1": {
+            "attdec": 59,
+            "level": 62,
+            "scale": 63,
+            "sustrel": 185,
+            "tremvibr": 189,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 60,
+            "level": 63,
+            "scale": 64,
+            "sustrel": 186,
+            "tremvibr": 190,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 3,
+          "feedback": 0,
+          "op1": {
+            "attdec": 60,
+            "level": 63,
+            "scale": 64,
+            "sustrel": 186,
+            "tremvibr": 190,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 61,
+            "level": 0,
+            "scale": 65,
+            "sustrel": 187,
+            "tremvibr": 191,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 4,
+          "feedback": 0,
+          "op1": {
+            "attdec": 64,
+            "level": 0,
+            "scale": 64,
+            "sustrel": 192,
+            "tremvibr": 192,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 65,
+            "level": 1,
+            "scale": 65,
+            "sustrel": 193,
+            "tremvibr": 193,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 4,
+          "feedback": 1,
+          "op1": {
+            "attdec": 65,
+            "level": 1,
+            "scale": 65,
+            "sustrel": 193,
+            "tremvibr": 193,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 66,
+            "level": 2,
+            "scale": 66,
+            "sustrel": 194,
+            "tremvibr": 194,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 5,
+          "feedback": 1,
+          "op1": {
+            "attdec": 69,
+            "level": 2,
+            "scale": 65,
+            "sustrel": 199,
+            "tremvibr": 195,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 70,
+            "level": 3,
+            "scale": 66,
+            "sustrel": 200,
+            "tremvibr": 196,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 5,
+          "feedback": 2,
+          "op1": {
+            "attdec": 70,
+            "level": 3,
+            "scale": 66,
+            "sustrel": 200,
+            "tremvibr": 196,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 71,
+            "level": 4,
+            "scale": 67,
+            "sustrel": 201,
+            "tremvibr": 197,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 6,
+          "feedback": 2,
+          "op1": {
+            "attdec": 74,
+            "level": 4,
+            "scale": 66,
+            "sustrel": 206,
+            "tremvibr": 198,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 75,
+            "level": 5,
+            "scale": 67,
+            "sustrel": 207,
+            "tremvibr": 199,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 6,
+          "feedback": 3,
+          "op1": {
+            "attdec": 75,
+            "level": 5,
+            "scale": 67,
+            "sustrel": 207,
+            "tremvibr": 199,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 76,
+            "level": 6,
+            "scale": 68,
+            "sustrel": 208,
+            "tremvibr": 200,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 7,
+          "feedback": 3,
+          "op1": {
+            "attdec": 79,
+            "level": 6,
+            "scale": 67,
+            "sustrel": 213,
+            "tremvibr": 201,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 80,
+            "level": 7,
+            "scale": 68,
+            "sustrel": 214,
+            "tremvibr": 202,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 7,
+          "feedback": 4,
+          "op1": {
+            "attdec": 80,
+            "level": 7,
+            "scale": 68,
+            "sustrel": 214,
+            "tremvibr": 202,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 81,
+            "level": 8,
+            "scale": 69,
+            "sustrel": 215,
+            "tremvibr": 203,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 8,
+          "feedback": 4,
+          "op1": {
+            "attdec": 84,
+            "level": 8,
+            "scale": 68,
+            "sustrel": 220,
+            "tremvibr": 204,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 85,
+            "level": 9,
+            "scale": 69,
+            "sustrel": 221,
+            "tremvibr": 205,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 8,
+          "feedback": 5,
+          "op1": {
+            "attdec": 85,
+            "level": 9,
+            "scale": 69,
+            "sustrel": 221,
+            "tremvibr": 205,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 86,
+            "level": 10,
+            "scale": 70,
+            "sustrel": 222,
+            "tremvibr": 206,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 9,
+          "feedback": 5,
+          "op1": {
+            "attdec": 89,
+            "level": 10,
+            "scale": 69,
+            "sustrel": 227,
+            "tremvibr": 207,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 90,
+            "level": 11,
+            "scale": 70,
+            "sustrel": 228,
+            "tremvibr": 208,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 9,
+          "feedback": 6,
+          "op1": {
+            "attdec": 90,
+            "level": 11,
+            "scale": 70,
+            "sustrel": 228,
+            "tremvibr": 208,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 91,
+            "level": 12,
+            "scale": 71,
+            "sustrel": 229,
+            "tremvibr": 209,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 10,
+          "feedback": 6,
+          "op1": {
+            "attdec": 94,
+            "level": 12,
+            "scale": 70,
+            "sustrel": 234,
+            "tremvibr": 210,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 95,
+            "level": 13,
+            "scale": 71,
+            "sustrel": 235,
+            "tremvibr": 211,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 10,
+          "feedback": 7,
+          "op1": {
+            "attdec": 95,
+            "level": 13,
+            "scale": 71,
+            "sustrel": 235,
+            "tremvibr": 211,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 96,
+            "level": 14,
+            "scale": 72,
+            "sustrel": 236,
+            "tremvibr": 212,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 11,
+          "feedback": 7,
+          "op1": {
+            "attdec": 99,
+            "level": 14,
+            "scale": 71,
+            "sustrel": 241,
+            "tremvibr": 213,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 100,
+            "level": 15,
+            "scale": 72,
+            "sustrel": 242,
+            "tremvibr": 214,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 11,
+          "feedback": 8,
+          "op1": {
+            "attdec": 100,
+            "level": 15,
+            "scale": 72,
+            "sustrel": 242,
+            "tremvibr": 214,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 101,
+            "level": 16,
+            "scale": 73,
+            "sustrel": 243,
+            "tremvibr": 215,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -12,
+          "feedback": 8,
+          "op1": {
+            "attdec": 104,
+            "level": 16,
+            "scale": 72,
+            "sustrel": 248,
+            "tremvibr": 216,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 105,
+            "level": 17,
+            "scale": 73,
+            "sustrel": 249,
+            "tremvibr": 217,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -12,
+          "feedback": 9,
+          "op1": {
+            "attdec": 105,
+            "level": 17,
+            "scale": 73,
+            "sustrel": 249,
+            "tremvibr": 217,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 106,
+            "level": 18,
+            "scale": 74,
+            "sustrel": 250,
+            "tremvibr": 218,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -11,
+          "feedback": 9,
+          "op1": {
+            "attdec": 109,
+            "level": 18,
+            "scale": 73,
+            "sustrel": 255,
+            "tremvibr": 219,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 110,
+            "level": 19,
+            "scale": 74,
+            "sustrel": 0,
+            "tremvibr": 220,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -11,
+          "feedback": 10,
+          "op1": {
+            "attdec": 110,
+            "level": 19,
+            "scale": 74,
+            "sustrel": 0,
+            "tremvibr": 220,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 111,
+            "level": 20,
+            "scale": 75,
+            "sustrel": 1,
+            "tremvibr": 221,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -10,
+          "feedback": 10,
+          "op1": {
+            "attdec": 114,
+            "level": 20,
+            "scale": 74,
+            "sustrel": 6,
+            "tremvibr": 222,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 115,
+            "level": 21,
+            "scale": 75,
+            "sustrel": 7,
+            "tremvibr": 223,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -10,
+          "feedback": 11,
+          "op1": {
+            "attdec": 115,
+            "level": 21,
+            "scale": 75,
+            "sustrel": 7,
+            "tremvibr": 223,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 116,
+            "level": 22,
+            "scale": 76,
+            "sustrel": 8,
+            "tremvibr": 224,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -9,
+          "feedback": 11,
+          "op1": {
+            "attdec": 119,
+            "level": 22,
+            "scale": 75,
+            "sustrel": 13,
+            "tremvibr": 225,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 120,
+            "level": 23,
+            "scale": 76,
+            "sustrel": 14,
+            "tremvibr": 226,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -9,
+          "feedback": 12,
+          "op1": {
+            "attdec": 120,
+            "level": 23,
+            "scale": 76,
+            "sustrel": 14,
+            "tremvibr": 226,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 121,
+            "level": 24,
+            "scale": 77,
+            "sustrel": 15,
+            "tremvibr": 227,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -8,
+          "feedback": 12,
+          "op1": {
+            "attdec": 124,
+            "level": 24,
+            "scale": 76,
+            "sustrel": 20,
+            "tremvibr": 228,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 125,
+            "level": 25,
+            "scale": 77,
+            "sustrel": 21,
+            "tremvibr": 229,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -8,
+          "feedback": 13,
+          "op1": {
+            "attdec": 125,
+            "level": 25,
+            "scale": 77,
+            "sustrel": 21,
+            "tremvibr": 229,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 126,
+            "level": 26,
+            "scale": 78,
+            "sustrel": 22,
+            "tremvibr": 230,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -7,
+          "feedback": 13,
+          "op1": {
+            "attdec": 129,
+            "level": 26,
+            "scale": 77,
+            "sustrel": 27,
+            "tremvibr": 231,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 130,
+            "level": 27,
+            "scale": 78,
+            "sustrel": 28,
+            "tremvibr": 232,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -7,
+          "feedback": 14,
+          "op1": {
+            "attdec": 130,
+            "level": 27,
+            "scale": 78,
+            "sustrel": 28,
+            "tremvibr": 232,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 131,
+            "level": 28,
+            "scale": 79,
+            "sustrel": 29,
+            "tremvibr": 233,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -6,
+          "feedback": 14,
+          "op1": {
+            "attdec": 134,
+            "level": 28,
+            "scale": 78,
+            "sustrel": 34,
+            "tremvibr": 234,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 135,
+            "level": 29,
+            "scale": 79,
+            "sustrel": 35,
+            "tremvibr": 235,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -6,
+          "feedback": 15,
+          "op1": {
+            "attdec": 135,
+            "level": 29,
+            "scale": 79,
+            "sustrel": 35,
+            "tremvibr": 235,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 136,
+            "level": 30,
+            "scale": 80,
+            "sustrel": 36,
+            "tremvibr": 236,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -5,
+          "feedback": 15,
+          "op1": {
+            "attdec": 139,
+            "level": 30,
+            "scale": 79,
+            "sustrel": 41,
+            "tremvibr": 237,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 140,
+            "level": 31,
+            "scale": 80,
+            "sustrel": 42,
+            "tremvibr": 238,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -5,
+          "feedback": 0,
+          "op1": {
+            "attdec": 140,
+            "level": 31,
+            "scale": 80,
+            "sustrel": 42,
+            "tremvibr": 238,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 141,
+            "level": 32,
+            "scale": 81,
+            "sustrel": 43,
+            "tremvibr": 239,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -4,
+          "feedback": 0,
+          "op1": {
+            "attdec": 144,
+            "level": 32,
+            "scale": 80,
+            "sustrel": 48,
+            "tremvibr": 240,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 145,
+            "level": 33,
+            "scale": 81,
+            "sustrel": 49,
+            "tremvibr": 241,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -4,
+          "feedback": 1,
+          "op1": {
+            "attdec": 145,
+            "level": 33,
+            "scale": 81,
+            "sustrel": 49,
+            "tremvibr": 241,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 146,
+            "level": 34,
+            "scale": 82,
+            "sustrel": 50,
+            "tremvibr": 242,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -3,
+          "feedback": 1,
+          "op1": {
+            "attdec": 149,
+            "level": 34,
+            "scale": 81,
+            "sustrel": 55,
+            "tremvibr": 243,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 150,
+            "level": 35,
+            "scale": 82,
+            "sustrel": 56,
+            "tremvibr": 244,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -3,
+          "feedback": 2,
+          "op1": {
+            "attdec": 150,
+            "level": 35,
+            "scale": 82,
+            "sustrel": 56,
+            "tremvibr": 244,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 151,
+            "level": 36,
+            "scale": 83,
+            "sustrel": 57,
+            "tremvibr": 245,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -2,
+          "feedback": 2,
+          "op1": {
+            "attdec": 154,
+            "level": 36,
+            "scale": 82,
+            "sustrel": 62,
+            "tremvibr": 246,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 155,
+            "level": 37,
+            "scale": 83,
+            "sustrel": 63,
+            "tremvibr": 247,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -2,
+          "feedback": 3,
+          "op1": {
+            "attdec": 155,
+            "level": 37,
+            "scale": 83,
+            "sustrel": 63,
+            "tremvibr": 247,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 156,
+            "level": 38,
+            "scale": 84,
+            "sustrel": 64,
+            "tremvibr": 248,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -1,
+          "feedback": 3,
+          "op1": {
+            "attdec": 159,
+            "level": 38,
+            "scale": 83,
+            "sustrel": 69,
+            "tremvibr": 249,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 160,
+            "level": 39,
+            "scale": 84,
+            "sustrel": 70,
+            "tremvibr": 250,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -1,
+          "feedback": 4,
+          "op1": {
+            "attdec": 160,
+            "level": 39,
+            "scale": 84,
+            "sustrel": 70,
+            "tremvibr": 250,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 161,
+            "level": 40,
+            "scale": 85,
+            "sustrel": 71,
+            "tremvibr": 251,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 0,
+          "feedback": 4,
+          "op1": {
+            "attdec": 164,
+            "level": 40,
+            "scale": 84,
+            "sustrel": 76,
+            "tremvibr": 252,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 165,
+            "level": 41,
+            "scale": 85,
+            "sustrel": 77,
+            "tremvibr": 253,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 0,
+          "feedback": 5,
+          "op1": {
+            "attdec": 165,
+            "level": 41,
+            "scale": 85,
+            "sustrel": 77,
+            "tremvibr": 253,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 166,
+            "level": 42,
+            "scale": 86,
+            "sustrel": 78,
+            "tremvibr": 254,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 1,
+          "feedback": 5,
+          "op1": {
+            "attdec": 169,
+            "level": 42,
+            "scale": 85,
+            "sustrel": 83,
+            "tremvibr": 255,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 170,
+            "level": 43,
+            "scale": 86,
+            "sustrel": 84,
+            "tremvibr": 0,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 1,
+          "feedback": 6,
+          "op1": {
+            "attdec": 170,
+            "level": 43,
+            "scale": 86,
+            "sustrel": 84,
+            "tremvibr": 0,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 171,
+            "level": 44,
+            "scale": 87,
+            "sustrel": 85,
+            "tremvibr": 1,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 2,
+          "feedback": 6,
+          "op1": {
+            "attdec": 174,
+            "level": 44,
+            "scale": 86,
+            "sustrel": 90,
+            "tremvibr": 2,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 175,
+            "level": 45,
+            "scale": 87,
+            "sustrel": 91,
+            "tremvibr": 3,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 2,
+          "feedback": 7,
+          "op1": {
+            "attdec": 175,
+            "level": 45,
+            "scale": 87,
+            "sustrel": 91,
+            "tremvibr": 3,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 176,
+            "level": 46,
+            "scale": 88,
+            "sustrel": 92,
+            "tremvibr": 4,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 3,
+          "feedback": 7,
+          "op1": {
+            "attdec": 179,
+            "level": 46,
+            "scale": 87,
+            "sustrel": 97,
+            "tremvibr": 5,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 180,
+            "level": 47,
+            "scale": 88,
+            "sustrel": 98,
+            "tremvibr": 6,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 3,
+          "feedback": 8,
+          "op1": {
+            "attdec": 180,
+            "level": 47,
+            "scale": 88,
+            "sustrel": 98,
+            "tremvibr": 6,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 181,
+            "level": 48,
+            "scale": 89,
+            "sustrel": 99,
+            "tremvibr": 7,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 4,
+          "feedback": 8,
+          "op1": {
+            "attdec": 184,
+            "level": 48,
+            "scale": 88,
+            "sustrel": 104,
+            "tremvibr": 8,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 185,
+            "level": 49,
+            "scale": 89,
+            "sustrel": 105,
+            "tremvibr": 9,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 4,
+          "feedback": 9,
+          "op1": {
+            "attdec": 185,
+            "level": 49,
+            "scale": 89,
+            "sustrel": 105,
+            "tremvibr": 9,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 186,
+            "level": 50,
+            "scale": 90,
+            "sustrel": 106,
+            "tremvibr": 10,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 5,
+          "feedback": 9,
+          "op1": {
+            "attdec": 189,
+            "level": 50,
+            "scale": 89,
+            "sustrel": 111,
+            "tremvibr": 11,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 190,
+            "level": 51,
+            "scale": 90,
+            "sustrel": 112,
+            "tremvibr": 12,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 5,
+          "feedback": 10,
+          "op1": {
+            "attdec": 190,
+            "level": 51,
+            "scale": 90,
+            "sustrel": 112,
+            "tremvibr": 12,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 191,
+            "level": 52,
+            "scale": 91,
+            "sustrel": 113,
+            "tremvibr": 13,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 6,
+          "feedback": 10,
+          "op1": {
+            "attdec": 194,
+            "level": 52,
+            "scale": 90,
+            "sustrel": 118,
+            "tremvibr": 14,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 195,
+            "level": 53,
+            "scale": 91,
+            "sustrel": 119,
+            "tremvibr": 15,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 6,
+          "feedback": 11,
+          "op1": {
+            "attdec": 195,
+            "level": 53,
+            "scale": 91,
+            "sustrel": 119,
+            "tremvibr": 15,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 196,
+            "level": 54,
+            "scale": 92,
+            "sustrel": 120,
+            "tremvibr": 16,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 7,
+          "feedback": 11,
+          "op1": {
+            "attdec": 199,
+            "level": 54,
+            "scale": 91,
+            "sustrel": 125,
+            "tremvibr": 17,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 200,
+            "level": 55,
+            "scale": 92,
+            "sustrel": 126,
+            "tremvibr": 18,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 7,
+          "feedback": 12,
+          "op1": {
+            "attdec": 200,
+            "level": 55,
+            "scale": 92,
+            "sustrel": 126,
+            "tremvibr": 18,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 201,
+            "level": 56,
+            "scale": 93,
+            "sustrel": 127,
+            "tremvibr": 19,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 8,
+          "feedback": 12,
+          "op1": {
+            "attdec": 204,
+            "level": 56,
+            "scale": 92,
+            "sustrel": 132,
+            "tremvibr": 20,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 205,
+            "level": 57,
+            "scale": 93,
+            "sustrel": 133,
+            "tremvibr": 21,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 8,
+          "feedback": 13,
+          "op1": {
+            "attdec": 205,
+            "level": 57,
+            "scale": 93,
+            "sustrel": 133,
+            "tremvibr": 21,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 206,
+            "level": 58,
+            "scale": 94,
+            "sustrel": 134,
+            "tremvibr": 22,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 9,
+          "feedback": 13,
+          "op1": {
+            "attdec": 209,
+            "level": 58,
+            "scale": 93,
+            "sustrel": 139,
+            "tremvibr": 23,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 210,
+            "level": 59,
+            "scale": 94,
+            "sustrel": 140,
+            "tremvibr": 24,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 9,
+          "feedback": 14,
+          "op1": {
+            "attdec": 210,
+            "level": 59,
+            "scale": 94,
+            "sustrel": 140,
+            "tremvibr": 24,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 211,
+            "level": 60,
+            "scale": 95,
+            "sustrel": 141,
+            "tremvibr": 25,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 10,
+          "feedback": 14,
+          "op1": {
+            "attdec": 214,
+            "level": 60,
+            "scale": 94,
+            "sustrel": 146,
+            "tremvibr": 26,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 215,
+            "level": 61,
+            "scale": 95,
+            "sustrel": 147,
+            "tremvibr": 27,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 10,
+          "feedback": 15,
+          "op1": {
+            "attdec": 215,
+            "level": 61,
+            "scale": 95,
+            "sustrel": 147,
+            "tremvibr": 27,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 216,
+            "level": 62,
+            "scale": 96,
+            "sustrel": 148,
+            "tremvibr": 28,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 11,
+          "feedback": 15,
+          "op1": {
+            "attdec": 219,
+            "level": 62,
+            "scale": 95,
+            "sustrel": 153,
+            "tremvibr": 29,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 220,
+            "level": 63,
+            "scale": 96,
+            "sustrel": 154,
+            "tremvibr": 30,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 11,
+          "feedback": 0,
+          "op1": {
+            "attdec": 220,
+            "level": 63,
+            "scale": 96,
+            "sustrel": 154,
+            "tremvibr": 30,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 221,
+            "level": 0,
+            "scale": 97,
+            "sustrel": 155,
+            "tremvibr": 31,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -12,
+          "feedback": 0,
+          "op1": {
+            "attdec": 224,
+            "level": 0,
+            "scale": 96,
+            "sustrel": 160,
+            "tremvibr": 32,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 225,
+            "level": 1,
+            "scale": 97,
+            "sustrel": 161,
+            "tremvibr": 33,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -12,
+          "feedback": 1,
+          "op1": {
+            "attdec": 225,
+            "level": 1,
+            "scale": 97,
+            "sustrel": 161,
+            "tremvibr": 33,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 226,
+            "level": 2,
+            "scale": 98,
+            "sustrel": 162,
+            "tremvibr": 34,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -11,
+          "feedback": 1,
+          "op1": {
+            "attdec": 229,
+            "level": 2,
+            "scale": 97,
+            "sustrel": 167,
+            "tremvibr": 35,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 230,
+            "level": 3,
+            "scale": 98,
+            "sustrel": 168,
+            "tremvibr": 36,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -11,
+          "feedback": 2,
+          "op1": {
+            "attdec": 230,
+            "level": 3,
+            "scale": 98,
+            "sustrel": 168,
+            "tremvibr": 36,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 231,
+            "level": 4,
+            "scale": 99,
+            "sustrel": 169,
+            "tremvibr": 37,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -10,
+          "feedback": 2,
+          "op1": {
+            "attdec": 234,
+            "level": 4,
+            "scale": 98,
+            "sustrel": 174,
+            "tremvibr": 38,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 235,
+            "level": 5,
+            "scale": 99,
+            "sustrel": 175,
+            "tremvibr": 39,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -10,
+          "feedback": 3,
+          "op1": {
+            "attdec": 235,
+            "level": 5,
+            "scale": 99,
+            "sustrel": 175,
+            "tremvibr": 39,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 236,
+            "level": 6,
+            "scale": 100,
+            "sustrel": 176,
+            "tremvibr": 40,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -9,
+          "feedback": 3,
+          "op1": {
+            "attdec": 239,
+            "level": 6,
+            "scale": 99,
+            "sustrel": 181,
+            "tremvibr": 41,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 240,
+            "level": 7,
+            "scale": 100,
+            "sustrel": 182,
+            "tremvibr": 42,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -9,
+          "feedback": 4,
+          "op1": {
+            "attdec": 240,
+            "level": 7,
+            "scale": 100,
+            "sustrel": 182,
+            "tremvibr": 42,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 241,
+            "level": 8,
+            "scale": 101,
+            "sustrel": 183,
+            "tremvibr": 43,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -8,
+          "feedback": 4,
+          "op1": {
+            "attdec": 244,
+            "level": 8,
+            "scale": 100,
+            "sustrel": 188,
+            "tremvibr": 44,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 245,
+            "level": 9,
+            "scale": 101,
+            "sustrel": 189,
+            "tremvibr": 45,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -8,
+          "feedback": 5,
+          "op1": {
+            "attdec": 245,
+            "level": 9,
+            "scale": 101,
+            "sustrel": 189,
+            "tremvibr": 45,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 246,
+            "level": 10,
+            "scale": 102,
+            "sustrel": 190,
+            "tremvibr": 46,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -7,
+          "feedback": 5,
+          "op1": {
+            "attdec": 249,
+            "level": 10,
+            "scale": 101,
+            "sustrel": 195,
+            "tremvibr": 47,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 250,
+            "level": 11,
+            "scale": 102,
+            "sustrel": 196,
+            "tremvibr": 48,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -7,
+          "feedback": 6,
+          "op1": {
+            "attdec": 250,
+            "level": 11,
+            "scale": 102,
+            "sustrel": 196,
+            "tremvibr": 48,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 251,
+            "level": 12,
+            "scale": 103,
+            "sustrel": 197,
+            "tremvibr": 49,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -6,
+          "feedback": 6,
+          "op1": {
+            "attdec": 254,
+            "level": 12,
+            "scale": 102,
+            "sustrel": 202,
+            "tremvibr": 50,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 255,
+            "level": 13,
+            "scale": 103,
+            "sustrel": 203,
+            "tremvibr": 51,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -6,
+          "feedback": 7,
+          "op1": {
+            "attdec": 255,
+            "level": 13,
+            "scale": 103,
+            "sustrel": 203,
+            "tremvibr": 51,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 0,
+            "level": 14,
+            "scale": 104,
+            "sustrel": 204,
+            "tremvibr": 52,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -5,
+          "feedback": 7,
+          "op1": {
+            "attdec": 3,
+            "level": 14,
+            "scale": 103,
+            "sustrel": 209,
+            "tremvibr": 53,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 4,
+            "level": 15,
+            "scale": 104,
+            "sustrel": 210,
+            "tremvibr": 54,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -5,
+          "feedback": 8,
+          "op1": {
+            "attdec": 4,
+            "level": 15,
+            "scale": 104,
+            "sustrel": 210,
+            "tremvibr": 54,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 5,
+            "level": 16,
+            "scale": 105,
+            "sustrel": 211,
+            "tremvibr": 55,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -4,
+          "feedback": 8,
+          "op1": {
+            "attdec": 8,
+            "level": 16,
+            "scale": 104,
+            "sustrel": 216,
+            "tremvibr": 56,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 9,
+            "level": 17,
+            "scale": 105,
+            "sustrel": 217,
+            "tremvibr": 57,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -4,
+          "feedback": 9,
+          "op1": {
+            "attdec": 9,
+            "level": 17,
+            "scale": 105,
+            "sustrel": 217,
+            "tremvibr": 57,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 10,
+            "level": 18,
+            "scale": 106,
+            "sustrel": 218,
+            "tremvibr": 58,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -3,
+          "feedback": 9,
+          "op1": {
+            "attdec": 13,
+            "level": 18,
+            "scale": 105,
+            "sustrel": 223,
+            "tremvibr": 59,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 14,
+            "level": 19,
+            "scale": 106,
+            "sustrel": 224,
+            "tremvibr": 60,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -3,
+          "feedback": 10,
+          "op1": {
+            "attdec": 14,
+            "level": 19,
+            "scale": 106,
+            "sustrel": 224,
+            "tremvibr": 60,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 15,
+            "level": 20,
+            "scale": 107,
+            "sustrel": 225,
+            "tremvibr": 61,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -2,
+          "feedback": 10,
+          "op1": {
+            "attdec": 18,
+            "level": 20,
+            "scale": 106,
+            "sustrel": 230,
+            "tremvibr": 62,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 19,
+            "level": 21,
+            "scale": 107,
+            "sustrel": 231,
+            "tremvibr": 63,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -2,
+          "feedback": 11,
+          "op1": {
+            "attdec": 19,
+            "level": 21,
+            "scale": 107,
+            "sustrel": 231,
+            "tremvibr": 63,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 20,
+            "level": 22,
+            "scale": 108,
+            "sustrel": 232,
+            "tremvibr": 64,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -1,
+          "feedback": 11,
+          "op1": {
+            "attdec": 23,
+            "level": 22,
+            "scale": 107,
+            "sustrel": 237,
+            "tremvibr": 65,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 24,
+            "level": 23,
+            "scale": 108,
+            "sustrel": 238,
+            "tremvibr": 66,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -1,
+          "feedback": 12,
+          "op1": {
+            "attdec": 24,
+            "level": 23,
+            "scale": 108,
+            "sustrel": 238,
+            "tremvibr": 66,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 25,
+            "level": 24,
+            "scale": 109,
+            "sustrel": 239,
+            "tremvibr": 67,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 0,
+          "feedback": 12,
+          "op1": {
+            "attdec": 28,
+            "level": 24,
+            "scale": 108,
+            "sustrel": 244,
+            "tremvibr": 68,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 29,
+            "level": 25,
+            "scale": 109,
+            "sustrel": 245,
+            "tremvibr": 69,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 0,
+          "feedback": 13,
+          "op1": {
+            "attdec": 29,
+            "level": 25,
+            "scale": 109,
+            "sustrel": 245,
+            "tremvibr": 69,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 30,
+            "level": 26,
+            "scale": 110,
+            "sustrel": 246,
+            "tremvibr": 70,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 1,
+          "feedback": 13,
+          "op1": {
+            "attdec": 33,
+            "level": 26,
+            "scale": 109,
+            "sustrel": 251,
+            "tremvibr": 71,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 34,
+            "level": 27,
+            "scale": 110,
+            "sustrel": 252,
+            "tremvibr": 72,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 1,
+          "feedback": 14,
+          "op1": {
+            "attdec": 34,
+            "level": 27,
+            "scale": 110,
+            "sustrel": 252,
+            "tremvibr": 72,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 35,
+            "level": 28,
+            "scale": 111,
+            "sustrel": 253,
+            "tremvibr": 73,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 2,
+          "feedback": 14,
+          "op1": {
+            "attdec": 38,
+            "level": 28,
+            "scale": 110,
+            "sustrel": 2,
+            "tremvibr": 74,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 39,
+            "level": 29,
+            "scale": 111,
+            "sustrel": 3,
+            "tremvibr": 75,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 2,
+          "feedback": 15,
+          "op1": {
+            "attdec": 39,
+            "level": 29,
+            "scale": 111,
+            "sustrel": 3,
+            "tremvibr": 75,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 40,
+            "level": 30,
+            "scale": 112,
+            "sustrel": 4,
+            "tremvibr": 76,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 3,
+          "feedback": 15,
+          "op1": {
+            "attdec": 43,
+            "level": 30,
+            "scale": 111,
+            "sustrel": 9,
+            "tremvibr": 77,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 44,
+            "level": 31,
+            "scale": 112,
+            "sustrel": 10,
+            "tremvibr": 78,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 3,
+          "feedback": 0,
+          "op1": {
+            "attdec": 44,
+            "level": 31,
+            "scale": 112,
+            "sustrel": 10,
+            "tremvibr": 78,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 45,
+            "level": 32,
+            "scale": 113,
+            "sustrel": 11,
+            "tremvibr": 79,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 4,
+          "feedback": 0,
+          "op1": {
+            "attdec": 48,
+            "level": 32,
+            "scale": 112,
+            "sustrel": 16,
+            "tremvibr": 80,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 49,
+            "level": 33,
+            "scale": 113,
+            "sustrel": 17,
+            "tremvibr": 81,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 4,
+          "feedback": 1,
+          "op1": {
+            "attdec": 49,
+            "level": 33,
+            "scale": 113,
+            "sustrel": 17,
+            "tremvibr": 81,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 50,
+            "level": 34,
+            "scale": 114,
+            "sustrel": 18,
+            "tremvibr": 82,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 5,
+          "feedback": 1,
+          "op1": {
+            "attdec": 53,
+            "level": 34,
+            "scale": 113,
+            "sustrel": 23,
+            "tremvibr": 83,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 54,
+            "level": 35,
+            "scale": 114,
+            "sustrel": 24,
+            "tremvibr": 84,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 5,
+          "feedback": 2,
+          "op1": {
+            "attdec": 54,
+            "level": 35,
+            "scale": 114,
+            "sustrel": 24,
+            "tremvibr": 84,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 55,
+            "level": 36,
+            "scale": 115,
+            "sustrel": 25,
+            "tremvibr": 85,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 6,
+          "feedback": 2,
+          "op1": {
+            "attdec": 58,
+            "level": 36,
+            "scale": 114,
+            "sustrel": 30,
+            "tremvibr": 86,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 59,
+            "level": 37,
+            "scale": 115,
+            "sustrel": 31,
+            "tremvibr": 87,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 6,
+          "feedback": 3,
+          "op1": {
+            "attdec": 59,
+            "level": 37,
+            "scale": 115,
+            "sustrel": 31,
+            "tremvibr": 87,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 60,
+            "level": 38,
+            "scale": 116,
+            "sustrel": 32,
+            "tremvibr": 88,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 7,
+          "feedback": 3,
+          "op1": {
+            "attdec": 63,
+            "level": 38,
+            "scale": 115,
+            "sustrel": 37,
+            "tremvibr": 89,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 64,
+            "level": 39,
+            "scale": 116,
+            "sustrel": 38,
+            "tremvibr": 90,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 7,
+          "feedback": 4,
+          "op1": {
+            "attdec": 64,
+            "level": 39,
+            "scale": 116,
+            "sustrel": 38,
+            "tremvibr": 90,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 65,
+            "level": 40,
+            "scale": 117,
+            "sustrel": 39,
+            "tremvibr": 91,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 8,
+          "feedback": 4,
+          "op1": {
+            "attdec": 68,
+            "level": 40,
+            "scale": 116,
+            "sustrel": 44,
+            "tremvibr": 92,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 69,
+            "level": 41,
+            "scale": 117,
+            "sustrel": 45,
+            "tremvibr": 93,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 8,
+          "feedback": 5,
+          "op1": {
+            "attdec": 69,
+            "level": 41,
+            "scale": 117,
+            "sustrel": 45,
+            "tremvibr": 93,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 70,
+            "level": 42,
+            "scale": 118,
+            "sustrel": 46,
+            "tremvibr": 94,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 9,
+          "feedback": 5,
+          "op1": {
+            "attdec": 73,
+            "level": 42,
+            "scale": 117,
+            "sustrel": 51,
+            "tremvibr": 95,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 74,
+            "level": 43,
+            "scale": 118,
+            "sustrel": 52,
+            "tremvibr": 96,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 9,
+          "feedback": 6,
+          "op1": {
+            "attdec": 74,
+            "level": 43,
+            "scale": 118,
+            "sustrel": 52,
+            "tremvibr": 96,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 75,
+            "level": 44,
+            "scale": 119,
+            "sustrel": 53,
+            "tremvibr": 97,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 10,
+          "feedback": 6,
+          "op1": {
+            "attdec": 78,
+            "level": 44,
+            "scale": 118,
+            "sustrel": 58,
+            "tremvibr": 98,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 79,
+            "level": 45,
+            "scale": 119,
+            "sustrel": 59,
+            "tremvibr": 99,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 10,
+          "feedback": 7,
+          "op1": {
+            "attdec": 79,
+            "level": 45,
+            "scale": 119,
+            "sustrel": 59,
+            "tremvibr": 99,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 80,
+            "level": 46,
+            "scale": 120,
+            "sustrel": 60,
+            "tremvibr": 100,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 11,
+          "feedback": 7,
+          "op1": {
+            "attdec": 83,
+            "level": 46,
+            "scale": 119,
+            "sustrel": 65,
+            "tremvibr": 101,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 84,
+            "level": 47,
+            "scale": 120,
+            "sustrel": 66,
+            "tremvibr": 102,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 11,
+          "feedback": 8,
+          "op1": {
+            "attdec": 84,
+            "level": 47,
+            "scale": 120,
+            "sustrel": 66,
+            "tremvibr": 102,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 85,
+            "level": 48,
+            "scale": 121,
+            "sustrel": 67,
+            "tremvibr": 103,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -12,
+          "feedback": 8,
+          "op1": {
+            "attdec": 88,
+            "level": 48,
+            "scale": 120,
+            "sustrel": 72,
+            "tremvibr": 104,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 89,
+            "level": 49,
+            "scale": 121,
+            "sustrel": 73,
+            "tremvibr": 105,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -12,
+          "feedback": 9,
+          "op1": {
+            "attdec": 89,
+            "level": 49,
+            "scale": 121,
+            "sustrel": 73,
+            "tremvibr": 105,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 90,
+            "level": 50,
+            "scale": 122,
+            "sustrel": 74,
+            "tremvibr": 106,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -11,
+          "feedback": 9,
+          "op1": {
+            "attdec": 93,
+            "level": 50,
+            "scale": 121,
+            "sustrel": 79,
+            "tremvibr": 107,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 94,
+            "level": 51,
+            "scale": 122,
+            "sustrel": 80,
+            "tremvibr": 108,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -11,
+          "feedback": 10,
+          "op1": {
+            "attdec": 94,
+            "level": 51,
+            "scale": 122,
+            "sustrel": 80,
+            "tremvibr": 108,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 95,
+            "level": 52,
+            "scale": 123,
+            "sustrel": 81,
+            "tremvibr": 109,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -10,
+          "feedback": 10,
+          "op1": {
+            "attdec": 98,
+            "level": 52,
+            "scale": 122,
+            "sustrel": 86,
+            "tremvibr": 110,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 99,
+            "level": 53,
+            "scale": 123,
+            "sustrel": 87,
+            "tremvibr": 111,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -10,
+          "feedback": 11,
+          "op1": {
+            "attdec": 99,
+            "level": 53,
+            "scale": 123,
+            "sustrel": 87,
+            "tremvibr": 111,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 100,
+            "level": 54,
+            "scale": 124,
+            "sustrel": 88,
+            "tremvibr": 112,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -9,
+          "feedback": 11,
+          "op1": {
+            "attdec": 103,
+            "level": 54,
+            "scale": 123,
+            "sustrel": 93,
+            "tremvibr": 113,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 104,
+            "level": 55,
+            "scale": 124,
+            "sustrel": 94,
+            "tremvibr": 114,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -9,
+          "feedback": 12,
+          "op1": {
+            "attdec": 104,
+            "level": 55,
+            "scale": 124,
+            "sustrel": 94,
+            "tremvibr": 114,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 105,
+            "level": 56,
+            "scale": 125,
+            "sustrel": 95,
+            "tremvibr": 115,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -8,
+          "feedback": 12,
+          "op1": {
+            "attdec": 108,
+            "level": 56,
+            "scale": 124,
+            "sustrel": 100,
+            "tremvibr": 116,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 109,
+            "level": 57,
+            "scale": 125,
+            "sustrel": 101,
+            "tremvibr": 117,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -8,
+          "feedback": 13,
+          "op1": {
+            "attdec": 109,
+            "level": 57,
+            "scale": 125,
+            "sustrel": 101,
+            "tremvibr": 117,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 110,
+            "level": 58,
+            "scale": 126,
+            "sustrel": 102,
+            "tremvibr": 118,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -7,
+          "feedback": 13,
+          "op1": {
+            "attdec": 113,
+            "level": 58,
+            "scale": 125,
+            "sustrel": 107,
+            "tremvibr": 119,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 114,
+            "level": 59,
+            "scale": 126,
+            "sustrel": 108,
+            "tremvibr": 120,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -7,
+          "feedback": 14,
+          "op1": {
+            "attdec": 114,
+            "level": 59,
+            "scale": 126,
+            "sustrel": 108,
+            "tremvibr": 120,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 115,
+            "level": 60,
+            "scale": 127,
+            "sustrel": 109,
+            "tremvibr": 121,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -6,
+          "feedback": 14,
+          "op1": {
+            "attdec": 118,
+            "level": 60,
+            "scale": 126,
+            "sustrel": 114,
+            "tremvibr": 122,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 119,
+            "level": 61,
+            "scale": 127,
+            "sustrel": 115,
+            "tremvibr": 123,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -6,
+          "feedback": 15,
+          "op1": {
+            "attdec": 119,
+            "level": 61,
+            "scale": 127,
+            "sustrel": 115,
+            "tremvibr": 123,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 120,
+            "level": 62,
+            "scale": 128,
+            "sustrel": 116,
+            "tremvibr": 124,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -5,
+          "feedback": 15,
+          "op1": {
+            "attdec": 123,
+            "level": 62,
+            "scale": 127,
+            "sustrel": 121,
+            "tremvibr": 125,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 124,
+            "level": 63,
+            "scale": 128,
+            "sustrel": 122,
+            "tremvibr": 126,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -5,
+          "feedback": 0,
+          "op1": {
+            "attdec": 124,
+            "level": 63,
+            "scale": 128,
+            "sustrel": 122,
+            "tremvibr": 126,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 125,
+            "level": 0,
+            "scale": 129,
+            "sustrel": 123,
+            "tremvibr": 127,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -4,
+          "feedback": 0,
+          "op1": {
+            "attdec": 128,
+            "level": 0,
+            "scale": 128,
+            "sustrel": 128,
+            "tremvibr": 128,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 129,
+            "level": 1,
+            "scale": 129,
+            "sustrel": 129,
+            "tremvibr": 129,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -4,
+          "feedback": 1,
+          "op1": {
+            "attdec": 129,
+            "level": 1,
+            "scale": 129,
+            "sustrel": 129,
+            "tremvibr": 129,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 130,
+            "level": 2,
+            "scale": 130,
+            "sustrel": 130,
+            "tremvibr": 130,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -3,
+          "feedback": 1,
+          "op1": {
+            "attdec": 133,
+            "level": 2,
+            "scale": 129,
+            "sustrel": 135,
+            "tremvibr": 131,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 134,
+            "level": 3,
+            "scale": 130,
+            "sustrel": 136,
+            "tremvibr": 132,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -3,
+          "feedback": 2,
+          "op1": {
+            "attdec": 134,
+            "level": 3,
+            "scale": 130,
+            "sustrel": 136,
+            "tremvibr": 132,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 135,
+            "level": 4,
+            "scale": 131,
+            "sustrel": 137,
+            "tremvibr": 133,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -2,
+          "feedback": 2,
+          "op1": {
+            "attdec": 138,
+            "level": 4,
+            "scale": 130,
+            "sustrel": 142,
+            "tremvibr": 134,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 139,
+            "level": 5,
+            "scale": 131,
+            "sustrel": 143,
+            "tremvibr": 135,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -2,
+          "feedback": 3,
+          "op1": {
+            "attdec": 139,
+            "level": 5,
+            "scale": 131,
+            "sustrel": 143,
+            "tremvibr": 135,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 140,
+            "level": 6,
+            "scale": 132,
+            "sustrel": 144,
+            "tremvibr": 136,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -1,
+          "feedback": 3,
+          "op1": {
+            "attdec": 143,
+            "level": 6,
+            "scale": 131,
+            "sustrel": 149,
+            "tremvibr": 137,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 144,
+            "level": 7,
+            "scale": 132,
+            "sustrel": 150,
+            "tremvibr": 138,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -1,
+          "feedback": 4,
+          "op1": {
+            "attdec": 144,
+            "level": 7,
+            "scale": 132,
+            "sustrel": 150,
+            "tremvibr": 138,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 145,
+            "level": 8,
+            "scale": 133,
+            "sustrel": 151,
+            "tremvibr": 139,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 0,
+          "feedback": 4,
+          "op1": {
+            "attdec": 148,
+            "level": 8,
+            "scale": 132,
+            "sustrel": 156,
+            "tremvibr": 140,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 149,
+            "level": 9,
+            "scale": 133,
+            "sustrel": 157,
+            "tremvibr": 141,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 0,
+          "feedback": 5,
+          "op1": {
+            "attdec": 149,
+            "level": 9,
+            "scale": 133,
+            "sustrel": 157,
+            "tremvibr": 141,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 150,
+            "level": 10,
+            "scale": 134,
+            "sustrel": 158,
+            "tremvibr": 142,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 1,
+          "feedback": 5,
+          "op1": {
+            "attdec": 153,
+            "level": 10,
+            "scale": 133,
+            "sustrel": 163,
+            "tremvibr": 143,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 154,
+            "level": 11,
+            "scale": 134,
+            "sustrel": 164,
+            "tremvibr": 144,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 1,
+          "feedback": 6,
+          "op1": {
+            "attdec": 154,
+            "level": 11,
+            "scale": 134,
+            "sustrel": 164,
+            "tremvibr": 144,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 155,
+            "level": 12,
+            "scale": 135,
+            "sustrel": 165,
+            "tremvibr": 145,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 2,
+          "feedback": 6,
+          "op1": {
+            "attdec": 158,
+            "level": 12,
+            "scale": 134,
+            "sustrel": 170,
+            "tremvibr": 146,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 159,
+            "level": 13,
+            "scale": 135,
+            "sustrel": 171,
+            "tremvibr": 147,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 2,
+          "feedback": 7,
+          "op1": {
+            "attdec": 159,
+            "level": 13,
+            "scale": 135,
+            "sustrel": 171,
+            "tremvibr": 147,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 160,
+            "level": 14,
+            "scale": 136,
+            "sustrel": 172,
+            "tremvibr": 148,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 3,
+          "feedback": 7,
+          "op1": {
+            "attdec": 163,
+            "level": 14,
+            "scale": 135,
+            "sustrel": 177,
+            "tremvibr": 149,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 164,
+            "level": 15,
+            "scale": 136,
+            "sustrel": 178,
+            "tremvibr": 150,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 3,
+          "feedback": 8,
+          "op1": {
+            "attdec": 164,
+            "level": 15,
+            "scale": 136,
+            "sustrel": 178,
+            "tremvibr": 150,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 165,
+            "level": 16,
+            "scale": 137,
+            "sustrel": 179,
+            "tremvibr": 151,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 4,
+          "feedback": 8,
+          "op1": {
+            "attdec": 168,
+            "level": 16,
+            "scale": 136,
+            "sustrel": 184,
+            "tremvibr": 152,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 169,
+            "level": 17,
+            "scale": 137,
+            "sustrel": 185,
+            "tremvibr": 153,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 4,
+          "feedback": 9,
+          "op1": {
+            "attdec": 169,
+            "level": 17,
+            "scale": 137,
+            "sustrel": 185,
+            "tremvibr": 153,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 170,
+            "level": 18,
+            "scale": 138,
+            "sustrel": 186,
+            "tremvibr": 154,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 5,
+          "feedback": 9,
+          "op1": {
+            "attdec": 173,
+            "level": 18,
+            "scale": 137,
+            "sustrel": 191,
+            "tremvibr": 155,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 174,
+            "level": 19,
+            "scale": 138,
+            "sustrel": 192,
+            "tremvibr": 156,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 5,
+          "feedback": 10,
+          "op1": {
+            "attdec": 174,
+            "level": 19,
+            "scale": 138,
+            "sustrel": 192,
+            "tremvibr": 156,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 175,
+            "level": 20,
+            "scale": 139,
+            "sustrel": 193,
+            "tremvibr": 157,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 6,
+          "feedback": 10,
+          "op1": {
+            "attdec": 178,
+            "level": 20,
+            "scale": 138,
+            "sustrel": 198,
+            "tremvibr": 158,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 179,
+            "level": 21,
+            "scale": 139,
+            "sustrel": 199,
+            "tremvibr": 159,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 6,
+          "feedback": 11,
+          "op1": {
+            "attdec": 179,
+            "level": 21,
+            "scale": 139,
+            "sustrel": 199,
+            "tremvibr": 159,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 180,
+            "level": 22,
+            "scale": 140,
+            "sustrel": 200,
+            "tremvibr": 160,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 7,
+          "feedback": 11,
+          "op1": {
+            "attdec": 183,
+            "level": 22,
+            "scale": 139,
+            "sustrel": 205,
+            "tremvibr": 161,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 184,
+            "level": 23,
+            "scale": 140,
+            "sustrel": 206,
+            "tremvibr": 162,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 7,
+          "feedback": 12,
+          "op1": {
+            "attdec": 184,
+            "level": 23,
+            "scale": 140,
+            "sustrel": 206,
+            "tremvibr": 162,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 185,
+            "level": 24,
+            "scale": 141,
+            "sustrel": 207,
+            "tremvibr": 163,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 8,
+          "feedback": 12,
+          "op1": {
+            "attdec": 188,
+            "level": 24,
+            "scale": 140,
+            "sustrel": 212,
+            "tremvibr": 164,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 189,
+            "level": 25,
+            "scale": 141,
+            "sustrel": 213,
+            "tremvibr": 165,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 8,
+          "feedback": 13,
+          "op1": {
+            "attdec": 189,
+            "level": 25,
+            "scale": 141,
+            "sustrel": 213,
+            "tremvibr": 165,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 190,
+            "level": 26,
+            "scale": 142,
+            "sustrel": 214,
+            "tremvibr": 166,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 9,
+          "feedback": 13,
+          "op1": {
+            "attdec": 193,
+            "level": 26,
+            "scale": 141,
+            "sustrel": 219,
+            "tremvibr": 167,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 194,
+            "level": 27,
+            "scale": 142,
+            "sustrel": 220,
+            "tremvibr": 168,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 9,
+          "feedback": 14,
+          "op1": {
+            "attdec": 194,
+            "level": 27,
+            "scale": 142,
+            "sustrel": 220,
+            "tremvibr": 168,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 195,
+            "level": 28,
+            "scale": 143,
+            "sustrel": 221,
+            "tremvibr": 169,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 10,
+          "feedback": 14,
+          "op1": {
+            "attdec": 198,
+            "level": 28,
+            "scale": 142,
+            "sustrel": 226,
+            "tremvibr": 170,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 199,
+            "level": 29,
+            "scale": 143,
+            "sustrel": 227,
+            "tremvibr": 171,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 10,
+          "feedback": 15,
+          "op1": {
+            "attdec": 199,
+            "level": 29,
+            "scale": 143,
+            "sustrel": 227,
+            "tremvibr": 171,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 200,
+            "level": 30,
+            "scale": 144,
+            "sustrel": 228,
+            "tremvibr": 172,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 11,
+          "feedback": 15,
+          "op1": {
+            "attdec": 203,
+            "level": 30,
+            "scale": 143,
+            "sustrel": 233,
+            "tremvibr": 173,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 204,
+            "level": 31,
+            "scale": 144,
+            "sustrel": 234,
+            "tremvibr": 174,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 11,
+          "feedback": 0,
+          "op1": {
+            "attdec": 204,
+            "level": 31,
+            "scale": 144,
+            "sustrel": 234,
+            "tremvibr": 174,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 205,
+            "level": 32,
+            "scale": 145,
+            "sustrel": 235,
+            "tremvibr": 175,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -12,
+          "feedback": 0,
+          "op1": {
+            "attdec": 208,
+            "level": 32,
+            "scale": 144,
+            "sustrel": 240,
+            "tremvibr": 176,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 209,
+            "level": 33,
+            "scale": 145,
+            "sustrel": 241,
+            "tremvibr": 177,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -12,
+          "feedback": 1,
+          "op1": {
+            "attdec": 209,
+            "level": 33,
+            "scale": 145,
+            "sustrel": 241,
+            "tremvibr": 177,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 210,
+            "level": 34,
+            "scale": 146,
+            "sustrel": 242,
+            "tremvibr": 178,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -11,
+          "feedback": 1,
+          "op1": {
+            "attdec": 213,
+            "level": 34,
+            "scale": 145,
+            "sustrel": 247,
+            "tremvibr": 179,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 214,
+            "level": 35,
+            "scale": 146,
+            "sustrel": 248,
+            "tremvibr": 180,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -11,
+          "feedback": 2,
+          "op1": {
+            "attdec": 214,
+            "level": 35,
+            "scale": 146,
+            "sustrel": 248,
+            "tremvibr": 180,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 215,
+            "level": 36,
+            "scale": 147,
+            "sustrel": 249,
+            "tremvibr": 181,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -10,
+          "feedback": 2,
+          "op1": {
+            "attdec": 218,
+            "level": 36,
+            "scale": 146,
+            "sustrel": 254,
+            "tremvibr": 182,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 219,
+            "level": 37,
+            "scale": 147,
+            "sustrel": 255,
+            "tremvibr": 183,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -10,
+          "feedback": 3,
+          "op1": {
+            "attdec": 219,
+            "level": 37,
+            "scale": 147,
+            "sustrel": 255,
+            "tremvibr": 183,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 220,
+            "level": 38,
+            "scale": 148,
+            "sustrel": 0,
+            "tremvibr": 184,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -9,
+          "feedback": 3,
+          "op1": {
+            "attdec": 223,
+            "level": 38,
+            "scale": 147,
+            "sustrel": 5,
+            "tremvibr": 185,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 224,
+            "level": 39,
+            "scale": 148,
+            "sustrel": 6,
+            "tremvibr": 186,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -9,
+          "feedback": 4,
+          "op1": {
+            "attdec": 224,
+            "level": 39,
+            "scale": 148,
+            "sustrel": 6,
+            "tremvibr": 186,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 225,
+            "level": 40,
+            "scale": 149,
+            "sustrel": 7,
+            "tremvibr": 187,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -8,
+          "feedback": 4,
+          "op1": {
+            "attdec": 228,
+            "level": 40,
+            "scale": 148,
+            "sustrel": 12,
+            "tremvibr": 188,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 229,
+            "level": 41,
+            "scale": 149,
+            "sustrel": 13,
+            "tremvibr": 189,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -8,
+          "feedback": 5,
+          "op1": {
+            "attdec": 229,
+            "level": 41,
+            "scale": 149,
+            "sustrel": 13,
+            "tremvibr": 189,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 230,
+            "level": 42,
+            "scale": 150,
+            "sustrel": 14,
+            "tremvibr": 190,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -7,
+          "feedback": 5,
+          "op1": {
+            "attdec": 233,
+            "level": 42,
+            "scale": 149,
+            "sustrel": 19,
+            "tremvibr": 191,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 234,
+            "level": 43,
+            "scale": 150,
+            "sustrel": 20,
+            "tremvibr": 192,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -7,
+          "feedback": 6,
+          "op1": {
+            "attdec": 234,
+            "level": 43,
+            "scale": 150,
+            "sustrel": 20,
+            "tremvibr": 192,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 235,
+            "level": 44,
+            "scale": 151,
+            "sustrel": 21,
+            "tremvibr": 193,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -6,
+          "feedback": 6,
+          "op1": {
+            "attdec": 238,
+            "level": 44,
+            "scale": 150,
+            "sustrel": 26,
+            "tremvibr": 194,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 239,
+            "level": 45,
+            "scale": 151,
+            "sustrel": 27,
+            "tremvibr": 195,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -6,
+          "feedback": 7,
+          "op1": {
+            "attdec": 239,
+            "level": 45,
+            "scale": 151,
+            "sustrel": 27,
+            "tremvibr": 195,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 240,
+            "level": 46,
+            "scale": 152,
+            "sustrel": 28,
+            "tremvibr": 196,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -5,
+          "feedback": 7,
+          "op1": {
+            "attdec": 243,
+            "level": 46,
+            "scale": 151,
+            "sustrel": 33,
+            "tremvibr": 197,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 244,
+            "level": 47,
+            "scale": 152,
+            "sustrel": 34,
+            "tremvibr": 198,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -5,
+          "feedback": 8,
+          "op1": {
+            "attdec": 244,
+            "level": 47,
+            "scale": 152,
+            "sustrel": 34,
+            "tremvibr": 198,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 245,
+            "level": 48,
+            "scale": 153,
+            "sustrel": 35,
+            "tremvibr": 199,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -4,
+          "feedback": 8,
+          "op1": {
+            "attdec": 248,
+            "level": 48,
+            "scale": 152,
+            "sustrel": 40,
+            "tremvibr": 200,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 249,
+            "level": 49,
+            "scale": 153,
+            "sustrel": 41,
+            "tremvibr": 201,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -4,
+          "feedback": 9,
+          "op1": {
+            "attdec": 249,
+            "level": 49,
+            "scale": 153,
+            "sustrel": 41,
+            "tremvibr": 201,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 250,
+            "level": 50,
+            "scale": 154,
+            "sustrel": 42,
+            "tremvibr": 202,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -3,
+          "feedback": 9,
+          "op1": {
+            "attdec": 253,
+            "level": 50,
+            "scale": 153,
+            "sustrel": 47,
+            "tremvibr": 203,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 254,
+            "level": 51,
+            "scale": 154,
+            "sustrel": 48,
+            "tremvibr": 204,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -3,
+          "feedback": 10,
+          "op1": {
+            "attdec": 254,
+            "level": 51,
+            "scale": 154,
+            "sustrel": 48,
+            "tremvibr": 204,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 255,
+            "level": 52,
+            "scale": 155,
+            "sustrel": 49,
+            "tremvibr": 205,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -2,
+          "feedback": 10,
+          "op1": {
+            "attdec": 2,
+            "level": 52,
+            "scale": 154,
+            "sustrel": 54,
+            "tremvibr": 206,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 3,
+            "level": 53,
+            "scale": 155,
+            "sustrel": 55,
+            "tremvibr": 207,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -2,
+          "feedback": 11,
+          "op1": {
+            "attdec": 3,
+            "level": 53,
+            "scale": 155,
+            "sustrel": 55,
+            "tremvibr": 207,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 4,
+            "level": 54,
+            "scale": 156,
+            "sustrel": 56,
+            "tremvibr": 208,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -1,
+          "feedback": 11,
+          "op1": {
+            "attdec": 7,
+            "level": 54,
+            "scale": 155,
+            "sustrel": 61,
+            "tremvibr": 209,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 8,
+            "level": 55,
+            "scale": 156,
+            "sustrel": 62,
+            "tremvibr": 210,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -1,
+          "feedback": 12,
+          "op1": {
+            "attdec": 8,
+            "level": 55,
+            "scale": 156,
+            "sustrel": 62,
+            "tremvibr": 210,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 9,
+            "level": 56,
+            "scale": 157,
+            "sustrel": 63,
+            "tremvibr": 211,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 0,
+          "feedback": 12,
+          "op1": {
+            "attdec": 12,
+            "level": 56,
+            "scale": 156,
+            "sustrel": 68,
+            "tremvibr": 212,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 13,
+            "level": 57,
+            "scale": 157,
+            "sustrel": 69,
+            "tremvibr": 213,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 0,
+          "feedback": 13,
+          "op1": {
+            "attdec": 13,
+            "level": 57,
+            "scale": 157,
+            "sustrel": 69,
+            "tremvibr": 213,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 14,
+            "level": 58,
+            "scale": 158,
+            "sustrel": 70,
+            "tremvibr": 214,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 1,
+          "feedback": 13,
+          "op1": {
+            "attdec": 17,
+            "level": 58,
+            "scale": 157,
+            "sustrel": 75,
+            "tremvibr": 215,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 18,
+            "level": 59,
+            "scale": 158,
+            "sustrel": 76,
+            "tremvibr": 216,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 1,
+          "feedback": 14,
+          "op1": {
+            "attdec": 18,
+            "level": 59,
+            "scale": 158,
+            "sustrel": 76,
+            "tremvibr": 216,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 19,
+            "level": 60,
+            "scale": 159,
+            "sustrel": 77,
+            "tremvibr": 217,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 2,
+          "feedback": 14,
+          "op1": {
+            "attdec": 22,
+            "level": 60,
+            "scale": 158,
+            "sustrel": 82,
+            "tremvibr": 218,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 23,
+            "level": 61,
+            "scale": 159,
+            "sustrel": 83,
+            "tremvibr": 219,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 2,
+          "feedback": 15,
+          "op1": {
+            "attdec": 23,
+            "level": 61,
+            "scale": 159,
+            "sustrel": 83,
+            "tremvibr": 219,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 24,
+            "level": 62,
+            "scale": 160,
+            "sustrel": 84,
+            "tremvibr": 220,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 3,
+          "feedback": 15,
+          "op1": {
+            "attdec": 27,
+            "level": 62,
+            "scale": 159,
+            "sustrel": 89,
+            "tremvibr": 221,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 28,
+            "level": 63,
+            "scale": 160,
+            "sustrel": 90,
+            "tremvibr": 222,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 3,
+          "feedback": 0,
+          "op1": {
+            "attdec": 28,
+            "level": 63,
+            "scale": 160,
+            "sustrel": 90,
+            "tremvibr": 222,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 29,
+            "level": 0,
+            "scale": 161,
+            "sustrel": 91,
+            "tremvibr": 223,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 4,
+          "feedback": 0,
+          "op1": {
+            "attdec": 32,
+            "level": 0,
+            "scale": 160,
+            "sustrel": 96,
+            "tremvibr": 224,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 33,
+            "level": 1,
+            "scale": 161,
+            "sustrel": 97,
+            "tremvibr": 225,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 4,
+          "feedback": 1,
+          "op1": {
+            "attdec": 33,
+            "level": 1,
+            "scale": 161,
+            "sustrel": 97,
+            "tremvibr": 225,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 34,
+            "level": 2,
+            "scale": 162,
+            "sustrel": 98,
+            "tremvibr": 226,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 5,
+          "feedback": 1,
+          "op1": {
+            "attdec": 37,
+            "level": 2,
+            "scale": 161,
+            "sustrel": 103,
+            "tremvibr": 227,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 38,
+            "level": 3,
+            "scale": 162,
+            "sustrel": 104,
+            "tremvibr": 228,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 5,
+          "feedback": 2,
+          "op1": {
+            "attdec": 38,
+            "level": 3,
+            "scale": 162,
+            "sustrel": 104,
+            "tremvibr": 228,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 39,
+            "level": 4,
+            "scale": 163,
+            "sustrel": 105,
+            "tremvibr": 229,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 6,
+          "feedback": 2,
+          "op1": {
+            "attdec": 42,
+            "level": 4,
+            "scale": 162,
+            "sustrel": 110,
+            "tremvibr": 230,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 43,
+            "level": 5,
+            "scale": 163,
+            "sustrel": 111,
+            "tremvibr": 231,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 6,
+          "feedback": 3,
+          "op1": {
+            "attdec": 43,
+            "level": 5,
+            "scale": 163,
+            "sustrel": 111,
+            "tremvibr": 231,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 44,
+            "level": 6,
+            "scale": 164,
+            "sustrel": 112,
+            "tremvibr": 232,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 7,
+          "feedback": 3,
+          "op1": {
+            "attdec": 47,
+            "level": 6,
+            "scale": 163,
+            "sustrel": 117,
+            "tremvibr": 233,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 48,
+            "level": 7,
+            "scale": 164,
+            "sustrel": 118,
+            "tremvibr": 234,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 7,
+          "feedback": 4,
+          "op1": {
+            "attdec": 48,
+            "level": 7,
+            "scale": 164,
+            "sustrel": 118,
+            "tremvibr": 234,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 49,
+            "level": 8,
+            "scale": 165,
+            "sustrel": 119,
+            "tremvibr": 235,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 8,
+          "feedback": 4,
+          "op1": {
+            "attdec": 52,
+            "level": 8,
+            "scale": 164,
+            "sustrel": 124,
+            "tremvibr": 236,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 53,
+            "level": 9,
+            "scale": 165,
+            "sustrel": 125,
+            "tremvibr": 237,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 8,
+          "feedback": 5,
+          "op1": {
+            "attdec": 53,
+            "level": 9,
+            "scale": 165,
+            "sustrel": 125,
+            "tremvibr": 237,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 54,
+            "level": 10,
+            "scale": 166,
+            "sustrel": 126,
+            "tremvibr": 238,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 9,
+          "feedback": 5,
+          "op1": {
+            "attdec": 57,
+            "level": 10,
+            "scale": 165,
+            "sustrel": 131,
+            "tremvibr": 239,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 58,
+            "level": 11,
+            "scale": 166,
+            "sustrel": 132,
+            "tremvibr": 240,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 9,
+          "feedback": 6,
+          "op1": {
+            "attdec": 58,
+            "level": 11,
+            "scale": 166,
+            "sustrel": 132,
+            "tremvibr": 240,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 59,
+            "level": 12,
+            "scale": 167,
+            "sustrel": 133,
+            "tremvibr": 241,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": 10,
+          "feedback": 6,
+          "op1": {
+            "attdec": 62,
+            "level": 12,
+            "scale": 166,
+            "sustrel": 138,
+            "tremvibr": 242,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 63,
+            "level": 13,
+            "scale": 167,
+            "sustrel": 139,
+            "tremvibr": 243,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 10,
+          "feedback": 7,
+          "op1": {
+            "attdec": 63,
+            "level": 13,
+            "scale": 167,
+            "sustrel": 139,
+            "tremvibr": 243,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 64,
+            "level": 14,
+            "scale": 168,
+            "sustrel": 140,
+            "tremvibr": 244,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": 11,
+          "feedback": 7,
+          "op1": {
+            "attdec": 67,
+            "level": 14,
+            "scale": 167,
+            "sustrel": 145,
+            "tremvibr": 245,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 68,
+            "level": 15,
+            "scale": 168,
+            "sustrel": 146,
+            "tremvibr": 246,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": 11,
+          "feedback": 8,
+          "op1": {
+            "attdec": 68,
+            "level": 15,
+            "scale": 168,
+            "sustrel": 146,
+            "tremvibr": 246,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 69,
+            "level": 16,
+            "scale": 169,
+            "sustrel": 147,
+            "tremvibr": 247,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -12,
+          "feedback": 8,
+          "op1": {
+            "attdec": 72,
+            "level": 16,
+            "scale": 168,
+            "sustrel": 152,
+            "tremvibr": 248,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 73,
+            "level": 17,
+            "scale": 169,
+            "sustrel": 153,
+            "tremvibr": 249,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -12,
+          "feedback": 9,
+          "op1": {
+            "attdec": 73,
+            "level": 17,
+            "scale": 169,
+            "sustrel": 153,
+            "tremvibr": 249,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 74,
+            "level": 18,
+            "scale": 170,
+            "sustrel": 154,
+            "tremvibr": 250,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -11,
+          "feedback": 9,
+          "op1": {
+            "attdec": 77,
+            "level": 18,
+            "scale": 169,
+            "sustrel": 159,
+            "tremvibr": 251,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 78,
+            "level": 19,
+            "scale": 170,
+            "sustrel": 160,
+            "tremvibr": 252,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -11,
+          "feedback": 10,
+          "op1": {
+            "attdec": 78,
+            "level": 19,
+            "scale": 170,
+            "sustrel": 160,
+            "tremvibr": 252,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 79,
+            "level": 20,
+            "scale": 171,
+            "sustrel": 161,
+            "tremvibr": 253,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 128,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -10,
+          "feedback": 10,
+          "op1": {
+            "attdec": 82,
+            "level": 20,
+            "scale": 170,
+            "sustrel": 166,
+            "tremvibr": 254,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 83,
+            "level": 21,
+            "scale": 171,
+            "sustrel": 167,
+            "tremvibr": 255,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -10,
+          "feedback": 11,
+          "op1": {
+            "attdec": 83,
+            "level": 21,
+            "scale": 171,
+            "sustrel": 167,
+            "tremvibr": 255,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 84,
+            "level": 22,
+            "scale": 172,
+            "sustrel": 168,
+            "tremvibr": 0,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 129,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -9,
+          "feedback": 11,
+          "op1": {
+            "attdec": 87,
+            "level": 22,
+            "scale": 171,
+            "sustrel": 173,
+            "tremvibr": 1,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 88,
+            "level": 23,
+            "scale": 172,
+            "sustrel": 174,
+            "tremvibr": 2,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -9,
+          "feedback": 12,
+          "op1": {
+            "attdec": 88,
+            "level": 23,
+            "scale": 172,
+            "sustrel": 174,
+            "tremvibr": 2,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 89,
+            "level": 24,
+            "scale": 173,
+            "sustrel": 175,
+            "tremvibr": 3,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 130,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -8,
+          "feedback": 12,
+          "op1": {
+            "attdec": 92,
+            "level": 24,
+            "scale": 172,
+            "sustrel": 180,
+            "tremvibr": 4,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 93,
+            "level": 25,
+            "scale": 173,
+            "sustrel": 181,
+            "tremvibr": 5,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -8,
+          "feedback": 13,
+          "op1": {
+            "attdec": 93,
+            "level": 25,
+            "scale": 173,
+            "sustrel": 181,
+            "tremvibr": 5,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 94,
+            "level": 26,
+            "scale": 174,
+            "sustrel": 182,
+            "tremvibr": 6,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 131,
+      "flags": 1,
+      "instruments": [
+        {
+          "basenote": -7,
+          "feedback": 13,
+          "op1": {
+            "attdec": 97,
+            "level": 26,
+            "scale": 173,
+            "sustrel": 187,
+            "tremvibr": 7,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 98,
+            "level": 27,
+            "scale": 174,
+            "sustrel": 188,
+            "tremvibr": 8,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -7,
+          "feedback": 14,
+          "op1": {
+            "attdec": 98,
+            "level": 27,
+            "scale": 174,
+            "sustrel": 188,
+            "tremvibr": 8,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 99,
+            "level": 28,
+            "scale": 175,
+            "sustrel": 189,
+            "tremvibr": 9,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    },
+    {
+      "finetune": 132,
+      "flags": 0,
+      "instruments": [
+        {
+          "basenote": -6,
+          "feedback": 14,
+          "op1": {
+            "attdec": 102,
+            "level": 28,
+            "scale": 174,
+            "sustrel": 194,
+            "tremvibr": 10,
+            "wave": 0
+          },
+          "op2": {
+            "attdec": 103,
+            "level": 29,
+            "scale": 175,
+            "sustrel": 195,
+            "tremvibr": 11,
+            "wave": 1
+          },
+          "unused": 0
+        },
+        {
+          "basenote": -6,
+          "feedback": 15,
+          "op1": {
+            "attdec": 103,
+            "level": 29,
+            "scale": 175,
+            "sustrel": 195,
+            "tremvibr": 11,
+            "wave": 1
+          },
+          "op2": {
+            "attdec": 104,
+            "level": 30,
+            "scale": 176,
+            "sustrel": 196,
+            "tremvibr": 12,
+            "wave": 2
+          },
+          "unused": 0
+        }
+      ],
+      "note": 0
+    }
+  ],
+  "magic": "234f504c5f494923"
+}
