@@ -1,0 +1,22 @@
+{
+  "acknum": 1001,
+  "body": "485454502f312e3120323030204f4b0d0a0d0a",
+  "checksum": 0,
+  "dataoffset": 5,
+  "dstport": 51000,
+  "flags": {
+    "ack": true,
+    "cwr": false,
+    "ece": false,
+    "fin": false,
+    "psh": true,
+    "rst": false,
+    "syn": false,
+    "urg": false
+  },
+  "reserved": 0,
+  "seqnum": 5000,
+  "srcport": 443,
+  "urgentpointer": 0,
+  "windowsize": 65535
+}

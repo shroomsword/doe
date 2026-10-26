@@ -1,0 +1,15 @@
+{
+  "initialframe": {
+    "header": {
+      "finished": true,
+      "ismasked": true,
+      "lenpayload": 200,
+      "lenpayloadextended1": 200,
+      "lenpayloadprimary": 126,
+      "maskkey": 939139389,
+      "opcode": 2,
+      "reserved": 0
+    },
+    "payloadbytes": "37fb233e33ff273a3ff32b363bf72f3227eb332e23ef372a2fe33b262be73f2217db031e13df071a1fd30b161bd70f1207cb130e03cf170a0fc31b060bc71f0277bb637e73bf677a7fb36b767bb76f7267ab736e63af776a6fa37b666ba77f62579b435e539f475a5f934b565b974f52478b534e438f574a4f835b464b875f42b77ba3beb37fa7babf73abb6bb77afb2a76bb3aea36fb7aaaf63bba6ab67bfa2975b839e935f879a9f538b969b578f92874b938e834f978a8f439b868b479f82f73be3fef33fe7fa"
+  }
+}

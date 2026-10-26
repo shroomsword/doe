@@ -1,0 +1,28 @@
+{
+  "b1": 69,
+  "b2": 0,
+  "b67": 16384,
+  "body": {
+    "body": {
+      "body": "123401000001000000000000",
+      "checksum": 25567,
+      "dstport": 53,
+      "length": 20,
+      "srcport": 40000
+    },
+    "protocol": 17
+  },
+  "dstipaddr": "c6336407",
+  "headerchecksum": 12867,
+  "identification": 7238,
+  "ihl": 5,
+  "ihlbytes": 20,
+  "options": {
+    "entries": []
+  },
+  "protocol": 17,
+  "srcipaddr": "c0000201",
+  "totallength": 40,
+  "ttl": 64,
+  "version": 4
+}

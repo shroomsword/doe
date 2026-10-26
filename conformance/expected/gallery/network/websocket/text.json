@@ -1,0 +1,13 @@
+{
+  "initialframe": {
+    "header": {
+      "finished": true,
+      "ismasked": false,
+      "lenpayload": 5,
+      "lenpayloadprimary": 5,
+      "opcode": 1,
+      "reserved": 0
+    },
+    "payloadtext": "Hello"
+  }
+}

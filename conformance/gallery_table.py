@@ -4,6 +4,8 @@ one row for each definition of the submodule, and what file it is tested with.
 
     python3 conformance/gallery_table.py           # add rows for new definitions, drop rows of removed ones
     python3 conformance/gallery_table.py --check   # change nothing; fail if the table is out of date
+    python3 conformance/gallery_table.py --mark STATUS SOURCE NOTE FORMAT...
+                                                   # fill the rows of formats that now have samples
 
 The columns are tab-separated:
 
@@ -127,7 +129,31 @@ def new_row(name, importers):
     return [name, status, sample, source, licence, note]
 
 
+def mark(arguments):
+    """--mark STATUS SOURCE NOTE FORMAT...: the status, source and licence of the rows
+    of formats that have samples; the note is kept when NOTE is -."""
+    status, source, note, *names = arguments
+    if status not in STATUSES - {"none", "part-of"} or not names:
+        sys.exit("usage: --mark real|crafted|failing SOURCE NOTE FORMAT...")
+    rows = read_table()
+    for name in names:
+        if name not in rows:
+            sys.exit(f"{name} is not a definition of the gallery")
+        if not any((HERE / "samples" / "gallery" / name).glob("*.bin")):
+            sys.exit(f"{name} has no samples in samples/gallery/{name}")
+        row = rows[name]
+        row[1], row[2], row[3], row[4] = status, name, source, OURS
+        if note != "-":
+            row[5] = note
+    lines = ["\t".join(HEADER)] + ["\t".join(rows[name]) for name in sorted(rows)]
+    TABLE.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"{len(names)} rows marked {status}")
+
+
 def main():
+    if sys.argv[1:2] == ["--mark"]:
+        mark(sys.argv[2:])
+        return
     check = "--check" in sys.argv[1:]
     names = definitions()
     if not names:

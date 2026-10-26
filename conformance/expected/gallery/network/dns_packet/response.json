@@ -1,0 +1,197 @@
+{
+  "additionals": [],
+  "ancount": 3,
+  "answers": [
+    {
+      "answerclass": 1,
+      "name": {
+        "name": [
+          {
+            "ispointer": true,
+            "length": 192,
+            "pointer": {
+              "contents": {
+                "name": [
+                  {
+                    "ispointer": false,
+                    "length": 3,
+                    "name": "www"
+                  },
+                  {
+                    "ispointer": false,
+                    "length": 7,
+                    "name": "example"
+                  },
+                  {
+                    "ispointer": false,
+                    "length": 3,
+                    "name": "com"
+                  },
+                  {
+                    "ispointer": false,
+                    "length": 0,
+                    "name": ""
+                  }
+                ]
+              },
+              "value": 12
+            }
+          }
+        ]
+      },
+      "payload": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "web"
+          },
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "com"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "rdlength": 17,
+      "ttl": 300,
+      "type": 5
+    },
+    {
+      "answerclass": 1,
+      "name": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "web"
+          },
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "com"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "payload": {
+        "ip": "5db8d822"
+      },
+      "rdlength": 4,
+      "ttl": 60,
+      "type": 1
+    },
+    {
+      "answerclass": 1,
+      "name": {
+        "name": [
+          {
+            "ispointer": true,
+            "length": 192,
+            "pointer": {
+              "contents": {
+                "name": [
+                  {
+                    "ispointer": false,
+                    "length": 3,
+                    "name": "www"
+                  },
+                  {
+                    "ispointer": false,
+                    "length": 7,
+                    "name": "example"
+                  },
+                  {
+                    "ispointer": false,
+                    "length": 3,
+                    "name": "com"
+                  },
+                  {
+                    "ispointer": false,
+                    "length": 0,
+                    "name": ""
+                  }
+                ]
+              },
+              "value": 12
+            }
+          }
+        ]
+      },
+      "payload": {
+        "ipv6": "20010db8000000000000000000000001"
+      },
+      "rdlength": 16,
+      "ttl": 60,
+      "type": 28
+    }
+  ],
+  "arcount": 0,
+  "authorities": [],
+  "flags": {
+    "aa": 0,
+    "ad": 0,
+    "cd": 0,
+    "flag": 33152,
+    "isopcodevalid": true,
+    "opcode": 0,
+    "qr": 1,
+    "ra": 1,
+    "rcode": 0,
+    "rd": 1,
+    "tc": 0,
+    "z": 0
+  },
+  "nscount": 0,
+  "qdcount": 1,
+  "queries": [
+    {
+      "name": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "www"
+          },
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "com"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "queryclass": 1,
+      "type": 1
+    }
+  ],
+  "transactionid": 6699
+}

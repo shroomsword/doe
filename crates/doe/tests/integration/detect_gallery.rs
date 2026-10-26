@@ -52,9 +52,12 @@ fn samples() -> Vec<(String, PathBuf)> {
     out
 }
 
-/// How many of the samples may be left without any schema. The number is
-/// tracked: lower it when more are found, and a rise is a regression.
-const MOST_NOT_FOUND: usize = 17;
+/// How many of the samples find their own schema at least. The number is
+/// tracked: raise it when more are found, and a fall is a regression. (The
+/// samples that are not found are those whose format has no signature that the
+/// schema states; every new sample of such a format adds to them, so their
+/// number says nothing.)
+const LEAST_FOUND: usize = 19;
 
 #[test]
 fn the_schema_of_each_gallery_sample_is_found_among_the_whole_gallery() {
@@ -109,9 +112,12 @@ fn the_schema_of_each_gallery_sample_is_found_among_the_whole_gallery() {
         eprintln!("  not found: {line}");
     }
     assert!(
-        not_found.len() <= MOST_NOT_FOUND,
-        "{} samples have no schema (the most allowed is {MOST_NOT_FOUND}):\n{}",
-        not_found.len(),
-        not_found.join("\n")
+        right >= LEAST_FOUND,
+        "only {right} samples found their own schema (at least {LEAST_FOUND} did):
+{}",
+        not_found.join(
+            "
+"
+        )
     );
 }

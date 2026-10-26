@@ -1,0 +1,75 @@
+{
+  "fileheader": {
+    "ip": "224.2.0.1",
+    "ip2": 3221225985,
+    "padding": 0,
+    "port": "5004",
+    "port2": 5004,
+    "shebang": "2321727470706c6179312e30",
+    "space": "20",
+    "startsec": 1700000000,
+    "startusec": 250000
+  },
+  "packets": [
+    {
+      "body": {
+        "csrccount": 0,
+        "data": "00000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "hasextension": false,
+        "haspadding": false,
+        "lenpadding": 0,
+        "lenpaddingifexists": null,
+        "marker": false,
+        "padding": "",
+        "payloadtype": 0,
+        "sequencenumber": 0,
+        "ssrc": 287454020,
+        "timestamp": 0,
+        "version": 2
+      },
+      "lenbody": 52,
+      "length": 60,
+      "packetusec": 0
+    },
+    {
+      "body": {
+        "csrccount": 0,
+        "data": "00000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "hasextension": false,
+        "haspadding": false,
+        "lenpadding": 0,
+        "lenpaddingifexists": null,
+        "marker": false,
+        "padding": "",
+        "payloadtype": 0,
+        "sequencenumber": 1,
+        "ssrc": 287454020,
+        "timestamp": 160,
+        "version": 2
+      },
+      "lenbody": 52,
+      "length": 60,
+      "packetusec": 20000
+    },
+    {
+      "body": {
+        "csrccount": 0,
+        "data": "00000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "hasextension": false,
+        "haspadding": false,
+        "lenpadding": 0,
+        "lenpaddingifexists": null,
+        "marker": false,
+        "padding": "",
+        "payloadtype": 0,
+        "sequencenumber": 2,
+        "ssrc": 287454020,
+        "timestamp": 320,
+        "version": 2
+      },
+      "lenbody": 52,
+      "length": 60,
+      "packetusec": 40000
+    }
+  ]
+}

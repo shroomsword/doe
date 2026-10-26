@@ -1,0 +1,37 @@
+{
+  "b1": 70,
+  "b2": 0,
+  "b67": 16384,
+  "body": {
+    "body": {
+      "body": "78",
+      "checksum": 0,
+      "dstport": 2,
+      "length": 9,
+      "srcport": 1
+    },
+    "protocol": 17
+  },
+  "dstipaddr": "c6336407",
+  "headerchecksum": 40261,
+  "identification": 7238,
+  "ihl": 6,
+  "ihlbytes": 24,
+  "options": {
+    "entries": [
+      {
+        "b1": 148,
+        "body": "0000",
+        "copy": 1,
+        "len": 4,
+        "number": 20,
+        "optclass": 0
+      }
+    ]
+  },
+  "protocol": 17,
+  "srcipaddr": "c0000201",
+  "totallength": 33,
+  "ttl": 64,
+  "version": 4
+}

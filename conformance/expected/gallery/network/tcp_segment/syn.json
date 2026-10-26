@@ -1,0 +1,23 @@
+{
+  "acknum": 0,
+  "body": "",
+  "checksum": 0,
+  "dataoffset": 8,
+  "dstport": 443,
+  "flags": {
+    "ack": false,
+    "cwr": false,
+    "ece": false,
+    "fin": false,
+    "psh": false,
+    "rst": false,
+    "syn": true,
+    "urg": false
+  },
+  "options": "020405b40402010303070000",
+  "reserved": 0,
+  "seqnum": 1000,
+  "srcport": 51000,
+  "urgentpointer": 0,
+  "windowsize": 65535
+}

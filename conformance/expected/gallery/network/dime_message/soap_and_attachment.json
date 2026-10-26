@@ -1,0 +1,70 @@
+{
+  "records": [
+    {
+      "data": "3c736f61703a456e76656c6f706520786d6c6e733a736f61703d27687474703a2f2f7777772e77332e6f72672f323030332f30352f736f61702d656e76656c6f7065272f3e",
+      "datapadding": {
+        "boundarypadding": "000000"
+      },
+      "id": "uuid:0001",
+      "idpadding": {
+        "boundarypadding": "000000"
+      },
+      "ischunkrecord": false,
+      "isfirstrecord": true,
+      "islastrecord": false,
+      "lendata": 69,
+      "lenid": 9,
+      "lenoptions": 9,
+      "lentype": 20,
+      "options": {
+        "optionelements": [
+          {
+            "elementdata": "68656c6c6f",
+            "elementformat": 1,
+            "lenelement": 5
+          }
+        ]
+      },
+      "optionspadding": {
+        "boundarypadding": "000000"
+      },
+      "reserved": 0,
+      "type": "application/soap+xml",
+      "typeformat": 1,
+      "typepadding": {
+        "boundarypadding": ""
+      },
+      "version": 1
+    },
+    {
+      "data": "00010203040506070809",
+      "datapadding": {
+        "boundarypadding": "0000"
+      },
+      "id": "cid:attachment",
+      "idpadding": {
+        "boundarypadding": "0000"
+      },
+      "ischunkrecord": false,
+      "isfirstrecord": false,
+      "islastrecord": true,
+      "lendata": 10,
+      "lenid": 14,
+      "lenoptions": 0,
+      "lentype": 23,
+      "options": {
+        "optionelements": []
+      },
+      "optionspadding": {
+        "boundarypadding": ""
+      },
+      "reserved": 0,
+      "type": "http://example.com/blob",
+      "typeformat": 2,
+      "typepadding": {
+        "boundarypadding": "00"
+      },
+      "version": 1
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "b1": 69,
+  "b2": 0,
+  "b67": 16384,
+  "body": {
+    "body": {
+      "acknum": 0,
+      "body": "",
+      "checksum": 0,
+      "dataoffset": 5,
+      "dstport": 80,
+      "flags": {
+        "ack": false,
+        "cwr": false,
+        "ece": false,
+        "fin": false,
+        "psh": false,
+        "rst": false,
+        "syn": true,
+        "urg": false
+      },
+      "reserved": 0,
+      "seqnum": 1,
+      "srcport": 51000,
+      "urgentpointer": 0,
+      "windowsize": 65535
+    },
+    "protocol": 6
+  },
+  "dstipaddr": "c6336407",
+  "headerchecksum": 12878,
+  "identification": 7238,
+  "ihl": 5,
+  "ihlbytes": 20,
+  "options": {
+    "entries": []
+  },
+  "protocol": 6,
+  "srcipaddr": "c0000201",
+  "totallength": 40,
+  "ttl": 64,
+  "version": 4
+}

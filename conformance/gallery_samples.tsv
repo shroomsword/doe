@@ -142,31 +142,31 @@ media/tracker_modules/fasttracker_xm_module	none	-	-	-
 media/tracker_modules/s3m	none	-	-	-	
 media/vp8_duck_ivf	none	-	-	-	
 media/wav	crafted	media/wav	built by make_gallery_samples.py	MIT (this repository)	
-network/bitcoin_transaction	none	-	-	-	
-network/dime_message	none	-	-	-	
-network/dns_packet	none	-	-	-	
+network/bitcoin_transaction	crafted	network/bitcoin_transaction	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+network/dime_message	crafted	network/dime_message	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+network/dns_packet	crafted	network/dns_packet	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/ethernet_frame	crafted	network/ethernet_frame	built by make_gallery_samples.py	MIT (this repository)	with the formats it imports (ipv4_packet, tcp_segment, udp_datagram, ...), which have no sample of their own
-network/hccap	none	-	-	-	
-network/hccapx	none	-	-	-	
-network/icmp_packet	none	-	-	-	
-network/ipv4_packet	none	-	-	-	
-network/ipv6_packet	none	-	-	-	
+network/hccap	crafted	network/hccap	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+network/hccapx	crafted	network/hccapx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+network/icmp_packet	crafted	network/icmp_packet	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
+network/ipv4_packet	crafted	network/ipv4_packet	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
+network/ipv6_packet	crafted	network/ipv6_packet	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/microsoft_network_monitor_v2	none	-	-	-	
 network/packet_ppi	none	-	-	-	
 network/pcap	crafted	network/pcap	built by make_gallery_samples.py	MIT (this repository)	
-network/protocol_body	none	-	-	-	
+network/protocol_body	part-of	-	-	-	imported by network/ipv4_packet and network/ipv6_packet, which pass it the protocol number; it is read in every sample of both
 network/rtcp_payload	none	-	-	-	
-network/rtp_packet	none	-	-	-	
-network/rtpdump	none	-	-	-	
+network/rtp_packet	crafted	network/rtp_packet	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
+network/rtpdump	crafted	network/rtpdump	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/some_ip/some_ip	none	-	-	-	
 network/some_ip/some_ip_container	none	-	-	-	
 network/some_ip/some_ip_sd	none	-	-	-	
 network/some_ip/some_ip_sd_entries	none	-	-	-	
 network/some_ip/some_ip_sd_options	none	-	-	-	
-network/tcp_segment	none	-	-	-	
-network/tls_client_hello	none	-	-	-	
-network/udp_datagram	none	-	-	-	
-network/websocket	none	-	-	-	
+network/tcp_segment	crafted	network/tcp_segment	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
+network/tls_client_hello	crafted	network/tls_client_hello	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
+network/udp_datagram	crafted	network/udp_datagram	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
+network/websocket	crafted	network/websocket	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 scientific/nt_mdt/nt_mdt	none	-	-	-	
 scientific/nt_mdt/nt_mdt_pal	none	-	-	-	
 scientific/spectroscopy/avantes_roh60	none	-	-	-	
