@@ -1343,7 +1343,100 @@ def executable():
     )
 
 
+# ── scientific, geospatial, database, security ──────────────────────────────
+
+def others():
+    import hashlib
+    import zlib
+
+    # Avantes spectrometer (.roh60): floats, the pixel range, the spectrum, and three settings
+    first, last = 2.0, 12.0
+    values = (
+        [0.0, 200.5, 0.0123, -1e-5, 1e-9, 0.0]  # unknown, the wavelength intercept and the four coefficients
+        + [0.0] * 9 + [first, last] + [0.0] * 4
+        + [float(1000 + 10 * i) for i in range(int(last) - int(first) - 1)]
+        + [25.0, 8.0, 3.0]
+    )
+    put("scientific/spectroscopy/avantes_roh60", "ten_pixels", struct.pack(f"<{len(values)}f", *values))
+
+    # Shapefile index (.shx): a header of 100 bytes and a record of (offset, length) for each shape, in 16-bit words
+    records = [(50, 10), (60, 12), (72, 14)]
+    shx = struct.pack(">I", 0x0000270A) + bytes(20) + struct.pack(">i", 50 + 4 * len(records)) + struct.pack("<ii", 1000, 3)
+    shx += struct.pack("<8d", 0.0, 10.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0)  # as the ESRI specification has them: little-endian
+    put("geospatial/shapefile_index", "three_shapes", shx + b"".join(struct.pack(">ii", o, n) for o, n in records))
+
+    # InfluxDB TSM file: a header, blocks (CRC-32 and data), an index of the keys, and a footer with the offset of the index
+    blocks = [(1_000_000_000, 2_000_000_000, bytes(range(20))), (2_000_000_001, 3_000_000_000, bytes(range(30)))]
+    out = b"\x16\xd1\x16\xd1" + bytes([1])
+    index_entries = b""
+    for low, high, data in blocks:
+        index_entries += struct.pack(">QQQI", low, high, len(out), 4 + len(data))
+        out += struct.pack(">I", zlib.crc32(data)) + data
+    key = b"cpu,host=a#!~#usage"
+    index_offset = len(out)
+    out += struct.pack(">H", len(key)) + key + bytes([0]) + struct.pack(">H", len(blocks)) + index_entries
+    put("database/tsm", "one_key", out + struct.pack(">Q", index_offset))
+
+    # gettext message catalog (.mo) with the hash table of msgfmt, in both byte orders
+    def hashpjw(text):
+        value = 0
+        for byte in text:
+            value = ((value << 4) + byte) & 0xFFFFFFFF
+            top = value & 0xF0000000
+            if top:
+                value ^= top >> 24
+                value ^= top
+        return value
+
+    def gettext_mo(order):
+        pairs = sorted([(b"", b"Project-Id-Version: doe\nContent-Type: text/plain; charset=UTF-8\n"), (b"Hello", b"Bonjour"), (b"Goodbye", b"Au revoir"), (b"Yes", b"Oui")])
+        n = len(pairs)
+        size = 5
+        while size < 4 * n // 3 or any(size % d == 0 for d in range(2, int(size**0.5) + 1)):
+            size += 1
+        table = [0] * size
+        for index, (original, _) in enumerate(pairs):
+            h = hashpjw(original)
+            slot, step = h % size, 1 + h % (size - 2)
+            while table[slot]:
+                slot = slot - (size - step) if slot >= size - step else slot + step
+            table[slot] = index + 1
+        header_size = 28
+        ofs_originals = header_size
+        ofs_translations = ofs_originals + 8 * n
+        ofs_hash = ofs_translations + 8 * n
+        position = ofs_hash + 4 * size
+        originals, translations, blob = b"", b"", b""
+        for original, translation in pairs:
+            originals += struct.pack(order + "II", len(original), position + len(blob))
+            blob += original + b"\0"
+        for original, translation in pairs:
+            translations += struct.pack(order + "II", len(translation), position + len(blob))
+            blob += translation + b"\0"
+        magic = b"\xde\x12\x04\x95" if order == "<" else b"\x95\x04\x12\xde"
+        head = magic + struct.pack(order + "IIIIII", 0, n, ofs_originals, ofs_translations, size, ofs_hash)
+        return head + originals + translations + struct.pack(order + f"{size}I", *table) + blob
+
+    put("database/gettext_mo", "little_endian", gettext_mo("<"))
+    put("database/gettext_mo", "big_endian", gettext_mo(">"))
+
+    # EFI variable holding signature lists (db, dbx, ...): the attributes, then lists of signatures
+    owner = bytes.fromhex("a1b2c3d4e5f60718293a4b5c6d7e8f90")
+    sha256_type = bytes([0x26, 0x16, 0xC4, 0xC1, 0x4C, 0x50, 0x92, 0x40, 0xAC, 0xA9, 0x41, 0xF9, 0x36, 0x93, 0x43, 0x28])
+    x509_type = bytes([0xA1, 0x59, 0xC0, 0xA5, 0xE4, 0x94, 0xA7, 0x4A, 0x87, 0xB5, 0xAB, 0x15, 0x5C, 0x2B, 0xF0, 0x72])
+
+    def signature_list(kind, signature_size, signatures):
+        body = b"".join(owner + data for data in signatures)
+        return kind + struct.pack("<III", 28 + len(body), 0, signature_size) + body
+
+    certificate = (ROOT / "serialization/asn1/asn1_der/certificate.bin").read_bytes()
+    hashes = [hashlib.sha256(bytes([i])).digest() for i in range(3)]
+    variable = struct.pack("<I", 0x27) + signature_list(sha256_type, 16 + 32, hashes) + signature_list(x509_type, 16 + len(certificate), [certificate])
+    put("security/efivar_signature_list", "db", variable)
+
+
 SECTIONS = {
+    "others": others,
     "network": network, "media": media, "image": image, "serialization": serialization, "game": game, "filesystem": filesystem,
     "firmware": firmware, "hardware": hardware, "log": log, "archive": archive, "executable": executable,
 }

@@ -1,0 +1,75 @@
+{
+  "signatures": [
+    {
+      "header": "",
+      "iscertderpkcs7": false,
+      "iscertrsa2048key": false,
+      "iscertrsa2048sha1": false,
+      "iscertrsa2048sha256": false,
+      "iscertsha1": false,
+      "iscertsha224": false,
+      "iscertsha256": true,
+      "iscertsha256x509": false,
+      "iscertsha384": false,
+      "iscertsha384x509": false,
+      "iscertsha512": false,
+      "iscertsha512x509": false,
+      "iscertx509": false,
+      "lensignature": 48,
+      "lensignatureheader": 0,
+      "lensignaturelist": 172,
+      "signaturetype": "2616c4c14c509240aca941f936934328",
+      "signatures": [
+        {
+          "data": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+          "owner": "a1b2c3d4e5f60718293a4b5c6d7e8f90"
+        },
+        {
+          "data": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+          "owner": "a1b2c3d4e5f60718293a4b5c6d7e8f90"
+        },
+        {
+          "data": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986",
+          "owner": "a1b2c3d4e5f60718293a4b5c6d7e8f90"
+        }
+      ]
+    },
+    {
+      "header": "",
+      "iscertderpkcs7": false,
+      "iscertrsa2048key": false,
+      "iscertrsa2048sha1": false,
+      "iscertrsa2048sha256": false,
+      "iscertsha1": false,
+      "iscertsha224": false,
+      "iscertsha256": false,
+      "iscertsha256x509": false,
+      "iscertsha384": false,
+      "iscertsha384x509": false,
+      "iscertsha512": false,
+      "iscertsha512x509": false,
+      "iscertx509": true,
+      "lensignature": 448,
+      "lensignatureheader": 0,
+      "lensignaturelist": 476,
+      "signaturetype": "a159c0a5e494a74a87b5ab155c2bf072",
+      "signatures": [
+        {
+          "data": "308201ac30820153a00302010202141ecb5e6d7850a6b22ec1b91d12599c50f33d8338300a06082a8648ce3d040302302c310b3009060355040613025345310c300a060355040a0c03646f65310f300d06035504030c0673616d706c65301e170d3236313032363030343530385a170d3336313032333030343530385a302c310b3009060355040613025345310c300a060355040a0c03646f65310f300d06035504030c0673616d706c653059301306072a8648ce3d020106082a8648ce3d03010703420004cf88f43b33c690fc868b188a54635f22d3c60f1fb6c54adca51f38feb80a998570cf29cd23e5135978730a99de79f8e706da8120ef0794c9d5303af8561ce653a3533051301d0603551d0e041604140184e1924b2e160281792812a35c880754c8afad301f0603551d230418301680140184e1924b2e160281792812a35c880754c8afad300f0603551d130101ff040530030101ff300a06082a8648ce3d040302034700304402202aed6d7b45040654597e22be1e40f000259672d146b984d3888d408d68b3a4fd022044b918a3846cd9248def027c1a884a7183824c072af9edfa59d25aaa0044641b",
+          "owner": "a1b2c3d4e5f60718293a4b5c6d7e8f90"
+        }
+      ]
+    }
+  ],
+  "varattributes": {
+    "appendwrite": false,
+    "authenticatedwriteaccess": false,
+    "bootserviceaccess": true,
+    "enhancedauthenticatedaccess": false,
+    "hardwareerrorrecord": false,
+    "nonvolatile": true,
+    "reserved1": 0,
+    "runtimeaccess": true,
+    "timebasedauthenticatedwriteaccess": true
+  }
+}
