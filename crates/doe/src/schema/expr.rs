@@ -726,8 +726,11 @@ impl<'a> Parser<'a> {
                     self.bump();
                     if name == "as" && self.current == Token::Lt {
                         // `x.as<type>` names the type of a value that is one
-                        // of several; the value is the same.
-                        self.parse_type_arg()?;
+                        // of several; the value is the same. Except for
+                        // `bytes`: a list of numbers is read as bytes.
+                        if self.parse_type_arg()? == "bytes" {
+                            base = Expr::Call(Box::new(base), "as<bytes>".to_owned(), Vec::new());
+                        }
                     } else if self.current == Token::LParen {
                         let args = self.parse_args(&Token::RParen)?;
                         base = Expr::Call(Box::new(base), name, args);
@@ -1939,7 +1942,7 @@ fn call_method(recv: &ExprValue, name: &str, args: &[ExprValue], src: &str) -> R
                 .take(bounds.1 - bounds.0)
                 .collect()))
         }
-        (Str(_), "to_s") | (Int(_), "to_i") | (Float(_), "to_f") => {
+        (Str(_), "to_s") | (Int(_), "to_i") | (Float(_), "to_f") | (Bytes(_), "as<bytes>") => {
             expect_args(name, args, &[0], src)?;
             Ok(recv.clone())
         }
@@ -1964,6 +1967,19 @@ fn call_method(recv: &ExprValue, name: &str, args: &[ExprValue], src: &str) -> R
             float_to_int(*x)
                 .map(Int)
                 .ok_or_else(|| fail(src, &format!("to_i: {x} is not an integer in range")))
+        }
+        (Array(items), "as<bytes>") => {
+            expect_args(name, args, &[0], src)?;
+            let bytes: Option<Vec<u8>> = items
+                .iter()
+                .map(|item| match item {
+                    Int(n) => u8::try_from(*n).ok(),
+                    _ => None,
+                })
+                .collect();
+            bytes
+                .map(Bytes)
+                .ok_or_else(|| fail(src, "as<bytes>: the list has an item that is not a byte"))
         }
         (Bytes(b), "to_s") => {
             expect_args(name, args, &[1], src)?;

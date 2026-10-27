@@ -60,7 +60,7 @@ filesystem/vdi	none	-	-	-
 filesystem/vfat	none	-	-	-	
 filesystem/vmware_vmdk	none	-	-	-	
 filesystem/zx_spectrum_tap	crafted	filesystem/zx_spectrum_tap	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-firmware/andes_firmware	none	-	-	-	
+firmware/andes_firmware	crafted	firmware/andes_firmware	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 firmware/broadcom_trx	crafted	firmware/broadcom_trx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 firmware/ines	crafted	firmware/ines	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 firmware/uf2	crafted	firmware/uf2	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -88,8 +88,8 @@ game/warcraft_2_pud	none	-	-	-
 geospatial/shapefile_index	crafted	geospatial/shapefile_index	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 geospatial/shapefile_main	none	-	-	-	
 hardware/dtb	crafted	hardware/dtb	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-hardware/edid	none	-	-	-	
-hardware/mifare/mifare_classic	none	-	-	-	
+hardware/edid	crafted	hardware/edid	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+hardware/mifare/mifare_classic	crafted	hardware/mifare/mifare_classic	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the sample has no value block: ~ of a u4 is read differently (#162)
 image/bmp	crafted	image/bmp	built by make_gallery_samples.py	MIT (this repository)	
 image/dicom	none	-	-	-	
 image/exif	none	-	-	-	

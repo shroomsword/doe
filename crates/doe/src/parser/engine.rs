@@ -47,6 +47,10 @@ pub const BLOB_PREVIEW_LEN: usize = 256;
 /// from the input and can be far larger than the input.
 const MAX_RESERVED_ELEMENTS: usize = 1024;
 
+/// How many elements of a repeated field may take no bytes, beyond the number
+/// of bytes read by the repeat.
+const MAX_EMPTY_ELEMENTS: usize = 4096;
+
 /// What [`Engine::parse_type_partial`] got as far as.
 #[derive(Debug)]
 #[non_exhaustive]
@@ -724,9 +728,10 @@ impl<'reg> Engine<'reg> {
         let mut items =
             Vec::with_capacity(count.min(cursor.remaining()).min(MAX_RESERVED_ELEMENTS));
         // An element may take no bytes (the entry after a `long` in a Java
-        // constant pool), but not more often than there are bytes read in this
-        // repeat, so that an enormous count of empty elements is an error
-        // instead of an endless loop.
+        // constant pool, or a type of instances only that a repeat uses to
+        // compute a table), but not more often than there are bytes read in
+        // this repeat and a few thousand more, so that an enormous count of
+        // empty elements is an error instead of an endless loop.
         let start = cursor.bit_position();
         let mut empty = 0usize;
         for index in 0..count {
@@ -739,7 +744,7 @@ impl<'reg> Engine<'reg> {
             if cursor.bit_position() == before {
                 empty += 1;
                 let read_bytes = cursor.bit_position().saturating_sub(start).div_ceil(8);
-                if usize::try_from(read_bytes).is_ok_and(|read| empty > read) {
+                if usize::try_from(read_bytes).is_ok_and(|read| empty > read + MAX_EMPTY_ELEMENTS) {
                     items.push(v);
                     return Err(Self::keep_array(
                         items,

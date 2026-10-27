@@ -365,6 +365,10 @@ string with a terminator cut out of a window of a given `size`, count).
 `x.as<type>` is `x`: it names which type a value of a `switch-on` is, and is not
 checked. A list of integer literals that all fit in a byte (`[0x49, 0x49]`) is a
 byte sequence, so `magic == [0x49, 0x49]` works for a `bytes` field.
+`.as<bytes>` on a list of numbers makes it a byte sequence (an item that is not
+0 to 255 is an error), so `[a, b].as<bytes>.to_s("ASCII")` is a string. A repeated
+element that takes no bytes is allowed, up to a few thousand more than the bytes
+read.
 
 **Members and methods:**
 
@@ -755,7 +759,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 10 with a file written by its own tool, 102 with a file built by hand, 4 failing on a file, 9 part of another, 65 without a sample
+> 190 definitions: 10 with a file written by its own tool, 105 with a file built by hand, 4 failing on a file, 9 part of another, 62 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -774,11 +778,11 @@ and compared with the reference compiler's output:
 | `database` | `dbf`, `gettext_mo`, `tsm` |
 | `executable` | `android_nanoapp_header`, `dos_mz`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `swf` |
 | `filesystem` | `amlogic_emmc_partitions`, `apm_partition_table`, `cramfs`, `gpt_partition_table`, `mbr_partition_table`, `zx_spectrum_tap` |
-| `firmware` | `broadcom_trx`, `ines`, `uf2`, `uimage` |
+| `firmware` | `andes_firmware`, `broadcom_trx`, `ines`, `uf2`, `uimage` |
 | `font` | `grub2_font` |
 | `game` | `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake2_md2`, `quake_mdl`, `quake_pak` |
 | `geospatial` | `shapefile_index` |
-| `hardware` | `dtb` |
+| `hardware` | `dtb`, `edid`, `mifare/mifare_classic` |
 | `image` | `bmp`, `gif`, `gimp_brush`, `ico`, `jpeg`, `pcx`, `pcx_dcx`, `png`, `psx_tim`, `tga`, `wmf`, `xwd` |
 | `log` | `aix_utmp`, `glibc_utmp`, `hashcat_restore`, `sudoers_ts` |
 | `machine_code` | `code_6502` |
@@ -1073,8 +1077,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 165 samples of the Kaitai gallery
-in the tests, 64 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 168 samples of the Kaitai gallery
+in the tests, 65 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 

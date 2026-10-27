@@ -1,0 +1,3608 @@
+{
+  "sectors": [
+    {
+      "blocksize": 16,
+      "blocks": [
+        "000102030405060708090a0b0c0d0e0f",
+        "000102030405060708090a0b0c0d0e0f"
+      ],
+      "data": "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+      "datafiller": {
+        "data": "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f"
+      },
+      "manufacturer": {
+        "atqa": 4,
+        "bcc": 34,
+        "manufacturer": "0000000000000000",
+        "nuid": 4022250974,
+        "sak": 8
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              12,
+              13,
+              14,
+              15
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              50462976,
+              117835012,
+              185207048
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              12,
+              13,
+              14,
+              15
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              50462976,
+              117835012,
+              185207048
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "101112131415161718191a1b1c1d1e1f",
+        "101112131415161718191a1b1c1d1e1f",
+        "101112131415161718191a1b1c1d1e1f"
+      ],
+      "data": "101112131415161718191a1b1c1d1e1f101112131415161718191a1b1c1d1e1f101112131415161718191a1b1c1d1e1f",
+      "datafiller": {
+        "data": "101112131415161718191a1b1c1d1e1f101112131415161718191a1b1c1d1e1f101112131415161718191a1b1c1d1e1f"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              28,
+              29,
+              30,
+              31
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              319951120,
+              387323156,
+              454695192
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              28,
+              29,
+              30,
+              31
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              319951120,
+              387323156,
+              454695192
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              28,
+              29,
+              30,
+              31
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              319951120,
+              387323156,
+              454695192
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "202122232425262728292a2b2c2d2e2f",
+        "202122232425262728292a2b2c2d2e2f",
+        "202122232425262728292a2b2c2d2e2f"
+      ],
+      "data": "202122232425262728292a2b2c2d2e2f202122232425262728292a2b2c2d2e2f202122232425262728292a2b2c2d2e2f",
+      "datafiller": {
+        "data": "202122232425262728292a2b2c2d2e2f202122232425262728292a2b2c2d2e2f202122232425262728292a2b2c2d2e2f"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              44,
+              45,
+              46,
+              47
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              589439264,
+              656811300,
+              724183336
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              44,
+              45,
+              46,
+              47
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              589439264,
+              656811300,
+              724183336
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              44,
+              45,
+              46,
+              47
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              589439264,
+              656811300,
+              724183336
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "303132333435363738393a3b3c3d3e3f",
+        "303132333435363738393a3b3c3d3e3f",
+        "303132333435363738393a3b3c3d3e3f"
+      ],
+      "data": "303132333435363738393a3b3c3d3e3f303132333435363738393a3b3c3d3e3f303132333435363738393a3b3c3d3e3f",
+      "datafiller": {
+        "data": "303132333435363738393a3b3c3d3e3f303132333435363738393a3b3c3d3e3f303132333435363738393a3b3c3d3e3f"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              60,
+              61,
+              62,
+              63
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              858927408,
+              926299444,
+              993671480
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              60,
+              61,
+              62,
+              63
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              858927408,
+              926299444,
+              993671480
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              60,
+              61,
+              62,
+              63
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              858927408,
+              926299444,
+              993671480
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "404142434445464748494a4b4c4d4e4f",
+        "404142434445464748494a4b4c4d4e4f",
+        "404142434445464748494a4b4c4d4e4f"
+      ],
+      "data": "404142434445464748494a4b4c4d4e4f404142434445464748494a4b4c4d4e4f404142434445464748494a4b4c4d4e4f",
+      "datafiller": {
+        "data": "404142434445464748494a4b4c4d4e4f404142434445464748494a4b4c4d4e4f404142434445464748494a4b4c4d4e4f"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              76,
+              77,
+              78,
+              79
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1128415552,
+              1195787588,
+              1263159624
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              76,
+              77,
+              78,
+              79
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1128415552,
+              1195787588,
+              1263159624
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              76,
+              77,
+              78,
+              79
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1128415552,
+              1195787588,
+              1263159624
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "505152535455565758595a5b5c5d5e5f",
+        "505152535455565758595a5b5c5d5e5f",
+        "505152535455565758595a5b5c5d5e5f"
+      ],
+      "data": "505152535455565758595a5b5c5d5e5f505152535455565758595a5b5c5d5e5f505152535455565758595a5b5c5d5e5f",
+      "datafiller": {
+        "data": "505152535455565758595a5b5c5d5e5f505152535455565758595a5b5c5d5e5f505152535455565758595a5b5c5d5e5f"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              92,
+              93,
+              94,
+              95
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1397903696,
+              1465275732,
+              1532647768
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              92,
+              93,
+              94,
+              95
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1397903696,
+              1465275732,
+              1532647768
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              92,
+              93,
+              94,
+              95
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1397903696,
+              1465275732,
+              1532647768
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "606162636465666768696a6b6c6d6e6f",
+        "606162636465666768696a6b6c6d6e6f",
+        "606162636465666768696a6b6c6d6e6f"
+      ],
+      "data": "606162636465666768696a6b6c6d6e6f606162636465666768696a6b6c6d6e6f606162636465666768696a6b6c6d6e6f",
+      "datafiller": {
+        "data": "606162636465666768696a6b6c6d6e6f606162636465666768696a6b6c6d6e6f606162636465666768696a6b6c6d6e6f"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              108,
+              109,
+              110,
+              111
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1667391840,
+              1734763876,
+              1802135912
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              108,
+              109,
+              110,
+              111
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1667391840,
+              1734763876,
+              1802135912
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              108,
+              109,
+              110,
+              111
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1667391840,
+              1734763876,
+              1802135912
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "707172737475767778797a7b7c7d7e7f",
+        "707172737475767778797a7b7c7d7e7f",
+        "707172737475767778797a7b7c7d7e7f"
+      ],
+      "data": "707172737475767778797a7b7c7d7e7f707172737475767778797a7b7c7d7e7f707172737475767778797a7b7c7d7e7f",
+      "datafiller": {
+        "data": "707172737475767778797a7b7c7d7e7f707172737475767778797a7b7c7d7e7f707172737475767778797a7b7c7d7e7f"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              124,
+              125,
+              126,
+              127
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1936879984,
+              2004252020,
+              2071624056
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              124,
+              125,
+              126,
+              127
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1936879984,
+              2004252020,
+              2071624056
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              124,
+              125,
+              126,
+              127
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              1936879984,
+              2004252020,
+              2071624056
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "808182838485868788898a8b8c8d8e8f",
+        "808182838485868788898a8b8c8d8e8f",
+        "808182838485868788898a8b8c8d8e8f"
+      ],
+      "data": "808182838485868788898a8b8c8d8e8f808182838485868788898a8b8c8d8e8f808182838485868788898a8b8c8d8e8f",
+      "datafiller": {
+        "data": "808182838485868788898a8b8c8d8e8f808182838485868788898a8b8c8d8e8f808182838485868788898a8b8c8d8e8f"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              140,
+              141,
+              142,
+              143
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              2206368128,
+              2273740164,
+              2341112200
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              140,
+              141,
+              142,
+              143
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              2206368128,
+              2273740164,
+              2341112200
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              140,
+              141,
+              142,
+              143
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              2206368128,
+              2273740164,
+              2341112200
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "909192939495969798999a9b9c9d9e9f",
+        "909192939495969798999a9b9c9d9e9f",
+        "909192939495969798999a9b9c9d9e9f"
+      ],
+      "data": "909192939495969798999a9b9c9d9e9f909192939495969798999a9b9c9d9e9f909192939495969798999a9b9c9d9e9f",
+      "datafiller": {
+        "data": "909192939495969798999a9b9c9d9e9f909192939495969798999a9b9c9d9e9f909192939495969798999a9b9c9d9e9f"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              156,
+              157,
+              158,
+              159
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              2475856272,
+              2543228308,
+              2610600344
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              156,
+              157,
+              158,
+              159
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              2475856272,
+              2543228308,
+              2610600344
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              156,
+              157,
+              158,
+              159
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              2475856272,
+              2543228308,
+              2610600344
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+        "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+        "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
+      ],
+      "data": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafa0a1a2a3a4a5a6a7a8a9aaabacadaeafa0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+      "datafiller": {
+        "data": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafa0a1a2a3a4a5a6a7a8a9aaabacadaeafa0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              172,
+              173,
+              174,
+              175
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              2745344416,
+              2812716452,
+              2880088488
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              172,
+              173,
+              174,
+              175
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              2745344416,
+              2812716452,
+              2880088488
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              172,
+              173,
+              174,
+              175
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              2745344416,
+              2812716452,
+              2880088488
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "b0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+        "b0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+        "b0b1b2b3b4b5b6b7b8b9babbbcbdbebf"
+      ],
+      "data": "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfb0b1b2b3b4b5b6b7b8b9babbbcbdbebfb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
+      "datafiller": {
+        "data": "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfb0b1b2b3b4b5b6b7b8b9babbbcbdbebfb0b1b2b3b4b5b6b7b8b9babbbcbdbebf"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              188,
+              189,
+              190,
+              191
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3014832560,
+              3082204596,
+              3149576632
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              188,
+              189,
+              190,
+              191
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3014832560,
+              3082204596,
+              3149576632
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              188,
+              189,
+              190,
+              191
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3014832560,
+              3082204596,
+              3149576632
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "c0c1c2c3c4c5c6c7c8c9cacbcccdcecf",
+        "c0c1c2c3c4c5c6c7c8c9cacbcccdcecf",
+        "c0c1c2c3c4c5c6c7c8c9cacbcccdcecf"
+      ],
+      "data": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfc0c1c2c3c4c5c6c7c8c9cacbcccdcecf",
+      "datafiller": {
+        "data": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfc0c1c2c3c4c5c6c7c8c9cacbcccdcecf"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              204,
+              205,
+              206,
+              207
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3284320704,
+              3351692740,
+              3419064776
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              204,
+              205,
+              206,
+              207
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3284320704,
+              3351692740,
+              3419064776
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              204,
+              205,
+              206,
+              207
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3284320704,
+              3351692740,
+              3419064776
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "d0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+        "d0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+        "d0d1d2d3d4d5d6d7d8d9dadbdcdddedf"
+      ],
+      "data": "d0d1d2d3d4d5d6d7d8d9dadbdcdddedfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+      "datafiller": {
+        "data": "d0d1d2d3d4d5d6d7d8d9dadbdcdddedfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              220,
+              221,
+              222,
+              223
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3553808848,
+              3621180884,
+              3688552920
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              220,
+              221,
+              222,
+              223
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3553808848,
+              3621180884,
+              3688552920
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              220,
+              221,
+              222,
+              223
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3553808848,
+              3621180884,
+              3688552920
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "e0e1e2e3e4e5e6e7e8e9eaebecedeeef",
+        "e0e1e2e3e4e5e6e7e8e9eaebecedeeef",
+        "e0e1e2e3e4e5e6e7e8e9eaebecedeeef"
+      ],
+      "data": "e0e1e2e3e4e5e6e7e8e9eaebecedeeefe0e1e2e3e4e5e6e7e8e9eaebecedeeefe0e1e2e3e4e5e6e7e8e9eaebecedeeef",
+      "datafiller": {
+        "data": "e0e1e2e3e4e5e6e7e8e9eaebecedeeefe0e1e2e3e4e5e6e7e8e9eaebecedeeefe0e1e2e3e4e5e6e7e8e9eaebecedeeef"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              236,
+              237,
+              238,
+              239
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3823296992,
+              3890669028,
+              3958041064
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              236,
+              237,
+              238,
+              239
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3823296992,
+              3890669028,
+              3958041064
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              236,
+              237,
+              238,
+              239
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              3823296992,
+              3890669028,
+              3958041064
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "blocksize": 16,
+      "blocks": [
+        "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+        "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+        "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff"
+      ],
+      "data": "f0f1f2f3f4f5f6f7f8f9fafbfcfdfefff0f1f2f3f4f5f6f7f8f9fafbfcfdfefff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+      "datafiller": {
+        "data": "f0f1f2f3f4f5f6f7f8f9fafbfcfdfefff0f1f2f3f4f5f6f7f8f9fafbfcfdfefff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff"
+      },
+      "trailer": {
+        "acbits": 3,
+        "accountofchunks": 6,
+        "accessbits": {
+          "acsraw": [
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                }
+              ],
+              "invshiftval": 0,
+              "val": 0
+            },
+            {
+              "bits": [
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": false,
+                  "n": 0
+                },
+                {
+                  "b": true,
+                  "n": 1
+                }
+              ],
+              "invshiftval": 1,
+              "val": 4
+            }
+          ],
+          "chunks": [
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            },
+            {
+              "valid": true
+            }
+          ],
+          "dataacs": [
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            },
+            {
+              "decrementavailable": true,
+              "incrementavailable": true,
+              "readkeyarequired": true,
+              "readkeybrequired": true,
+              "writekeyarequired": true,
+              "writekeybrequired": true
+            }
+          ],
+          "rawchunks": [
+            15,
+            15,
+            0,
+            7,
+            8,
+            0
+          ],
+          "remaps": [
+            {
+              "chunkno": 2,
+              "invchunkno": 1,
+              "shiftvalue": 1
+            },
+            {
+              "chunkno": 5,
+              "invchunkno": 0,
+              "shiftvalue": -1
+            },
+            {
+              "chunkno": 4,
+              "invchunkno": 3,
+              "shiftvalue": 1
+            }
+          ],
+          "trailerac": {
+            "canreadkeyb": true,
+            "canwriteaccessbits": true,
+            "canwritekeys": true,
+            "keybcontrolswrite": false
+          }
+        },
+        "acsinsector": 4,
+        "keya": {
+          "key": "ffffffffffff"
+        },
+        "keyb": {
+          "key": "ffffffffffff"
+        },
+        "userbyte": 105
+      },
+      "values": {
+        "values": [
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              252,
+              253,
+              254,
+              255
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              4092785136,
+              4160157172,
+              4227529208
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              252,
+              253,
+              254,
+              255
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              4092785136,
+              4160157172,
+              4227529208
+            ]
+          },
+          {
+            "addr": null,
+            "addrvalid": false,
+            "addrz": [
+              252,
+              253,
+              254,
+              255
+            ],
+            "valid": false,
+            "value": null,
+            "valuevalid": false,
+            "valuez": [
+              4092785136,
+              4160157172,
+              4227529208
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
