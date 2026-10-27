@@ -57,7 +57,7 @@ fn samples() -> Vec<(String, PathBuf)> {
 /// samples that are not found are those whose format has no signature that the
 /// schema states; every new sample of such a format adds to them, so their
 /// number says nothing.)
-const LEAST_FOUND: usize = 65;
+const LEAST_FOUND: usize = 70;
 
 #[test]
 fn the_schema_of_each_gallery_sample_is_found_among_the_whole_gallery() {

@@ -1,0 +1,124 @@
+{
+  "body": {
+    "body": "30385c7830304500001f1c4640004011324cc0000201c633640713881389000b0000707069",
+    "dstmac": "02005e000001",
+    "ethertype": 23672,
+    "ethertype1": 23672,
+    "srcmac": "0200aabbccdd"
+  },
+  "fields": {
+    "entries": [
+      {
+        "body": {
+          "channelflags": 160,
+          "channelfreq": 2437,
+          "dbmantnoise": -92,
+          "dbmantsignal": -50,
+          "fhsshopset": 0,
+          "fhsspattern": 0,
+          "flags": 16,
+          "rate": 108,
+          "tsftimer": 1700000000000000
+        },
+        "pfhdatalen": 20,
+        "pfhtype": 2
+      },
+      {
+        "body": {
+          "ampduid": 4660,
+          "flags": {
+            "aggregate": false,
+            "aggregatedelimiter": true,
+            "duprx": false,
+            "greenfield": false,
+            "isht40": false,
+            "moreaggregates": false,
+            "rxshortguard": false,
+            "unused1": false,
+            "unused2": "000000"
+          },
+          "numdelimiters": 2,
+          "reserved": "000000"
+        },
+        "pfhdatalen": 12,
+        "pfhtype": 3
+      },
+      {
+        "body": {
+          "ampduid": 4660,
+          "evm": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "extchannelflags": {
+            "cck": true,
+            "dyncckofdm": false,
+            "gfsk": false,
+            "ofdm": false,
+            "onlypassivescan": false,
+            "spectrum2ghz": false,
+            "spectrum5ghz": true,
+            "turbo": false,
+            "unused": 0
+          },
+          "extchannelfreq": 2437,
+          "flags": {
+            "aggregate": false,
+            "aggregatedelimiter": false,
+            "duprx": false,
+            "greenfield": false,
+            "isht40": false,
+            "moreaggregates": true,
+            "rxshortguard": true,
+            "unused1": false,
+            "unused2": "000000"
+          },
+          "mcs": 7,
+          "numdelimiters": 2,
+          "numstreams": 2,
+          "rfsignalnoise": [
+            {
+              "noise": -95,
+              "signal": -56
+            },
+            {
+              "noise": -94,
+              "signal": -55
+            },
+            {
+              "noise": -93,
+              "signal": -54
+            },
+            {
+              "noise": -92,
+              "signal": -53
+            }
+          ],
+          "rssiantctl": [
+            40,
+            41,
+            42,
+            43
+          ],
+          "rssiantext": [
+            38,
+            39,
+            40,
+            41
+          ],
+          "rssicombined": 40
+        },
+        "pfhdatalen": 48,
+        "pfhtype": 4
+      }
+    ]
+  },
+  "header": {
+    "pphdlt": 1,
+    "pphflags": 0,
+    "pphlen": 100,
+    "pphversion": 0
+  }
+}

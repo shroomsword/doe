@@ -1,0 +1,28 @@
+{
+  "codec": "56503830",
+  "framerate": 30,
+  "height": 144,
+  "imagedata": [
+    {
+      "entries": {
+        "framedata": "00010203040506070809",
+        "lenframe": 10,
+        "timestamp": 0
+      }
+    },
+    {
+      "entries": {
+        "framedata": "1415161718191a1b1c1d1e1f202122232425262728292a2b2c",
+        "lenframe": 25,
+        "timestamp": 1
+      }
+    }
+  ],
+  "lenheader": 32,
+  "magic1": "444b4946",
+  "numframes": 2,
+  "timescale": 1,
+  "unused": 0,
+  "version": 0,
+  "width": 176
+}

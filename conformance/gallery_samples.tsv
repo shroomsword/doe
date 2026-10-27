@@ -17,14 +17,14 @@ archive/rpm	none	-	-	-
 archive/xar	none	-	-	-	
 archive/zchunk	none	-	-	-	
 archive/zip	real	archive/zip	zipfile module of Python, run by make_gallery_samples.py	MIT (this repository)	
-archive/zisofs	none	-	-	-	
+archive/zisofs	crafted	archive/zisofs	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 cad/monomakh_sapr_chg	none	-	-	-	
 common/bcd	none	-	-	-	made to be imported by other definitions; none of the gallery does
 common/bytes_with_io	part-of	-	-	-	imported by font/pcf_font, macos/compressed_resource, macos/resource_compression/dcmp_2, macos/resource_fork
 common/dos_datetime	part-of	-	-	-	imported by archive/lzh, archive/rar, archive/zip, filesystem/vfat
 common/riff	part-of	-	-	-	imported by media/wav
-common/utf16_with_bom	none	-	-	-	made to be imported by other definitions; none of the gallery does
-common/utf8_string	none	-	-	-	made to be imported by other definitions; none of the gallery does
+common/utf16_with_bom	crafted	common/utf16_with_bom	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+common/utf8_string	crafted	common/utf8_string	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 common/vlq_base128_be	part-of	-	-	-	imported by database/sqlite3, media/standard_midi_file
 common/vlq_base128_le	part-of	-	-	-	imported by executable/dex, serialization/google_protobuf
 database/dbf	crafted	database/dbf	built by make_gallery_samples.py	MIT (this repository)	
@@ -39,7 +39,7 @@ executable/java_class	crafted	executable/java_class	built by make_gallery_sample
 executable/mach_o	real	executable/mach_o	clang for the macOS targets, run by make_gallery_samples.py	MIT (this repository)	
 executable/mach_o_fat	failing	executable/mach_o_fat	built by make_samples_by_hand.py: the two Mach-O objects that clang wrote for the mach_o samples, in the fat container that lipo writes	MIT (this repository)	cannot be read: the imported mach_o compares _root.magic, which is the fat file's (#155)
 executable/microsoft_pe	crafted	executable/microsoft_pe	built by make_gallery_samples.py	MIT (this repository)	
-executable/python_pyc_27	none	-	-	-	
+executable/python_pyc_27	crafted	executable/python_pyc_27	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/swf	crafted	executable/swf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/uefi_te	failing	executable/uefi_te	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	cannot be read: _io as a member of a value is not known (#154)
 filesystem/amlogic_emmc_partitions	crafted	filesystem/amlogic_emmc_partitions	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -56,9 +56,9 @@ filesystem/lvm2	none	-	-	-
 filesystem/mbr_partition_table	crafted	filesystem/mbr_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/tr_dos_image	none	-	-	-	
 filesystem/ubifs	none	-	-	-	
-filesystem/vdi	none	-	-	-	
+filesystem/vdi	real	filesystem/vdi	qemu-img create (QEMU)	MIT (this repository)	
 filesystem/vfat	none	-	-	-	
-filesystem/vmware_vmdk	none	-	-	-	
+filesystem/vmware_vmdk	crafted	filesystem/vmware_vmdk	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/zx_spectrum_tap	crafted	filesystem/zx_spectrum_tap	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 firmware/andes_firmware	crafted	firmware/andes_firmware	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 firmware/broadcom_trx	crafted	firmware/broadcom_trx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -140,7 +140,7 @@ media/standard_midi_file	crafted	media/standard_midi_file	built by make_samples_
 media/stl	crafted	media/stl	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/tracker_modules/fasttracker_xm_module	crafted	media/tracker_modules/fasttracker_xm_module	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/tracker_modules/s3m	crafted	media/tracker_modules/s3m	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-media/vp8_duck_ivf	none	-	-	-	
+media/vp8_duck_ivf	crafted	media/vp8_duck_ivf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/wav	crafted	media/wav	built by make_gallery_samples.py	MIT (this repository)	
 network/bitcoin_transaction	crafted	network/bitcoin_transaction	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 network/dime_message	crafted	network/dime_message	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -152,10 +152,10 @@ network/icmp_packet	crafted	network/icmp_packet	built by make_samples_by_hand.py
 network/ipv4_packet	crafted	network/ipv4_packet	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/ipv6_packet	crafted	network/ipv6_packet	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/microsoft_network_monitor_v2	crafted	network/microsoft_network_monitor_v2	built by make_samples_by_hand.py from the format's documentation (the frames are the ethernet_frame samples)	MIT (this repository)	
-network/packet_ppi	none	-	-	-	
+network/packet_ppi	crafted	network/packet_ppi	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 network/pcap	crafted	network/pcap	built by make_gallery_samples.py	MIT (this repository)	
 network/protocol_body	part-of	-	-	-	imported by network/ipv4_packet and network/ipv6_packet, which pass it the protocol number; it is read in every sample of both
-network/rtcp_payload	none	-	-	-	
+network/rtcp_payload	crafted	network/rtcp_payload	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the NTP time of a sender report has no bit in common between its two words: the reference shifts by 32 as by 0 (JavaScript)
 network/rtp_packet	crafted	network/rtp_packet	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/rtpdump	crafted	network/rtpdump	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/some_ip/some_ip	crafted	network/some_ip/some_ip	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -182,7 +182,7 @@ serialization/microsoft_cfb	none	-	-	-
 serialization/msgpack	crafted	serialization/msgpack	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 serialization/php_serialized_value	crafted	serialization/php_serialized_value	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 serialization/python_pickle	real	serialization/python_pickle	pickle of Python, run by make_real_samples.py	MIT (this repository)	protocols 0, 2 and 4; the text in protocol 0 is ASCII, because Python writes it as Latin-1 and doe, by design, refuses a byte that is not ASCII in an ascii string (the reference does not)
-serialization/ruby_marshal	none	-	-	-	
+serialization/ruby_marshal	crafted	serialization/ruby_marshal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/regf	none	-	-	-	
 windows/windows_lnk_file	crafted	windows/windows_lnk_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_minidump	none	-	-	-	

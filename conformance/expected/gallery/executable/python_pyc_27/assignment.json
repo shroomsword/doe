@@ -1,0 +1,111 @@
+{
+  "body": {
+    "type": 99,
+    "value": {
+      "argcount": 0,
+      "cellvars": {
+        "type": 40,
+        "value": {
+          "count": 0,
+          "items": []
+        }
+      },
+      "code": {
+        "items": {
+          "items": [
+            {
+              "arg": 0,
+              "opcode": 100
+            },
+            {
+              "arg": 0,
+              "opcode": 90
+            },
+            {
+              "arg": 1,
+              "opcode": 100
+            },
+            {
+              "opcode": 83
+            }
+          ]
+        },
+        "length": 10,
+        "stringmagic": "73"
+      },
+      "consts": {
+        "type": 40,
+        "value": {
+          "count": 2,
+          "items": [
+            {
+              "type": 105,
+              "value": 1
+            },
+            {
+              "type": 78,
+              "value": {}
+            }
+          ]
+        }
+      },
+      "filename": {
+        "type": 116,
+        "value": {
+          "data": "x.py",
+          "length": 4
+        }
+      },
+      "firstlineno": 1,
+      "flags": 64,
+      "freevars": {
+        "type": 40,
+        "value": {
+          "count": 0,
+          "items": []
+        }
+      },
+      "lnotab": {
+        "type": 115,
+        "value": {
+          "data": "",
+          "length": 0
+        }
+      },
+      "localcount": 0,
+      "name": {
+        "type": 116,
+        "value": {
+          "data": "<module>",
+          "length": 8
+        }
+      },
+      "names": {
+        "type": 40,
+        "value": {
+          "count": 1,
+          "items": [
+            {
+              "type": 116,
+              "value": {
+                "data": "x",
+                "length": 1
+              }
+            }
+          ]
+        }
+      },
+      "stacksize": 1,
+      "varnames": {
+        "type": 40,
+        "value": {
+          "count": 0,
+          "items": []
+        }
+      }
+    }
+  },
+  "crlf": 2573,
+  "modificationtimestamp": 1700000000,
+  "versionmagic": 62211
+}
