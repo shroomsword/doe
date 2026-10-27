@@ -1428,6 +1428,47 @@ def small():
         op2 += f"Instrument {i}".encode().ljust(32, b"\0")
     put("media/genmidi_op2", "patches", op2)
 
+    # EDID 1.4 (VESA, 128 bytes): the header, the vendor "DOE", the colour coordinates, the timings and a checksum
+    def edid_chroma(points):
+        values = [round(v * 1024) for point in points for v in point]  # rx ry gx gy bx by wx wy
+        low = 0
+        for v in values:
+            low = (low << 2) | (v & 3)
+        return struct.pack(">H", low) + bytes(v >> 2 for v in values)
+
+    vendor = ((ord("D") - 64) << 10) | ((ord("O") - 64) << 5) | (ord("E") - 64)
+    edid = bytes([0, 255, 255, 255, 255, 255, 255, 0]) + struct.pack(">H", vendor) + struct.pack("<HI", 0x1234, 0x01020304)
+    edid += bytes([12, 2024 - 1990, 1, 4, 0xA5, 53, 30, 120, 0x2E])  # week, year, version 1.4, digital input, 53x30 cm, gamma 2.2, features
+    edid += edid_chroma([(0.640, 0.330), (0.300, 0.600), (0.150, 0.060), (0.3127, 0.3290)])
+    edid += bytes([0x21, 0x08, 0x00])  # established timings: 640x480 at 60 and 75 Hz, 800x600 at 60 Hz (bit 0x20 of byte 0 is 640x480 60)
+    edid += bytes([0xD1, 0xC0, 0x81, 0x80, 0xA9, 0xC0, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01])  # standard timings
+    edid += bytes([0x02, 0x3A, 0x80, 0x18, 0x71, 0x38, 0x2D, 0x40, 0x58, 0x2C, 0x45, 0x00, 0x13, 0x2A, 0x21, 0x00, 0x00, 0x1E])  # 1920x1080 at 60 Hz
+    edid += bytes([0, 0, 0, 0xFC, 0]) + b"DOE MONITOR\n " + bytes([0, 0, 0, 0xFD, 0, 50, 76, 30, 81, 20, 0, 10]) + b"    "[:0]
+    edid = edid.ljust(126, b"\0") + bytes([0])
+    edid += bytes([(-sum(edid)) & 0xFF])
+    assert len(edid) == 128, len(edid)
+    put("hardware/edid", "monitor", edid)
+
+    # MIFARE Classic 1K dump: sixteen sectors of four blocks; block 0 has the UID, and each sector ends with a trailer.
+    # No value block: doe inverts a u4 with ~ in 128 bits, the reference in 32 (#162).
+    uid = bytes([0xDE, 0xAD, 0xBE, 0xEF])
+    bcc = uid[0] ^ uid[1] ^ uid[2] ^ uid[3]
+    dump = b""
+    for sector in range(16):
+        blocks = [bytes((sector * 16 + i) & 0xFF for i in range(16)) for _ in range(3)]
+        if sector == 0:
+            blocks[0] = uid + bytes([bcc, 0x08, 0x04, 0x00]) + bytes(8)
+        dump += b"".join(blocks) + bytes([0xFF] * 6) + bytes([0xFF, 0x07, 0x80, 0x69]) + bytes([0xFF] * 6)
+    put("hardware/mifare/mifare_classic", "one_k", dump)
+
+    # Andes (MediaTek) Wi-Fi firmware: a header of 32 bytes, the instruction memory and the data memory
+    ilm, dlm = bytes((i * 3) & 0xFF for i in range(300)), bytes((i * 5) & 0xFF for i in range(100))
+    put(
+        "firmware/andes_firmware",
+        "image",
+        struct.pack("<IIHHI", len(ilm), len(dlm), 0x0102, 0x0304, 0) + b"20240501120000\0\0" + ilm + dlm,
+    )
+
     # Quake II model (.md2): a header of 68 bytes with the offsets, a skin name, texture coordinates, a triangle, two frames, GL commands
     verts, frames_n = 3, 2
     skins = [b"models/doe/skin.pcx".ljust(64, b"\0")]

@@ -2318,7 +2318,7 @@ fn repeat_until_a_bit_field() {
 #[test]
 fn an_element_that_consumes_nothing_is_still_an_error_for_bit_fields() {
     // A zero-length byte field repeats without moving; bits do not change that.
-    let schema = "id: t\nseq:\n  - id: items\n    type: bytes\n    size: 0\n    repeat: expr\n    repeat-expr: 3\n";
+    let schema = "id: t\nseq:\n  - id: items\n    type: bytes\n    size: 0\n    repeat: expr\n    repeat-expr: 100000\n";
     let err = parse_err(schema, "t", &[1, 2, 3]);
     assert!(matches!(&err, DoeError::FieldError { message, .. } if message.contains("no bytes")));
 }
@@ -2675,7 +2675,7 @@ fn an_empty_window_per_element_makes_no_progress() {
             type: empty
             size: 0
             repeat: expr
-            repeat-expr: 3
+            repeat-expr: 100000
         types:
           empty:
             seq: []
@@ -5715,4 +5715,58 @@ fn a_valid_expression_may_use_an_instance_that_depends_on_the_value() {
     assert_eq!(get_field(get_field(&v, "flags"), "value"), &Value::UInt(1));
     let e = parse_err(schema, "t", &[3]);
     assert!(e.to_string().contains("does not satisfy"), "{e}");
+}
+
+// ── a list as bytes, and elements that take no bytes ──────────────────────
+
+#[test]
+fn a_list_of_numbers_as_bytes_can_be_made_a_string() {
+    let schema = indoc! {r#"
+        id: t
+        seq:
+          - id: n
+            type: u1
+        instances:
+          name:
+            value: '[n + 0x40, n + 0x41, n + 0x42].as<bytes>.to_s("ASCII")'
+          not_bytes:
+            value: '[n, 300].as<bytes>.size'
+    "#};
+    let v = parse_err(schema, "t", &[1]);
+    assert!(v.to_string().contains("not a byte"), "{v}");
+    let schema = schema.replace("[n, 300].as<bytes>.size", "[n, 255].as<bytes>.size");
+    let v = parse(&schema, "t", &[1]);
+    assert_eq!(get_field(&v, "name").to_string(), "\"ABC\"");
+    assert_eq!(get_field(&v, "not_bytes").to_string(), "2");
+}
+
+#[test]
+fn elements_that_take_no_bytes_are_allowed_up_to_a_limit() {
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: n
+            type: u1
+          - id: table
+            type: empty(_index)
+            repeat: expr
+            repeat-expr: n
+        types:
+          empty:
+            params:
+              - id: i
+                type: s4
+            instances:
+              twice:
+                value: i * 2
+    "};
+    let v = parse(schema, "t", &[12]);
+    let Value::Array(items) = get_field(&v, "table") else {
+        panic!("not a list")
+    };
+    assert_eq!(items.len(), 12);
+    // an enormous count of empty elements is an error, and not an endless loop
+    let schema = schema.replace("repeat-expr: n", "repeat-expr: 4000000000");
+    let e = parse_err(&schema, "t", &[12]);
+    assert!(e.to_string().contains("consumed no bytes"), "{e}");
 }
