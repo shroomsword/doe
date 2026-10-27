@@ -15,6 +15,10 @@ use crate::cli::Cli;
 
 const README: &str = include_str!("../../../README.md");
 
+/// The source of a table of the manual that is written before the next row starts a new table: tbl cannot break a table
+/// across pages, and the one of the gallery formats is longer than a page.
+const TABLE_PART: usize = 2500;
+
 /// A manual page that can be printed.
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Page {
@@ -201,6 +205,9 @@ struct Writer {
     links: Vec<(usize, String)>,
     /// Whether a cell has been written in the table row being read.
     cell_in_row: bool,
+    /// The column specification of the table being read, and where its source starts in `out`: a table that is
+    /// longer than a page cannot be broken by tbl, so a long one is cut into several.
+    table: (String, usize),
 }
 
 impl Writer {
@@ -215,6 +222,7 @@ impl Writer {
             heading: None,
             links: Vec::new(),
             cell_in_row: false,
+            table: (String::new(), 0),
         }
     }
 
@@ -433,9 +441,21 @@ fn start(w: &mut Writer, tag: Tag<'_>) {
             w.request("allbox;");
             let spec = vec!["lx"; columns.len().max(1)].join(" ");
             w.request(&format!("{spec}."));
+            w.table = (format!("{spec}."), w.out.len());
         }
-        Tag::TableHead | Tag::TableRow => {
+        Tag::TableHead => {
             w.cell_in_row = false;
+        }
+        Tag::TableRow => {
+            w.cell_in_row = false;
+            if w.out.len() - w.table.1 > TABLE_PART {
+                w.request(".TE");
+                w.request(".TS");
+                w.request("allbox;");
+                let spec = w.table.0.clone();
+                w.request(&spec);
+                w.table.1 = w.out.len();
+            }
         }
         Tag::TableCell => {
             if w.cell_in_row {

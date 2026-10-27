@@ -1,0 +1,50 @@
+{
+  "rtcppackets": [
+    {
+      "body": {
+        "fciblock": {
+          "contents": {
+            "brexp": 5,
+            "brmantissa": 500,
+            "maxtotalbitrate": 16000,
+            "numssrc": 1,
+            "ssrclist": [
+              287454020
+            ]
+          },
+          "uid": 1380273474
+        },
+        "fmt": 15,
+        "ssrc": 1432778632,
+        "ssrcmediasource": 0
+      },
+      "length": 5,
+      "padding": false,
+      "payloadtype": 206,
+      "subtype": 15,
+      "version": 2
+    },
+    {
+      "body": {
+        "fciblock": {
+          "b4": 256001,
+          "basesequencenumber": 100,
+          "fbpktcount": 1,
+          "packetstatus": "",
+          "packetstatuscount": 3,
+          "recvdelta": "",
+          "referencetime": 1000,
+          "remaining": "e003200408000000"
+        },
+        "fmt": 15,
+        "ssrc": 1432778632,
+        "ssrcmediasource": 287454020
+      },
+      "length": 6,
+      "padding": false,
+      "payloadtype": 205,
+      "subtype": 15,
+      "version": 2
+    }
+  ]
+}

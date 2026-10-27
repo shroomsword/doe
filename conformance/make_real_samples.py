@@ -171,7 +171,18 @@ def make_utmp():
         put("log/glibc_utmp", "four_records", path.read_bytes())
 
 
+# ── disk images ──────────────────────────────────────────────────────────────
+# qemu-img writes an empty virtual disk of 1 MiB (the VMDK it writes has a grain of 64 KiB, too big for a sample).
+def make_disk_images():
+    with tempfile.TemporaryDirectory() as tmp:
+        for kind, path in [("vdi", "filesystem/vdi")]:
+            image = Path(tmp) / f"disk.{kind}"
+            run(["qemu-img", "create", "-q", "-f", kind, str(image), "1M"])
+            put(path, "empty_1m", image.read_bytes())
+
+
 if __name__ == "__main__":
+    make_disk_images()
     make_utmp()
     make_cpio()
     make_ssh()

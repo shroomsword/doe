@@ -1,0 +1,74 @@
+{
+  "codepoints": [
+    {
+      "byte0": 65,
+      "bytes": "41",
+      "lenbytes": 1,
+      "raw0": 65,
+      "raw1": null,
+      "raw2": null,
+      "raw3": null,
+      "valueasint": 65
+    },
+    {
+      "byte0": 97,
+      "bytes": "61",
+      "lenbytes": 1,
+      "raw0": 97,
+      "raw1": null,
+      "raw2": null,
+      "raw3": null,
+      "valueasint": 97
+    },
+    {
+      "byte0": 195,
+      "bytes": "c3a9",
+      "lenbytes": 2,
+      "raw0": 3,
+      "raw1": 41,
+      "raw2": null,
+      "raw3": null,
+      "valueasint": 233
+    },
+    {
+      "byte0": 226,
+      "bytes": "e282ac",
+      "lenbytes": 3,
+      "raw0": 2,
+      "raw1": 2,
+      "raw2": 44,
+      "raw3": null,
+      "valueasint": 8364
+    },
+    {
+      "byte0": 240,
+      "bytes": "f09f9880",
+      "lenbytes": 4,
+      "raw0": 0,
+      "raw1": 31,
+      "raw2": 24,
+      "raw3": 0,
+      "valueasint": 128512
+    },
+    {
+      "byte0": 32,
+      "bytes": "20",
+      "lenbytes": 1,
+      "raw0": 32,
+      "raw1": null,
+      "raw2": null,
+      "raw3": null,
+      "valueasint": 32
+    },
+    {
+      "byte0": 122,
+      "bytes": "7a",
+      "lenbytes": 1,
+      "raw0": 122,
+      "raw1": null,
+      "raw2": null,
+      "raw3": null,
+      "valueasint": 122
+    }
+  ]
+}

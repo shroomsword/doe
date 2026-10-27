@@ -1741,7 +1741,126 @@ def others():
     put("security/efivar_signature_list", "db", variable)
 
 
+def more():
+    import zlib
+
+    # UTF-16 with a byte order mark, in both orders
+    text = "Doe: caf\u00e9 \u20ac \U0001F600"
+    put("common/utf16_with_bom", "big_endian", b"\xfe\xff" + text.encode("utf-16-be"))
+    put("common/utf16_with_bom", "little_endian", b"\xff\xfe" + text.encode("utf-16-le"))
+
+    # UTF-8 with one, two, three and four bytes per code point
+    put("common/utf8_string", "all_lengths", "Aa\u00e9\u20ac\U0001F600 z".encode("utf-8"))
+
+    # Ruby Marshal 4.8: an array of the kinds of value the format has
+    def integer(n):
+        if n == 0:
+            return b"\x00"
+        if 0 < n < 123:
+            return bytes([n + 5])
+        if -124 < n < 0:
+            return bytes([(n - 5) & 0xFF])
+        for size in range(1, 5):
+            limit = 1 << (8 * size)
+            if n > 0 and n < limit:
+                return bytes([size]) + n.to_bytes(size, "little")
+            if n < 0 and n >= -limit:
+                return bytes([256 - size]) + (n + limit).to_bytes(size, "little")
+        raise ValueError(n)
+
+    def symbol(name):
+        return b":" + integer(len(name)) + name
+
+    def string(text):
+        data = text.encode()
+        return b"I\"" + integer(len(data)) + data + integer(1) + symbol(b"E") + b"T"
+
+    numbers = [0, 1, 122, 123, 255, 256, 70000, 1 << 24, (1 << 30) - 1, -1, -123, -124, -256, -257, -70000]
+    items = [b"0", b"T", b"F"] + [b"i" + integer(n) for n in numbers]
+    items += [string("hello"), symbol(b"abc"), b";" + integer(0)]
+    items += [b"{" + integer(2) + symbol(b"key") + b"i" + integer(1) + b";" + integer(2) + string("v")]
+    items += [b"S" + symbol(b"Point") + integer(2) + symbol(b"x") + b"i" + integer(3) + symbol(b"y") + b"i" + integer(4)]
+    big = (1 << 40).to_bytes(6, "little")
+    items += [b"l+" + integer(3) + big, b"l-" + integer(2) + (70000).to_bytes(4, "little")]
+    items += [b"[" + integer(0)]
+    put("serialization/ruby_marshal", "values", b"\x04\x08[" + integer(len(items)) + b"".join(items))
+
+    # Duck IVF (VP8): the header of 32 bytes and two frames, each with a header of 12
+    frames = [bytes(range(10)), bytes(range(20, 45))]
+    ivf = b"DKIF" + struct.pack("<HH4sHHIIII", 0, 32, b"VP80", 176, 144, 30, 1, len(frames), 0)
+    for number, frame in enumerate(frames):
+        ivf += struct.pack("<IQ", len(frame), number) + frame
+    put("media/vp8_duck_ivf", "two_frames", ivf)
+
+    # Python 2.7 bytecode of the module `x = 1`: the header, and a code object marshalled
+    def interned(text):
+        return b"t" + struct.pack("<I", len(text)) + text
+
+    def tuple_of(*objects):
+        return b"(" + struct.pack("<I", len(objects)) + b"".join(objects)
+
+    code = bytes([100, 0, 0, 90, 0, 0, 100, 1, 0, 83])  # LOAD_CONST 0, STORE_NAME 0, LOAD_CONST 1, RETURN_VALUE
+    body = b"c" + struct.pack("<IIII", 0, 0, 1, 0x40) + b"s" + struct.pack("<I", len(code)) + code
+    body += tuple_of(b"i" + struct.pack("<I", 1), b"N") + tuple_of(interned(b"x")) + tuple_of() + tuple_of() + tuple_of()
+    body += interned(b"x.py") + interned(b"<module>") + struct.pack("<I", 1) + b"s" + struct.pack("<I", 0)
+    put("executable/python_pyc_27", "assignment", struct.pack("<HBBI", 62211, 0x0D, 0x0A, 1700000000) + body)
+
+    # VMware sparse disk: the header of one sector, an embedded descriptor, and the two grain directories
+    # (a grain of 8 sectors; qemu-img writes 128, which is 64 KiB for each directory)
+    descriptor = b'# Disk DescriptorFile\nversion=1\nCID=fffffffe\nparentCID=ffffffff\ncreateType="monolithicSparse"\n'
+    descriptor += b'\n# Extent description\nRW 16 SPARSE "doe.vmdk"\n'
+    header = b"KDMV" + struct.pack("<i", 1) + struct.pack("<I", 0x3) + struct.pack("<qqqq", 16, 8, 1, 1)
+    header += struct.pack("<iqqqB", 512, 2, 10, 18, 0) + b"\n \r\n" + struct.pack("<H", 0)
+    sectors = header.ljust(512, b"\0") + descriptor.ljust(512, b"\0")
+    sectors += (struct.pack("<I", 18) + bytes(4092)).ljust(4096, b"\0") * 2
+    put("filesystem/vmware_vmdk", "two_grains", sectors + bytes(512))
+
+    # zisofs, as mkzftree writes it: a header, the pointers to the blocks (the last is the end of the data), and zlib
+    # blocks of 32 KiB; a block of nothing but zeros has no data (two equal pointers)
+    size, block = 70000, 1 << 15
+    blocks = [zlib.compress(b"doe zisofs " * 2979 + b"\\n", 9)[:], zlib.compress(bytes(range(256)) * 128, 9), b""]
+    start = 16 + 4 * (len(blocks) + 1)
+    pointers = [start]
+    for data in blocks:
+        pointers.append(pointers[-1] + len(data))
+    put(
+        "archive/zisofs",
+        "three_blocks",
+        bytes([0x37, 0xE4, 0x53, 0x96, 0xC9, 0xDB, 0xD6, 0x07]) + struct.pack("<IBBBB", size, 4, 15, 0, 0)
+        + struct.pack("<4I", *pointers) + b"".join(blocks),
+    )
+
+    # PPI (per-packet information) around an Ethernet frame: the 802.11 common, 802.11n MAC and MAC+PHY fields
+    common = struct.pack("<QHHHHBBbb", 1_700_000_000_000_000, 0x0010, 108, 2437, 0x00A0, 0, 0, -50, -92)
+    mac = bytes([0b01000000]) + bytes(3) + struct.pack("<IB", 0x1234, 2) + bytes(3)
+    mac_phy = (
+        bytes([0b00100100]) + bytes(3) + struct.pack("<IBBBB", 0x1234, 2, 7, 2, 40) + bytes([40, 41, 42, 43, 38, 39, 40, 41])
+        + struct.pack("<HH", 2437, 0x0120) + bytes([200, 161, 201, 162, 202, 163, 203, 164]) + struct.pack("<4I", 1, 2, 3, 4)
+    )
+    fields = b"".join(struct.pack("<HH", kind, len(body)) + body for kind, body in [(2, common), (3, mac), (4, mac_phy)])
+    frame = bytes.fromhex("02005e000001") + bytes.fromhex("0200aabbccdd") + b"\\x08\\x00" + ipv4(17, udp(5000, 5001, b"ppi"))
+    put("network/packet_ppi", "ethernet", struct.pack("<BBHI", 0, 0, 8 + len(fields), 1) + fields + frame)
+
+    # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
+    # transport feedback (the receiver's reports have no blocks)
+    def rtcp(kind, body, subtype=0):
+        assert len(body) % 4 == 0
+        return struct.pack(">BBH", 0x80 | subtype, kind, len(body) // 4) + body
+
+    sender = struct.pack(">IIIIII", 0x11223344, 0xE8000000, 0x00123456, 160000, 1000, 160000)
+    chunk = struct.pack(">I", 0x11223344) + bytes([1, 9]) + b"doe@local" + bytes([6, 3]) + b"doe" + bytes(4)
+    put("network/rtcp_payload", "reports", rtcp(200, sender) + rtcp(201, struct.pack(">I", 0x55667788)) + rtcp(202, chunk, 1))
+    remb = b"REMB" + bytes([1]) + bytes([(5 << 2) | 0x00, 0x01, 0xF4]) + struct.pack(">I", 0x11223344)
+    feedback = struct.pack(">HHI", 100, 3, (1000 << 8) | 1) + bytes([0xE0, 0x03, 0x20, 0x04, 0x08, 0, 0, 0])
+    put(
+        "network/rtcp_payload",
+        "feedback",
+        rtcp(206, struct.pack(">II", 0x55667788, 0) + remb, 15) + rtcp(205, struct.pack(">II", 0x55667788, 0x11223344) + feedback, 15),
+    )
+
+
 SECTIONS = {
+    "more": more,
     "small": small,
     "others": others,
     "network": network, "media": media, "image": image, "serialization": serialization, "game": game, "filesystem": filesystem,

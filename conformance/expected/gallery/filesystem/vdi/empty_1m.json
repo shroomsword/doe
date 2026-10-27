@@ -1,0 +1,74 @@
+{
+  "blockdiscarded": 4294967294,
+  "blockunallocated": 4294967295,
+  "blocksmap": {
+    "index": [
+      {
+        "block": null,
+        "index": 4294967295,
+        "isallocated": false
+      }
+    ]
+  },
+  "disk": {
+    "blocks": [
+      {
+        "data": [],
+        "metadata": ""
+      }
+    ]
+  },
+  "header": {
+    "blocksize": 1048576,
+    "blocksmapoffset": 512,
+    "blocksmapsize": 512,
+    "blocksoffset": 1024,
+    "headermain": {
+      "blockdatasize": 1048576,
+      "blockmetadatasize": 0,
+      "blocksallocated": 0,
+      "blocksinimage": 1,
+      "blocksmapoffset": 512,
+      "description": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "disksize": 1048576,
+      "geometry": {
+        "cylinders": 0,
+        "heads": 0,
+        "sectorsize": 512,
+        "sectors": 0
+      },
+      "imageflags": {
+        "diff": false,
+        "fixed": false,
+        "reserved0": 0,
+        "reserved1": 0,
+        "reserved2": 0,
+        "zeroexpand": false
+      },
+      "imagetype": 1,
+      "offsetdata": 1024,
+      "reserved1": 0,
+      "uuidimage": {
+        "uuid": "e833ecf42fe99f4d9a84aba32c09e8e2"
+      },
+      "uuidlastsnap": {
+        "uuid": "59ff945a637fc845a0d073a86569d173"
+      },
+      "uuidlink": {
+        "uuid": "00000000000000000000000000000000"
+      },
+      "uuidparent": {
+        "uuid": "00000000000000000000000000000000"
+      }
+    },
+    "headersize": 384,
+    "headersizeoptional": 384,
+    "signature": "7f10dabe",
+    "subheadersizeisdynamic": true,
+    "text": "<<< QEMU VM Virtual Disk Image >>>\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+    "version": {
+      "major": 1,
+      "minor": 1
+    }
+  }
+}
