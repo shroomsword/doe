@@ -1,0 +1,110 @@
+{
+  "blocks": [
+    {
+      "blocksize": 13,
+      "blocktype": 115,
+      "body": "000000000000",
+      "bodysize": 6,
+      "crc16": 37071,
+      "flags": 0,
+      "hasadd": false,
+      "headersize": 7
+    },
+    {
+      "addbody": "48656c6c6f2c205241522e0a",
+      "addsize": 12,
+      "blocksize": 41,
+      "blocktype": 116,
+      "body": {
+        "attr": 32,
+        "filecrc32": 4267636355,
+        "filename": "68656c6c6f2e747874",
+        "filetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "hostos": 2,
+        "lowunpsize": 12,
+        "method": 48,
+        "namesize": 9,
+        "rarversion": 29
+      },
+      "bodysize": 30,
+      "crc16": 22552,
+      "flags": 32768,
+      "hasadd": true,
+      "headersize": 11
+    },
+    {
+      "addbody": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "addsize": 64,
+      "blocksize": 40,
+      "blocktype": 116,
+      "body": {
+        "attr": 32,
+        "filecrc32": 269405836,
+        "filename": "646174612e62696e",
+        "filetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "hostos": 2,
+        "lowunpsize": 64,
+        "method": 48,
+        "namesize": 8,
+        "rarversion": 29
+      },
+      "bodysize": 29,
+      "crc16": 43485,
+      "flags": 32768,
+      "hasadd": true,
+      "headersize": 11
+    },
+    {
+      "blocksize": 7,
+      "blocktype": 123,
+      "body": "",
+      "bodysize": 0,
+      "crc16": 15812,
+      "flags": 16384,
+      "hasadd": false,
+      "headersize": 7
+    }
+  ],
+  "magic": {
+    "magic1": "526172211a07",
+    "version": 0
+  }
+}

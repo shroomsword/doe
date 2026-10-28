@@ -1,0 +1,138 @@
+{
+  "datahashtable": "70010000000000007001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "fieldhashtable": "0000000000000000000000000000000000000000000000000000000000000000",
+  "header": {
+    "bootid": "202122232425262728292a2b2c2d2e2f",
+    "compatibleflags": 0,
+    "fileid": "000102030405060708090a0b0c0d0e0f",
+    "headentryrealtime": 1700000000000000,
+    "headentryseqnum": 1,
+    "incompatibleflags": 0,
+    "lenarena": 488,
+    "lendatahashtable": 64,
+    "lenfieldhashtable": 32,
+    "lenheader": 240,
+    "machineid": "101112131415161718191a1b1c1d1e1f",
+    "numdata": 2,
+    "numentries": 1,
+    "numentryarrays": 1,
+    "numfields": 1,
+    "numobjects": 7,
+    "numtags": 0,
+    "ofsdatahashtable": 256,
+    "ofsentryarray": 696,
+    "ofsfieldhashtable": 336,
+    "ofstailobject": 696,
+    "reserved": "00000000000000",
+    "seqnumid": "303132333435363738393a3b3c3d3e3f",
+    "signature": "4c504b5348485248",
+    "state": 1,
+    "tailentrymonotonic": 5000000,
+    "tailentryrealtime": 1700000000000000,
+    "tailentryseqnum": 1
+  },
+  "lenheader": 240,
+  "objects": [
+    {
+      "flags": 0,
+      "lenobject": 80,
+      "objecttype": 4,
+      "padding": "",
+      "payload": "70010000000000007001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "reserved": "000000000000"
+    },
+    {
+      "flags": 0,
+      "lenobject": 48,
+      "objecttype": 5,
+      "padding": "",
+      "payload": "0000000000000000000000000000000000000000000000000000000000000000",
+      "reserved": "000000000000"
+    },
+    {
+      "flags": 0,
+      "lenobject": 99,
+      "objecttype": 1,
+      "padding": "",
+      "payload": {
+        "entry": {
+          "flags": 0,
+          "lenobject": 96,
+          "objecttype": 3,
+          "padding": "",
+          "payload": "010000000000000000401e18240a0600404b4c0000000000000102030405060708090a0b0c0d0e0f000000000000000070010000000000000000000000000000d8010000000000000000000000000000",
+          "reserved": "000000000000"
+        },
+        "entryarray": null,
+        "hash": 2789689447910438,
+        "headfield": {
+          "flags": 0,
+          "lenobject": 47,
+          "objecttype": 2,
+          "padding": "",
+          "payload": "0000000000000000000000000000000070010000000000004d455353414745",
+          "reserved": "000000000000"
+        },
+        "nexthash": null,
+        "numentries": 1,
+        "ofsentry": 600,
+        "ofsentryarray": 0,
+        "ofsheadfield": 552,
+        "ofsnexthash": 0,
+        "payload": "4d4553534147453d48656c6c6f2066726f6d20746865206a6f75726e616c2032383636"
+      },
+      "reserved": "000000000000"
+    },
+    {
+      "flags": 0,
+      "lenobject": 79,
+      "objecttype": 1,
+      "padding": "0000000000",
+      "payload": {
+        "entry": {
+          "flags": 0,
+          "lenobject": 96,
+          "objecttype": 3,
+          "padding": "",
+          "payload": "010000000000000000401e18240a0600404b4c0000000000000102030405060708090a0b0c0d0e0f000000000000000070010000000000000000000000000000d8010000000000000000000000000000",
+          "reserved": "000000000000"
+        },
+        "entryarray": null,
+        "hash": 4339503778918408,
+        "headfield": null,
+        "nexthash": null,
+        "numentries": 1,
+        "ofsentry": 600,
+        "ofsentryarray": 0,
+        "ofsheadfield": 0,
+        "ofsnexthash": 0,
+        "payload": "5052494f524954593d362031383931"
+      },
+      "reserved": "000000000000"
+    },
+    {
+      "flags": 0,
+      "lenobject": 47,
+      "objecttype": 2,
+      "padding": "00",
+      "payload": "0000000000000000000000000000000070010000000000004d455353414745",
+      "reserved": "000000000000"
+    },
+    {
+      "flags": 0,
+      "lenobject": 96,
+      "objecttype": 3,
+      "padding": "00",
+      "payload": "010000000000000000401e18240a0600404b4c0000000000000102030405060708090a0b0c0d0e0f000000000000000070010000000000000000000000000000d8010000000000000000000000000000",
+      "reserved": "000000000000"
+    },
+    {
+      "flags": 0,
+      "lenobject": 32,
+      "objecttype": 6,
+      "padding": "",
+      "payload": "00000000000000005802000000000000",
+      "reserved": "000000000000"
+    }
+  ]
+}
