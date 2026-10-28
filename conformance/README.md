@@ -123,7 +123,8 @@ other formats it imports) and `pcap`.
 `make_gallery_samples.py` writes the samples, small files that it makes up (the
 ELF ones with the C compiler of the machine); the expected output comes from the
 reference compiler with `npm run generate`, or `npm run generate -- gallery/archive/zip`
-for one of them.
+for one of them. `generate.js` takes the underscores out of the keys of an enum (`0x0253_f2f4`), which the YAML reader
+of the reference compiler leaves as text it cannot read as a number.
 
 When the tests run locally (`CI` is not set), `cargo test` also checks that the
 submodule is at the latest commit of the `master` branch of the gallery, by

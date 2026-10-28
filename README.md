@@ -759,7 +759,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 11 with a file written by its own tool, 119 with a file built by hand, 4 failing on a file, 9 part of another, 47 without a sample
+> 190 definitions: 11 with a file written by its own tool, 128 with a file built by hand, 4 failing on a file, 9 part of another, 38 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -775,14 +775,15 @@ and compared with the reference compiler's output:
 | Directory | Formats |
 | --- | --- |
 | `archive` | `android_bootldr_asus`, `android_bootldr_huawei`, `android_bootldr_qcom`, `android_dto`, `android_img`, `android_sparse`, `cpio_old_le`, `gzip`, `mozilla_mar`, `phar_without_stub`, `respack`, `zip`, `zisofs` |
+| `cad` | `monomakh_sapr_chg` |
 | `common` | `utf16_with_bom`, `utf8_string` |
 | `database` | `dbf`, `gettext_mo`, `tsm` |
 | `executable` | `android_nanoapp_header`, `dos_mz`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `python_pyc_27`, `swf` |
-| `filesystem` | `amlogic_emmc_partitions`, `apm_partition_table`, `cramfs`, `gpt_partition_table`, `mbr_partition_table`, `vdi`, `vmware_vmdk`, `zx_spectrum_tap` |
+| `filesystem` | `amlogic_emmc_partitions`, `apm_partition_table`, `apple_single_double`, `btrfs_stream`, `cramfs`, `gpt_partition_table`, `luks`, `mbr_partition_table`, `tr_dos_image`, `vdi`, `vmware_vmdk`, `zx_spectrum_tap` |
 | `firmware` | `andes_firmware`, `broadcom_trx`, `ines`, `uf2`, `uimage` |
 | `font` | `grub2_font` |
-| `game` | `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake2_md2`, `quake_mdl`, `quake_pak`, `warcraft_2_pud` |
-| `geospatial` | `shapefile_index` |
+| `game` | `allegro_dat`, `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake2_md2`, `quake_mdl`, `quake_pak`, `renderware_binary_stream`, `saints_row_2_vpp_pc`, `warcraft_2_pud` |
+| `geospatial` | `shapefile_index`, `shapefile_main` |
 | `hardware` | `dtb`, `edid`, `mifare/mifare_classic` |
 | `image` | `bmp`, `gif`, `gimp_brush`, `ico`, `jpeg`, `pcx`, `pcx_dcx`, `png`, `psx_tim`, `tga`, `webp`, `wmf`, `xwd` |
 | `log` | `aix_utmp`, `glibc_utmp`, `hashcat_restore`, `sudoers_ts` |
@@ -1078,8 +1079,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 188 samples of the Kaitai gallery
-in the tests, 75 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 198 samples of the Kaitai gallery
+in the tests, 80 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 

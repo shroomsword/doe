@@ -1,0 +1,226 @@
+{
+  "commands": [
+    {
+      "checksum": "18b12956",
+      "data": {
+        "tlv": [
+          {
+            "length": 4,
+            "type": 15,
+            "value": {
+              "string": "snap"
+            }
+          },
+          {
+            "length": 16,
+            "type": 1,
+            "value": {
+              "uuid": "000102030405060708090a0b0c0d0e0f"
+            }
+          },
+          {
+            "length": 8,
+            "type": 2,
+            "value": 7
+          }
+        ]
+      },
+      "lendata": 40,
+      "type": 1
+    },
+    {
+      "checksum": "46850bf4",
+      "data": {
+        "tlv": [
+          {
+            "length": 8,
+            "type": 15,
+            "value": {
+              "string": "o257-7-0"
+            }
+          }
+        ]
+      },
+      "lendata": 12,
+      "type": 3
+    },
+    {
+      "checksum": "eb0cd181",
+      "data": {
+        "tlv": [
+          {
+            "length": 8,
+            "type": 15,
+            "value": {
+              "string": "o257-7-0"
+            }
+          },
+          {
+            "length": 8,
+            "type": 18,
+            "value": 0
+          },
+          {
+            "length": 12,
+            "type": 19,
+            "value": "68656c6c6f2062747266730a"
+          }
+        ]
+      },
+      "lendata": 40,
+      "type": 15
+    },
+    {
+      "checksum": "4923f41c",
+      "data": {
+        "tlv": [
+          {
+            "length": 8,
+            "type": 15,
+            "value": {
+              "string": "o258-7-0"
+            }
+          },
+          {
+            "length": 8,
+            "type": 3,
+            "value": "0201000000000000"
+          },
+          {
+            "length": 6,
+            "type": 17,
+            "value": {
+              "string": "target"
+            }
+          }
+        ]
+      },
+      "lendata": 34,
+      "type": 8
+    },
+    {
+      "checksum": "5b93138a",
+      "data": {
+        "tlv": [
+          {
+            "length": 8,
+            "type": 15,
+            "value": {
+              "string": "o257-7-0"
+            }
+          },
+          {
+            "length": 9,
+            "type": 16,
+            "value": {
+              "string": "hello.txt"
+            }
+          }
+        ]
+      },
+      "lendata": 25,
+      "type": 9
+    },
+    {
+      "checksum": "aee38f5e",
+      "data": {
+        "tlv": [
+          {
+            "length": 9,
+            "type": 15,
+            "value": {
+              "string": "hello.txt"
+            }
+          },
+          {
+            "length": 8,
+            "type": 5,
+            "value": 33188
+          }
+        ]
+      },
+      "lendata": 25,
+      "type": 18
+    },
+    {
+      "checksum": "c4f33e89",
+      "data": {
+        "tlv": [
+          {
+            "length": 9,
+            "type": 15,
+            "value": {
+              "string": "hello.txt"
+            }
+          },
+          {
+            "length": 12,
+            "type": 11,
+            "value": {
+              "tsnsec": 5,
+              "tssec": 1700000000
+            }
+          },
+          {
+            "length": 12,
+            "type": 10,
+            "value": {
+              "tsnsec": 6,
+              "tssec": 1700000001
+            }
+          },
+          {
+            "length": 12,
+            "type": 9,
+            "value": {
+              "tsnsec": 7,
+              "tssec": 1700000002
+            }
+          }
+        ]
+      },
+      "lendata": 61,
+      "type": 20
+    },
+    {
+      "checksum": "b711e5e7",
+      "data": {
+        "tlv": [
+          {
+            "length": 9,
+            "type": 15,
+            "value": {
+              "string": "hello.txt"
+            }
+          },
+          {
+            "length": 8,
+            "type": 13,
+            "value": {
+              "string": "user.doe"
+            }
+          },
+          {
+            "length": 5,
+            "type": 14,
+            "value": "76616c7565"
+          }
+        ]
+      },
+      "lendata": 34,
+      "type": 13
+    },
+    {
+      "checksum": "3b9c147e",
+      "data": {
+        "tlv": []
+      },
+      "lendata": 0,
+      "type": 21
+    }
+  ],
+  "header": {
+    "magic": "62747266732d73747265616d00",
+    "version": 1
+  }
+}

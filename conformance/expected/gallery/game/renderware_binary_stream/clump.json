@@ -1,0 +1,108 @@
+{
+  "body": {
+    "code": "01000000",
+    "entries": [
+      {
+        "body": {
+          "code": "01000000",
+          "entries": [
+            {
+              "body": "",
+              "code": 3,
+              "libraryidstamp": 402915327,
+              "size": 0,
+              "version": 221187
+            }
+          ],
+          "header": {
+            "frames": [
+              {
+                "curframeidx": -1,
+                "matrixcreationflags": 131075,
+                "position": {
+                  "x": 0,
+                  "y": 1.5,
+                  "z": -2
+                },
+                "rotationmatrix": {
+                  "entries": [
+                    {
+                      "x": 1,
+                      "y": 0,
+                      "z": 0
+                    },
+                    {
+                      "x": 0,
+                      "y": 1,
+                      "z": 0
+                    },
+                    {
+                      "x": 0,
+                      "y": 0,
+                      "z": 1
+                    }
+                  ]
+                }
+              }
+            ],
+            "numframes": 1
+          },
+          "headersize": 60,
+          "libraryidstamp": 402915327,
+          "version": 221187
+        },
+        "code": 14,
+        "libraryidstamp": 402915327,
+        "size": 84,
+        "version": 221187
+      },
+      {
+        "body": {
+          "code": "01000000",
+          "entries": [
+            {
+              "body": "",
+              "code": 3,
+              "libraryidstamp": 402915327,
+              "size": 0,
+              "version": 221187
+            }
+          ],
+          "header": {
+            "flagcollisiontest": true,
+            "flagrender": true,
+            "frameindex": 0,
+            "geometryindex": 0,
+            "unused": 0
+          },
+          "headersize": 16,
+          "libraryidstamp": 402915327,
+          "version": 221187
+        },
+        "code": 20,
+        "libraryidstamp": 402915327,
+        "size": 40,
+        "version": 221187
+      },
+      {
+        "body": "",
+        "code": 3,
+        "libraryidstamp": 402915327,
+        "size": 0,
+        "version": 221187
+      }
+    ],
+    "header": {
+      "numatomics": 1,
+      "numcameras": 0,
+      "numlights": 0
+    },
+    "headersize": 12,
+    "libraryidstamp": 402915327,
+    "version": 221187
+  },
+  "code": 16,
+  "libraryidstamp": 402915327,
+  "size": 184,
+  "version": 221187
+}

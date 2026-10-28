@@ -1939,6 +1939,143 @@ def more():
     manifest += b"".join(phar_entry(name, content, metadata=metadata) for name, content, metadata in files)
     body = struct.pack("<I", len(manifest)) + manifest + b"".join(content for _, content, _ in files)
     put("archive/phar_without_stub", "two_files", body + hashlib.sha1(body).digest() + struct.pack("<I", 2) + b"GBMB")
+    # Allegro data file (not compressed): objects with properties (name, origin) and a type of four characters
+    def allegro_object(kind, body, **properties):
+        out = b""
+        for name, value in properties.items():
+            out += b"prop" + name.upper().encode() + struct.pack(">I", len(value)) + value.encode()
+        return out + kind + struct.pack(">ii", len(body), len(body)) + body
+
+    bitmap = struct.pack(">hHH", 8, 4, 2) + bytes(range(8))
+    sprite = struct.pack(">hHHI", 8, 3, 2, 6) + bytes([3, 1, 2, 3, 0xFF, 0xFF]) + bytes(2)
+    font_small = struct.pack(">h", 8) + bytes((i * 7) & 0xFF for i in range(95 * 8))
+    ranges = struct.pack(">hBII", 1, 1, 65, 66) + b"".join(struct.pack(">HH", 8, 8) + bytes(64) for _ in range(2))
+    font_new = struct.pack(">h", 0) + ranges
+    objects = [
+        allegro_object(b"BMP ", bitmap, name="LOGO", orig="doe.pcx"),
+        allegro_object(b"RLE ", sprite, name="CURSOR"),
+        allegro_object(b"FONT", font_small, name="SMALLFONT"),
+        allegro_object(b"FONT", font_new, name="NEWFONT"),
+        allegro_object(b"DATA", b"raw bytes of an object of a type without a layout", name="RAWDATA"),
+    ]
+    put("game/allegro_dat", "five_objects", struct.pack(">I", 0x736C682E) + b"ALL." + struct.pack(">I", len(objects)) + b"".join(objects))
+
+    # TR-DOS disk image (.trd) of the ZX Spectrum: a directory of 16-byte entries, the volume information in sector 9
+    def trd_entry(name, extension, start, length, sectors, sector, track):
+        return name.ljust(8).encode() + bytes([extension]) + struct.pack("<HH", start, length) + bytes([sectors, sector, track])
+
+    directory = trd_entry("hello", 0x42, 100, 100, 1, 0, 1) + trd_entry("sprite", 0x43, 32768, 600, 3, 1, 1) + trd_entry("data", 0x44, 0, 40, 1, 4, 1)
+    volume = b"\0" + bytes(224) + bytes([5, 1, 0x16, 3]) + struct.pack("<H", 2544 - 5) + b"\x10" + bytes(2) + b"         " + b"\0" + bytes([0]) + b"DOEDISK " + bytes(3)
+    image = directory.ljust(0x800, b"\0") + volume.ljust(0x800, b"\0") + b"10 PRINT 1\r".ljust(256, b"\0")
+    image += bytes((i * 3) & 0xFF for i in range(768)) + bytes(range(40)).ljust(256, b"\0")
+    put("filesystem/tr_dos_image", "three_files", image)
+
+    # MONOMAKH-SAPR container: a title of 10 characters, then blocks of a name (13), a size and a file
+    def chg_block(name, data):
+        return name.ljust(13).encode() + struct.pack("<Q", len(data)) + data
+
+    put("cad/monomakh_sapr_chg", "two_files", b"MONOMAKH  " + chg_block("project.dat", bytes(range(32))) + chg_block("loads.txt", b"dead load 1.5\n"))
+
+    # Shapefile (.shp): the header of 100 bytes and records (numbers in big-endian, lengths in 16-bit words)
+    def shapefile(shape_type, records, box):
+        body = b"".join(struct.pack(">ii", number, len(content) // 2) + content for number, content in enumerate(records, 1))
+        header = struct.pack(">I", 9994) + bytes(20) + struct.pack(">i", (100 + len(body)) // 2)
+        header += struct.pack("<ii", 1000, shape_type) + struct.pack("<8d", *box)
+        return header + body
+
+    ring = [(0.0, 0.0), (0.0, 4.0), (4.0, 4.0), (4.0, 0.0), (0.0, 0.0)]
+    hole = [(1.0, 1.0), (3.0, 1.0), (3.0, 3.0), (1.0, 3.0), (1.0, 1.0)]
+    points = ring + hole
+    polygon = struct.pack("<i4d", 5, 0.0, 0.0, 4.0, 4.0) + struct.pack("<ii", 2, len(points)) + struct.pack("<2i", 0, len(ring))
+    polygon += b"".join(struct.pack("<2d", x, y) for x, y in points)
+    put("geospatial/shapefile_main", "polygon_and_null", shapefile(5, [polygon, struct.pack("<i", 0)], (0.0, 0.0, 4.0, 4.0, 0.0, 0.0, 0.0, 0.0)))
+    cities = [(18.07, 59.33), (11.97, 57.71), (13.0, 55.6)]
+    put(
+        "geospatial/shapefile_main",
+        "points",
+        shapefile(1, [struct.pack("<i2d", 1, x, y) for x, y in cities], (11.97, 55.6, 18.07, 59.33, 0.0, 0.0, 0.0, 0.0)),
+    )
+
+    # AppleDouble: the entries are a name, the Finder information and the data fork
+    entries = [(3, b"doe.txt"), (9, b"TEXT" + b"ttxt" + struct.pack(">HHHH", 0x0100, 40, 60, 0) + bytes(16)), (1, b"Hello from a Mac.\n")]
+    offset = 26 + 12 * len(entries)
+    table, bodies = b"", b""
+    for kind, data in entries:
+        table += struct.pack(">III", kind, offset + len(bodies), len(data))
+        bodies += data
+    put("filesystem/apple_single_double", "double", struct.pack(">II", 0x00051607, 0x00020000) + b"Mac OS X        " + struct.pack(">H", len(entries)) + table + bodies)
+
+    # Btrfs send stream (version 1): commands with a CRC-32C of the command with the checksum set to zero
+    def crc32c(data):
+        value = 0xFFFFFFFF
+        for byte in data:
+            value ^= byte
+            for _ in range(8):
+                value = (value >> 1) ^ (0x82F63B78 if value & 1 else 0)
+        return value ^ 0xFFFFFFFF
+
+    def tlv(kind, value):
+        return struct.pack("<HH", kind, len(value)) + value
+
+    def command(kind, *attributes):
+        body = b"".join(attributes)
+        head = struct.pack("<IH", len(body), kind)
+        return head + struct.pack("<I", crc32c(head + bytes(4) + body)) + body
+
+    def timespec(seconds, nanoseconds):
+        return struct.pack("<qi", seconds, nanoseconds)
+
+    stream = b"btrfs-stream\0" + struct.pack("<I", 1)
+    stream += command(1, tlv(0x0F, b"snap"), tlv(0x01, bytes(range(16))), tlv(0x02, struct.pack("<Q", 7)))
+    stream += command(3, tlv(0x0F, b"o257-7-0"))
+    stream += command(0x0F, tlv(0x0F, b"o257-7-0"), tlv(0x12, struct.pack("<Q", 0)), tlv(0x13, b"hello btrfs\n"))
+    stream += command(0x08, tlv(0x0F, b"o258-7-0"), tlv(0x03, struct.pack("<Q", 258)), tlv(0x11, b"target"))
+    stream += command(9, tlv(0x0F, b"o257-7-0"), tlv(0x10, b"hello.txt"))
+    stream += command(0x12, tlv(0x0F, b"hello.txt"), tlv(0x05, struct.pack("<Q", 0o100644)))
+    stream += command(0x14, tlv(0x0F, b"hello.txt"), tlv(0x0B, timespec(1700000000, 5)), tlv(0x0A, timespec(1700000001, 6)), tlv(0x09, timespec(1700000002, 7)))
+    stream += command(0x0D, tlv(0x0F, b"hello.txt"), tlv(0x0D, b"user.doe"), tlv(0x0E, b"value"))
+    stream += command(0x15)
+    put("filesystem/btrfs_stream", "one_snapshot", stream)
+
+    # RenderWare clump: a chunk is a code, a size, the library stamp and the body
+    def rw(code, body, stamp=0x1803FFFF):
+        return struct.pack("<III", code, len(body), stamp) + body
+
+    frame = struct.pack("<9f", 1, 0, 0, 0, 1, 0, 0, 0, 1) + struct.pack("<3f", 0.0, 1.5, -2.0) + struct.pack("<iI", -1, 0x00020003)
+    frame_list = rw(0x0E, rw(1, struct.pack("<I", 1) + frame) + rw(3, b""))
+    atomic = rw(0x14, rw(1, struct.pack("<IIII", 0, 0, 0x5, 0)) + rw(3, b""))
+    clump = rw(0x10, rw(1, struct.pack("<III", 1, 0, 0)) + frame_list + atomic + rw(3, b""))
+    put("game/renderware_binary_stream", "clump", clump)
+
+    # Saints Row 2 package (.vpp_pc): a header of 0x800 bytes, tables aligned to 0x800, and the bodies
+    names, extensions, bodies = [b"readme", b"data"], [b"txt", b"bin"], [b"Saints Row 2 sample file\n", bytes(range(50))]
+    name_table, ext_table, offsets_table, data = b"", b"", b"", b""
+    for name, extension, body in zip(names, extensions, bodies):
+        offsets_table += struct.pack("<IIiiiii", len(name_table), len(ext_table), 0, len(data), len(body), -1, 0)
+        name_table += name + b"\0"
+        ext_table += extension + b"\0"
+        data += body.ljust((len(body) + 15) // 16 * 16, b"\0")
+    header = bytes([0xCE, 0x0A, 0x89, 0x51, 0x04]).ljust(0x14F + 5, b"\0")
+    header += struct.pack("<10i", len(names), 0x2000 + len(data), len(offsets_table), len(name_table), len(ext_table), 0, 0, 0, 0, 0)
+    package = header.ljust(0x800, b"\0") + offsets_table.ljust(0x800, b"\0") + name_table.ljust(0x800, b"\0") + ext_table.ljust(0x800, b"\0") + data
+    put("game/saints_row_2_vpp_pc", "two_files", package)
+
+    # LUKS 1: the header of 592 bytes, eight key slots (one in use, with 16 key bytes in 4000 stripes), and the payload
+    import hashlib
+
+    luks = b"LUKS\xba\xbe" + struct.pack(">H", 1) + b"aes".ljust(32, b"\0") + b"xts-plain64".ljust(32, b"\0") + b"sha256".ljust(32, b"\0")
+    luks += struct.pack(">II", 127, 16) + hashlib.sha1(b"checksum").digest() + hashlib.sha256(b"master salt").digest() + struct.pack(">I", 59000)
+    luks += b"6ae1d5f5-0f1f-4e94-a42d-1a2c4d3e9b10".ljust(40, b"\0")
+    slots = b""
+    for number in range(8):
+        if number == 0:
+            slots += struct.pack(">II", 0x00AC71F3, 1000) + hashlib.sha256(b"slot salt").digest() + struct.pack(">II", 2, 4000)
+        else:
+            slots += struct.pack(">II", 0x0000DEAD, 0) + bytes(32) + struct.pack(">II", 8 + 8 * number, 0)
+    luks = luks + slots
+    material = b"".join(hashlib.sha256(bytes([i & 0xFF, i >> 8])).digest() for i in range(2000))
+    luks = luks.ljust(1024, b"\0") + material + b"payload of the encrypted volume".ljust(512, b"\0")
+    put("filesystem/luks", "one_slot", luks)
 
     # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
     # transport feedback (the receiver's reports have no blocks)

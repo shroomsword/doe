@@ -1,0 +1,35 @@
+{
+  "entries": [
+    {
+      "body": "646f652e747874",
+      "lenbody": 7,
+      "ofsbody": 62,
+      "type": 3
+    },
+    {
+      "body": {
+        "filecreator": "74747874",
+        "filetype": "54455854",
+        "flags": 256,
+        "folderid": 0,
+        "location": {
+          "x": 40,
+          "y": 60
+        }
+      },
+      "lenbody": 32,
+      "ofsbody": 69,
+      "type": 9
+    },
+    {
+      "body": "48656c6c6f2066726f6d2061204d61632e0a",
+      "lenbody": 18,
+      "ofsbody": 101,
+      "type": 1
+    }
+  ],
+  "magic": 333319,
+  "numentries": 3,
+  "reserved": "4d6163204f5320582020202020202020",
+  "version": 131072
+}

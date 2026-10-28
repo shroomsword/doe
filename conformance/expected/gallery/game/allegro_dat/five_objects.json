@@ -1,0 +1,245 @@
+{
+  "datmagic": "414c4c2e",
+  "numobjects": 5,
+  "objects": [
+    {
+      "body": {
+        "bitsperpixel": 8,
+        "height": 2,
+        "image": "0001020304050607",
+        "width": 4
+      },
+      "lencompressed": 14,
+      "lenuncompressed": 14,
+      "properties": [
+        {
+          "body": "LOGO",
+          "isvalid": true,
+          "lenbody": 4,
+          "magic": "prop",
+          "type": "NAME"
+        },
+        {
+          "body": "doe.pcx",
+          "isvalid": true,
+          "lenbody": 7,
+          "magic": "prop",
+          "type": "ORIG"
+        },
+        {
+          "isvalid": false,
+          "magic": "BMP "
+        }
+      ],
+      "type": "BMP "
+    },
+    {
+      "body": {
+        "bitsperpixel": 8,
+        "height": 2,
+        "image": "03010203ffff0000",
+        "lenimage": 6,
+        "width": 3
+      },
+      "lencompressed": 18,
+      "lenuncompressed": 18,
+      "properties": [
+        {
+          "body": "CURSOR",
+          "isvalid": true,
+          "lenbody": 6,
+          "magic": "prop",
+          "type": "NAME"
+        },
+        {
+          "isvalid": false,
+          "magic": "RLE "
+        }
+      ],
+      "type": "RLE "
+    },
+    {
+      "body": {
+        "body": {
+          "chars": [
+            "00070e151c232a31",
+            "383f464d545b6269",
+            "70777e858c939aa1",
+            "a8afb6bdc4cbd2d9",
+            "e0e7eef5fc030a11",
+            "181f262d343b4249",
+            "50575e656c737a81",
+            "888f969da4abb2b9",
+            "c0c7ced5dce3eaf1",
+            "f8ff060d141b2229",
+            "30373e454c535a61",
+            "686f767d848b9299",
+            "a0a7aeb5bcc3cad1",
+            "d8dfe6edf4fb0209",
+            "10171e252c333a41",
+            "484f565d646b7279",
+            "80878e959ca3aab1",
+            "b8bfc6cdd4dbe2e9",
+            "f0f7fe050c131a21",
+            "282f363d444b5259",
+            "60676e757c838a91",
+            "989fa6adb4bbc2c9",
+            "d0d7dee5ecf3fa01",
+            "080f161d242b3239",
+            "40474e555c636a71",
+            "787f868d949ba2a9",
+            "b0b7bec5ccd3dae1",
+            "e8eff6fd040b1219",
+            "20272e353c434a51",
+            "585f666d747b8289",
+            "90979ea5acb3bac1",
+            "c8cfd6dde4ebf2f9",
+            "00070e151c232a31",
+            "383f464d545b6269",
+            "70777e858c939aa1",
+            "a8afb6bdc4cbd2d9",
+            "e0e7eef5fc030a11",
+            "181f262d343b4249",
+            "50575e656c737a81",
+            "888f969da4abb2b9",
+            "c0c7ced5dce3eaf1",
+            "f8ff060d141b2229",
+            "30373e454c535a61",
+            "686f767d848b9299",
+            "a0a7aeb5bcc3cad1",
+            "d8dfe6edf4fb0209",
+            "10171e252c333a41",
+            "484f565d646b7279",
+            "80878e959ca3aab1",
+            "b8bfc6cdd4dbe2e9",
+            "f0f7fe050c131a21",
+            "282f363d444b5259",
+            "60676e757c838a91",
+            "989fa6adb4bbc2c9",
+            "d0d7dee5ecf3fa01",
+            "080f161d242b3239",
+            "40474e555c636a71",
+            "787f868d949ba2a9",
+            "b0b7bec5ccd3dae1",
+            "e8eff6fd040b1219",
+            "20272e353c434a51",
+            "585f666d747b8289",
+            "90979ea5acb3bac1",
+            "c8cfd6dde4ebf2f9",
+            "00070e151c232a31",
+            "383f464d545b6269",
+            "70777e858c939aa1",
+            "a8afb6bdc4cbd2d9",
+            "e0e7eef5fc030a11",
+            "181f262d343b4249",
+            "50575e656c737a81",
+            "888f969da4abb2b9",
+            "c0c7ced5dce3eaf1",
+            "f8ff060d141b2229",
+            "30373e454c535a61",
+            "686f767d848b9299",
+            "a0a7aeb5bcc3cad1",
+            "d8dfe6edf4fb0209",
+            "10171e252c333a41",
+            "484f565d646b7279",
+            "80878e959ca3aab1",
+            "b8bfc6cdd4dbe2e9",
+            "f0f7fe050c131a21",
+            "282f363d444b5259",
+            "60676e757c838a91",
+            "989fa6adb4bbc2c9",
+            "d0d7dee5ecf3fa01",
+            "080f161d242b3239",
+            "40474e555c636a71",
+            "787f868d949ba2a9",
+            "b0b7bec5ccd3dae1",
+            "e8eff6fd040b1219",
+            "20272e353c434a51",
+            "585f666d747b8289",
+            "90979ea5acb3bac1"
+          ]
+        },
+        "fontsize": 8
+      },
+      "lencompressed": 762,
+      "lenuncompressed": 762,
+      "properties": [
+        {
+          "body": "SMALLFONT",
+          "isvalid": true,
+          "lenbody": 9,
+          "magic": "prop",
+          "type": "NAME"
+        },
+        {
+          "isvalid": false,
+          "magic": "FONT"
+        }
+      ],
+      "type": "FONT"
+    },
+    {
+      "body": {
+        "body": {
+          "numranges": 1,
+          "ranges": [
+            {
+              "chars": [
+                {
+                  "body": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                  "height": 8,
+                  "width": 8
+                },
+                {
+                  "body": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                  "height": 8,
+                  "width": 8
+                }
+              ],
+              "endchar": 66,
+              "mono": 1,
+              "startchar": 65
+            }
+          ]
+        },
+        "fontsize": 0
+      },
+      "lencompressed": 149,
+      "lenuncompressed": 149,
+      "properties": [
+        {
+          "body": "NEWFONT",
+          "isvalid": true,
+          "lenbody": 7,
+          "magic": "prop",
+          "type": "NAME"
+        },
+        {
+          "isvalid": false,
+          "magic": "FONT"
+        }
+      ],
+      "type": "FONT"
+    },
+    {
+      "body": "726177206279746573206f6620616e206f626a656374206f662061207479706520776974686f75742061206c61796f7574",
+      "lencompressed": 49,
+      "lenuncompressed": 49,
+      "properties": [
+        {
+          "body": "RAWDATA",
+          "isvalid": true,
+          "lenbody": 7,
+          "magic": "prop",
+          "type": "NAME"
+        },
+        {
+          "isvalid": false,
+          "magic": "DATA"
+        }
+      ],
+      "type": "DATA"
+    }
+  ],
+  "packmagic": 1936484398
+}
