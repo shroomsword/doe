@@ -5796,3 +5796,28 @@ fn a_constant_of_the_root_can_be_used_by_a_type_read_before_the_root_ends() {
     };
     assert_eq!(fields.len(), 2);
 }
+
+#[test]
+fn the_size_of_a_root_field_of_a_fixed_size_is_known_before_it_is_read() {
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: head
+            type: head
+          - id: tail
+            type: u2
+        types:
+          head:
+            seq:
+              - id: size
+                type: u1
+            instances:
+              total:
+                value: _root.head._sizeof + _root.tail._sizeof
+    "};
+    let v = parse(schema, "t", &[3, 9, 0]);
+    assert_eq!(get_field(&v, "tail"), &Value::UInt(9));
+    let Value::Struct { .. } = get_field(&v, "head") else {
+        panic!("not a struct")
+    };
+}

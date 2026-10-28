@@ -1,0 +1,30 @@
+{
+  "colortable": {
+    "entries": [
+      0,
+      255,
+      65280,
+      16711680
+    ]
+  },
+  "fileheader": {
+    "lenfile": 42,
+    "magic": "50494600",
+    "ofsimagedata": 40,
+    "ofsimagedatamin": 28
+  },
+  "imagedata": "e41b",
+  "infoheader": {
+    "bitsperpixel": 2,
+    "compression": 0,
+    "height": 2,
+    "imagetype": 18770,
+    "lencolortable": 12,
+    "lencolortableentry": 3,
+    "lencolortablefull": 12,
+    "lencolortablemax": 12,
+    "lenimagedata": 2,
+    "usesindexedmode": true,
+    "width": 4
+  }
+}

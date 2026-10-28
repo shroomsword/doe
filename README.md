@@ -356,7 +356,7 @@ array built by an expression is limited to 1 MiB.
 element (0 for the first) in its `size`, `type` arguments, `switch-on` and
 `repeat-until`, and the elements read so far are the field's name
 (`groups[_index - 1].total`). `field._sizeof` is the number of bytes a field
-took (Kaitai Struct allows it for fields of a fixed size only), `_sizeof` the
+took (Kaitai Struct allows it for fields of a fixed size only; for those of the root type it is known before the field is read, as `_root.header._sizeof`), `_sizeof` the
 size of the type the expression is in, and `sizeof<type>` and `bitsizeof<type>`
 the size of a type or of a primitive such as `s4` or `b12`, in bytes or bits;
 for a type, it is an error unless every field of the type has a fixed size (a
@@ -762,7 +762,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 11 with a file written by its own tool, 133 with a file built by hand, 4 failing on a file, 9 part of another, 33 without a sample
+> 190 definitions: 11 with a file written by its own tool, 136 with a file built by hand, 4 failing on a file, 9 part of another, 30 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -789,14 +789,14 @@ and compared with the reference compiler's output:
 | `game` | `allegro_dat`, `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake2_md2`, `quake_mdl`, `quake_pak`, `renderware_binary_stream`, `saints_row_2_vpp_pc`, `warcraft_2_pud` |
 | `geospatial` | `shapefile_index`, `shapefile_main` |
 | `hardware` | `dtb`, `edid`, `mifare/mifare_classic` |
-| `image` | `bmp`, `gif`, `gimp_brush`, `ico`, `jpeg`, `pcx`, `pcx_dcx`, `png`, `psx_tim`, `tga`, `webp`, `wmf`, `xwd` |
+| `image` | `bmp`, `gif`, `gimp_brush`, `ico`, `jpeg`, `pcx`, `pcx_dcx`, `pif`, `png`, `psx_tim`, `tga`, `webp`, `wmf`, `xwd` |
 | `log` | `aix_utmp`, `glibc_utmp`, `hashcat_restore`, `sudoers_ts` |
 | `machine_code` | `code_6502` |
 | `media` | `android_opengl_shaders_cache`, `au`, `avi`, `blender_blend`, `creative_voice_file`, `genmidi_op2`, `id3v1_1`, `id3v2_3`, `id3v2_4`, `magicavoxel_vox`, `ogg`, `quicktime_mov`, `standard_midi_file`, `stl`, `tracker_modules/fasttracker_xm_module`, `tracker_modules/s3m`, `vp8_duck_ivf`, `wav` |
 | `network` | `bitcoin_transaction`, `dime_message`, `dns_packet`, `ethernet_frame`, `hccap`, `hccapx`, `icmp_packet`, `ipv4_packet`, `ipv6_packet`, `microsoft_network_monitor_v2`, `packet_ppi`, `pcap`, `rtcp_payload`, `rtp_packet`, `rtpdump`, `some_ip/some_ip`, `some_ip/some_ip_container`, `some_ip/some_ip_sd`, `tcp_segment`, `tls_client_hello`, `udp_datagram`, `websocket` |
-| `scientific` | `spectroscopy/avantes_roh60` |
+| `scientific` | `nt_mdt/nt_mdt_pal`, `spectroscopy/avantes_roh60` |
 | `security` | `efivar_signature_list`, `ssh_public_key` |
-| `serialization` | `asn1/asn1_der`, `bson`, `chrome_pak`, `google_protobuf`, `msgpack`, `php_serialized_value`, `python_pickle`, `ruby_marshal` |
+| `serialization` | `asn1/asn1_der`, `bson`, `chrome_pak`, `google_protobuf`, `microsoft_cfb`, `msgpack`, `php_serialized_value`, `python_pickle`, `ruby_marshal` |
 | `windows` | `windows_lnk_file`, `windows_resource_file`, `windows_shell_items` |
 <!-- gallery-formats:end -->
 
@@ -1083,8 +1083,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 203 samples of the Kaitai gallery
-in the tests, 84 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 207 samples of the Kaitai gallery
+in the tests, 88 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 
