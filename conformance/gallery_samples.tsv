@@ -67,7 +67,7 @@ firmware/uf2	crafted	firmware/uf2	built by make_samples_by_hand.py from the form
 firmware/uimage	crafted	firmware/uimage	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 font/grub2_font	real	font/grub2_font	grub-mkfont, run by make_real_samples.py (ten glyphs of DejaVu Sans Mono)	MIT (this repository) for the script; the glyphs are DejaVu Sans Mono, Bitstream Vera licence, shared under another name	
 font/pcf_font	crafted	font/pcf_font	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-font/ttf	none	-	-	-	
+font/ttf	crafted	font/ttf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/allegro_dat	crafted	game/allegro_dat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/doom_wad	crafted	game/doom_wad	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/dune_2_pak	crafted	game/dune_2_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -92,10 +92,10 @@ hardware/edid	crafted	hardware/edid	built by make_samples_by_hand.py from the fo
 hardware/mifare/mifare_classic	crafted	hardware/mifare/mifare_classic	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the sample has no value block: ~ of a u4 is read differently (#162)
 image/bmp	crafted	image/bmp	built by make_gallery_samples.py	MIT (this repository)	
 image/dicom	none	-	-	-	
-image/exif	none	-	-	-	
+image/exif	crafted	image/exif	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/gif	crafted	image/gif	built by make_gallery_samples.py	MIT (this repository)	
 image/gimp_brush	crafted	image/gimp_brush	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-image/icc_4	none	-	-	-	
+image/icc_4	crafted	image/icc_4	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/ico	crafted	image/ico	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/jpeg	crafted	image/jpeg	built by make_gallery_samples.py	MIT (this repository)	
 image/nitf	none	-	-	-	
@@ -170,7 +170,7 @@ network/websocket	crafted	network/websocket	built by make_samples_by_hand.py fro
 scientific/nt_mdt/nt_mdt	none	-	-	-	
 scientific/nt_mdt/nt_mdt_pal	crafted	scientific/nt_mdt/nt_mdt_pal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 scientific/spectroscopy/avantes_roh60	crafted	scientific/spectroscopy/avantes_roh60	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-scientific/spectroscopy/specpr	none	-	-	-	
+scientific/spectroscopy/specpr	crafted	scientific/spectroscopy/specpr	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 security/efivar_signature_list	crafted	security/efivar_signature_list	built by make_samples_by_hand.py from the format's documentation (the certificate is the openssl one of the asn1_der sample)	MIT (this repository)	
 security/openpgp_message	crafted	security/openpgp_message	built by make_real_samples.py: OpenPGP packets (RFC 4880) around an RSA key and a signature made by openssl	MIT (this repository)	
 security/ssh_public_key	real	security/ssh_public_key	ssh-keygen, run by make_real_samples.py (the key as the base64 of the .pub file holds it)	MIT (this repository)	ed25519, rsa 2048 and ecdsa 256 keys made for the samples
