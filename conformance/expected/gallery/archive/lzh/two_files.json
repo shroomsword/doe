@@ -1,0 +1,85 @@
+{
+  "entries": [
+    {
+      "filerecord": {
+        "body": "48656c6c6f2c204c48412e0a",
+        "fileuncomprcrc16": 47446,
+        "header": {
+          "filename": "hello.txt",
+          "filenamelen": 9,
+          "header1": {
+            "attr": 32,
+            "filesizecompr": 12,
+            "filesizeuncompr": 12,
+            "filetimestamp": {
+              "date": {
+                "day": 17,
+                "month": 5,
+                "paddedday": "17",
+                "paddedmonth": "05",
+                "paddedyear": "2024",
+                "year": 2024,
+                "yearminus1980": 44
+              },
+              "time": {
+                "hour": 13,
+                "minute": 45,
+                "paddedhour": "13",
+                "paddedminute": "45",
+                "paddedsecond": "30",
+                "second": 30,
+                "seconddiv2": 15
+              }
+            },
+            "headerchecksum": 102,
+            "lhalevel": 0,
+            "methodid": "-lh0-"
+          }
+        }
+      },
+      "headerlen": 31
+    },
+    {
+      "filerecord": {
+        "body": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627",
+        "fileuncomprcrc16": 17860,
+        "header": {
+          "filename": "data.bin",
+          "filenamelen": 8,
+          "header1": {
+            "attr": 32,
+            "filesizecompr": 40,
+            "filesizeuncompr": 40,
+            "filetimestamp": {
+              "date": {
+                "day": 17,
+                "month": 5,
+                "paddedday": "17",
+                "paddedmonth": "05",
+                "paddedyear": "2024",
+                "year": 2024,
+                "yearminus1980": 44
+              },
+              "time": {
+                "hour": 13,
+                "minute": 45,
+                "paddedhour": "13",
+                "paddedminute": "45",
+                "paddedsecond": "30",
+                "second": 30,
+                "seconddiv2": 15
+              }
+            },
+            "headerchecksum": 252,
+            "lhalevel": 0,
+            "methodid": "-lh0-"
+          }
+        }
+      },
+      "headerlen": 30
+    },
+    {
+      "headerlen": 0
+    }
+  ]
+}

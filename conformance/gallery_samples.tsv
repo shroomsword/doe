@@ -1,5 +1,5 @@
 format	status	sample	source	licence	note
-3d/gltf_binary	none	-	-	-	
+3d/gltf_binary	crafted	3d/gltf_binary	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/android_bootldr_asus	crafted	archive/android_bootldr_asus	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/android_bootldr_huawei	crafted	archive/android_bootldr_huawei	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/android_bootldr_qcom	crafted	archive/android_bootldr_qcom	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -8,13 +8,13 @@ archive/android_img	crafted	archive/android_img	built by make_samples_by_hand.py
 archive/android_sparse	crafted	archive/android_sparse	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/cpio_old_le	real	archive/cpio_old_le	cpio -H bin, run by make_real_samples.py	MIT (this repository)	a directory tree of three files and a directory
 archive/gzip	real	archive/gzip	gzip module of Python, run by make_gallery_samples.py	MIT (this repository)	
-archive/lzh	none	-	-	-	
+archive/lzh	crafted	archive/lzh	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/mozilla_mar	crafted	archive/mozilla_mar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/phar_without_stub	crafted	archive/phar_without_stub	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/rar	none	-	-	-	
 archive/respack	crafted	archive/respack	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/rpm	none	-	-	-	
-archive/xar	none	-	-	-	
+archive/xar	crafted	archive/xar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/zchunk	none	-	-	-	
 archive/zip	real	archive/zip	zipfile module of Python, run by make_gallery_samples.py	MIT (this repository)	
 archive/zisofs	crafted	archive/zisofs	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -32,7 +32,7 @@ database/gettext_mo	crafted	database/gettext_mo	built by make_samples_by_hand.py
 database/sqlite3	none	-	-	-	left out of the conformance suite on purpose: the definition reads every column as a string, which only works in the reference's JavaScript runtime (see the README)
 database/tsm	crafted	database/tsm	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/android_nanoapp_header	crafted	executable/android_nanoapp_header	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-executable/dex	none	-	-	-	
+executable/dex	crafted	executable/dex	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/dos_mz	crafted	executable/dos_mz	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/elf	real	executable/elf	the C compiler (cc), run by make_gallery_samples.py	MIT (this repository)	
 executable/java_class	crafted	executable/java_class	built by make_gallery_samples.py	MIT (this repository)	
@@ -66,7 +66,7 @@ firmware/ines	crafted	firmware/ines	built by make_samples_by_hand.py from the fo
 firmware/uf2	crafted	firmware/uf2	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 firmware/uimage	crafted	firmware/uimage	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 font/grub2_font	real	font/grub2_font	grub-mkfont, run by make_real_samples.py (ten glyphs of DejaVu Sans Mono)	MIT (this repository) for the script; the glyphs are DejaVu Sans Mono, Bitstream Vera licence, shared under another name	
-font/pcf_font	none	-	-	-	
+font/pcf_font	crafted	font/pcf_font	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 font/ttf	none	-	-	-	
 game/allegro_dat	crafted	game/allegro_dat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/doom_wad	crafted	game/doom_wad	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	

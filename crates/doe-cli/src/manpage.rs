@@ -17,7 +17,7 @@ const README: &str = include_str!("../../../README.md");
 
 /// The source of a table of the manual that is written before the next row starts a new table: tbl cannot break a table
 /// across pages, and the one of the gallery formats is longer than a page.
-const TABLE_PART: usize = 2500;
+const TABLE_PART: usize = 1200;
 
 /// A manual page that can be printed.
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]

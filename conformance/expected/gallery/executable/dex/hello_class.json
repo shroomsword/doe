@@ -1,0 +1,414 @@
+{
+  "classdefs": [
+    {
+      "accessflags": 1,
+      "annotationsoff": 0,
+      "classdata": {
+        "directmethods": [
+          {
+            "accessflags": {
+              "groups": [
+                {
+                  "hasnext": true,
+                  "intermvalue": 1,
+                  "value": 1
+                },
+                {
+                  "hasnext": true,
+                  "intermvalue": 1,
+                  "value": 0
+                },
+                {
+                  "hasnext": false,
+                  "intermvalue": 65537,
+                  "value": 4
+                }
+              ],
+              "len": 3,
+              "signbit": 1048576,
+              "value": 65537,
+              "valuesigned": 65537
+            },
+            "codeoff": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "intermvalue": 0,
+                  "value": 0
+                }
+              ],
+              "len": 1,
+              "signbit": 64,
+              "value": 0,
+              "valuesigned": 0
+            },
+            "methodidxdiff": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "intermvalue": 0,
+                  "value": 0
+                }
+              ],
+              "len": 1,
+              "signbit": 64,
+              "value": 0,
+              "valuesigned": 0
+            }
+          }
+        ],
+        "directmethodssize": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 1,
+              "value": 1
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 1,
+          "valuesigned": 1
+        },
+        "instancefields": [],
+        "instancefieldssize": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 0,
+              "value": 0
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 0,
+          "valuesigned": 0
+        },
+        "staticfields": [],
+        "staticfieldssize": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 0,
+              "value": 0
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 0,
+          "valuesigned": 0
+        },
+        "virtualmethods": [
+          {
+            "accessflags": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "intermvalue": 1,
+                  "value": 1
+                }
+              ],
+              "len": 1,
+              "signbit": 64,
+              "value": 1,
+              "valuesigned": 1
+            },
+            "codeoff": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "intermvalue": 0,
+                  "value": 0
+                }
+              ],
+              "len": 1,
+              "signbit": 64,
+              "value": 0,
+              "valuesigned": 0
+            },
+            "methodidxdiff": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "intermvalue": 1,
+                  "value": 1
+                }
+              ],
+              "len": 1,
+              "signbit": 64,
+              "value": 1,
+              "valuesigned": 1
+            }
+          }
+        ],
+        "virtualmethodssize": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 1,
+              "value": 1
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 1,
+          "valuesigned": 1
+        }
+      },
+      "classdataoff": 266,
+      "classidx": 0,
+      "interfacesoff": 0,
+      "sourcefileidx": 1,
+      "staticvalues": null,
+      "staticvaluesoff": 0,
+      "superclassidx": 1,
+      "typename": "LHello;"
+    }
+  ],
+  "data": "063c696e69743e000a48656c6c6f2e6a61766100074c48656c6c6f3b00124c6a6176612f6c616e672f4f626a6563743b00015600046d61696e000000010100818004000101000000090000000000000001000000000000000100000006000000700000000200000003000000880000000300000001000000940000000500000002000000a00000000600000001000000b00000000220000006000000d000000000200000010000000a010000001000000100000018010000",
+  "fieldids": [],
+  "header": {
+    "checksum": 293284654,
+    "classdefsoff": 176,
+    "classdefssize": 1,
+    "dataoff": 208,
+    "datasize": 184,
+    "endiantag": 305419896,
+    "fieldidsoff": 0,
+    "fieldidssize": 0,
+    "filesize": 392,
+    "headersize": 112,
+    "linkoff": 0,
+    "linksize": 0,
+    "magic": "6465780a",
+    "mapoff": 280,
+    "methodidsoff": 160,
+    "methodidssize": 2,
+    "protoidsoff": 148,
+    "protoidssize": 1,
+    "signature": "b0d286f037cf1b1c8e4be23ab519b484b7575fe6",
+    "stringidsoff": 112,
+    "stringidssize": 6,
+    "typeidsoff": 136,
+    "typeidssize": 3,
+    "versionstr": "035"
+  },
+  "linkdata": "",
+  "map": {
+    "list": [
+      {
+        "offset": 0,
+        "size": 1,
+        "type": 0,
+        "unused": 0
+      },
+      {
+        "offset": 112,
+        "size": 6,
+        "type": 1,
+        "unused": 0
+      },
+      {
+        "offset": 136,
+        "size": 3,
+        "type": 2,
+        "unused": 0
+      },
+      {
+        "offset": 148,
+        "size": 1,
+        "type": 3,
+        "unused": 0
+      },
+      {
+        "offset": 160,
+        "size": 2,
+        "type": 5,
+        "unused": 0
+      },
+      {
+        "offset": 176,
+        "size": 1,
+        "type": 6,
+        "unused": 0
+      },
+      {
+        "offset": 208,
+        "size": 6,
+        "type": 8194,
+        "unused": 0
+      },
+      {
+        "offset": 266,
+        "size": 1,
+        "type": 8192,
+        "unused": 0
+      },
+      {
+        "offset": 280,
+        "size": 1,
+        "type": 4096,
+        "unused": 0
+      }
+    ],
+    "size": 9
+  },
+  "methodids": [
+    {
+      "classidx": 0,
+      "classname": "LHello;",
+      "methodname": "<init>",
+      "nameidx": 0,
+      "protodesc": "V",
+      "protoidx": 0
+    },
+    {
+      "classidx": 0,
+      "classname": "LHello;",
+      "methodname": "main",
+      "nameidx": 5,
+      "protodesc": "V",
+      "protoidx": 0
+    }
+  ],
+  "protoids": [
+    {
+      "parametersoff": 0,
+      "paramstypes": null,
+      "returntype": "V",
+      "returntypeidx": 2,
+      "shortydesc": "V",
+      "shortyidx": 4
+    }
+  ],
+  "stringids": [
+    {
+      "stringdataoff": 208,
+      "value": {
+        "data": "<init>",
+        "utf16size": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 6,
+              "value": 6
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 6,
+          "valuesigned": 6
+        }
+      }
+    },
+    {
+      "stringdataoff": 216,
+      "value": {
+        "data": "Hello.java",
+        "utf16size": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 10,
+              "value": 10
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 10,
+          "valuesigned": 10
+        }
+      }
+    },
+    {
+      "stringdataoff": 228,
+      "value": {
+        "data": "LHello;",
+        "utf16size": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 7,
+              "value": 7
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 7,
+          "valuesigned": 7
+        }
+      }
+    },
+    {
+      "stringdataoff": 237,
+      "value": {
+        "data": "Ljava/lang/Object;",
+        "utf16size": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 18,
+              "value": 18
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 18,
+          "valuesigned": 18
+        }
+      }
+    },
+    {
+      "stringdataoff": 257,
+      "value": {
+        "data": "V",
+        "utf16size": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 1,
+              "value": 1
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 1,
+          "valuesigned": 1
+        }
+      }
+    },
+    {
+      "stringdataoff": 260,
+      "value": {
+        "data": "main",
+        "utf16size": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 4,
+              "value": 4
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 4,
+          "valuesigned": 4
+        }
+      }
+    }
+  ],
+  "typeids": [
+    {
+      "descriptoridx": 2,
+      "typename": "LHello;"
+    },
+    {
+      "descriptoridx": 3,
+      "typename": "Ljava/lang/Object;"
+    },
+    {
+      "descriptoridx": 4,
+      "typename": "V"
+    }
+  ]
+}

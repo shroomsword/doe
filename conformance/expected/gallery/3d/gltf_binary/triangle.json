@@ -1,0 +1,23 @@
+{
+  "chunks": [
+    {
+      "data": {
+        "data": "{\"asset\":{\"version\":\"2.0\",\"generator\":\"doe sample\"},\"scene\":0,\"scenes\":[{\"nodes\":[0]}],\"nodes\":[{\"mesh\":0}],\"meshes\":[{\"primitives\":[{\"attributes\":{\"POSITION\":0},\"indices\":1}]}],\"buffers\":[{\"byteLength\":44}],\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36},{\"buffer\":0,\"byteOffset\":36,\"byteLength\":6}],\"accessors\":[{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\",\"min\":[0,0,0],\"max\":[1,1,0]},{\"bufferView\":1,\"componentType\":5123,\"count\":3,\"type\":\"SCALAR\"}]}"
+      },
+      "lendata": 480,
+      "type": 1313821514
+    },
+    {
+      "data": {
+        "data": "0000000000000000000000000000803f0000000000000000000000000000803f000000000000010002000000"
+      },
+      "lendata": 44,
+      "type": 5130562
+    }
+  ],
+  "header": {
+    "length": 552,
+    "magic": "676c5446",
+    "version": 2
+  }
+}

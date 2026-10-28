@@ -5770,3 +5770,29 @@ fn elements_that_take_no_bytes_are_allowed_up_to_a_limit() {
     let e = parse_err(&schema, "t", &[12]);
     assert!(e.to_string().contains("consumed no bytes"), "{e}");
 }
+
+#[test]
+fn a_constant_of_the_root_can_be_used_by_a_type_read_before_the_root_ends() {
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: inner
+            type: inner
+        instances:
+          three:
+            value: 3
+        types:
+          inner:
+            seq:
+              - id: a
+                type: u1
+              - id: b
+                type: u1
+                if: _root.three == 3
+    "};
+    let v = parse(schema, "t", &[1, 2]);
+    let Value::Struct { fields, .. } = get_field(&v, "inner") else {
+        panic!("not a struct")
+    };
+    assert_eq!(fields.len(), 2);
+}

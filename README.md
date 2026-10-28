@@ -664,6 +664,9 @@ it, where the sequence ended), or computes, with `value:` (an expression or a
 literal such as `4` or `true`, and optionally `if:` and `enum:`). Reading one
 does not move the position of the sequence.
 
+A `value:` instance of the root type whose expression is a constant (`value: 3`) is known from the start, so a
+nested type can read it as `_root.name` before the end of the root.
+
 A `seq` field or another instance that uses an instance in a `size`, `if`,
 `pos`, `repeat`, `switch-on` or `value` expression gets it computed first, in
 dependency order; two that depend on each other are an error. Every instance
@@ -759,7 +762,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 11 with a file written by its own tool, 128 with a file built by hand, 4 failing on a file, 9 part of another, 38 without a sample
+> 190 definitions: 11 with a file written by its own tool, 133 with a file built by hand, 4 failing on a file, 9 part of another, 33 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -774,14 +777,15 @@ and compared with the reference compiler's output:
 <!-- gallery-formats:begin -->
 | Directory | Formats |
 | --- | --- |
-| `archive` | `android_bootldr_asus`, `android_bootldr_huawei`, `android_bootldr_qcom`, `android_dto`, `android_img`, `android_sparse`, `cpio_old_le`, `gzip`, `mozilla_mar`, `phar_without_stub`, `respack`, `zip`, `zisofs` |
+| `3d` | `gltf_binary` |
+| `archive` | `android_bootldr_asus`, `android_bootldr_huawei`, `android_bootldr_qcom`, `android_dto`, `android_img`, `android_sparse`, `cpio_old_le`, `gzip`, `lzh`, `mozilla_mar`, `phar_without_stub`, `respack`, `xar`, `zip`, `zisofs` |
 | `cad` | `monomakh_sapr_chg` |
 | `common` | `utf16_with_bom`, `utf8_string` |
 | `database` | `dbf`, `gettext_mo`, `tsm` |
-| `executable` | `android_nanoapp_header`, `dos_mz`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `python_pyc_27`, `swf` |
+| `executable` | `android_nanoapp_header`, `dex`, `dos_mz`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `python_pyc_27`, `swf` |
 | `filesystem` | `amlogic_emmc_partitions`, `apm_partition_table`, `apple_single_double`, `btrfs_stream`, `cramfs`, `gpt_partition_table`, `luks`, `mbr_partition_table`, `tr_dos_image`, `vdi`, `vmware_vmdk`, `zx_spectrum_tap` |
 | `firmware` | `andes_firmware`, `broadcom_trx`, `ines`, `uf2`, `uimage` |
-| `font` | `grub2_font` |
+| `font` | `grub2_font`, `pcf_font` |
 | `game` | `allegro_dat`, `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake2_md2`, `quake_mdl`, `quake_pak`, `renderware_binary_stream`, `saints_row_2_vpp_pc`, `warcraft_2_pud` |
 | `geospatial` | `shapefile_index`, `shapefile_main` |
 | `hardware` | `dtb`, `edid`, `mifare/mifare_classic` |
@@ -1079,8 +1083,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 198 samples of the Kaitai gallery
-in the tests, 80 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 203 samples of the Kaitai gallery
+in the tests, 84 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 

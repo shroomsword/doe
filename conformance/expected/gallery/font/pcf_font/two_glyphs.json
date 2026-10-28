@@ -1,0 +1,233 @@
+{
+  "magic": "01666370",
+  "numtables": 7,
+  "tables": [
+    {
+      "body": {
+        "format": {
+          "format": 0,
+          "glyphpadmask": 0,
+          "isbigendian": false,
+          "ismostsignificantbitfirst": false,
+          "padding": 0,
+          "padding1": 0,
+          "scanunitmask": 0
+        },
+        "lenstrings": 71,
+        "numprops": 3,
+        "padding": "00",
+        "props": [
+          {
+            "intvalue": null,
+            "isstring": 1,
+            "name": "FONT",
+            "ofsname": 0,
+            "strvalue": "-doe-sample-medium-r-normal--8-80-75-75-c-80-iso8859-1",
+            "valueorofsvalue": 5
+          },
+          {
+            "intvalue": 80,
+            "isstring": 0,
+            "name": "POINT_SIZE",
+            "ofsname": 60,
+            "strvalue": null,
+            "valueorofsvalue": 80
+          },
+          {
+            "intvalue": 8,
+            "isstring": 0,
+            "name": "POINT_SIZE",
+            "ofsname": 60,
+            "strvalue": null,
+            "valueorofsvalue": 8
+          }
+        ],
+        "strings": {
+          "data": "464f4e54002d646f652d73616d706c652d6d656469756d2d722d6e6f726d616c2d2d382d38302d37352d37352d632d38302d69736f383835392d3100504f494e545f53495a4500"
+        }
+      },
+      "format": {
+        "format": 0,
+        "glyphpadmask": 0,
+        "isbigendian": false,
+        "ismostsignificantbitfirst": false,
+        "padding": 0,
+        "padding1": 0,
+        "scanunitmask": 0
+      },
+      "lenbody": 112,
+      "ofsbody": 120,
+      "type": 1
+    },
+    {
+      "body": "000000000000000000000000000000000000000000000000",
+      "format": {
+        "format": 0,
+        "glyphpadmask": 0,
+        "isbigendian": false,
+        "ismostsignificantbitfirst": false,
+        "padding": 0,
+        "padding1": 0,
+        "scanunitmask": 0
+      },
+      "lenbody": 24,
+      "ofsbody": 232,
+      "type": 2
+    },
+    {
+      "body": "0000000002000000000000000000000000000000",
+      "format": {
+        "format": 0,
+        "glyphpadmask": 0,
+        "isbigendian": false,
+        "ismostsignificantbitfirst": false,
+        "padding": 0,
+        "padding1": 0,
+        "scanunitmask": 0
+      },
+      "lenbody": 20,
+      "ofsbody": 256,
+      "type": 4
+    },
+    {
+      "body": {
+        "bitmapsizes": [
+          16,
+          16,
+          16,
+          16
+        ],
+        "format": {
+          "format": 0,
+          "glyphpadmask": 0,
+          "isbigendian": false,
+          "ismostsignificantbitfirst": false,
+          "padding": 0,
+          "padding1": 0,
+          "scanunitmask": 0
+        },
+        "numglyphs": 2,
+        "offsets": [
+          0,
+          8
+        ]
+      },
+      "format": {
+        "format": 0,
+        "glyphpadmask": 0,
+        "isbigendian": false,
+        "ismostsignificantbitfirst": false,
+        "padding": 0,
+        "padding1": 0,
+        "scanunitmask": 0
+      },
+      "lenbody": 48,
+      "ofsbody": 276,
+      "type": 8
+    },
+    {
+      "body": {
+        "defaultchar": 65,
+        "format": {
+          "format": 0,
+          "glyphpadmask": 0,
+          "isbigendian": false,
+          "ismostsignificantbitfirst": false,
+          "padding": 0,
+          "padding1": 0,
+          "scanunitmask": 0
+        },
+        "glyphindexes": [
+          0,
+          1
+        ],
+        "maxbyte1": 0,
+        "maxcharorbyte2": 66,
+        "minbyte1": 0,
+        "mincharorbyte2": 65
+      },
+      "format": {
+        "format": 0,
+        "glyphpadmask": 0,
+        "isbigendian": false,
+        "ismostsignificantbitfirst": false,
+        "padding": 0,
+        "padding1": 0,
+        "scanunitmask": 0
+      },
+      "lenbody": 20,
+      "ofsbody": 324,
+      "type": 32
+    },
+    {
+      "body": {
+        "format": {
+          "format": 0,
+          "glyphpadmask": 0,
+          "isbigendian": false,
+          "ismostsignificantbitfirst": false,
+          "padding": 0,
+          "padding1": 0,
+          "scanunitmask": 0
+        },
+        "numglyphs": 2,
+        "swidths": [
+          500,
+          500
+        ]
+      },
+      "format": {
+        "format": 0,
+        "glyphpadmask": 0,
+        "isbigendian": false,
+        "ismostsignificantbitfirst": false,
+        "padding": 0,
+        "padding1": 0,
+        "scanunitmask": 0
+      },
+      "lenbody": 16,
+      "ofsbody": 344,
+      "type": 64
+    },
+    {
+      "body": {
+        "format": {
+          "format": 0,
+          "glyphpadmask": 0,
+          "isbigendian": false,
+          "ismostsignificantbitfirst": false,
+          "padding": 0,
+          "padding1": 0,
+          "scanunitmask": 0
+        },
+        "lenstrings": 4,
+        "names": [
+          {
+            "ofsstring": 0,
+            "value": "A"
+          },
+          {
+            "ofsstring": 2,
+            "value": "B"
+          }
+        ],
+        "numglyphs": 2,
+        "strings": {
+          "data": "41004200"
+        }
+      },
+      "format": {
+        "format": 0,
+        "glyphpadmask": 0,
+        "isbigendian": false,
+        "ismostsignificantbitfirst": false,
+        "padding": 0,
+        "padding1": 0,
+        "scanunitmask": 0
+      },
+      "lenbody": 24,
+      "ofsbody": 360,
+      "type": 128
+    }
+  ]
+}
