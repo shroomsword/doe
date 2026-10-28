@@ -1,0 +1,22 @@
+{
+  "compresseddata": "12414243440345464748494a00054142434445464748494a234bfe024109fe000002c10020fe04c3e80301ff05ff",
+  "header": {
+    "commonpart": {
+      "headertype": 8,
+      "lendecompressed": 40,
+      "lenheader": 18,
+      "magic": "a89f6572",
+      "unknown": 1
+    },
+    "typespecificpart": {
+      "decompressorid": 0,
+      "expansionbuffersize": 3,
+      "reserved": 0,
+      "workingbufferfractionalsize": 2
+    },
+    "typespecificpartraw": "020300000000",
+    "typespecificpartrawwithio": {
+      "data": "020300000000"
+    }
+  }
+}

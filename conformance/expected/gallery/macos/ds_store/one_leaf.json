@@ -1,0 +1,1500 @@
+{
+  "alignmentheader": "00000001",
+  "blockaddressmask": 31,
+  "buddyallocatorbody": {
+    "blockaddresses": [
+      {
+        "addressraw": 2059,
+        "offset": 2052,
+        "size": 2048
+      },
+      {
+        "addressraw": 37,
+        "offset": 36,
+        "size": 32
+      },
+      {
+        "addressraw": 135,
+        "offset": 132,
+        "size": 128
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      },
+      {
+        "addressraw": 0,
+        "offset": 4,
+        "size": 1
+      }
+    ],
+    "directories": [
+      {
+        "masterblock": {
+          "blockid": 2,
+          "numinternalnodes": 0,
+          "numnodes": 1,
+          "numrecords": 3,
+          "rootblock": {
+            "counter": 3,
+            "data": [
+              {
+                "block": null,
+                "record": {
+                  "datatype": "blob",
+                  "filename": {
+                    "length": 7,
+                    "value": "foo.txt"
+                  },
+                  "structuretype": {
+                    "value": "Iloc"
+                  },
+                  "value": {
+                    "length": 16,
+                    "value": "0000007800000050ffffffffffff0000"
+                  }
+                }
+              },
+              {
+                "block": null,
+                "record": {
+                  "datatype": "ustr",
+                  "filename": {
+                    "length": 7,
+                    "value": "foo.txt"
+                  },
+                  "structuretype": {
+                    "value": "cmmt"
+                  },
+                  "value": {
+                    "length": 9,
+                    "value": "A comment"
+                  }
+                }
+              },
+              {
+                "block": null,
+                "record": {
+                  "datatype": "long",
+                  "filename": {
+                    "length": 1,
+                    "value": "."
+                  },
+                  "structuretype": {
+                    "value": "vSrn"
+                  },
+                  "value": 1
+                }
+              }
+            ],
+            "mode": 0,
+            "rightmostblock": null
+          }
+        }
+      }
+    ],
+    "directoryentries": [
+      {
+        "blockid": 1,
+        "lenname": 4,
+        "name": "DSDB"
+      }
+    ],
+    "freelists": [
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      },
+      {
+        "counter": 0,
+        "offsets": []
+      }
+    ],
+    "numblockaddresses": 256,
+    "numblocks": 3,
+    "numdirectories": 1,
+    "numfreelists": 32
+  },
+  "buddyallocatorheader": {
+    "copyofsbookkeepinginfoblock": 2048,
+    "lenbookkeepinginfoblock": 2048,
+    "magic": "42756431",
+    "ofsbookkeepinginfoblock": 2048
+  }
+}

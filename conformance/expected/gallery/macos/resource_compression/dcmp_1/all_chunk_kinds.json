@@ -1,0 +1,127 @@
+{
+  "chunks": [
+    {
+      "body": {
+        "dostore": true,
+        "islenliteralseparate": false,
+        "lenliteral": 4,
+        "lenliteralm1intag": 3,
+        "literal": "41424344"
+      },
+      "tag": 19
+    },
+    {
+      "body": {
+        "dostore": false,
+        "islenliteralseparate": true,
+        "lenliteral": 3,
+        "lenliteralm1intag": null,
+        "lenliteralseparate": 3,
+        "literal": "616263"
+      },
+      "tag": 208
+    },
+    {
+      "body": {
+        "dostore": true,
+        "islenliteralseparate": true,
+        "lenliteral": 2,
+        "lenliteralm1intag": null,
+        "lenliteralseparate": 2,
+        "literal": "7879"
+      },
+      "tag": 209
+    },
+    {
+      "body": {
+        "index": 0,
+        "indexintag": 0,
+        "indexseparate": null,
+        "isindexseparate": false
+      },
+      "tag": 32
+    },
+    {
+      "body": {
+        "index": 180,
+        "indexintag": 178,
+        "indexseparate": 180,
+        "indexseparateminus": 4,
+        "isindexseparate": true
+      },
+      "tag": 210
+    },
+    {
+      "body": {
+        "lookuptable": [
+          "0000",
+          "0001",
+          "0002",
+          "0003",
+          "2e01",
+          "3e01",
+          "0101",
+          "1e01",
+          "ffff",
+          "0e01",
+          "3100",
+          "1112",
+          "0107",
+          "3332",
+          "1239",
+          "ed10",
+          "0127",
+          "2322",
+          "0137",
+          "0706",
+          "0117",
+          "0123",
+          "00ff",
+          "002f",
+          "070e",
+          "fd3c",
+          "0135",
+          "0115",
+          "0102",
+          "0007",
+          "003e",
+          "05d5",
+          "0201",
+          "0607",
+          "0708",
+          "3001",
+          "0133",
+          "0010",
+          "1716",
+          "373e",
+          "3637"
+        ],
+        "value": "0000"
+      },
+      "tag": 213
+    },
+    {
+      "body": {
+        "body": {
+          "repeatcount": 10,
+          "repeatcountm1": 9,
+          "repeatcountm1raw": {
+            "first": 9,
+            "value": 9
+          },
+          "torepeat": 65,
+          "torepeatraw": {
+            "first": 65,
+            "value": 65
+          }
+        },
+        "tag": 2
+      },
+      "tag": 254
+    },
+    {
+      "body": {},
+      "tag": 255
+    }
+  ]
+}

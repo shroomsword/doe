@@ -1,0 +1,311 @@
+{
+  "chunks": [
+    {
+      "body": {
+        "dostore": true,
+        "islenliteraldiv2separate": false,
+        "lenliteral": 4,
+        "lenliteraldiv2": 2,
+        "lenliteraldiv2intag": 2,
+        "literal": "41424344"
+      },
+      "tag": 18
+    },
+    {
+      "body": {
+        "dostore": false,
+        "islenliteraldiv2separate": false,
+        "lenliteral": 6,
+        "lenliteraldiv2": 3,
+        "lenliteraldiv2intag": 3,
+        "literal": "45464748494a"
+      },
+      "tag": 3
+    },
+    {
+      "body": {
+        "dostore": false,
+        "islenliteraldiv2separate": true,
+        "lenliteral": 10,
+        "lenliteraldiv2": 5,
+        "lenliteraldiv2intag": 0,
+        "lenliteraldiv2separate": 5,
+        "literal": "4142434445464748494a"
+      },
+      "tag": 0
+    },
+    {
+      "body": {
+        "index": 0,
+        "indexintag": 0,
+        "indexseparate": null,
+        "isindexseparate": false
+      },
+      "tag": 35
+    },
+    {
+      "body": {
+        "lookuptable": [
+          "0000",
+          "4eba",
+          "0008",
+          "4e75",
+          "000c",
+          "4ead",
+          "2053",
+          "2f0b",
+          "6100",
+          "0010",
+          "7000",
+          "2f00",
+          "486e",
+          "2050",
+          "206e",
+          "2f2e",
+          "fffc",
+          "48e7",
+          "3f3c",
+          "0004",
+          "fff8",
+          "2f0c",
+          "2006",
+          "4eed",
+          "4e56",
+          "2068",
+          "4e5e",
+          "0001",
+          "588f",
+          "4fef",
+          "0002",
+          "0018",
+          "6000",
+          "ffff",
+          "508f",
+          "4e90",
+          "0006",
+          "266e",
+          "0014",
+          "fff4",
+          "4cee",
+          "000a",
+          "000e",
+          "41ee",
+          "4cdf",
+          "48c0",
+          "fff0",
+          "2d40",
+          "0012",
+          "302e",
+          "7001",
+          "2f28",
+          "2054",
+          "6700",
+          "0020",
+          "001c",
+          "205f",
+          "1800",
+          "266f",
+          "4878",
+          "0016",
+          "41fa",
+          "303c",
+          "2840",
+          "7200",
+          "286e",
+          "200c",
+          "6600",
+          "206b",
+          "2f07",
+          "558f",
+          "0028",
+          "fffe",
+          "ffec",
+          "22d8",
+          "200b",
+          "000f",
+          "598f",
+          "2f3c",
+          "ff00",
+          "0118",
+          "81e1",
+          "4a00",
+          "4eb0",
+          "ffe8",
+          "48c7",
+          "0003",
+          "0022",
+          "0007",
+          "001a",
+          "6706",
+          "6708",
+          "4ef9",
+          "0024",
+          "2078",
+          "0800",
+          "6604",
+          "002a",
+          "4ed0",
+          "3028",
+          "265f",
+          "6704",
+          "0030",
+          "43ee",
+          "3f00",
+          "201f",
+          "001e",
+          "fff6",
+          "202e",
+          "42a7",
+          "2007",
+          "fffa",
+          "6002",
+          "3d40",
+          "0c40",
+          "6606",
+          "0026",
+          "2d48",
+          "2f01",
+          "70ff",
+          "6004",
+          "1880",
+          "4a40",
+          "0040",
+          "002c",
+          "2f08",
+          "0011",
+          "ffe4",
+          "2140",
+          "2640",
+          "fff2",
+          "426e",
+          "4eb9",
+          "3d7c",
+          "0038",
+          "000d",
+          "6006",
+          "422e",
+          "203c",
+          "670c",
+          "2d68",
+          "6608",
+          "4a2e",
+          "4aae",
+          "002e",
+          "4840",
+          "225f",
+          "2200",
+          "670a",
+          "3007",
+          "4267",
+          "0032",
+          "2028",
+          "0009",
+          "487a",
+          "0200",
+          "2f2b",
+          "0005",
+          "226e",
+          "6602",
+          "e580",
+          "670e",
+          "660a",
+          "0050",
+          "3e00",
+          "660c",
+          "2e00",
+          "ffee",
+          "206d",
+          "2040",
+          "ffe0",
+          "5340",
+          "6008",
+          "0480",
+          "0068",
+          "0b7c",
+          "4400",
+          "41e8",
+          "4841"
+        ],
+        "value": "0000"
+      },
+      "tag": 75
+    },
+    {
+      "body": {
+        "body": {
+          "bytecount": 1,
+          "repeatcount": 10,
+          "repeatcountm1": 9,
+          "repeatcountm1raw": {
+            "first": 9,
+            "value": 9
+          },
+          "torepeat": 65,
+          "torepeatraw": {
+            "first": 65,
+            "value": 65
+          }
+        },
+        "tag": 2
+      },
+      "tag": 254
+    },
+    {
+      "body": {
+        "body": {
+          "addressesraw": [
+            {
+              "first": 193,
+              "more": 0,
+              "value": 256
+            },
+            {
+              "first": 32,
+              "value": 32
+            }
+          ],
+          "numaddresses": 2,
+          "numaddressesraw": {
+            "first": 2,
+            "value": 2
+          },
+          "segmentnumber": 0,
+          "segmentnumberraw": {
+            "first": 0,
+            "value": 0
+          }
+        },
+        "tag": 0
+      },
+      "tag": 254
+    },
+    {
+      "body": {
+        "body": {
+          "deltas": [
+            1,
+            -1,
+            5
+          ],
+          "firstvalue": 1000,
+          "firstvalueraw": {
+            "first": 195,
+            "more": 232,
+            "value": 1000
+          },
+          "numdeltas": 3,
+          "numdeltasraw": {
+            "first": 3,
+            "value": 3
+          }
+        },
+        "tag": 4
+      },
+      "tag": 254
+    },
+    {
+      "body": {},
+      "tag": 255
+    }
+  ]
+}
