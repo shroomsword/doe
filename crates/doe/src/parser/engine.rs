@@ -1584,9 +1584,14 @@ impl<'reg> Engine<'reg> {
         } else {
             Self::eval_args(args, &sub_ty.name, parent_ty, cursor, ctx)?
         };
-        match ctx.take_pending_parent() {
-            Some(up) => ctx.push_scope_under(up),
-            None => ctx.push_scope(),
+        let pending = ctx.take_pending_parent();
+        if schema_of(&sub_ty.name) == schema_of(&parent_ty.name) {
+            match pending {
+                Some(up) => ctx.push_scope_under(up),
+                None => ctx.push_scope(),
+            }
+        } else {
+            ctx.push_scope_root();
         }
         ctx.bind_params(&sub_ty.params, values);
         let result = match window {
@@ -1792,6 +1797,11 @@ pub const STREAM_FIELD: &str = "_io";
 
 /// The stream `cursor` reads, as an expression value: where its window starts
 /// in the whole input, and its size.
+/// The name of the schema a type is from: the first part of its name (`mach_o` for `mach_o::mach_header`).
+fn schema_of(type_name: &str) -> &str {
+    type_name.split("::").next().unwrap_or(type_name)
+}
+
 fn stream_expr(cursor: &Cursor<'_>) -> ExprValue {
     let number = |n: usize| ExprValue::Int(i128::try_from(n).unwrap_or(i128::MAX));
     ExprValue::Struct(vec![
