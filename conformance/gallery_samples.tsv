@@ -52,7 +52,7 @@ filesystem/ext2	none	-	-	-	no sample: every directory entry has an instance for 
 filesystem/gpt_partition_table	crafted	filesystem/gpt_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/iso9660	failing	filesystem/iso9660	genisoimage, run by make_real_samples.py	MIT (this repository)	does not finish: #150
 filesystem/luks	crafted	filesystem/luks	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-filesystem/lvm2	none	-	-	-	
+filesystem/lvm2	none	-	-	-	no sample: the definition reads the descriptors of a physical volume with loops that stop at the first one that is not empty, where the format ends them with an empty one, and the checksum of the metadata area header has the type of that header, so a real volume is read wrongly or endlessly
 filesystem/mbr_partition_table	crafted	filesystem/mbr_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/tr_dos_image	crafted	filesystem/tr_dos_image	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/ubifs	none	-	-	-	no sample: the smallest image UBIFS accepts (15 KiB logical erase blocks, at least 17 of them) is much larger than the 64 KiB a sample may have
@@ -183,7 +183,7 @@ serialization/msgpack	crafted	serialization/msgpack	built by make_samples_by_han
 serialization/php_serialized_value	crafted	serialization/php_serialized_value	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 serialization/python_pickle	real	serialization/python_pickle	pickle of Python, run by make_real_samples.py	MIT (this repository)	protocols 0, 2 and 4; the text in protocol 0 is ASCII, because Python writes it as Latin-1 and doe, by design, refuses a byte that is not ASCII in an ascii string (the reference does not)
 serialization/ruby_marshal	crafted	serialization/ruby_marshal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-windows/regf	none	-	-	-	
+windows/regf	none	-	-	-	no sample: the definition lays out the nk (key) record differently from the format, so a registry hive that Windows wrote is read wrongly
 windows/windows_lnk_file	crafted	windows/windows_lnk_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_minidump	crafted	windows/windows_minidump	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_resource_file	crafted	windows/windows_resource_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the sample has no empty first resource and no number as a type or name: the position that the definition keeps for a number is read at the end of the file by the reference (#170)
