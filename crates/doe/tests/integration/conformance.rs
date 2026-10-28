@@ -520,9 +520,10 @@ fn formats_with_samples() -> Vec<String> {
     formats
 }
 
-/// The gallery formats that doe does not read yet (`failing` in
-/// `gallery_samples.tsv`, each with its issue), as `gallery/<path>`: they have
-/// samples, and no test until they are fixed.
+/// The gallery formats that have samples and are not compared with the output of the reference compiler, as
+/// `gallery/<path>`: those that doe does not read yet (`failing` in `gallery_samples.tsv`, each with its issue), and
+/// those that the reference cannot give output for (their note starts with "no reference output"), which have a test
+/// of their own.
 fn failing_gallery_formats() -> Vec<String> {
     let table = std::fs::read_to_string(conformance_dir().join("gallery_samples.tsv"))
         .expect("the table of the gallery");
@@ -531,9 +532,60 @@ fn failing_gallery_formats() -> Vec<String> {
         .filter_map(|line| {
             let mut cells = line.split('\t');
             let name = cells.next()?;
-            (cells.next()? == "failing").then(|| format!("gallery/{name}"))
+            let status = cells.next()?;
+            let note = cells.nth(3).unwrap_or("");
+            (status == "failing" || note.starts_with("no reference output"))
+                .then(|| format!("gallery/{name}"))
         })
         .collect()
+}
+
+/// An ISO 9660 image written by `genisoimage` is read in a short time, with the directories that lead back to
+/// themselves (`.`, `..`) cut off, and the fields that were checked by hand are what the image has. The reference
+/// compiler has no output for it (#150), so these fields stand for it.
+#[test]
+fn an_iso9660_image_is_read_and_the_directories_that_lead_back_are_cut() {
+    let sample = conformance_dir()
+        .join("samples")
+        .join("gallery/filesystem/iso9660/small.bin");
+    let ksy = definition("gallery/filesystem/iso9660");
+    let started = std::time::Instant::now();
+    let text = parse_file(
+        &sample,
+        ksy.to_str().expect("the path is UTF-8"),
+        &[gallery_dir()],
+        Some(Path::new("/nonexistent/config.toml")),
+        OutputFormat::Json,
+    )
+    .expect("the image is read");
+    assert!(started.elapsed().as_secs() < 10, "{:?}", started.elapsed());
+    let image: Json = serde_json::from_str(&text).expect("doe's output is JSON");
+    let volume = &image["primary_vol_desc"]["vol_desc_primary"];
+    assert_eq!(volume["volume_id"].as_str().map(str::trim), Some("DOE"));
+    assert_eq!(volume["vol_space_size"]["le"], 27);
+    assert_eq!(volume["logical_block_size"]["le"], 2048);
+    let root = &volume["root_dir"]["body"];
+    // (the padding at the end of a directory block is an entry without a body)
+    let names = |directory: &Json| -> Vec<String> {
+        directory["entries"]
+            .as_array()
+            .expect("a list of entries")
+            .iter()
+            .filter_map(|entry| entry["body"]["file_name"].as_str().map(str::to_owned))
+            .collect()
+    };
+    let entries = &root["extent_as_dir"];
+    assert_eq!(names(entries), ["\0", "\u{1}", "DOCS", "README.TXT;1"]);
+    // `.` and `..` lead back to the root directory, that is being read: they are not read again, and say where
+    // they would be read from
+    let dot = &entries["entries"][0]["body"];
+    assert!(dot["extent_as_dir"].is_null());
+    assert_eq!(dot["$offsets"]["extent_as_dir"], 23 * 2048);
+    assert!(entries["entries"][1]["body"]["extent_as_dir"].is_null());
+    // the directory below is read, and has its own `.` cut off
+    let docs = &entries["entries"][2]["body"]["extent_as_dir"];
+    assert_eq!(names(docs), ["\0", "\u{1}", "A.TXT;1"]);
+    assert!(docs["entries"][0]["body"]["extent_as_dir"].is_null());
 }
 
 /// The spans of a tree lie in the input, in order, and a node's children that

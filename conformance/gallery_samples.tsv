@@ -50,7 +50,7 @@ filesystem/btrfs_stream	crafted	filesystem/btrfs_stream	built by make_samples_by
 filesystem/cramfs	crafted	filesystem/cramfs	built by make_samples_by_hand.py from the format's documentation (directories only, what the definition reads)	MIT (this repository)	
 filesystem/ext2	none	-	-	-	no sample: every directory entry has an instance for its inode, and the dot entries lead back to their directory, so the reference output is endless
 filesystem/gpt_partition_table	crafted	filesystem/gpt_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-filesystem/iso9660	failing	filesystem/iso9660	genisoimage, run by make_real_samples.py	MIT (this repository)	does not finish: #150
+filesystem/iso9660	real	filesystem/iso9660	genisoimage, run by make_real_samples.py	MIT (this repository)	no reference output: the reference compiler overflows its stack on the dot entries, which lead back to their directory (#150); a test of conformance.rs checks fields
 filesystem/luks	crafted	filesystem/luks	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/lvm2	none	-	-	-	no sample: the definition reads the descriptors of a physical volume with loops that stop at the first one that is not empty, where the format ends them with an empty one, and the checksum of the metadata area header has the type of that header, so a real volume is read wrongly or endlessly
 filesystem/mbr_partition_table	crafted	filesystem/mbr_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
