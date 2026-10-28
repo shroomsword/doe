@@ -1,0 +1,141 @@
+{
+  "applicationdata": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "datablocks": "000000060548656c6c6f0000000807476f6f646279650000001e536f6d65207465787420696e2061207265736f7572636520666f726b2e0d",
+  "datablockswithio": {
+    "data": "000000060548656c6c6f0000000807476f6f646279650000001e536f6d65207465787420696e2061207265736f7572636520666f726b2e0d"
+  },
+  "header": {
+    "lendatablocks": 56,
+    "lenresourcemap": 98,
+    "ofsdatablocks": 256,
+    "ofsresourcemap": 312
+  },
+  "resourcemap": {
+    "fileattributes": {
+      "asint": 0,
+      "mapneedswrite": false,
+      "needscompact": false,
+      "nowritechanges": false,
+      "printerdrivermultifindercompatible": false,
+      "reserved0": 0,
+      "reserved1": 0,
+      "resourceslocked": false
+    },
+    "names": "084772656574696e6706526561644d65",
+    "nameswithio": {
+      "data": "084772656574696e6706526561644d65"
+    },
+    "ofsnames": 82,
+    "ofstypelist": 28,
+    "reservedfileheadercopy": {
+      "lendatablocks": 56,
+      "lenresourcemap": 98,
+      "ofsdatablocks": 256,
+      "ofsresourcemap": 312
+    },
+    "reservedfilereferencenumber": 0,
+    "reservednextresourcemaphandle": 0,
+    "typelistandreferencelists": {
+      "referencelists": "0080000000000000000000000081ffff0000000a00000000008000090000001600000000",
+      "typelist": {
+        "entries": [
+          {
+            "numreferences": 2,
+            "numreferencesm1": 1,
+            "ofsreferencelist": 18,
+            "referencelist": {
+              "references": [
+                {
+                  "attributes": {
+                    "asint": 0,
+                    "compressed": false,
+                    "loadintosystemheap": false,
+                    "locked": false,
+                    "needswrite": false,
+                    "preload": false,
+                    "protected": false,
+                    "purgeable": false,
+                    "systemreference": false
+                  },
+                  "datablock": {
+                    "data": "0548656c6c6f",
+                    "lendata": 6
+                  },
+                  "id": 128,
+                  "name": {
+                    "lenvalue": 8,
+                    "value": "4772656574696e67"
+                  },
+                  "ofsdatablock": 0,
+                  "ofsname": 0,
+                  "reservedhandle": 0
+                },
+                {
+                  "attributes": {
+                    "asint": 0,
+                    "compressed": false,
+                    "loadintosystemheap": false,
+                    "locked": false,
+                    "needswrite": false,
+                    "preload": false,
+                    "protected": false,
+                    "purgeable": false,
+                    "systemreference": false
+                  },
+                  "datablock": {
+                    "data": "07476f6f64627965",
+                    "lendata": 8
+                  },
+                  "id": 129,
+                  "name": null,
+                  "ofsdatablock": 10,
+                  "ofsname": 65535,
+                  "reservedhandle": 0
+                }
+              ]
+            },
+            "type": "53545220"
+          },
+          {
+            "numreferences": 1,
+            "numreferencesm1": 0,
+            "ofsreferencelist": 42,
+            "referencelist": {
+              "references": [
+                {
+                  "attributes": {
+                    "asint": 0,
+                    "compressed": false,
+                    "loadintosystemheap": false,
+                    "locked": false,
+                    "needswrite": false,
+                    "preload": false,
+                    "protected": false,
+                    "purgeable": false,
+                    "systemreference": false
+                  },
+                  "datablock": {
+                    "data": "536f6d65207465787420696e2061207265736f7572636520666f726b2e0d",
+                    "lendata": 30
+                  },
+                  "id": 128,
+                  "name": {
+                    "lenvalue": 6,
+                    "value": "526561644d65"
+                  },
+                  "ofsdatablock": 22,
+                  "ofsname": 9,
+                  "reservedhandle": 0
+                }
+              ]
+            },
+            "type": "54455854"
+          }
+        ],
+        "numtypes": 2,
+        "numtypesm1": 1
+      }
+    }
+  },
+  "systemdata": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+}

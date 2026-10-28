@@ -116,14 +116,14 @@ log/sudoers_ts	crafted	log/sudoers_ts	built by make_samples_by_hand.py from the 
 log/systemd_journal	crafted	log/systemd_journal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/windows_evt_log	crafted	log/windows_evt_log	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 machine_code/code_6502	crafted	machine_code/code_6502	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-macos/compressed_resource	none	-	-	-	
-macos/ds_store	none	-	-	-	
-macos/mac_os_resource_snd	none	-	-	-	
-macos/resource_compression/dcmp_0	none	-	-	-	
-macos/resource_compression/dcmp_1	none	-	-	-	
-macos/resource_compression/dcmp_2	none	-	-	-	
-macos/resource_compression/dcmp_variable_length_integer	none	-	-	-	
-macos/resource_fork	none	-	-	-	
+macos/compressed_resource	crafted	macos/compressed_resource	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+macos/ds_store	crafted	macos/ds_store	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+macos/mac_os_resource_snd	crafted	macos/mac_os_resource_snd	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+macos/resource_compression/dcmp_0	crafted	macos/resource_compression/dcmp_0	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+macos/resource_compression/dcmp_1	crafted	macos/resource_compression/dcmp_1	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+macos/resource_compression/dcmp_2	none	-	-	-	no sample: the format takes the length of the decompressed data and the parameters of the compressed resource header from the program that reads it, so it cannot be read on its own
+macos/resource_compression/dcmp_variable_length_integer	crafted	macos/resource_compression/dcmp_variable_length_integer	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+macos/resource_fork	crafted	macos/resource_fork	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/android_opengl_shaders_cache	crafted	media/android_opengl_shaders_cache	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/au	crafted	media/au	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/avi	crafted	media/avi	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	

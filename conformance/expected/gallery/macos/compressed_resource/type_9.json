@@ -1,0 +1,23 @@
+{
+  "compresseddata": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627",
+  "header": {
+    "commonpart": {
+      "headertype": 9,
+      "lendecompressed": 40,
+      "lenheader": 18,
+      "magic": "a89f6572",
+      "unknown": 1
+    },
+    "typespecificpart": {
+      "decompressorid": 2,
+      "decompressorspecificparameters": "00800001",
+      "decompressorspecificparameterswithio": {
+        "data": "00800001"
+      }
+    },
+    "typespecificpartraw": "000200800001",
+    "typespecificpartrawwithio": {
+      "data": "000200800001"
+    }
+  }
+}

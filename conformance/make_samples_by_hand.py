@@ -2422,6 +2422,88 @@ def more():
     head = b"".join(fields)
     put("log/systemd_journal", "one_entry", head.ljust(header_size, b"\0") + arena)
 
+    # Classic Mac OS: variable-length integers of the decompressors, dcmp 0 and dcmp 1 streams, a compressed resource
+    # header, a resource fork and a 'snd ' resource
+    def vli(value):
+        if value < 0x80:
+            return bytes([value])
+        return struct.pack(">H", value + 0xC000)
+
+    put("macos/resource_compression/dcmp_variable_length_integer", "one_byte", vli(0x2A))
+    put("macos/resource_compression/dcmp_variable_length_integer", "two_bytes", vli(0x123))
+
+    dcmp0 = b"\x12ABCD" + b"\x03EFGHIJ" + b"\x00\x05" + bytes(range(65, 75)) + b"\x23" + b"\x4b"
+    dcmp0 += b"\xfe\x02" + vli(0x41) + vli(9) + b"\xfe\x00" + vli(0) + vli(2) + vli(0x100) + vli(0x20)
+    dcmp0 += b"\xfe\x04" + vli(1000) + vli(3) + bytes([1, 0xFF, 5]) + b"\xff"
+    put("macos/resource_compression/dcmp_0", "all_chunk_kinds", dcmp0)
+    dcmp1 = b"\x13ABCD" + b"\xd0\x03abc" + b"\xd1\x02xy" + b"\x20" + b"\xd2\x04" + b"\xd5" + b"\xfe\x02" + vli(0x41) + vli(9) + b"\xff"
+    put("macos/resource_compression/dcmp_1", "all_chunk_kinds", dcmp1)
+
+    def compressed_header(kind, size, tail):
+        return bytes([0xA8, 0x9F, 0x65, 0x72]) + struct.pack(">HBBI", 0x12, kind, 1, size) + tail
+
+    put("macos/compressed_resource", "type_8", compressed_header(8, 40, bytes([2, 3]) + struct.pack(">hH", 0, 0)) + dcmp0)
+    put("macos/compressed_resource", "type_9", compressed_header(9, 40, struct.pack(">h", 2) + bytes([0, 0x80, 0, 1])) + bytes(range(40)))
+
+    def resource_fork(resources):
+        data, refs, names = b"", {}, b""
+        for kind, items in resources.items():
+            refs[kind] = []
+            for number, name, content in items:
+                ofs_name = 0xFFFF
+                if name is not None:
+                    ofs_name = len(names)
+                    names += bytes([len(name)]) + name.encode()
+                refs[kind].append((number, ofs_name, len(data)))
+                data += struct.pack(">I", len(content)) + content
+        type_list = struct.pack(">H", len(refs) - 1)
+        reference_lists, position = b"", 2 + 8 * len(refs)
+        for kind, items in refs.items():
+            type_list += kind.encode() + struct.pack(">HH", len(items) - 1, position + len(reference_lists))
+            for number, ofs_name, ofs_data in items:
+                reference_lists += struct.pack(">hH", number, ofs_name) + bytes([0]) + ofs_data.to_bytes(3, "big") + bytes(4)
+        ofs_names = 28 + len(type_list) + len(reference_lists)
+        map_length = ofs_names + len(names)
+        file_header = struct.pack(">IIII", 256, 256 + len(data), len(data), map_length)
+        resource_map = file_header + bytes(4) + bytes(2) + bytes(2) + struct.pack(">HH", 28, ofs_names) + type_list + reference_lists + names
+        return file_header.ljust(256, b"\0") + data + resource_map
+
+    put(
+        "macos/resource_fork",
+        "str_and_text",
+        resource_fork({
+            "STR ": [(128, "Greeting", b"\x05Hello"), (129, None, b"\x07Goodbye")],
+            "TEXT": [(128, "ReadMe", b"Some text in a resource fork.\r")],
+        }),
+    )
+
+    samples = bytes((i * 5) & 0xFF for i in range(64))
+    header = struct.pack(">II", 0, len(samples)) + struct.pack(">HH", 22254, 0x8000) + struct.pack(">II", 0, 0) + bytes([0, 60])
+    snd = struct.pack(">HH", 1, 1) + struct.pack(">HI", 5, 0x80) + struct.pack(">H", 1) + struct.pack(">HHI", 0x8051, 0, 20) + header + samples
+    put("macos/mac_os_resource_snd", "format_1", snd)
+
+    # .DS_Store: a buddy allocator with a master block, one leaf of a B-tree with three records, and the bookkeeping block
+    def ds_ustr(text):
+        return struct.pack(">I", len(text)) + text.encode("utf-16-be")
+
+    records = (
+        ds_ustr("foo.txt") + b"Iloc" + b"blob" + struct.pack(">I", 16) + struct.pack(">ii", 120, 80) + bytes([0xFF] * 6) + bytes(2)
+        + ds_ustr("foo.txt") + b"cmmt" + b"ustr" + ds_ustr("A comment")
+        + ds_ustr(".") + b"vSrn" + b"long" + struct.pack(">I", 1)
+    )
+    leaf = struct.pack(">II", 0, 3) + records
+    master = struct.pack(">IIIII", 2, 0, 3, 1, 0x1000)
+    blocks = [0x800 | 11, 0x20 | 5, 0x80 | 7]
+    bookkeeping = struct.pack(">II", len(blocks), 0) + b"".join(struct.pack(">I", b) for b in blocks) + bytes(4 * (256 - len(blocks)))
+    bookkeeping += struct.pack(">I", 1) + bytes([4]) + b"DSDB" + struct.pack(">I", 1) + bytes(4 * 32)
+    store = struct.pack(">I", 1) + b"Bud1" + struct.pack(">III", 0x800, 2048, 0x800) + bytes(16)
+    body = bytearray(4 + 0x800 + 2048)
+    body[0:len(store)] = store
+    body[4 + 0x20:4 + 0x20 + len(master)] = master
+    body[4 + 0x80:4 + 0x80 + len(leaf)] = leaf
+    body[4 + 0x800:4 + 0x800 + len(bookkeeping)] = bookkeeping
+    put("macos/ds_store", "one_leaf", body)
+
     # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
     # transport feedback (the receiver's reports have no blocks)
     def rtcp(kind, body, subtype=0):

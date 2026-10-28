@@ -762,7 +762,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 11 with a file written by its own tool, 143 with a file built by hand, 5 failing on a file, 9 part of another, 22 without a sample
+> 190 definitions: 11 with a file written by its own tool, 150 with a file built by hand, 5 failing on a file, 9 part of another, 15 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -792,6 +792,7 @@ and compared with the reference compiler's output:
 | `image` | `bmp`, `gif`, `gimp_brush`, `ico`, `jpeg`, `pcx`, `pcx_dcx`, `pif`, `png`, `psx_tim`, `tga`, `webp`, `wmf`, `xwd` |
 | `log` | `aix_utmp`, `glibc_utmp`, `hashcat_restore`, `sudoers_ts`, `systemd_journal`, `windows_evt_log` |
 | `machine_code` | `code_6502` |
+| `macos` | `compressed_resource`, `ds_store`, `mac_os_resource_snd`, `resource_compression/dcmp_0`, `resource_compression/dcmp_1`, `resource_compression/dcmp_variable_length_integer`, `resource_fork` |
 | `media` | `android_opengl_shaders_cache`, `au`, `avi`, `blender_blend`, `creative_voice_file`, `genmidi_op2`, `id3v1_1`, `id3v2_3`, `id3v2_4`, `magicavoxel_vox`, `ogg`, `quicktime_mov`, `standard_midi_file`, `stl`, `tracker_modules/fasttracker_xm_module`, `tracker_modules/s3m`, `vp8_duck_ivf`, `wav` |
 | `network` | `bitcoin_transaction`, `dime_message`, `dns_packet`, `ethernet_frame`, `hccap`, `hccapx`, `icmp_packet`, `ipv4_packet`, `ipv6_packet`, `microsoft_network_monitor_v2`, `packet_ppi`, `pcap`, `rtcp_payload`, `rtp_packet`, `rtpdump`, `some_ip/some_ip`, `some_ip/some_ip_container`, `some_ip/some_ip_sd`, `tcp_segment`, `tls_client_hello`, `udp_datagram`, `websocket` |
 | `scientific` | `nt_mdt/nt_mdt_pal`, `spectroscopy/avantes_roh60` |
@@ -1083,8 +1084,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 215 samples of the Kaitai gallery
-in the tests, 92 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 224 samples of the Kaitai gallery
+in the tests, 95 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 
