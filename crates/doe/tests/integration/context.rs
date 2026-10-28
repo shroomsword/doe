@@ -96,7 +96,12 @@ fn bind_leaves_out_absent_fields() {
         doe::schema::expr::eval_str("record.a", &ctx.eval_ctx).unwrap(),
         ExprValue::Int(1)
     );
-    assert!(doe::schema::expr::eval_str("record.b", &ctx.eval_ctx).is_err());
+    // an absent member is a value that is equal to nothing, like an absent field
+    assert_eq!(
+        doe::schema::expr::eval_str("record.b == 1", &ctx.eval_ctx).unwrap(),
+        ExprValue::Bool(false)
+    );
+    assert!(doe::schema::expr::eval_str("record.b + 1", &ctx.eval_ctx).is_err());
 }
 
 #[test]

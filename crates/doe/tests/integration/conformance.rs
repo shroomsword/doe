@@ -326,6 +326,7 @@ gallery!(
     gallery_common_utf8_string = "gallery/common/utf8_string",
     gallery_database_dbf = "gallery/database/dbf",
     gallery_database_gettext_mo = "gallery/database/gettext_mo",
+    gallery_database_sqlite3 = "gallery/database/sqlite3",
     gallery_database_tsm = "gallery/database/tsm",
     gallery_executable_android_nanoapp_header = "gallery/executable/android_nanoapp_header",
     gallery_executable_dex = "gallery/executable/dex",

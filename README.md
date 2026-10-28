@@ -236,7 +236,8 @@ recently parsed value (a field of a sub-type is `_.name`). A field that holds a
 sub-type exposes its fields as `field.name`, to any depth, and an array of
 sub-types is indexed as `entries[0].offset` or `entries.last.size`.
 A field that is not there (its `if:` was false) is equal to nothing: `vr == 'SQ'` is false and
-`vr != 'SQ'` true when `vr` was not read; any other use of it is an error.
+`vr != 'SQ'` true when `vr` was not read, and as a `size:` it is 0 (as in the reference, where a missing
+size reads nothing); any other use of it is an error. The same goes for an instance whose `if:` is false.
 
 Expressions are typed. A field's value is an integer, a float, a boolean, a
 string, a byte sequence, an array or a sub-type. `size:`, `repeat-expr:` and
@@ -773,7 +774,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 12 with a file written by its own tool, 162 with a file built by hand, 1 failing on a file, 9 part of another, 6 without a sample
+> 190 definitions: 13 with a file written by its own tool, 162 with a file built by hand, 0 failing on a file, 9 part of another, 6 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -792,7 +793,7 @@ and compared with the reference compiler's output:
 | `archive` | `android_bootldr_asus`, `android_bootldr_huawei`, `android_bootldr_qcom`, `android_dto`, `android_img`, `android_sparse`, `cpio_old_le`, `gzip`, `lzh`, `mozilla_mar`, `phar_without_stub`, `rar`, `respack`, `rpm`, `xar`, `zchunk`, `zip`, `zisofs` |
 | `cad` | `monomakh_sapr_chg` |
 | `common` | `utf16_with_bom`, `utf8_string` |
-| `database` | `dbf`, `gettext_mo`, `tsm` |
+| `database` | `dbf`, `gettext_mo`, `sqlite3`, `tsm` |
 | `executable` | `android_nanoapp_header`, `dex`, `dos_mz`, `elf`, `java_class`, `mach_o`, `mach_o_fat`, `microsoft_pe`, `python_pyc_27`, `swf`, `uefi_te` |
 | `filesystem` | `amlogic_emmc_partitions`, `android_super`, `apm_partition_table`, `apple_single_double`, `btrfs_stream`, `cramfs`, `gpt_partition_table`, `iso9660`, `luks`, `mbr_partition_table`, `tr_dos_image`, `vdi`, `vfat`, `vmware_vmdk`, `zx_spectrum_tap` |
 | `firmware` | `andes_firmware`, `broadcom_trx`, `ines`, `uf2`, `uimage` |
@@ -812,19 +813,13 @@ and compared with the reference compiler's output:
 | `windows` | `windows_lnk_file`, `windows_minidump`, `windows_resource_file`, `windows_shell_items` |
 <!-- gallery-formats:end -->
 
-One format has a file that `doe` does not read yet, and its row says
-`failing` (its file is not in the suite until it is fixed):
-`database/sqlite3`, whose `as_str` uses the size of an
-instance that is not there for a number ([#176](https://github.com/shroomsword/doe/issues/176)).
+Every format that has a file is read to match the reference compiler (or, for `iso9660`, checked
+against fields written in the tests). A format that fails on a file gets a row that says
+`failing`, with its issue, and its file stays out of the suite until it is fixed.
 A file is never made up to fit `doe`: the files built by hand follow the format's
 specification and are checked against the reference compiler, and a format
 without any says so in the table. A real file of such a format, from a tool or
 from the world, is always welcome in place of a built one.
-
-`sqlite3` is left out on purpose: its definition reads every column as a string
-(the `if` that should limit `as_str` to text columns is commented out), which
-only works in the JavaScript runtime of the reference, where a missing size reads
-as an empty string; doe reports the missing size as an error.
 
 The others compile, but no file has been compared to the reference yet, so one
 of them may still fail on a file, or read it differently (the web IDE picker marks
@@ -1089,7 +1084,7 @@ than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
 the file are compared with signatures. Of the 237 samples of the Kaitai gallery
-in the tests, 105 are found with their own schema (those of the formats whose
+in the tests, 106 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 
