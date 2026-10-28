@@ -29,3 +29,6 @@ target
 # conformance suite: reference compiler dependencies and its generated parsers
 /conformance/node_modules/
 /conformance/.generated/
+
+# Python bytecode
+__pycache__/

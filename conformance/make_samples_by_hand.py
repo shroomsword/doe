@@ -2276,6 +2276,25 @@ def more():
     dump += directory + bodies + stack + context + stack + bytes(16)
     put("windows/windows_minidump", "crash", dump)
 
+    # FAT12 volume of 40 KiB: boot sector, two FATs of a sector, a root directory of 16 entries, and the data
+    boot = b"\xeb\x3c\x90" + b"DOEOS   " + struct.pack("<HBHBHHBHHHII", 512, 1, 1, 2, 16, 80, 0xF8, 1, 32, 2, 0, 0)
+    boot += bytes([0, 0, 0x29]) + b"\x78\x56\x34\x12" + b"DOE DISK   " + b"FAT12   "
+    boot = boot.ljust(510, b"\0") + b"\x55\xaa"
+    fat = bytes([0xF8, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F]).ljust(512, b"\0")  # clusters 0 to 3: media, end, end of HELLO.TXT, end of DOCS
+
+    def dir_entry(name, attribute, cluster, size, year=2024, month=5, day=17):
+        date = ((year - 1980) << 9) | (month << 5) | day
+        clock = (13 << 11) | (45 << 5) | 7
+        return name.ljust(11).encode() + bytes([attribute]) + bytes(10) + struct.pack("<HHHI", clock, date, cluster, size)
+
+    root = dir_entry("DOE DISK", 0x08, 0, 0) + dir_entry("HELLO   TXT", 0x20, 2, 14) + dir_entry("DOCS", 0x10, 3, 0)
+    # the other entries are deleted files: a date of zero (a free entry) is not a date for the definition
+    root += b"".join(bytes([0xE5]) + dir_entry("OLD%02d  TMP" % number, 0x20, 0, 0)[1:] for number in range(13))
+    text = b"Hello, FAT12!\n".ljust(512, b"\0")
+    docs = dir_entry(".", 0x10, 3, 0) + dir_entry("..", 0x10, 0, 0)
+    volume = boot + fat + fat + root.ljust(512, b"\0") + text + docs.ljust(512, b"\0")
+    put("filesystem/vfat", "fat12_floppy", volume.ljust(80 * 512, b"\0"))
+
     # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
     # transport feedback (the receiver's reports have no blocks)
     def rtcp(kind, body, subtype=0):

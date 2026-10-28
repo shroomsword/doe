@@ -1,0 +1,441 @@
+{
+  "applicationid": 0,
+  "defpagecachesize": 0,
+  "filechangecounter": 4,
+  "firstfreelisttrunkpage": 0,
+  "isincrementalvacuum": 0,
+  "largestrootpage": 0,
+  "leafpayloadfrac": 32,
+  "lenpage": 1024,
+  "lenpagemod": 1024,
+  "magic": "53514c69746520666f726d6174203300",
+  "maxpayloadfrac": 64,
+  "minpayloadfrac": 32,
+  "numfreelistpages": 0,
+  "numpages": 4,
+  "readversion": 1,
+  "reserved": "0000000000000000000000000000000000000000",
+  "reservedspace": 0,
+  "rootpage": {
+    "cells": [
+      {
+        "body": {
+          "lenpayload": {
+            "groups": [
+              {
+                "hasnext": false,
+                "value": 102
+              }
+            ],
+            "last": 0,
+            "value": 102
+          },
+          "payload": {
+            "columncontents": [
+              {
+                "asstr": "table"
+              },
+              {
+                "asstr": "words"
+              },
+              {
+                "asstr": "words"
+              },
+              {
+                "asint": 2,
+                "asstr": ""
+              },
+              {
+                "asstr": "CREATE TABLE words (id INTEGER PRIMARY KEY, word TEXT NOT NULL, length INTEGER)"
+              }
+            ],
+            "columnserials": {
+              "entries": [
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 23
+                      }
+                    ],
+                    "last": 0,
+                    "value": 23
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 5
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 23
+                      }
+                    ],
+                    "last": 0,
+                    "value": 23
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 5
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 23
+                      }
+                    ],
+                    "last": 0,
+                    "value": 23
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 5
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 1
+                      }
+                    ],
+                    "last": 0,
+                    "value": 1
+                  },
+                  "isblob": false,
+                  "isstring": false,
+                  "lencontent": null
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": true,
+                        "value": 1
+                      },
+                      {
+                        "hasnext": false,
+                        "value": 43
+                      }
+                    ],
+                    "last": 1,
+                    "value": 171
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 79
+                }
+              ]
+            },
+            "lenheaderandlen": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 7
+                }
+              ],
+              "last": 0,
+              "value": 7
+            }
+          },
+          "rowid": {
+            "groups": [
+              {
+                "hasnext": false,
+                "value": 1
+              }
+            ],
+            "last": 0,
+            "value": 1
+          }
+        },
+        "ofsbody": 920
+      },
+      {
+        "body": {
+          "lenpayload": {
+            "groups": [
+              {
+                "hasnext": false,
+                "value": 72
+              }
+            ],
+            "last": 0,
+            "value": 72
+          },
+          "payload": {
+            "columncontents": [
+              {
+                "asstr": "index"
+              },
+              {
+                "asstr": "words_by_word"
+              },
+              {
+                "asstr": "words"
+              },
+              {
+                "asint": 3,
+                "asstr": ""
+              },
+              {
+                "asstr": "CREATE INDEX words_by_word ON words (word)"
+              }
+            ],
+            "columnserials": {
+              "entries": [
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 23
+                      }
+                    ],
+                    "last": 0,
+                    "value": 23
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 5
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 39
+                      }
+                    ],
+                    "last": 0,
+                    "value": 39
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 13
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 23
+                      }
+                    ],
+                    "last": 0,
+                    "value": 23
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 5
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 1
+                      }
+                    ],
+                    "last": 0,
+                    "value": 1
+                  },
+                  "isblob": false,
+                  "isstring": false,
+                  "lencontent": null
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 97
+                      }
+                    ],
+                    "last": 0,
+                    "value": 97
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 42
+                }
+              ]
+            },
+            "lenheaderandlen": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 6
+                }
+              ],
+              "last": 0,
+              "value": 6
+            }
+          },
+          "rowid": {
+            "groups": [
+              {
+                "hasnext": false,
+                "value": 2
+              }
+            ],
+            "last": 0,
+            "value": 2
+          }
+        },
+        "ofsbody": 846
+      },
+      {
+        "body": {
+          "lenpayload": {
+            "groups": [
+              {
+                "hasnext": false,
+                "value": 64
+              }
+            ],
+            "last": 0,
+            "value": 64
+          },
+          "payload": {
+            "columncontents": [
+              {
+                "asstr": "table"
+              },
+              {
+                "asstr": "notes"
+              },
+              {
+                "asstr": "notes"
+              },
+              {
+                "asint": 4,
+                "asstr": ""
+              },
+              {
+                "asstr": "CREATE TABLE notes (title TEXT, body BLOB)"
+              }
+            ],
+            "columnserials": {
+              "entries": [
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 23
+                      }
+                    ],
+                    "last": 0,
+                    "value": 23
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 5
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 23
+                      }
+                    ],
+                    "last": 0,
+                    "value": 23
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 5
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 23
+                      }
+                    ],
+                    "last": 0,
+                    "value": 23
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 5
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 1
+                      }
+                    ],
+                    "last": 0,
+                    "value": 1
+                  },
+                  "isblob": false,
+                  "isstring": false,
+                  "lencontent": null
+                },
+                {
+                  "code": {
+                    "groups": [
+                      {
+                        "hasnext": false,
+                        "value": 97
+                      }
+                    ],
+                    "last": 0,
+                    "value": 97
+                  },
+                  "isblob": false,
+                  "isstring": true,
+                  "lencontent": 42
+                }
+              ]
+            },
+            "lenheaderandlen": {
+              "groups": [
+                {
+                  "hasnext": false,
+                  "value": 6
+                }
+              ],
+              "last": 0,
+              "value": 6
+            }
+          },
+          "rowid": {
+            "groups": [
+              {
+                "hasnext": false,
+                "value": 3
+              }
+            ],
+            "last": 0,
+            "value": 3
+          }
+        },
+        "ofsbody": 780
+      }
+    ],
+    "firstfreeblock": 0,
+    "numcells": 3,
+    "numfragfreebytes": 0,
+    "ofscells": 780,
+    "pagetype": 13
+  },
+  "schemacookie": 3,
+  "schemaformat": 4,
+  "sqliteversionnumber": 3046001,
+  "textencoding": 1,
+  "userversion": 0,
+  "versionvalidfor": 4,
+  "writeversion": 1
+}

@@ -762,7 +762,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 11 with a file written by its own tool, 139 with a file built by hand, 4 failing on a file, 9 part of another, 27 without a sample
+> 190 definitions: 11 with a file written by its own tool, 140 with a file built by hand, 5 failing on a file, 9 part of another, 25 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -783,7 +783,7 @@ and compared with the reference compiler's output:
 | `common` | `utf16_with_bom`, `utf8_string` |
 | `database` | `dbf`, `gettext_mo`, `tsm` |
 | `executable` | `android_nanoapp_header`, `dex`, `dos_mz`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `python_pyc_27`, `swf` |
-| `filesystem` | `amlogic_emmc_partitions`, `apm_partition_table`, `apple_single_double`, `btrfs_stream`, `cramfs`, `gpt_partition_table`, `luks`, `mbr_partition_table`, `tr_dos_image`, `vdi`, `vmware_vmdk`, `zx_spectrum_tap` |
+| `filesystem` | `amlogic_emmc_partitions`, `apm_partition_table`, `apple_single_double`, `btrfs_stream`, `cramfs`, `gpt_partition_table`, `luks`, `mbr_partition_table`, `tr_dos_image`, `vdi`, `vfat`, `vmware_vmdk`, `zx_spectrum_tap` |
 | `firmware` | `andes_firmware`, `broadcom_trx`, `ines`, `uf2`, `uimage` |
 | `font` | `grub2_font`, `pcf_font` |
 | `game` | `allegro_dat`, `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake2_md2`, `quake_mdl`, `quake_pak`, `renderware_binary_stream`, `saints_row_2_vpp_pc`, `warcraft_2_pud` |
@@ -800,17 +800,17 @@ and compared with the reference compiler's output:
 | `windows` | `windows_lnk_file`, `windows_minidump`, `windows_resource_file`, `windows_shell_items` |
 <!-- gallery-formats:end -->
 
-Four formats have a file that `doe` does not read yet, and their rows say
+Five formats have a file that `doe` does not read yet, and their rows say
 `failing` (their files are not in the suite until each is fixed):
 `filesystem/iso9660`, a file written by `genisoimage` that `doe` does not finish
 reading ([#150](https://github.com/shroomsword/doe/issues/150)); `executable/uefi_te`,
 which needs `_io` as a member of a value
-([#154](https://github.com/shroomsword/doe/issues/154)); and `executable/mach_o_fat`,
+([#154](https://github.com/shroomsword/doe/issues/154)); `executable/mach_o_fat`,
 whose imported `mach_o` compares `_root.magic` of the fat file
-([#155](https://github.com/shroomsword/doe/issues/155)); and `log/mcap`, whose
+([#155](https://github.com/shroomsword/doe/issues/155)); `log/mcap`, whose
 `ofs_footer` needs the sizes of fields of the footer it places
-([#160](https://github.com/shroomsword/doe/issues/160)).
-
+([#160](https://github.com/shroomsword/doe/issues/160)); and `database/sqlite3`, whose `as_str` uses the size of an
+instance that is not there for a number ([#176](https://github.com/shroomsword/doe/issues/176)).
 A file is never made up to fit `doe`: the files built by hand follow the format's
 specification and are checked against the reference compiler, and a format
 without any says so in the table. A real file of such a format, from a tool or
@@ -1083,7 +1083,7 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 210 samples of the Kaitai gallery
+the file are compared with signatures. Of the 212 samples of the Kaitai gallery
 in the tests, 90 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
