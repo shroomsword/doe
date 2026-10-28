@@ -1,0 +1,23 @@
+{
+  "lendata": 28,
+  "magic": "52494646",
+  "payload": {
+    "chunks": [
+      {
+        "data": {
+          "alphaisused": true,
+          "data": "000102030405060708090a",
+          "imageheight": 8,
+          "imageheightminus1": 7,
+          "imagewidth": 24,
+          "imagewidthminus1": 23,
+          "signature": 47,
+          "versionnumber": 0
+        },
+        "lendata": 16,
+        "name": 1278758998
+      }
+    ]
+  },
+  "webp": "57454250"
+}

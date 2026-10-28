@@ -1841,6 +1841,105 @@ def more():
     frame = bytes.fromhex("02005e000001") + bytes.fromhex("0200aabbccdd") + b"\\x08\\x00" + ipv4(17, udp(5000, 5001, b"ppi"))
     put("network/packet_ppi", "ethernet", struct.pack("<BBHI", 0, 0, 8 + len(fields), 1) + fields + frame)
 
+    # WebP: RIFF chunks. The compressed data of the pictures is not decoded by anything here, so it is filler.
+    def riff_chunk(name, data):
+        return name + struct.pack("<I", len(data)) + data + (b"\0" if len(data) % 2 else b"")
+
+    def webp(*chunks):
+        body = b"WEBP" + b"".join(chunks)
+        return b"RIFF" + struct.pack("<I", len(body)) + body
+
+    def vp8(width, height, partition=b"\x00\x11\x22\x33\x44\x55\x66"):
+        tag = (0 << 1) | (0 << 1) | (1 << 4) | (len(partition) << 5)  # a key frame of version 0, shown
+        return riff_chunk(b"VP8 ", tag.to_bytes(3, "little") + b"\x9d\x01\x2a" + struct.pack("<HH", width, height) + partition)
+
+    def vp8l(width, height, alpha):
+        bits = (width - 1) | ((height - 1) << 14) | (alpha << 28)
+        return riff_chunk(b"VP8L", b"\x2f" + struct.pack("<I", bits) + bytes(range(11)))
+
+    def vp8x(flags, width, height):
+        return riff_chunk(b"VP8X", bytes([flags]) + bytes(3) + (width - 1).to_bytes(3, "little") + (height - 1).to_bytes(3, "little"))
+
+    put("image/webp", "lossy", webp(vp8(16, 16)))
+    put("image/webp", "lossless", webp(vp8l(24, 8, 1)))
+    xmp = b"<x:xmpmeta>doe</x:xmpmeta>"
+    alph = riff_chunk(b"ALPH", bytes([0b00_01_10_01]) + bytes(range(9)))  # level reduction, vertical filter, lossless
+    put("image/webp", "extended", webp(vp8x(0b00010100, 16, 16), alph, vp8(16, 16), riff_chunk(b"XMP ", xmp)))
+
+    def anmf(x, y, width, height, duration, frame):
+        head = x.to_bytes(3, "little") + y.to_bytes(3, "little") + (width - 1).to_bytes(3, "little") + (height - 1).to_bytes(3, "little")
+        return riff_chunk(b"ANMF", head + duration.to_bytes(3, "little") + bytes([0b00000001]) + frame)
+
+    animation = riff_chunk(b"ANIM", bytes([0x10, 0x20, 0x30, 0xFF]) + struct.pack("<H", 0))
+    put(
+        "image/webp",
+        "animated",
+        webp(vp8x(0b00000010, 32, 16), animation, anmf(0, 0, 16, 16, 100, vp8(16, 16)), anmf(8, 0, 16, 16, 100, vp8l(16, 16, 0))),
+    )
+
+    # Warcraft II map: sections of a name, a size and a body
+    def pud_section(name, body):
+        return name + struct.pack("<I", len(body)) + body
+
+    units = [(10, 12, 0x5C, 15, 120), (4, 4, 0x5D, 15, 60), (30, 31, 0x01, 1, 0)]  # a gold mine, an oil patch and a grunt
+    pud = pud_section(b"TYPE", b"WAR2 MAP\0\0" + b"\x0a\x00" + struct.pack("<I", 0x12345678))
+    pud += pud_section(b"VER ", struct.pack("<H", 0x13))
+    pud += pud_section(b"DIM ", struct.pack("<HH", 32, 32))
+    pud += pud_section(b"ERA ", struct.pack("<H", 1))
+    pud += pud_section(b"OWNR", bytes([5, 4, 3, 3, 3, 3, 3, 3]) + bytes([2, 1, 1, 3, 3, 3, 3, 3]))
+    pud += pud_section(b"SGLD", struct.pack("<8H", *([2000] * 8)))
+    pud += pud_section(b"UNIT", b"".join(struct.pack("<HHBBH", *unit) for unit in units))
+    put("game/warcraft_2_pud", "small_map", pud)
+
+    # Windows resource file (.res): the empty first resource, one named "DOE" of type RCDATA, one of a type that has a name
+    def utf16z(text):
+        return text.encode("utf-16-le") + b"\0\0"
+
+    def resource(type_id, name_id, value, language=0x409):
+        head = (struct.pack("<HH", 0xFFFF, type_id) if isinstance(type_id, int) else utf16z(type_id))
+        head += struct.pack("<HH", 0xFFFF, name_id) if isinstance(name_id, int) else utf16z(name_id)
+        head = struct.pack("<II", len(value), 0) + head
+        head += bytes(-len(head) % 4)
+        head += struct.pack("<IHHII", 0, 0x30, language, 0, 0)
+        head = struct.pack("<II", len(value), len(head)) + head[8:]
+        return head + value + bytes(-len(value) % 4)
+
+    # (every type and name is a string: the definition keeps the position of the end of a name in an instance that is
+    # worked out when it is first used, which for a number is at the end of the file, where doe has it at the name)
+    res = resource("RCDATA", "DOE", b"hello")
+    res += resource("MYTYPE", "ONE", b"\x01\x02\x03\x04")
+    res += resource("VERSION", "VS", b"version data goes here", 0x407)
+    put("windows/windows_resource_file", "three_resources", res)
+
+    # Android's shader cache: the magic and a CRC-32 of the blob cache, which has a build id and entries, all aligned to 4
+    def aligned(data):
+        return data + bytes(-len(data) % 4)
+
+    build = b"doe-build-\0\0"  # 12 bytes with the terminator
+    entries = [(b"key0", b"vertex shader binary " + b"\x01" * 3), (b"key-two-", b"\xde\xad\xbe\xef" * 5)]
+    cache = b"$bB_" + struct.pack("<III", 3, 1, len(entries)) + struct.pack("<I", len(build)) + build
+    for key, value in entries:
+        cache += struct.pack("<II", len(key), len(value)) + aligned(key) + aligned(value)
+    put("media/android_opengl_shaders_cache", "two_entries", b"EGL$" + struct.pack("<I", zlib.crc32(cache)) + cache)
+
+    # PHP archive without its stub: the manifest, the files, and a SHA-1 signature of all that comes before it
+    import hashlib
+
+    def phar_entry(name, content, mode=0o644, metadata=b""):
+        return (
+            struct.pack("<I", len(name)) + name
+            + struct.pack("<IIIII", len(content), 1700000000, len(content), zlib.crc32(content), mode)
+            + struct.pack("<I", len(metadata)) + metadata
+        )
+
+    files = [(b"index.php", b"<?php echo 'doe';\n", b""), (b"lib/util.php", b"<?php function f() {}\n", b'a:1:{s:3:"foo";i:1;}')]
+    alias, phar_metadata = b"doe.phar", b'O:8:"stdClass":0:{}'
+    manifest = struct.pack("<I", len(files)) + bytes([0x11, 0x10]) + struct.pack("<I", 0x10000)
+    manifest += struct.pack("<I", len(alias)) + alias + struct.pack("<I", len(phar_metadata)) + phar_metadata
+    manifest += b"".join(phar_entry(name, content, metadata=metadata) for name, content, metadata in files)
+    body = struct.pack("<I", len(manifest)) + manifest + b"".join(content for _, content, _ in files)
+    put("archive/phar_without_stub", "two_files", body + hashlib.sha1(body).digest() + struct.pack("<I", 2) + b"GBMB")
+
     # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
     # transport feedback (the receiver's reports have no blocks)
     def rtcp(kind, body, subtype=0):

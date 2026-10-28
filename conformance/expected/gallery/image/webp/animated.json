@@ -1,0 +1,78 @@
+{
+  "lendata": 134,
+  "magic": "52494646",
+  "payload": {
+    "chunks": [
+      {
+        "data": {
+          "alpha": false,
+          "animation": true,
+          "canvasheight": 16,
+          "canvasheightminus1": 15,
+          "canvaswidth": 32,
+          "canvaswidthminus1": 31,
+          "exif": false,
+          "iccprofile": false,
+          "reserved1": 0,
+          "reserved2": false,
+          "reserved3": 0,
+          "xmp": false
+        },
+        "lendata": 10,
+        "name": 1480085590
+      },
+      {
+        "data": {
+          "backgroundcolor": {
+            "alpha": 255,
+            "blue": 16,
+            "green": 32,
+            "red": 48
+          },
+          "loopcount": 0
+        },
+        "lendata": 6,
+        "name": 1296649793
+      },
+      {
+        "data": {
+          "blendingmethod": false,
+          "data": "5650382011000000f000009d012a100010000011223344556600",
+          "disposalmethod": true,
+          "duration": 100,
+          "frameheight": 16,
+          "frameheightminus1": 15,
+          "framewidth": 16,
+          "framewidthminus1": 15,
+          "framex": 0,
+          "framexdiv2": 0,
+          "framey": 0,
+          "frameydiv2": 0,
+          "reserved": 0
+        },
+        "lendata": 42,
+        "name": 1179471425
+      },
+      {
+        "data": {
+          "blendingmethod": false,
+          "data": "5650384c100000002f0fc00300000102030405060708090a",
+          "disposalmethod": true,
+          "duration": 100,
+          "frameheight": 16,
+          "frameheightminus1": 15,
+          "framewidth": 16,
+          "framewidthminus1": 15,
+          "framex": 16,
+          "framexdiv2": 8,
+          "framey": 0,
+          "frameydiv2": 0,
+          "reserved": 0
+        },
+        "lendata": 40,
+        "name": 1179471425
+      }
+    ]
+  },
+  "webp": "57454250"
+}
