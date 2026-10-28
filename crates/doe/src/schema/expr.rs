@@ -1082,6 +1082,19 @@ pub struct EvalContext {
 /// is computed later.
 const DEFERRED_FIELD: &str = "$deferred";
 
+/// The name of the only field of the struct that stands for a field that was not read (its `if:` was false).
+const ABSENT_FIELD: &str = "$absent";
+
+/// The value of a field that is not there: it is equal to nothing, not even to itself.
+pub fn absent_marker() -> ExprValue {
+    ExprValue::Struct(vec![(ABSENT_FIELD.to_owned(), ExprValue::Int(0))])
+}
+
+/// Whether `value` stands for a field that is not there.
+pub fn is_absent(value: &ExprValue) -> bool {
+    matches!(value, ExprValue::Struct(fields) if matches!(fields.as_slice(), [(name, _)] if name == ABSENT_FIELD))
+}
+
 /// One scope of an [`EvalContext`].
 #[derive(Debug, Default)]
 struct Frame {
@@ -1711,6 +1724,14 @@ fn binary(op: BinaryOp, l: ExprValue, r: ExprValue, src: &str) -> Result<ExprVal
     use ExprValue::{Float, Int, Str};
     match op {
         BinaryOp::Eq | BinaryOp::Ne | BinaryOp::Lt | BinaryOp::Gt | BinaryOp::Le | BinaryOp::Ge => {
+            // A field that is not there is equal to nothing (`vr == 'SQ'` is false when `vr` was not read).
+            if is_absent(&l) || is_absent(&r) {
+                return match op {
+                    BinaryOp::Eq => Ok(ExprValue::Bool(false)),
+                    BinaryOp::Ne => Ok(ExprValue::Bool(true)),
+                    _ => Err(fail(src, "a field that is not there cannot be ordered")),
+                };
+            }
             let ord = compare(&l, &r, src)?;
             Ok(ExprValue::Bool(match op {
                 BinaryOp::Eq => ord == Some(Ordering::Equal),

@@ -13,7 +13,7 @@ archive/mozilla_mar	crafted	archive/mozilla_mar	built by make_samples_by_hand.py
 archive/phar_without_stub	crafted	archive/phar_without_stub	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/rar	crafted	archive/rar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	RAR 4 only: the definition reads a block of RAR 5 as nothing
 archive/respack	crafted	archive/respack	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-archive/rpm	none	-	-	-	
+archive/rpm	crafted	archive/rpm	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/xar	crafted	archive/xar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/zchunk	crafted	archive/zchunk	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	not compressed (compression type none): the chunks are raw
 archive/zip	real	archive/zip	zipfile module of Python, run by make_gallery_samples.py	MIT (this repository)	
@@ -91,7 +91,7 @@ hardware/dtb	crafted	hardware/dtb	built by make_samples_by_hand.py from the form
 hardware/edid	crafted	hardware/edid	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 hardware/mifare/mifare_classic	crafted	hardware/mifare/mifare_classic	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the sample has no value block: ~ of a u4 is read differently (#162)
 image/bmp	crafted	image/bmp	built by make_gallery_samples.py	MIT (this repository)	
-image/dicom	none	-	-	-	
+image/dicom	crafted	image/dicom	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/exif	crafted	image/exif	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/gif	crafted	image/gif	built by make_gallery_samples.py	MIT (this repository)	
 image/gimp_brush	crafted	image/gimp_brush	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	

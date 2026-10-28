@@ -235,6 +235,8 @@ the parent type via `_parent.field_name`, and those of the top-level type via
 recently parsed value (a field of a sub-type is `_.name`). A field that holds a
 sub-type exposes its fields as `field.name`, to any depth, and an array of
 sub-types is indexed as `entries[0].offset` or `entries.last.size`.
+A field that is not there (its `if:` was false) is equal to nothing: `vr == 'SQ'` is false and
+`vr != 'SQ'` true when `vr` was not read; any other use of it is an error.
 
 Expressions are typed. A field's value is an integer, a float, a boolean, a
 string, a byte sequence, an array or a sub-type. `size:`, `repeat-expr:` and
@@ -762,7 +764,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 11 with a file written by its own tool, 157 with a file built by hand, 5 failing on a file, 9 part of another, 8 without a sample
+> 190 definitions: 11 with a file written by its own tool, 159 with a file built by hand, 5 failing on a file, 9 part of another, 6 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -778,7 +780,7 @@ and compared with the reference compiler's output:
 | Directory | Formats |
 | --- | --- |
 | `3d` | `gltf_binary` |
-| `archive` | `android_bootldr_asus`, `android_bootldr_huawei`, `android_bootldr_qcom`, `android_dto`, `android_img`, `android_sparse`, `cpio_old_le`, `gzip`, `lzh`, `mozilla_mar`, `phar_without_stub`, `rar`, `respack`, `xar`, `zchunk`, `zip`, `zisofs` |
+| `archive` | `android_bootldr_asus`, `android_bootldr_huawei`, `android_bootldr_qcom`, `android_dto`, `android_img`, `android_sparse`, `cpio_old_le`, `gzip`, `lzh`, `mozilla_mar`, `phar_without_stub`, `rar`, `respack`, `rpm`, `xar`, `zchunk`, `zip`, `zisofs` |
 | `cad` | `monomakh_sapr_chg` |
 | `common` | `utf16_with_bom`, `utf8_string` |
 | `database` | `dbf`, `gettext_mo`, `tsm` |
@@ -789,7 +791,7 @@ and compared with the reference compiler's output:
 | `game` | `allegro_dat`, `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake2_md2`, `quake_mdl`, `quake_pak`, `renderware_binary_stream`, `saints_row_2_vpp_pc`, `warcraft_2_pud` |
 | `geospatial` | `shapefile_index`, `shapefile_main` |
 | `hardware` | `dtb`, `edid`, `mifare/mifare_classic` |
-| `image` | `bmp`, `exif`, `gif`, `gimp_brush`, `icc_4`, `ico`, `jpeg`, `nitf`, `pcx`, `pcx_dcx`, `pif`, `png`, `psx_tim`, `tga`, `webp`, `wmf`, `xwd` |
+| `image` | `bmp`, `dicom`, `exif`, `gif`, `gimp_brush`, `icc_4`, `ico`, `jpeg`, `nitf`, `pcx`, `pcx_dcx`, `pif`, `png`, `psx_tim`, `tga`, `webp`, `wmf`, `xwd` |
 | `log` | `aix_utmp`, `glibc_utmp`, `hashcat_restore`, `sudoers_ts`, `systemd_journal`, `windows_evt_log` |
 | `machine_code` | `code_6502` |
 | `macos` | `compressed_resource`, `ds_store`, `mac_os_resource_snd`, `resource_compression/dcmp_0`, `resource_compression/dcmp_1`, `resource_compression/dcmp_variable_length_integer`, `resource_fork` |
@@ -1084,8 +1086,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 234 samples of the Kaitai gallery
-in the tests, 99 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 237 samples of the Kaitai gallery
+in the tests, 102 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 

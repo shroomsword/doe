@@ -2761,6 +2761,121 @@ def more():
     put("archive/zchunk", "plain", zchunk(0))
     put("archive/zchunk", "streams_and_elements", zchunk(0b111))
 
+    # RPM 4: the lead, a signature header (sizes and digests), the header (the package's tags) and the payload, a gzip of
+    # a cpio archive in the new ASCII format
+    import gzip
+
+    def cpio_newc(files):
+        out = b""
+        for number, (name, mode, data) in enumerate(files + [("TRAILER!!!", 0, b"")], 1):
+            raw = name.encode() + b"\0"
+            fields = [number, mode, 0, 0, 1, 1700000000, len(data), 0, 0, 0, 0, len(raw), 0]
+            out += b"070701" + b"".join(b"%08X" % value for value in fields) + raw
+            out += bytes(-(110 + len(raw)) % 4) + data + bytes(-len(data) % 4)
+        return out
+
+    archive_data = cpio_newc([("./usr/share/doe/hello.txt", 0o100644, b"Hello from an RPM.\n"), ("./usr/share/doe/README", 0o100644, b"doe sample package\n")])
+    payload = gzip.compress(archive_data, mtime=0)
+
+    def rpm_header(entries, region_tag):
+        """A header structure: entries are (tag, type, count, data) in increasing tag order; the region tag (62 for the
+        signature, 63 for the header) is the last record of the storage section, as RPM writes it."""
+        index, storage = b"", b""
+        alignment = {3: 2, 4: 4, 5: 8}
+        for tag, kind, count, data in entries:
+            storage += bytes(-len(storage) % alignment.get(kind, 1))
+            index += struct.pack(">IIII", tag, kind, len(storage), count)
+            storage += data
+        trailer_at = len(storage)
+        storage += struct.pack(">IIiI", region_tag, 7, -(len(entries) + 1) * 16, 16)
+        records = struct.pack(">IIII", region_tag, 7, trailer_at, 16) + index
+        return b"\x8e\xad\xe8\x01" + bytes(4) + struct.pack(">II", len(entries) + 1, len(storage)) + records + storage
+
+    def string(text):
+        return text.encode() + b"\0"
+
+    header_entries = [
+        (100, 8, 1, string("C")),
+        (1000, 6, 1, string("doe-sample")),
+        (1001, 6, 1, string("1.0")),
+        (1002, 6, 1, string("1")),
+        (1004, 9, 1, string("A sample package for doe")),
+        (1005, 9, 1, string("A package made only to have a sample of the RPM format.")),
+        (1006, 4, 1, struct.pack(">I", 1700000000)),
+        (1007, 6, 1, string("doe-build")),
+        (1009, 4, 1, struct.pack(">I", 38)),
+        (1014, 6, 1, string("MIT")),
+        (1016, 9, 1, string("Development/Tools")),
+        (1021, 6, 1, string("linux")),
+        (1022, 6, 1, string("noarch")),
+        (1124, 6, 1, string("cpio")),
+        (1125, 6, 1, string("gzip")),
+    ]
+    header = rpm_header(header_entries, 63)
+    signature_entries = [
+        (269, 6, 1, string(hashlib.sha1(header).hexdigest())),
+        (1000, 4, 1, struct.pack(">I", len(header) + len(payload))),
+        (1004, 7, 16, hashlib.md5(header + payload).digest()),
+        (1007, 4, 1, struct.pack(">I", len(archive_data))),
+    ]
+    signature = rpm_header(signature_entries, 62)
+    lead = b"\xed\xab\xee\xdb" + bytes([3, 0]) + struct.pack(">HH", 0, 1) + b"doe-sample-1.0-1".ljust(66, b"\0") + struct.pack(">HH", 1, 5) + bytes(16)
+    package = lead + signature + bytes(-len(signature) % 8) + header + payload
+    put("archive/rpm", "noarch", package)
+
+    # DICOM: the preamble and "DICM", the file meta group (explicit VR), and a data set in implicit VR or in explicit VR
+    long_vrs = {"OB", "OD", "OF", "OL", "OW", "SQ", "UC", "UR", "UT", "UN"}
+
+    def uid(text):
+        return text.encode() + (b"\0" if len(text) % 2 else b"")
+
+    def text_value(text, pad=b" "):
+        data = text.encode()
+        return data + (pad if len(data) % 2 else b"")
+
+    def explicit(group, element, vr, value):
+        head = struct.pack("<HH", group, element) + vr.encode()
+        if vr in long_vrs:
+            return head + bytes(2) + struct.pack("<I", len(value)) + value
+        return head + struct.pack("<H", len(value)) + value
+
+    def implicit(group, element, value):
+        return struct.pack("<HHI", group, element, len(value)) + value
+
+    sop_class = uid("1.2.840.10008.5.1.4.1.1.7")
+    instance = uid("1.2.826.0.1.3680043.9.7156.1.2024")
+    implementation = uid("1.2.826.0.1.3680043.9.7156.1")
+
+    def meta(transfer_syntax):
+        body = explicit(2, 1, "OB", bytes([0, 1])) + explicit(2, 2, "UI", sop_class) + explicit(2, 3, "UI", instance)
+        body += explicit(2, 0x10, "UI", transfer_syntax) + explicit(2, 0x12, "UI", implementation)
+        return explicit(2, 0, "UL", struct.pack("<I", len(body))) + body
+
+    pixels = struct.pack("<16H", *range(0, 1600, 100))
+    preamble = bytes(128) + b"DICM"
+    implicit_data = (
+        meta(uid("1.2.840.10008.1.2"))
+        + implicit(8, 0x16, sop_class) + implicit(8, 0x18, instance) + implicit(8, 0x20, b"20240517") + implicit(8, 0x60, b"OT")
+        + implicit(0x10, 0x10, text_value("Doe^Sample")) + implicit(0x10, 0x20, text_value("ID0001"))
+        + implicit(0x28, 2, struct.pack("<H", 1)) + implicit(0x28, 4, text_value("MONOCHROME2")) + implicit(0x28, 0x10, struct.pack("<H", 4))
+        + implicit(0x28, 0x11, struct.pack("<H", 4)) + implicit(0x28, 0x100, struct.pack("<H", 16)) + implicit(0x7FE0, 0x10, pixels)
+    )
+    put("image/dicom", "implicit_vr", preamble + implicit_data)
+
+    item_elements = explicit(8, 0x1150, "UI", sop_class) + explicit(8, 0x1155, "UI", instance)
+    # (a sequence of defined length: the items of one of undefined length have tags of group 0xfffe, that the reference
+    # reads as negative numbers)
+    referenced = explicit(8, 0x1140, "SQ", struct.pack("<HHI", 0xFFFE, 0xE000, len(item_elements)) + item_elements)
+    explicit_data = (
+        meta(uid("1.2.840.10008.1.2.1"))
+        + explicit(8, 0x16, "UI", sop_class) + explicit(8, 0x18, "UI", instance) + explicit(8, 0x20, "DA", b"20240517") + explicit(8, 0x60, "CS", b"OT")
+        + referenced
+        + explicit(0x10, 0x10, "PN", text_value("Doe^Sample")) + explicit(0x10, 0x20, "LO", text_value("ID0001"))
+        + explicit(0x28, 2, "US", struct.pack("<H", 1)) + explicit(0x28, 4, "CS", text_value("MONOCHROME2")) + explicit(0x28, 0x10, "US", struct.pack("<H", 4))
+        + explicit(0x28, 0x11, "US", struct.pack("<H", 4)) + explicit(0x28, 0x100, "US", struct.pack("<H", 16)) + explicit(0x7FE0, 0x10, "OW", pixels)
+    )
+    put("image/dicom", "explicit_vr", preamble + explicit_data)
+
     # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
     # transport feedback (the receiver's reports have no blocks)
     def rtcp(kind, body, subtype=0):

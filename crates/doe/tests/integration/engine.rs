@@ -5798,6 +5798,32 @@ fn a_constant_of_the_root_can_be_used_by_a_type_read_before_the_root_ends() {
 }
 
 #[test]
+fn a_field_that_is_not_there_is_equal_to_nothing() {
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: has_name
+            type: u1
+          - id: name
+            type: u1
+            if: has_name != 0
+          - id: tail
+            type: u1
+            if: name == 7
+          - id: other
+            type: u1
+            if: name != 7
+    "};
+    let v = parse(schema, "t", &[0, 5]);
+    assert_eq!(get_field(&v, "tail"), &Value::Absent);
+    assert_eq!(get_field(&v, "other"), &Value::UInt(5));
+    // used in arithmetic it is an error
+    let schema = schema.replace("name == 7", "name + 1 == 7");
+    let e = parse_err(&schema, "t", &[0, 5]);
+    assert!(e.to_string().contains("tail"), "{e}");
+}
+
+#[test]
 fn the_size_of_a_root_field_of_a_fixed_size_is_known_before_it_is_read() {
     let schema = indoc! {r"
         id: t
