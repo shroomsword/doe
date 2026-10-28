@@ -1,0 +1,120 @@
+{
+  "packets": [
+    {
+      "body": {
+        "body": {
+          "lenalg": 1024,
+          "padding": 17,
+          "publickeyalgorithm": 1,
+          "rsae": "010001",
+          "rsan": "9dbd519b6a86022b3aa45c8d548b7ec1ec8f3ebf5c3b005b5b8e467f073e79846d1722fbe0ed58d3a5203bbee8dccc9537e6aacb5212f27a0dd9e46579b1cd4a9743b3794d120708ccff278cd62c480178565aa2da47357280b06cddc1c7edc4ca96651082f03f46cc9ce6f1e1d6d5e08f4633c2a97e78f7ecc5854971164127",
+          "timestamp": 1700000000,
+          "version": 4
+        },
+        "len": 141
+      },
+      "lentype": 0,
+      "newpacketformat": false,
+      "one": true,
+      "packettypeold": 6
+    },
+    {
+      "body": {
+        "body": {
+          "userid": "Doe Sample <doe@example.org>"
+        },
+        "len": 28
+      },
+      "lentype": 0,
+      "newpacketformat": false,
+      "one": true,
+      "packettypeold": 13
+    },
+    {
+      "body": {
+        "body": {
+          "hashalgorithm": 8,
+          "hashedsubpackets": {
+            "subpacketss": [
+              {
+                "content": {
+                  "time": 1700000100
+                },
+                "len": {
+                  "firstoctet": 5,
+                  "len": 5
+                },
+                "subpackettype": 2
+              },
+              {
+                "content": {
+                  "flag": [
+                    3
+                  ]
+                },
+                "len": {
+                  "firstoctet": 2,
+                  "len": 2
+                },
+                "subpackettype": 27
+              },
+              {
+                "content": {
+                  "time": 31536000
+                },
+                "len": {
+                  "firstoctet": 5,
+                  "len": 5
+                },
+                "subpackettype": 9
+              },
+              {
+                "content": {
+                  "algorithm": [
+                    8,
+                    2
+                  ]
+                },
+                "len": {
+                  "firstoctet": 3,
+                  "len": 3
+                },
+                "subpackettype": 21
+              },
+              {
+                "content": {
+                  "algorithm": [
+                    2,
+                    1,
+                    0
+                  ]
+                },
+                "len": {
+                  "firstoctet": 4,
+                  "len": 4
+                },
+                "subpackettype": 22
+              }
+            ]
+          },
+          "leftsignedhash": 20672,
+          "lenhashedsubpacket": 24,
+          "lenunhashedsubpacket": 0,
+          "publickeyalgorithm": 1,
+          "rsan": 1022,
+          "signature": "389c3d9dbc24a8d0687cac3ae5a9a692e3175247060e7312889d7c6a6cc04ea7fc3ec0cce48619f243f6cfa242a4381e9591328e9f827e73faaf1dda201f7bb58b7c9471854a35eca7517eb63c5d3cfef2f04a3bba11d336ef01393ad9d4e3c69ece6c0de080305fb200b139f21bb461ad07ef4157321052d110a19d7cfcd166",
+          "signaturetype": 19,
+          "unhashedsubpackets": {
+            "subpacketss": []
+          },
+          "version": 4
+        },
+        "len": 164
+      },
+      "lentype": 0,
+      "newpacketformat": false,
+      "one": true,
+      "packettypeold": 2
+    }
+  ]
+}

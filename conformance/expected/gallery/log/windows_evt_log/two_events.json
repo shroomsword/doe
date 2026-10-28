@@ -1,0 +1,80 @@
+{
+  "header": {
+    "currecidx": 3,
+    "flags": {
+      "archive": false,
+      "dirty": false,
+      "logfull": false,
+      "reserved": 0,
+      "wrap": false
+    },
+    "lenfilemax": 524288,
+    "lenheader": 48,
+    "lenheader2": 48,
+    "magic": "4c664c65",
+    "ofsend": 400,
+    "ofsstart": 48,
+    "oldestrecidx": 1,
+    "retention": 0,
+    "versionmajor": 1,
+    "versionminor": 1
+  },
+  "records": [
+    {
+      "body": {
+        "data": "",
+        "eventcategory": 0,
+        "eventid": 6005,
+        "eventtype": 4,
+        "idx": 1,
+        "lendata": 0,
+        "lenusersid": 0,
+        "numstrings": 1,
+        "ofsdata": 158,
+        "ofsstrings": 88,
+        "ofsusersid": 88,
+        "reserved": "000000000000",
+        "timegenerated": 1700000000,
+        "timewritten": 1700000000,
+        "usersid": ""
+      },
+      "lenrecord": 164,
+      "lenrecord2": 164,
+      "type": 1699505740
+    },
+    {
+      "body": {
+        "data": "0001020304050607",
+        "eventcategory": 0,
+        "eventid": 7036,
+        "eventtype": 5,
+        "idx": 2,
+        "lendata": 8,
+        "lenusersid": 24,
+        "numstrings": 2,
+        "ofsdata": 174,
+        "ofsstrings": 142,
+        "ofsusersid": 118,
+        "reserved": "000000000000",
+        "timegenerated": 1700000060,
+        "timewritten": 1700000060,
+        "usersid": "010500000000000515000000a1b2c3d4e5f60718090a0b0c"
+      },
+      "lenrecord": 188,
+      "lenrecord2": 188,
+      "type": 1699505740
+    },
+    {
+      "body": {
+        "idxfirstrecord": 1,
+        "idxnextrecord": 3,
+        "magic": "222222223333333344444444",
+        "ofsfirstrecord": 48,
+        "ofsnextrecord": 400
+      },
+      "lenrecord": 40,
+      "lenrecord2": 40,
+      "type": 286331153
+    }
+  ]
+}
