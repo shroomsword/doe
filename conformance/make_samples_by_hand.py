@@ -2181,6 +2181,48 @@ def more():
     packed = zlib.compress(toc)
     put("archive/xar", "one_file", b"xar!" + struct.pack(">HHQQI", 28, 1, len(packed), len(toc), 1) + packed + bytes(20))
 
+    # PIF images: RGB565 without a palette, and 2 bits per pixel with a palette of RGB888
+    def pif(image_type, bits, width, height, image, table=b""):
+        offset = 12 + 16 + len(table)
+        info = struct.pack("<HHHHIHH", image_type, bits, width, height, len(image), len(table), 0)
+        return b"PIF\0" + struct.pack("<II", offset + len(image), offset) + info + table + image
+
+    put("image/pif", "rgb565", pif(0xE5C5, 16, 2, 2, struct.pack("<4H", 0xF800, 0x07E0, 0x001F, 0xFFFF)))
+    palette = bytes([0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255])
+    put("image/pif", "indexed", pif(0x4952, 2, 4, 2, bytes([0b11_10_01_00, 0b00_01_10_11]), palette))
+
+    # NT-MDT palette: two palettes, a table of metadata and then a table of colours for each
+    names = ["Rainbow".encode("utf-16-le"), "Gray".encode("utf-16-le")]
+    counts = [4, 3]
+    pal = b"NT-MDT Palette File  1.00!" + struct.pack(">I", 2)
+    for name, count in zip(names, counts):
+        pal += bytes(3) + bytes(2) + b"\x00" + b"\x00" + struct.pack("<H", count) + bytes(2) + b"\x00" + bytes(2) + struct.pack(">H", len(name))
+    pal += b"\x00"
+    for name, count in zip(names, counts):
+        pal += bytes([count, 0]) + name + struct.pack(">H", 0)
+        pal += b"".join(bytes([(i * 255) // count, 0, 255 - (i * 255) // count, 128]) for i in range(count - 1))
+    put("scientific/nt_mdt/nt_mdt_pal", "two_palettes", pal)
+
+    # Microsoft compound file (CFB): the header, a FAT, the directory, a mini FAT and the mini stream with one small stream
+    free, end, fat_sector = 0xFFFFFFFF, 0xFFFFFFFE, 0xFFFFFFFD
+    header = bytes([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]) + bytes(16) + struct.pack("<HHHHH", 0x3E, 3, 0xFFFE, 9, 6) + bytes(6)
+    header += struct.pack("<iiiiiiiiii", 0, 1, 1, 0, 4096, 2, 1, end - (1 << 32), 0, 0)[:0]
+    header += struct.pack("<I", 0) + struct.pack("<I", 1) + struct.pack("<I", 1) + struct.pack("<I", 0) + struct.pack("<I", 4096)
+    header += struct.pack("<I", 2) + struct.pack("<I", 1) + struct.pack("<I", end) + struct.pack("<I", 0)
+    header += struct.pack("<I", 0) + struct.pack("<108I", *([free] * 108))
+    fat = struct.pack("<128I", fat_sector, end, end, end, *([free] * 124))
+    minifat = struct.pack("<128I", 1, end, *([free] * 126))
+
+    def cfb_entry(name, kind, color, left, right, child, start, size):
+        raw = name.encode("utf-16-le")
+        return raw.ljust(64, b"\0") + struct.pack("<HBBiii", len(raw) + 2 if name else 0, kind, color, left, right, child) + bytes(16) + struct.pack("<IQQiQ", 0, 0, 0, start, size)
+
+    nostream = -1
+    directory = cfb_entry("Root Entry", 5, 1, nostream, nostream, 1, 3, 128) + cfb_entry("Data", 2, 1, nostream, nostream, nostream, 0, 100)
+    directory += cfb_entry("", 0, 0, nostream, nostream, nostream, 0, 0) * 2
+    stream = b"A small stream kept in the mini stream of a compound file. " + bytes(range(41))
+    put("serialization/microsoft_cfb", "one_stream", header.ljust(512, b"\0") + fat + directory + minifat + stream.ljust(512, b"\0"))
+
     # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
     # transport feedback (the receiver's reports have no blocks)
     def rtcp(kind, body, subtype=0):

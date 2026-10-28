@@ -1,0 +1,22 @@
+{
+  "fileheader": {
+    "lenfile": 36,
+    "magic": "50494600",
+    "ofsimagedata": 28,
+    "ofsimagedatamin": 28
+  },
+  "imagedata": "00f8e0071f00ffff",
+  "infoheader": {
+    "bitsperpixel": 16,
+    "compression": 0,
+    "height": 2,
+    "imagetype": 58821,
+    "lencolortable": 0,
+    "lencolortableentry": 0,
+    "lencolortablefull": 0,
+    "lencolortablemax": 0,
+    "lenimagedata": 8,
+    "usesindexedmode": false,
+    "width": 2
+  }
+}

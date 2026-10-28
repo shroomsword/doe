@@ -30,6 +30,9 @@ pub struct TypeRegistry {
     /// Whether an expression of any type uses `field._sizeof`, the number of
     /// bytes a field took, which the parser then records for every field.
     pub uses_field_sizes: bool,
+    /// The fields of each type that always take the same number of bytes, and that number: `root_field._sizeof` is
+    /// known before the field is read.
+    pub static_field_sizes: std::collections::HashMap<String, Vec<(String, u64)>>,
     /// Whether any instance reads from another stream (`io:`), so that the
     /// parser records the stream of every value it parses.
     pub uses_io: bool,

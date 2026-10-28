@@ -101,7 +101,7 @@ image/jpeg	crafted	image/jpeg	built by make_gallery_samples.py	MIT (this reposit
 image/nitf	none	-	-	-	
 image/pcx	crafted	image/pcx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/pcx_dcx	crafted	image/pcx_dcx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-image/pif	none	-	-	-	
+image/pif	crafted	image/pif	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/png	crafted	image/png	built by make_gallery_samples.py	MIT (this repository)	
 image/psx_tim	crafted	image/psx_tim	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/tga	crafted	image/tga	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -168,7 +168,7 @@ network/tls_client_hello	crafted	network/tls_client_hello	built by make_samples_
 network/udp_datagram	crafted	network/udp_datagram	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/websocket	crafted	network/websocket	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 scientific/nt_mdt/nt_mdt	none	-	-	-	
-scientific/nt_mdt/nt_mdt_pal	none	-	-	-	
+scientific/nt_mdt/nt_mdt_pal	crafted	scientific/nt_mdt/nt_mdt_pal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 scientific/spectroscopy/avantes_roh60	crafted	scientific/spectroscopy/avantes_roh60	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 scientific/spectroscopy/specpr	none	-	-	-	
 security/efivar_signature_list	crafted	security/efivar_signature_list	built by make_samples_by_hand.py from the format's documentation (the certificate is the openssl one of the asn1_der sample)	MIT (this repository)	
@@ -178,7 +178,7 @@ serialization/asn1/asn1_der	real	serialization/asn1/asn1_der	openssl, run by mak
 serialization/bson	crafted	serialization/bson	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 serialization/chrome_pak	crafted	serialization/chrome_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 serialization/google_protobuf	crafted	serialization/google_protobuf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-serialization/microsoft_cfb	none	-	-	-	
+serialization/microsoft_cfb	crafted	serialization/microsoft_cfb	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 serialization/msgpack	crafted	serialization/msgpack	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 serialization/php_serialized_value	crafted	serialization/php_serialized_value	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 serialization/python_pickle	real	serialization/python_pickle	pickle of Python, run by make_real_samples.py	MIT (this repository)	protocols 0, 2 and 4; the text in protocol 0 is ASCII, because Python writes it as Latin-1 and doe, by design, refuses a byte that is not ASCII in an ascii string (the reference does not)

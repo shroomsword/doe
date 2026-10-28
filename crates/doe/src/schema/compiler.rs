@@ -301,6 +301,22 @@ impl Compiler {
             .into_iter()
             .filter_map(|(name, size)| Some((name, size?)))
             .collect();
+        let mut field_sizes = HashMap::new();
+        for (name, ty) in &self.registry.types {
+            let mut known = HashMap::new();
+            let fixed: Vec<(String, u64)> = ty
+                .fields
+                .iter()
+                .filter_map(|field| {
+                    let size = field_static_size(&self.registry, field, &mut known, 0)?;
+                    Some((field.id.clone(), size))
+                })
+                .collect();
+            if !fixed.is_empty() {
+                field_sizes.insert(name.clone(), fixed);
+            }
+        }
+        self.registry.static_field_sizes = field_sizes;
         self.registry.uses_io = self
             .registry
             .types
@@ -1216,72 +1232,82 @@ fn static_size(
     let ty = registry.get(name)?;
     let mut total: u64 = 0;
     for field in &ty.fields {
-        // `repeat: expr` with a number written in the schema reads the field that many times
-        let times = match &field.repeat {
-            RepeatMode::Once => 1,
-            RepeatMode::Count(crate::schema::expr::Expr::Int(n)) => u64::try_from(*n).ok()?,
-            _ => return None,
-        };
-        if field.pos.is_some() {
-            return None;
-        }
-        let size = match &field.kind {
-            FieldKind::UInt { width, .. } | FieldKind::SInt { width, .. } => match width {
-                IntWidth::W8 => 1,
-                IntWidth::W16 => 2,
-                IntWidth::W32 => 4,
-                IntWidth::W64 => 8,
-            },
-            FieldKind::Float { width, .. } => match width {
-                FloatWidth::F32 => 4,
-                FloatWidth::F64 => 8,
-            },
-            FieldKind::Contents(bytes) => u64::try_from(bytes.len()).ok()?,
-            FieldKind::Bytes {
-                size: SizeExpr::Literal(n),
-            }
-            | FieldKind::Str {
-                size: StrSize::Fixed(SizeExpr::Literal(n)),
-                ..
-            }
-            | FieldKind::TypeRef {
-                size: Some(SizeExpr::Literal(n)),
-                ..
-            }
-            // a string or bytes cut at a terminator out of a window of a given size takes the window
-            | FieldKind::Str {
-                size:
-                    StrSize::Cut(crate::schema::ir::Cut {
-                        size: Some(SizeExpr::Literal(n)),
-                        ..
-                    }),
-                ..
-            }
-            | FieldKind::BytesCut {
-                cut:
-                    crate::schema::ir::Cut {
-                        size: Some(SizeExpr::Literal(n)),
-                        ..
-                    },
-            } => u64::try_from(*n).ok()?,
-            FieldKind::TypeRef {
-                type_name,
-                size: None,
-                ..
-            } => static_size(registry, type_name, known, depth + 1)?,
-            _ => return None,
-        };
-        let size = size.checked_mul(times)?;
-        // An optional field has no fixed size, unless it takes no bytes anyway
-        // (`- size: 0` with an `if`, which some definitions use to make
-        // something be computed first).
-        if field.if_expr.is_some() && size != 0 {
-            return None;
-        }
-        total = total.checked_add(size)?;
+        total = total.checked_add(field_static_size(registry, field, known, depth)?)?;
     }
     known.insert(name.to_owned(), Some(total));
     Some(total)
+}
+
+/// The size in bytes of one field of a type, if it is always the same (see [`static_size`]).
+fn field_static_size(
+    registry: &TypeRegistry,
+    field: &CompiledField,
+    known: &mut HashMap<String, Option<u64>>,
+    depth: usize,
+) -> Option<u64> {
+    // `repeat: expr` with a number written in the schema reads the field that many times
+    let times = match &field.repeat {
+        RepeatMode::Once => 1,
+        RepeatMode::Count(crate::schema::expr::Expr::Int(n)) => u64::try_from(*n).ok()?,
+        _ => return None,
+    };
+    if field.pos.is_some() {
+        return None;
+    }
+    let size = match &field.kind {
+        FieldKind::UInt { width, .. } | FieldKind::SInt { width, .. } => match width {
+            IntWidth::W8 => 1,
+            IntWidth::W16 => 2,
+            IntWidth::W32 => 4,
+            IntWidth::W64 => 8,
+        },
+        FieldKind::Float { width, .. } => match width {
+            FloatWidth::F32 => 4,
+            FloatWidth::F64 => 8,
+        },
+        FieldKind::Contents(bytes) => u64::try_from(bytes.len()).ok()?,
+        FieldKind::Bytes {
+            size: SizeExpr::Literal(n),
+        }
+        | FieldKind::Str {
+            size: StrSize::Fixed(SizeExpr::Literal(n)),
+            ..
+        }
+        | FieldKind::TypeRef {
+            size: Some(SizeExpr::Literal(n)),
+            ..
+        }
+        // a string or bytes cut at a terminator out of a window of a given size takes the window
+        | FieldKind::Str {
+            size:
+                StrSize::Cut(crate::schema::ir::Cut {
+                    size: Some(SizeExpr::Literal(n)),
+                    ..
+                }),
+            ..
+        }
+        | FieldKind::BytesCut {
+            cut:
+                crate::schema::ir::Cut {
+                    size: Some(SizeExpr::Literal(n)),
+                    ..
+                },
+        } => u64::try_from(*n).ok()?,
+        FieldKind::TypeRef {
+            type_name,
+            size: None,
+            ..
+        } => static_size(registry, type_name, known, depth + 1)?,
+        _ => return None,
+    };
+    let size = size.checked_mul(times)?;
+    // An optional field has no fixed size, unless it takes no bytes anyway
+    // (`- size: 0` with an `if`, which some definitions use to make
+    // something be computed first).
+    if field.if_expr.is_some() && size != 0 {
+        return None;
+    }
+    Some(size)
 }
 
 /// For each type, which instances of the types around it it uses, directly or

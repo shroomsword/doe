@@ -390,6 +390,17 @@ impl<'reg> Engine<'reg> {
             // A constant of the root (`value: 3`) is known before anything is read, so that the types read
             // first can use it as `_root.name`.
             self.compute_constants(ty, cursor, ctx)?;
+            if self.registry.uses_field_sizes
+                && let Some(sizes) = self.registry.static_field_sizes.get(&ty.name)
+            {
+                // `_root.header._sizeof` of a field of a fixed size, read by the fields before it
+                for (field, size) in sizes {
+                    ctx.eval_ctx.bind(
+                        &format!("{field}._sizeof"),
+                        ExprValue::Int(i128::from(*size)),
+                    );
+                }
+            }
         }
 
         for field in &ty.fields {

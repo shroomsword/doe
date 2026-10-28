@@ -1,0 +1,77 @@
+{
+  "count": 2,
+  "meta": [
+    {
+      "colorscount": 4,
+      "namesize": 14,
+      "unkn00": "000000",
+      "unkn01": "0000",
+      "unkn02": "00",
+      "unkn03": "00",
+      "unkn10": "0000",
+      "unkn11": "00",
+      "unkn12": "0000"
+    },
+    {
+      "colorscount": 3,
+      "namesize": 8,
+      "unkn00": "000000",
+      "unkn01": "0000",
+      "unkn02": "00",
+      "unkn03": "00",
+      "unkn10": "0000",
+      "unkn11": "00",
+      "unkn12": "0000"
+    }
+  ],
+  "signature": "4e542d4d44542050616c657474652046696c652020312e303021",
+  "something2": "00",
+  "tables": [
+    {
+      "colors": [
+        {
+          "blue": 255,
+          "green": 128,
+          "red": 0,
+          "unkn": 0
+        },
+        {
+          "blue": 192,
+          "green": 128,
+          "red": 63,
+          "unkn": 0
+        },
+        {
+          "blue": 128,
+          "green": 128,
+          "red": 127,
+          "unkn": 0
+        }
+      ],
+      "size1": 4,
+      "title": "Rainbow",
+      "unkn": 0,
+      "unkn1": 0
+    },
+    {
+      "colors": [
+        {
+          "blue": 255,
+          "green": 128,
+          "red": 0,
+          "unkn": 0
+        },
+        {
+          "blue": 170,
+          "green": 128,
+          "red": 85,
+          "unkn": 0
+        }
+      ],
+      "size1": 3,
+      "title": "Gray",
+      "unkn": 0,
+      "unkn1": 0
+    }
+  ]
+}
