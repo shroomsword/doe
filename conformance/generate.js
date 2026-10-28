@@ -128,8 +128,11 @@ function failingFormats() {
   if (!fs.existsSync(table)) return new Set();
   const failing = new Set();
   for (const line of fs.readFileSync(table, 'utf8').split(/\r?\n/).slice(1)) {
-    const [name, status] = line.split('\t');
-    if (name && status === 'failing') failing.add(`${galleryPrefix}/${name}`);
+    const cells = line.split('\t');
+    // a format that doe cannot read yet, or whose files the reference cannot give output for
+    if (cells[0] && (cells[1] === 'failing' || (cells[5] || '').startsWith('no reference output'))) {
+      failing.add(`${galleryPrefix}/${cells[0]}`);
+    }
   }
   return failing;
 }

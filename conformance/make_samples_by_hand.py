@@ -1595,7 +1595,7 @@ def small():
     out = magic + mcap_record(0x01, mcap_str("") + mcap_str("doe samples"))
     out += mcap_record(0x03, schema_body) + mcap_record(0x04, channel_body)
     for sequence in range(3):
-        out += mcap_record(0x05, struct.pack("<HIQQ", 1, sequence, 1_700_000_000_000_000_000 + sequence, 1_700_000_000_000_000_000 + sequence) + b'{"x":%d}' % sequence)
+        out += mcap_record(0x05, struct.pack("<HIQQ", 1, sequence, 1_700_000_000_000 + sequence, 1_700_000_000_000 + sequence) + b'{"x":%d}' % sequence)
     out += mcap_record(0x0F, struct.pack("<I", 0))
     out += mcap_record(0x02, struct.pack("<QQI", 0, 0, 0)) + magic
     put("log/mcap", "three_messages", out)
