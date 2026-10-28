@@ -1175,7 +1175,12 @@ level; the bytes scroll to the selected field. `Tab` moves the keys to the bytes
 `←`/`→` (or `h`/`l`) move by a byte, `↑`/`↓` (`k`/`j`) by a line, `PgUp`/`PgDn` by a
 page, `Home`/`End` to the start and end of the line, `Ctrl-Home` and `Ctrl-End`
 (or `G`) to the start and end of the file, and the tree selects the innermost
-field that holds the byte.
+field that holds the byte, opening its parents and scrolling the tree to it. A
+byte in a gap between the fields of a type selects the type; a byte after
+everything that was parsed leaves the selection where it was and the status line
+says it is not in a field. Instances are not selected by the cursor: only the
+fields of the sequence hold bytes. Moving in the tree puts the cursor on the
+start of the selected field.
 
 **Large files.** The viewer is built not to be what makes a big file hard to
 look at. The first screen is drawn at once and says that the file is being
