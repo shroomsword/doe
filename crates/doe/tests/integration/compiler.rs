@@ -2748,7 +2748,10 @@ mod recursive_lookup {
         let Err(DoeError::Schema(message)) = load(files, &["lib"], "dup") else {
             panic!("not the error");
         };
-        assert!(message.contains("one.ksy") && message.contains("two.yaml"), "{message}");
+        assert!(
+            message.contains("one.ksy") && message.contains("two.yaml"),
+            "{message}"
+        );
     }
 
     #[test]
