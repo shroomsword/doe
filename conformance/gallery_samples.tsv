@@ -15,7 +15,7 @@ archive/rar	crafted	archive/rar	built by make_samples_by_hand.py from the format
 archive/respack	crafted	archive/respack	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/rpm	none	-	-	-	
 archive/xar	crafted	archive/xar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-archive/zchunk	none	-	-	-	
+archive/zchunk	crafted	archive/zchunk	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	not compressed (compression type none): the chunks are raw
 archive/zip	real	archive/zip	zipfile module of Python, run by make_gallery_samples.py	MIT (this repository)	
 archive/zisofs	crafted	archive/zisofs	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 cad/monomakh_sapr_chg	crafted	cad/monomakh_sapr_chg	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -55,7 +55,7 @@ filesystem/luks	crafted	filesystem/luks	built by make_samples_by_hand.py from th
 filesystem/lvm2	none	-	-	-	
 filesystem/mbr_partition_table	crafted	filesystem/mbr_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/tr_dos_image	crafted	filesystem/tr_dos_image	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-filesystem/ubifs	none	-	-	-	
+filesystem/ubifs	none	-	-	-	no sample: the smallest image UBIFS accepts (15 KiB logical erase blocks, at least 17 of them) is much larger than the 64 KiB a sample may have
 filesystem/vdi	real	filesystem/vdi	qemu-img create (QEMU)	MIT (this repository)	
 filesystem/vfat	crafted	filesystem/vfat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/vmware_vmdk	crafted	filesystem/vmware_vmdk	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -98,7 +98,7 @@ image/gimp_brush	crafted	image/gimp_brush	built by make_samples_by_hand.py from 
 image/icc_4	crafted	image/icc_4	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/ico	crafted	image/ico	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/jpeg	crafted	image/jpeg	built by make_gallery_samples.py	MIT (this repository)	
-image/nitf	none	-	-	-	
+image/nitf	crafted	image/nitf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the image and graphics data are placeholders, which nothing reads; no text segments (the definition reads their sub-header as 1 byte)
 image/pcx	crafted	image/pcx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/pcx_dcx	crafted	image/pcx_dcx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/pif	crafted	image/pif	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -167,7 +167,7 @@ network/tcp_segment	crafted	network/tcp_segment	built by make_samples_by_hand.py
 network/tls_client_hello	crafted	network/tls_client_hello	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/udp_datagram	crafted	network/udp_datagram	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
 network/websocket	crafted	network/websocket	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
-scientific/nt_mdt/nt_mdt	none	-	-	-	
+scientific/nt_mdt/nt_mdt	crafted	scientific/nt_mdt/nt_mdt	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 scientific/nt_mdt/nt_mdt_pal	crafted	scientific/nt_mdt/nt_mdt_pal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 scientific/spectroscopy/avantes_roh60	crafted	scientific/spectroscopy/avantes_roh60	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 scientific/spectroscopy/specpr	crafted	scientific/spectroscopy/specpr	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
