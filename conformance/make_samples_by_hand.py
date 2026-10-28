@@ -2504,6 +2504,162 @@ def more():
     body[4 + 0x800:4 + 0x800 + len(bookkeeping)] = bookkeeping
     put("macos/ds_store", "one_leaf", body)
 
+    # TrueType font with one glyph, a square: the tables head, hhea, maxp, hmtx, cmap, loca, glyf, name, post, OS/2, kern,
+    # cvt, fpgm and prep, with their checksums
+    def u32sum(data):
+        data = data + bytes(-len(data) % 4)
+        return sum(struct.unpack(f">{len(data) // 4}I", data)) & 0xFFFFFFFF
+
+    glyph = struct.pack(">hhhhh", 1, 0, 0, 500, 700) + struct.pack(">HH", 3, 0) + bytes([1, 1, 1, 1])
+    glyph += struct.pack(">4h", 0, 500, 0, -500) + struct.pack(">4h", 0, 0, 700, 0)
+    glyph += bytes(-len(glyph) % 4)
+    head = struct.pack(">IIII", 0x00010000, 0x00010000, 0, 0x5F0F3CF5) + struct.pack(">HH", 0x0003, 1000)
+    head += struct.pack(">QQ", 3_900_000_000, 3_900_000_000) + struct.pack(">4h", 0, 0, 500, 700) + struct.pack(">HHhhh", 0, 8, 2, 0, 0)
+    hhea = struct.pack(">I", 0x00010000) + struct.pack(">hhhHhhhhh", 800, -200, 0, 600, 0, 0, 500, 1, 0) + bytes(10) + struct.pack(">hH", 0, 2)
+    maxp = struct.pack(">IH", 0x00010000, 2) + struct.pack(">13H", 4, 1, 0, 0, 2, 0, 0, 0, 0, 64, 0, 0, 0)
+    hmtx = struct.pack(">Hh", 300, 0) + struct.pack(">Hh", 600, 50)
+    cmap_subtable = struct.pack(">HHH", 4, 32, 0) + struct.pack(">HHHH", 4, 4, 1, 0)
+    cmap_subtable += struct.pack(">HH", 65, 0xFFFF) + bytes(2) + struct.pack(">HH", 65, 0xFFFF) + struct.pack(">HH", (1 - 65) & 0xFFFF, 1) + struct.pack(">HH", 0, 0)
+    cmap = struct.pack(">HH", 0, 1) + struct.pack(">HHI", 3, 1, 12) + cmap_subtable
+    loca = struct.pack(">3H", 0, 0, len(glyph) // 2)
+    names = [(1, "Doe Sans"), (4, "Doe Sans Regular")]
+    strings, records = b"", b""
+    for name_id, text in names:
+        raw = text.encode("utf-16-be")
+        records += struct.pack(">HHHHHH", 3, 1, 0x409, name_id, len(raw), len(strings))
+        strings += raw
+    name = struct.pack(">HHH", 0, len(names), 6 + len(records)) + records + strings
+    post = struct.pack(">IIhhIIIII", 0x00020000, 0, -100, 50, 0, 0, 0, 0, 0) + struct.pack(">H3H", 3, 0, 36, 258) + b"\x03foo"
+    os2 = struct.pack(">HhHHh", 1, 520, 400, 5, 8) + struct.pack(">10h", 650, 600, 0, 75, 650, 600, 0, 350, 50, 250) + struct.pack(">h", 0)
+    os2 += bytes([2, 11, 5, 9, 2, 2, 4, 2, 2, 4]) + bytes([0b10000000, 0, 0, 0, 0, 0, 0, 0, 0]) + bytes(7) + b"DOE " + struct.pack(">HHHhhhHH", 0x40, 32, 126, 800, -200, 0, 800, 200) + bytes([0x00, 0x00, 0x00, 0x01, 0, 0, 0, 0])
+    kern = struct.pack(">HH", 0, 1) + struct.pack(">HHBB", 0, 6 + 8 + 6, 0, 1) + struct.pack(">HHHH", 1, 6, 0, 0) + struct.pack(">HHh", 1, 1, -40)
+    cvt = struct.pack(">4h", 0, 100, 200, -100)
+    tables = {"OS/2": os2, "cmap": cmap, "cvt ": cvt, "fpgm": bytes([0xB0, 0x00, 0x2C]), "glyf": glyph, "head": head, "hhea": hhea, "hmtx": hmtx, "kern": kern,
+              "loca": loca, "maxp": maxp, "name": name, "post": post, "prep": bytes([0xB8, 0x01, 0xFF, 0x85])}
+    directory, body, offset = b"", b"", 12 + 16 * len(tables)
+    for tag, data in tables.items():
+        directory += tag.encode() + struct.pack(">III", u32sum(data), offset + len(body), len(data))
+        body += data + bytes(-len(data) % 4)
+    font = struct.pack(">IHHHH", 0x00010000, len(tables), 128, 3, len(tables) * 16 - 128) + directory + body
+    adjustment = (0xB1B0AFBA - u32sum(font)) & 0xFFFFFFFF
+    head_at = 12 + 16 * len(tables) + body.index(head)
+    font = font[:head_at + 8] + struct.pack(">I", adjustment) + font[head_at + 12:]
+    put("font/ttf", "square", font)
+
+    # SPECPR: records of 1536 bytes, a flag word and 1532 bytes; a spectrum (a header of 256 channels, a continuation of
+    # 383 more), and a text (a first record and a continuation)
+    def specpr_ids(title, user):
+        return title.encode().ljust(40, b" ") + user.encode().ljust(8, b" ")
+
+    initial = specpr_ids("Sample spectrum", "doe")
+    initial += struct.pack(">5i", 100, 200, 2_459_000, 2_459_001, 300) + struct.pack(">5i", 1_000_000, -500_000, 128, 1, 0) + struct.pack(">2i", 0, 0)
+    initial += struct.pack(">4i", 0, 0, 1, 4) + b"history of the spectrum".ljust(60, b" ") + b"".join(f"manual {i}".ljust(74).encode() for i in range(4))
+    initial += struct.pack(">i", 1) + struct.pack(">3i", 1_944_000_000 // 2, 0, 0) + struct.pack(">2i", 3, 4) + struct.pack(">4f", 1.0, 0.0, 0.5, 20.0)
+    initial += struct.pack(">256f", *[i / 16 for i in range(256)])
+    assert len(initial) == 1532, len(initial)
+    continuation = struct.pack(">383f", *[(i % 32) / 8 for i in range(383)])
+    text_head = specpr_ids("Notes on the spectrum", "doe") + struct.pack(">Ii", 0, 0) + b"Measured with a sample made for doe.".ljust(1476, b" ")
+    text_more = b"More notes.".ljust(1532, b" ")
+    spec = struct.pack(">I", 0) + initial + struct.pack(">I", 1) + continuation + struct.pack(">I", 2) + text_head + struct.pack(">I", 3) + text_more
+    put("scientific/spectroscopy/specpr", "spectrum_and_text", spec)
+
+    # Exif (TIFF) in both byte orders: IFD0 with the camera and the pointers to the Exif and GPS IFDs, and a thumbnail IFD
+    def exif(order):
+        magic = b"II" if order == "<" else b"MM"
+
+        def ascii_(text):
+            return 2, len(text) + 1, text.encode() + b"\0"
+
+        def short(*values):
+            return 3, len(values), struct.pack(order + f"{len(values)}H", *values)
+
+        def long(*values):
+            return 4, len(values), struct.pack(order + f"{len(values)}I", *values)
+
+        def rational(*pairs):
+            return 5, len(pairs), b"".join(struct.pack(order + "II", *pair) for pair in pairs)
+
+        def raw(kind, data):
+            return kind, len(data), data
+
+        def ifd(entries, at, following):
+            data_at = at + 2 + 12 * len(entries) + 4
+            table, data = b"", b""
+            for tag, (kind, count, payload) in sorted(entries.items()):
+                if len(payload) <= 4:
+                    value = payload.ljust(4, b"\0")
+                else:
+                    value = struct.pack(order + "I", data_at + len(data))
+                    data += payload + bytes(len(payload) % 2)
+                table += struct.pack(order + "HHI", tag, kind, count) + value
+            return struct.pack(order + "H", len(entries)) + table + struct.pack(order + "I", following) + data
+
+        def layout(exif_at, gps_at, thumbnail_at):
+            ifd0 = {
+                0x010E: ascii_("A sample picture for doe"), 0x010F: ascii_("Doe Cameras"), 0x0110: ascii_("Model One"),
+                0x0112: short(1), 0x011A: rational((72, 1)), 0x011B: rational((72, 1)), 0x0128: short(2),
+                0x0131: ascii_("doe sample maker 1.0"), 0x0132: ascii_("2024:05:17 13:45:07"),
+                0x8769: long(exif_at), 0x8825: long(gps_at),
+            }
+            exif_ifd = {
+                0x829A: rational((1, 250)), 0x829D: rational((28, 10)), 0x8827: short(200), 0x9000: raw(7, b"0231"),
+                0x9003: ascii_("2024:05:17 13:45:07"), 0x920A: rational((350, 10)), 0xA002: long(4000), 0xA003: long(3000),
+            }
+            gps_ifd = {
+                0x0000: raw(1, bytes([2, 3, 0, 0])), 0x0001: ascii_("N"), 0x0002: rational((59, 1), (19, 1), (4800, 100)),
+                0x0003: ascii_("E"), 0x0004: rational((18, 1), (4, 1), (1200, 100)), 0x0005: raw(1, bytes([0])), 0x0006: rational((25, 1)),
+            }
+            thumbnail = {0x0103: short(6), 0x0112: short(1), 0x011A: rational((72, 1)), 0x011B: rational((72, 1)), 0x0128: short(2)}
+            return (
+                ifd(ifd0, 8, thumbnail_at), ifd(exif_ifd, exif_at, 0), ifd(gps_ifd, gps_at, 0), ifd(thumbnail, thumbnail_at, 0)
+            )
+
+        first = layout(0, 0, 0)
+        exif_at = 8 + len(first[0])
+        gps_at = exif_at + len(first[1])
+        thumbnail_at = gps_at + len(first[2])
+        parts = layout(exif_at, gps_at, thumbnail_at)
+        return magic + struct.pack(order + "HI", 42, 8) + b"".join(parts)
+
+    put("image/exif", "little_endian", exif("<"))
+    put("image/exif", "big_endian", exif(">"))
+
+    # ICC profile v4.3 of a display with the sRGB primaries: description, copyright, white point, colorants, curves and
+    # the chromatic adaptation matrix
+    def s15(value):
+        return struct.pack(">i", round(value * 65536))
+
+    def mluc(text):
+        raw = text.encode("utf-16-be")
+        return b"mluc" + bytes(4) + struct.pack(">II", 1, 12) + b"enUS" + struct.pack(">II", len(raw), 28) + raw
+
+    def xyz(x, y, z):
+        return b"XYZ " + bytes(4) + s15(x) + s15(y) + s15(z)
+
+    para = b"para" + bytes(4) + struct.pack(">H", 3) + bytes(2) + b"".join(s15(v) for v in (2.4, 1 / 1.055, 0.055 / 1.055, 1 / 12.92, 0.04045))
+    chad = b"sf32" + bytes(4) + b"".join(s15(v) for v in (1.0479, 0.0229, -0.0502, 0.0296, 0.9905, -0.0171, -0.0092, 0.0150, 0.7518))
+    elements = [
+        (b"desc", mluc("Doe sample sRGB")), (b"cprt", mluc("No copyright, made for doe")), (b"wtpt", xyz(0.9505, 1.0, 1.089)),
+        (b"rXYZ", xyz(0.4360, 0.2225, 0.0139)), (b"gXYZ", xyz(0.3851, 0.7169, 0.0971)), (b"bXYZ", xyz(0.1431, 0.0606, 0.7141)),
+        (b"rTRC", para), (b"gTRC", None), (b"bTRC", None), (b"chad", chad),
+    ]
+    table, data, offset = b"", b"", 128 + 4 + 12 * len(elements)
+    placed = {}
+    for signature, element in elements:
+        if element is None:
+            position, length = placed[b"rTRC"]
+        else:
+            element = element + bytes(-len(element) % 4)
+            position, length = offset + len(data), len(element)
+            placed[signature] = (position, length)
+            data += element
+        table += signature + struct.pack(">II", position, length)
+    size = 128 + 4 + len(table) + len(data)
+    icc_header = struct.pack(">I", size) + b"lcms" + bytes([4, 0x30, 0, 0]) + b"mntr" + b"RGB " + b"XYZ "
+    icc_header += struct.pack(">6H", 2024, 5, 17, 13, 45, 7) + b"acsp" + b"MSFT" + bytes(4) + b"ADBE" + b"DOES" + bytes(8)
+    icc_header += struct.pack(">I", 0) + s15(0.9642) + s15(1.0) + s15(0.8249) + b"lcms" + bytes(16) + bytes(28)
+    put("image/icc_4", "srgb_matrix", icc_header + struct.pack(">I", len(elements)) + table + data)
+
     # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
     # transport feedback (the receiver's reports have no blocks)
     def rtcp(kind, body, subtype=0):

@@ -1,0 +1,576 @@
+{
+  "body": {
+    "ifd0": {
+      "fields": [
+        {
+          "bytespervalue": 1,
+          "data": {
+            "value": "412073616d706c65207069637475726520666f7220646f65"
+          },
+          "fieldtype": 2,
+          "gpstag": null,
+          "hasimmediatedata": false,
+          "lendata": 25,
+          "numvalues": 25,
+          "ofsdata": 146,
+          "subifd": null,
+          "tag": 270,
+          "tagraw": 270
+        },
+        {
+          "bytespervalue": 1,
+          "data": {
+            "value": "446f652043616d65726173"
+          },
+          "fieldtype": 2,
+          "gpstag": null,
+          "hasimmediatedata": false,
+          "lendata": 12,
+          "numvalues": 12,
+          "ofsdata": 172,
+          "subifd": null,
+          "tag": 271,
+          "tagraw": 271
+        },
+        {
+          "bytespervalue": 1,
+          "data": {
+            "value": "4d6f64656c204f6e65"
+          },
+          "fieldtype": 2,
+          "gpstag": null,
+          "hasimmediatedata": false,
+          "lendata": 10,
+          "numvalues": 10,
+          "ofsdata": 184,
+          "subifd": null,
+          "tag": 272,
+          "tagraw": 272
+        },
+        {
+          "bytespervalue": 2,
+          "data": {
+            "values": [
+              1
+            ]
+          },
+          "fieldtype": 3,
+          "gpstag": null,
+          "hasimmediatedata": true,
+          "lendata": 2,
+          "numvalues": 1,
+          "subifd": null,
+          "tag": 274,
+          "tagraw": 274
+        },
+        {
+          "bytespervalue": 8,
+          "data": {
+            "values": [
+              {
+                "value": 72,
+                "valueden": 1,
+                "valuenum": 72
+              }
+            ]
+          },
+          "fieldtype": 5,
+          "gpstag": null,
+          "hasimmediatedata": false,
+          "lendata": 8,
+          "numvalues": 1,
+          "ofsdata": 194,
+          "subifd": null,
+          "tag": 282,
+          "tagraw": 282
+        },
+        {
+          "bytespervalue": 8,
+          "data": {
+            "values": [
+              {
+                "value": 72,
+                "valueden": 1,
+                "valuenum": 72
+              }
+            ]
+          },
+          "fieldtype": 5,
+          "gpstag": null,
+          "hasimmediatedata": false,
+          "lendata": 8,
+          "numvalues": 1,
+          "ofsdata": 202,
+          "subifd": null,
+          "tag": 283,
+          "tagraw": 283
+        },
+        {
+          "bytespervalue": 2,
+          "data": {
+            "values": [
+              2
+            ]
+          },
+          "fieldtype": 3,
+          "gpstag": null,
+          "hasimmediatedata": true,
+          "lendata": 2,
+          "numvalues": 1,
+          "subifd": null,
+          "tag": 296,
+          "tagraw": 296
+        },
+        {
+          "bytespervalue": 1,
+          "data": {
+            "value": "646f652073616d706c65206d616b657220312e30"
+          },
+          "fieldtype": 2,
+          "gpstag": null,
+          "hasimmediatedata": false,
+          "lendata": 21,
+          "numvalues": 21,
+          "ofsdata": 210,
+          "subifd": null,
+          "tag": 305,
+          "tagraw": 305
+        },
+        {
+          "bytespervalue": 1,
+          "data": {
+            "value": "323032343a30353a31372031333a34353a3037"
+          },
+          "fieldtype": 2,
+          "gpstag": null,
+          "hasimmediatedata": false,
+          "lendata": 20,
+          "numvalues": 20,
+          "ofsdata": 232,
+          "subifd": null,
+          "tag": 306,
+          "tagraw": 306
+        },
+        {
+          "bytespervalue": 4,
+          "data": {
+            "values": [
+              252
+            ]
+          },
+          "fieldtype": 4,
+          "gpstag": null,
+          "hasimmediatedata": true,
+          "lendata": 4,
+          "numvalues": 1,
+          "subifd": {
+            "fields": [
+              {
+                "bytespervalue": 8,
+                "data": {
+                  "values": [
+                    {
+                      "value": 0.004,
+                      "valueden": 250,
+                      "valuenum": 1
+                    }
+                  ]
+                },
+                "fieldtype": 5,
+                "gpstag": null,
+                "hasimmediatedata": false,
+                "lendata": 8,
+                "numvalues": 1,
+                "ofsdata": 354,
+                "subifd": null,
+                "tag": 33434,
+                "tagraw": 33434
+              },
+              {
+                "bytespervalue": 8,
+                "data": {
+                  "values": [
+                    {
+                      "value": 2.8,
+                      "valueden": 10,
+                      "valuenum": 28
+                    }
+                  ]
+                },
+                "fieldtype": 5,
+                "gpstag": null,
+                "hasimmediatedata": false,
+                "lendata": 8,
+                "numvalues": 1,
+                "ofsdata": 362,
+                "subifd": null,
+                "tag": 33437,
+                "tagraw": 33437
+              },
+              {
+                "bytespervalue": 2,
+                "data": {
+                  "values": [
+                    200
+                  ]
+                },
+                "fieldtype": 3,
+                "gpstag": null,
+                "hasimmediatedata": true,
+                "lendata": 2,
+                "numvalues": 1,
+                "subifd": null,
+                "tag": 34855,
+                "tagraw": 34855
+              },
+              {
+                "bytespervalue": 1,
+                "data": "30323331",
+                "fieldtype": 7,
+                "gpstag": null,
+                "hasimmediatedata": true,
+                "lendata": 4,
+                "numvalues": 4,
+                "subifd": null,
+                "tag": 36864,
+                "tagraw": 36864
+              },
+              {
+                "bytespervalue": 1,
+                "data": {
+                  "value": "323032343a30353a31372031333a34353a3037"
+                },
+                "fieldtype": 2,
+                "gpstag": null,
+                "hasimmediatedata": false,
+                "lendata": 20,
+                "numvalues": 20,
+                "ofsdata": 370,
+                "subifd": null,
+                "tag": 36867,
+                "tagraw": 36867
+              },
+              {
+                "bytespervalue": 8,
+                "data": {
+                  "values": [
+                    {
+                      "value": 35,
+                      "valueden": 10,
+                      "valuenum": 350
+                    }
+                  ]
+                },
+                "fieldtype": 5,
+                "gpstag": null,
+                "hasimmediatedata": false,
+                "lendata": 8,
+                "numvalues": 1,
+                "ofsdata": 390,
+                "subifd": null,
+                "tag": 37386,
+                "tagraw": 37386
+              },
+              {
+                "bytespervalue": 4,
+                "data": {
+                  "values": [
+                    4000
+                  ]
+                },
+                "fieldtype": 4,
+                "gpstag": null,
+                "hasimmediatedata": true,
+                "lendata": 4,
+                "numvalues": 1,
+                "subifd": null,
+                "tag": 40962,
+                "tagraw": 40962
+              },
+              {
+                "bytespervalue": 4,
+                "data": {
+                  "values": [
+                    3000
+                  ]
+                },
+                "fieldtype": 4,
+                "gpstag": null,
+                "hasimmediatedata": true,
+                "lendata": 4,
+                "numvalues": 1,
+                "subifd": null,
+                "tag": 40963,
+                "tagraw": 40963
+              }
+            ],
+            "nextifd": null,
+            "numfields": 8,
+            "ofsnextifd": 0
+          },
+          "tag": 34665,
+          "tagraw": 34665
+        },
+        {
+          "bytespervalue": 4,
+          "data": {
+            "values": [
+              398
+            ]
+          },
+          "fieldtype": 4,
+          "gpstag": null,
+          "hasimmediatedata": true,
+          "lendata": 4,
+          "numvalues": 1,
+          "subifd": {
+            "fields": [
+              {
+                "bytespervalue": 1,
+                "data": "02030000",
+                "fieldtype": 1,
+                "gpstag": 0,
+                "hasimmediatedata": true,
+                "lendata": 4,
+                "numvalues": 4,
+                "subifd": null,
+                "tag": null,
+                "tagraw": 0
+              },
+              {
+                "bytespervalue": 1,
+                "data": {
+                  "value": "4e"
+                },
+                "fieldtype": 2,
+                "gpstag": 1,
+                "hasimmediatedata": true,
+                "lendata": 2,
+                "numvalues": 2,
+                "subifd": null,
+                "tag": null,
+                "tagraw": 1
+              },
+              {
+                "bytespervalue": 8,
+                "data": {
+                  "values": [
+                    {
+                      "value": 59,
+                      "valueden": 1,
+                      "valuenum": 59
+                    },
+                    {
+                      "value": 19,
+                      "valueden": 1,
+                      "valuenum": 19
+                    },
+                    {
+                      "value": 48,
+                      "valueden": 100,
+                      "valuenum": 4800
+                    }
+                  ]
+                },
+                "fieldtype": 5,
+                "gpstag": 2,
+                "hasimmediatedata": false,
+                "lendata": 24,
+                "numvalues": 3,
+                "ofsdata": 488,
+                "subifd": null,
+                "tag": null,
+                "tagraw": 2
+              },
+              {
+                "bytespervalue": 1,
+                "data": {
+                  "value": "45"
+                },
+                "fieldtype": 2,
+                "gpstag": 3,
+                "hasimmediatedata": true,
+                "lendata": 2,
+                "numvalues": 2,
+                "subifd": null,
+                "tag": null,
+                "tagraw": 3
+              },
+              {
+                "bytespervalue": 8,
+                "data": {
+                  "values": [
+                    {
+                      "value": 18,
+                      "valueden": 1,
+                      "valuenum": 18
+                    },
+                    {
+                      "value": 4,
+                      "valueden": 1,
+                      "valuenum": 4
+                    },
+                    {
+                      "value": 12,
+                      "valueden": 100,
+                      "valuenum": 1200
+                    }
+                  ]
+                },
+                "fieldtype": 5,
+                "gpstag": 4,
+                "hasimmediatedata": false,
+                "lendata": 24,
+                "numvalues": 3,
+                "ofsdata": 512,
+                "subifd": null,
+                "tag": null,
+                "tagraw": 4
+              },
+              {
+                "bytespervalue": 1,
+                "data": "00",
+                "fieldtype": 1,
+                "gpstag": 5,
+                "hasimmediatedata": true,
+                "lendata": 1,
+                "numvalues": 1,
+                "subifd": null,
+                "tag": null,
+                "tagraw": 5
+              },
+              {
+                "bytespervalue": 8,
+                "data": {
+                  "values": [
+                    {
+                      "value": 25,
+                      "valueden": 1,
+                      "valuenum": 25
+                    }
+                  ]
+                },
+                "fieldtype": 5,
+                "gpstag": 6,
+                "hasimmediatedata": false,
+                "lendata": 8,
+                "numvalues": 1,
+                "ofsdata": 536,
+                "subifd": null,
+                "tag": null,
+                "tagraw": 6
+              }
+            ],
+            "nextifd": null,
+            "numfields": 7,
+            "ofsnextifd": 0
+          },
+          "tag": 34853,
+          "tagraw": 34853
+        }
+      ],
+      "nextifd": {
+        "fields": [
+          {
+            "bytespervalue": 2,
+            "data": {
+              "values": [
+                6
+              ]
+            },
+            "fieldtype": 3,
+            "gpstag": null,
+            "hasimmediatedata": true,
+            "lendata": 2,
+            "numvalues": 1,
+            "subifd": null,
+            "tag": 259,
+            "tagraw": 259
+          },
+          {
+            "bytespervalue": 2,
+            "data": {
+              "values": [
+                1
+              ]
+            },
+            "fieldtype": 3,
+            "gpstag": null,
+            "hasimmediatedata": true,
+            "lendata": 2,
+            "numvalues": 1,
+            "subifd": null,
+            "tag": 274,
+            "tagraw": 274
+          },
+          {
+            "bytespervalue": 8,
+            "data": {
+              "values": [
+                {
+                  "value": 72,
+                  "valueden": 1,
+                  "valuenum": 72
+                }
+              ]
+            },
+            "fieldtype": 5,
+            "gpstag": null,
+            "hasimmediatedata": false,
+            "lendata": 8,
+            "numvalues": 1,
+            "ofsdata": 610,
+            "subifd": null,
+            "tag": 282,
+            "tagraw": 282
+          },
+          {
+            "bytespervalue": 8,
+            "data": {
+              "values": [
+                {
+                  "value": 72,
+                  "valueden": 1,
+                  "valuenum": 72
+                }
+              ]
+            },
+            "fieldtype": 5,
+            "gpstag": null,
+            "hasimmediatedata": false,
+            "lendata": 8,
+            "numvalues": 1,
+            "ofsdata": 618,
+            "subifd": null,
+            "tag": 283,
+            "tagraw": 283
+          },
+          {
+            "bytespervalue": 2,
+            "data": {
+              "values": [
+                2
+              ]
+            },
+            "fieldtype": 3,
+            "gpstag": null,
+            "hasimmediatedata": true,
+            "lendata": 2,
+            "numvalues": 1,
+            "subifd": null,
+            "tag": 296,
+            "tagraw": 296
+          }
+        ],
+        "nextifd": null,
+        "numfields": 5,
+        "ofsnextifd": 0
+      },
+      "numfields": 11,
+      "ofsnextifd": 544
+    },
+    "magic": 42,
+    "ofsifd0": 8
+  },
+  "endianness": 19789
+}

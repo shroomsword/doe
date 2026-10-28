@@ -1,0 +1,511 @@
+{
+  "directorytable": [
+    {
+      "checksum": 1479006147,
+      "length": 86,
+      "offset": 236,
+      "tag": "OS/2",
+      "value": {
+        "achvendid": "DOE ",
+        "codepagerange": {
+          "cp1250latin2easterneurope": false,
+          "cp1251cyrillic": false,
+          "cp1252latin1": true,
+          "cp1253greek": false,
+          "cp1254turkish": false,
+          "cp1255hebrew": false,
+          "cp1256arabic": false,
+          "cp1257windowsbaltic": false,
+          "cp1361koreanjohab": false,
+          "cp437us": false,
+          "cp708arabicasmo708": false,
+          "cp737greekformer437g": false,
+          "cp775msdosbaltic": false,
+          "cp850welatin1": false,
+          "cp852latin2": false,
+          "cp855ibmcyrillicprimarilyrussian": false,
+          "cp857ibmturkish": false,
+          "cp860msdosportuguese": false,
+          "cp861msdosicelandic": false,
+          "cp862hebrew": false,
+          "cp863msdoscanadianfrench": false,
+          "cp864arabic": false,
+          "cp865msdosnordic": false,
+          "cp866msdosrussian": false,
+          "cp869ibmgreek": false,
+          "cp874thai": false,
+          "cp932jisjapan": false,
+          "cp936chinesesimplifiedcharsprcandsingapore": false,
+          "cp949koreanwansung": false,
+          "cp950chinesetraditionalcharstaiwanandhongkong": false,
+          "macintoshcharacterset": false,
+          "oemcharacterset": false,
+          "reservedforalternateansi": 0,
+          "reservedforalternateansioem": 0,
+          "reservedforoem": 0,
+          "symbolcharacterset": false
+        },
+        "firstcharindex": 32,
+        "fstype": 8,
+        "lastcharindex": 126,
+        "panose": {
+          "armstyle": 4,
+          "contrast": 2,
+          "familytype": 2,
+          "letterform": 2,
+          "midline": 2,
+          "proportion": 9,
+          "serifstyle": 11,
+          "strokevariation": 2,
+          "weight": 5,
+          "xheight": 4
+        },
+        "sfamilyclass": 0,
+        "selection": 64,
+        "typoascender": 800,
+        "typodescender": -200,
+        "typolinegap": 0,
+        "unicoderange": {
+          "alphabeticpresentationforms": false,
+          "arabicextended": false,
+          "arabicpresentationformsa": false,
+          "arabicpresentationformsb": false,
+          "armenian": false,
+          "arrows": false,
+          "basicarabic": false,
+          "basicgeorgian": false,
+          "basicgreek": false,
+          "basichebrew": false,
+          "basiclatin": true,
+          "bengali": false,
+          "blockelements": false,
+          "bopomofo": false,
+          "boxdrawing": false,
+          "cjkcompatibility": false,
+          "cjkcompatibilityforms": false,
+          "cjkcompatibilityideographs": false,
+          "cjkmiscellaneous": false,
+          "cjksymbolsandpunctuation": false,
+          "cjkunifiedideographs": false,
+          "combiningdiacriticalmarks": false,
+          "combiningdiacriticalmarksforsymbols": false,
+          "combininghalfmarks": false,
+          "controlpictures": false,
+          "currencysymbols": false,
+          "cyrillic": false,
+          "devanagari": false,
+          "dingbats": false,
+          "enclosedalphanumerics": false,
+          "enclosedcjklettersandmonths": false,
+          "generalpunctuation": false,
+          "geometricshapes": false,
+          "georgianextended": false,
+          "greekextended": false,
+          "greeksymbolsandcoptic": false,
+          "gujarati": false,
+          "gurmukhi": false,
+          "halfwidthandfullwidthforms": false,
+          "hangul": false,
+          "hangulcompatibilityjamo": false,
+          "hanguljamo": false,
+          "hebrewextended": false,
+          "hiragana": false,
+          "ipaextensions": false,
+          "kannada": false,
+          "katakana": false,
+          "lao": false,
+          "latin1supplement": false,
+          "latinextendeda": false,
+          "latinextendedadditional": false,
+          "latinextendedb": false,
+          "letterlikesymbols": false,
+          "malayalam": false,
+          "mathematicaloperators": false,
+          "miscellaneoussymbols": false,
+          "miscellaneoustechnical": false,
+          "numberforms": false,
+          "opticalcharacterrecognition": false,
+          "oriya": false,
+          "privateusearea": false,
+          "reserved": "00000000000000",
+          "reservedforunicodesubranges1": false,
+          "reservedforunicodesubranges2": false,
+          "smallformvariants": false,
+          "spacingmodifierletters": false,
+          "specials": false,
+          "superscriptsandsubscripts": false,
+          "tamil": false,
+          "telugu": false,
+          "thai": false
+        },
+        "version": 1,
+        "weightclass": 400,
+        "widthclass": 5,
+        "winascent": 800,
+        "windescent": 200,
+        "xavgcharwidth": 520,
+        "ystrikeoutposition": 250,
+        "ystrikeoutsize": 50,
+        "ysubscriptxoffset": 0,
+        "ysubscriptxsize": 650,
+        "ysubscriptyoffset": 75,
+        "ysubscriptysize": 600,
+        "ysuperscriptxoffset": 0,
+        "ysuperscriptxsize": 650,
+        "ysuperscriptyoffset": 350,
+        "ysuperscriptysize": 600
+      }
+    },
+    {
+      "checksum": 786548,
+      "length": 44,
+      "offset": 324,
+      "tag": "cmap",
+      "value": {
+        "numberofencodingtables": 1,
+        "tables": [
+          {
+            "encodingid": 1,
+            "platformid": 3,
+            "subtableoffset": 12,
+            "table": {
+              "format": 4,
+              "length": 32,
+              "value": {
+                "endcount": [
+                  65,
+                  65535
+                ],
+                "entryselector": 1,
+                "glyphidarray": [],
+                "iddelta": [
+                  65472,
+                  1
+                ],
+                "idrangeoffset": [
+                  0,
+                  0
+                ],
+                "rangeshift": 0,
+                "reservedpad": 0,
+                "searchrange": 4,
+                "segcount": 2,
+                "segcountx2": 4,
+                "startcount": [
+                  65,
+                  65535
+                ]
+              },
+              "version": 0
+            }
+          }
+        ],
+        "versionnumber": 0
+      }
+    },
+    {
+      "checksum": 13172736,
+      "length": 8,
+      "offset": 368,
+      "tag": "cvt ",
+      "value": {
+        "fwords": [
+          0,
+          100,
+          200,
+          -100
+        ]
+      }
+    },
+    {
+      "checksum": 2952801280,
+      "length": 3,
+      "offset": 376,
+      "tag": "fpgm",
+      "value": {
+        "instructions": "b0002c"
+      }
+    },
+    {
+      "checksum": 62784948,
+      "length": 36,
+      "offset": 380,
+      "tag": "glyf",
+      "value": {
+        "numberofcontours": 1,
+        "value": {
+          "endptsofcontours": [
+            3
+          ],
+          "flags": [
+            {
+              "oncurve": true,
+              "repeat": false,
+              "reserved": 0,
+              "xissame": false,
+              "xshortvector": false,
+              "yissame": false,
+              "yshortvector": false
+            },
+            {
+              "oncurve": true,
+              "repeat": false,
+              "reserved": 0,
+              "xissame": false,
+              "xshortvector": false,
+              "yissame": false,
+              "yshortvector": false
+            },
+            {
+              "oncurve": true,
+              "repeat": false,
+              "reserved": 0,
+              "xissame": false,
+              "xshortvector": false,
+              "yissame": false,
+              "yshortvector": false
+            },
+            {
+              "oncurve": true,
+              "repeat": false,
+              "reserved": 0,
+              "xissame": false,
+              "xshortvector": false,
+              "yissame": false,
+              "yshortvector": false
+            }
+          ],
+          "instructionlength": 0,
+          "instructions": "",
+          "pointcount": 4
+        },
+        "xmax": 500,
+        "xmin": 0,
+        "ymax": 700,
+        "ymin": 0
+      }
+    },
+    {
+      "checksum": 838128033,
+      "length": 54,
+      "offset": 416,
+      "tag": "head",
+      "value": {
+        "checksumadjustment": 4043647487,
+        "created": 3900000000,
+        "flags": 3,
+        "fontdirectionhint": 2,
+        "fontrevision": {
+          "major": 1,
+          "minor": 0
+        },
+        "glyphdataformat": 0,
+        "indextolocformat": 0,
+        "lowestrecppem": 8,
+        "macstyle": 0,
+        "magicnumber": "5f0f3cf5",
+        "modified": 3900000000,
+        "unitsperem": 1000,
+        "version": {
+          "major": 1,
+          "minor": 0
+        },
+        "xmax": 500,
+        "xmin": 0,
+        "ymax": 700,
+        "ymin": 0
+      }
+    },
+    {
+      "checksum": 85328275,
+      "length": 36,
+      "offset": 472,
+      "tag": "hhea",
+      "value": {
+        "advancewidthmax": 600,
+        "ascender": 800,
+        "caretsloperise": 1,
+        "caretsloperun": 0,
+        "descender": -200,
+        "linegap": 0,
+        "metricdataformat": 0,
+        "minleftsidebearing": 0,
+        "minrightsidebearing": 0,
+        "numberofhmetrics": 2,
+        "reserved": "00000000000000000000",
+        "version": {
+          "major": 1,
+          "minor": 0
+        },
+        "xmaxextend": 500
+      }
+    },
+    {
+      "checksum": 58982450,
+      "length": 8,
+      "offset": 508,
+      "tag": "hmtx",
+      "value": "012c000002580032"
+    },
+    {
+      "checksum": 589807,
+      "length": 24,
+      "offset": 516,
+      "tag": "kern",
+      "value": {
+        "subtablecount": 1,
+        "subtables": [
+          {
+            "format": 0,
+            "format0": {
+              "entryselector": 0,
+              "kerningpairs": [
+                {
+                  "left": 1,
+                  "right": 1,
+                  "value": -40
+                }
+              ],
+              "paircount": 1,
+              "rangeshift": 0,
+              "searchrange": 6
+            },
+            "iscrossstream": false,
+            "ishorizontal": true,
+            "isminimum": false,
+            "isoverride": false,
+            "length": 20,
+            "reserved": 0,
+            "version": 0
+          }
+        ],
+        "version": 0
+      }
+    },
+    {
+      "checksum": 1179648,
+      "length": 6,
+      "offset": 540,
+      "tag": "loca",
+      "value": "000000000012"
+    },
+    {
+      "checksum": 4456454,
+      "length": 32,
+      "offset": 548,
+      "tag": "maxp",
+      "value": {
+        "isversion10": true,
+        "numglyphs": 2,
+        "tableversionnumber": {
+          "major": 1,
+          "minor": 0
+        },
+        "version10body": {
+          "maxcomponentdepth": 0,
+          "maxcomponentelements": 0,
+          "maxcompositecontours": 0,
+          "maxcompositepoints": 0,
+          "maxcontours": 1,
+          "maxfunctiondefs": 0,
+          "maxinstructiondefs": 0,
+          "maxpoints": 4,
+          "maxsizeofinstructions": 0,
+          "maxstackelements": 64,
+          "maxstorage": 0,
+          "maxtwilightpoints": 0,
+          "maxzones": 2
+        }
+      }
+    },
+    {
+      "checksum": 76680313,
+      "length": 78,
+      "offset": 580,
+      "tag": "name",
+      "value": {
+        "formatselector": 0,
+        "namerecords": [
+          {
+            "asciivalue": "\u0000D\u0000o\u0000e\u0000 \u0000S\u0000a\u0000n\u0000s",
+            "encodingid": 1,
+            "languageid": 1033,
+            "lenstr": 16,
+            "nameid": 1,
+            "ofsstr": 0,
+            "platformid": 3,
+            "unicodevalue": "Doe Sans"
+          },
+          {
+            "asciivalue": "\u0000D\u0000o\u0000e\u0000 \u0000S\u0000a\u0000n\u0000s\u0000 \u0000R\u0000e\u0000g\u0000u\u0000l\u0000a\u0000r",
+            "encodingid": 1,
+            "languageid": 1033,
+            "lenstr": 32,
+            "nameid": 4,
+            "ofsstr": 16,
+            "platformid": 3,
+            "unicodevalue": "Doe Sans Regular"
+          }
+        ],
+        "numnamerecords": 2,
+        "ofsstrings": 30
+      }
+    },
+    {
+      "checksum": 53178531,
+      "length": 44,
+      "offset": 660,
+      "tag": "post",
+      "value": {
+        "format": {
+          "major": 2,
+          "minor": 0
+        },
+        "format20": {
+          "glyphnameindex": [
+            0,
+            36,
+            258
+          ],
+          "glyphnames": [
+            {
+              "length": 3,
+              "value": "foo"
+            }
+          ],
+          "numberofglyphs": 3
+        },
+        "isfixedpitch": 0,
+        "italicangle": {
+          "major": 0,
+          "minor": 0
+        },
+        "maxmemtype1": 0,
+        "maxmemtype42": 0,
+        "minmemtype1": 0,
+        "minmemtype42": 0,
+        "underlineposition": -100,
+        "underlinethichness": 50
+      }
+    },
+    {
+      "checksum": 3087138693,
+      "length": 4,
+      "offset": 704,
+      "tag": "prep",
+      "value": {
+        "instructions": "b801ff85"
+      }
+    }
+  ],
+  "offsettable": {
+    "entryselector": 3,
+    "numtables": 14,
+    "rangeshift": 96,
+    "searchrange": 128,
+    "sfntversion": {
+      "major": 1,
+      "minor": 0
+    }
+  }
+}

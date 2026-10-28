@@ -1,0 +1,274 @@
+{
+  "header": {
+    "colorspace": 1380401696,
+    "creationdatetime": {
+      "day": 17,
+      "hour": 13,
+      "minute": 45,
+      "month": 5,
+      "second": 7,
+      "year": 2024
+    },
+    "creator": {
+      "devicemanufacturer": 1818455411
+    },
+    "deviceattributes": {
+      "colourorblackandwhitemedia": 0,
+      "glossyormatte": 0,
+      "positiveornegativemediapolarity": 0,
+      "reflectiveortransparency": 0,
+      "reserved": 0,
+      "vendorspecific": 0
+    },
+    "deviceclass": 1835955314,
+    "devicemanufacturer": {
+      "devicemanufacturer": 1094992453
+    },
+    "devicemodel": "DOES",
+    "filesignature": "61637370",
+    "identifier": "00000000000000000000000000000000",
+    "nciexyzvaluesofilluminantofpcs": {
+      "x": "0000f6d6",
+      "y": "00010000",
+      "z": "0000d32d"
+    },
+    "pcs": "XYZ ",
+    "preferredcmmtype": 1818455411,
+    "primaryplatform": 1297303124,
+    "profileflags": {
+      "embeddedprofile": false,
+      "otherflags": 0,
+      "profilecanbeusedindependentlyofembeddedcolourdata": false
+    },
+    "renderingintent": 0,
+    "reserveddata": "00000000000000000000000000000000000000000000000000000000",
+    "size": 548,
+    "version": {
+      "bugfixlevel": 0,
+      "major": "04",
+      "minor": 3,
+      "reserved": "0000"
+    }
+  },
+  "tagtable": {
+    "tagcount": 10,
+    "tags": [
+      {
+        "offsettodataelement": 252,
+        "sizeofdataelement": 60,
+        "tagdataelement": {
+          "tagdata": {
+            "numberofrecords": 1,
+            "recordsize": 12,
+            "records": [
+              {
+                "countrycode": 21843,
+                "languagecode": 25966,
+                "stringdata": "Doe sample sRGB",
+                "stringlength": 30,
+                "stringoffset": 28
+              }
+            ],
+            "reserved": "00000000"
+          },
+          "tagtype": 1835824483
+        },
+        "tagsignature": 1684370275
+      },
+      {
+        "offsettodataelement": 312,
+        "sizeofdataelement": 80,
+        "tagdataelement": {
+          "tagdata": {
+            "numberofrecords": 1,
+            "recordsize": 12,
+            "records": [
+              {
+                "countrycode": 21843,
+                "languagecode": 25966,
+                "stringdata": "No copyright, made for doe",
+                "stringlength": 52,
+                "stringoffset": 28
+              }
+            ],
+            "reserved": "00000000"
+          },
+          "tagtype": 1835824483
+        },
+        "tagsignature": 1668313716
+      },
+      {
+        "offsettodataelement": 392,
+        "sizeofdataelement": 20,
+        "tagdataelement": {
+          "tagdata": {
+            "reserved": "00000000",
+            "values": [
+              {
+                "x": "0000f354",
+                "y": "00010000",
+                "z": "000116c9"
+              }
+            ]
+          },
+          "tagtype": 1482250784
+        },
+        "tagsignature": 2004119668
+      },
+      {
+        "offsettodataelement": 412,
+        "sizeofdataelement": 20,
+        "tagdataelement": {
+          "tagdata": {
+            "reserved": "00000000",
+            "values": [
+              {
+                "x": "00006f9e",
+                "y": "000038f6",
+                "z": "0000038f"
+              }
+            ]
+          },
+          "tagtype": 1482250784
+        },
+        "tagsignature": 1918392666
+      },
+      {
+        "offsettodataelement": 432,
+        "sizeofdataelement": 20,
+        "tagdataelement": {
+          "tagdata": {
+            "reserved": "00000000",
+            "values": [
+              {
+                "x": "00006296",
+                "y": "0000b787",
+                "z": "000018dc"
+              }
+            ]
+          },
+          "tagtype": 1482250784
+        },
+        "tagsignature": 1733843290
+      },
+      {
+        "offsettodataelement": 452,
+        "sizeofdataelement": 20,
+        "tagdataelement": {
+          "tagdata": {
+            "reserved": "00000000",
+            "values": [
+              {
+                "x": "000024a2",
+                "y": "00000f83",
+                "z": "0000b6cf"
+              }
+            ]
+          },
+          "tagtype": 1482250784
+        },
+        "tagsignature": 1649957210
+      },
+      {
+        "offsettodataelement": 472,
+        "sizeofdataelement": 32,
+        "tagdataelement": {
+          "tagdata": {
+            "functiontype": 3,
+            "parameters": {
+              "a": 62119,
+              "b": 3417,
+              "c": 5072,
+              "d": 2651,
+              "g": 157286
+            },
+            "reserved": "00000000",
+            "reserved2": "0000"
+          },
+          "tagtype": 1885434465
+        },
+        "tagsignature": 1918128707
+      },
+      {
+        "offsettodataelement": 472,
+        "sizeofdataelement": 32,
+        "tagdataelement": {
+          "tagdata": {
+            "functiontype": 3,
+            "parameters": {
+              "a": 62119,
+              "b": 3417,
+              "c": 5072,
+              "d": 2651,
+              "g": 157286
+            },
+            "reserved": "00000000",
+            "reserved2": "0000"
+          },
+          "tagtype": 1885434465
+        },
+        "tagsignature": 1733579331
+      },
+      {
+        "offsettodataelement": 472,
+        "sizeofdataelement": 32,
+        "tagdataelement": {
+          "tagdata": {
+            "functiontype": 3,
+            "parameters": {
+              "a": 62119,
+              "b": 3417,
+              "c": 5072,
+              "d": 2651,
+              "g": 157286
+            },
+            "reserved": "00000000",
+            "reserved2": "0000"
+          },
+          "tagtype": 1885434465
+        },
+        "tagsignature": 1649693251
+      },
+      {
+        "offsettodataelement": 504,
+        "sizeofdataelement": 44,
+        "tagdataelement": {
+          "tagdata": {
+            "reserved": "00000000",
+            "values": [
+              {
+                "number": "00010c43"
+              },
+              {
+                "number": "000005dd"
+              },
+              {
+                "number": "fffff326"
+              },
+              {
+                "number": "00000794"
+              },
+              {
+                "number": "0000fd91"
+              },
+              {
+                "number": "fffffb9f"
+              },
+              {
+                "number": "fffffda5"
+              },
+              {
+                "number": "000003d7"
+              },
+              {
+                "number": "0000c076"
+              }
+            ]
+          },
+          "tagtype": 1936077618
+        },
+        "tagsignature": 1667785060
+      }
+    ]
+  }
+}
