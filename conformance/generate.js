@@ -27,6 +27,31 @@ const normalizeKey = (key) => key.replace(/_/g, '').toLowerCase();
 
 // The parameters of each type, by the name of its class: the runtime exposes
 // them as properties, but they are not part of what a type reads.
+// Reads a definition. YAML 1.2 has no underscores in numbers, so an enum key such as `0x0253_f2f4` stays a string
+// that the compiler cannot read as an integer; the underscores are taken out of such keys.
+function readKsy(file) {
+  const ksy = YAML.parse(fs.readFileSync(file, 'utf8'));
+  const fix = (node) => {
+    if (Array.isArray(node)) return node.forEach(fix);
+    if (node === null || typeof node !== 'object') return;
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'enums' && value && typeof value === 'object') {
+        for (const members of Object.values(value)) {
+          for (const member of Object.keys(members)) {
+            if (/^0x[0-9a-f]+(_[0-9a-f]+)+$/i.test(member)) {
+              members[member.replace(/_/g, '')] = members[member];
+              delete members[member];
+            }
+          }
+        }
+      }
+      fix(value);
+    }
+  };
+  fix(ksy);
+  return ksy;
+}
+
 function collectParams(ksy, out = new Map()) {
   const visit = (id, type) => {
     out.set(className(id), new Set((type.params || []).map((p) => normalizeKey(p.id))));
@@ -139,7 +164,7 @@ async function main() {
     if (!fs.existsSync(ksyPath)) {
       throw new Error(`${ksyPath} does not exist; run: git submodule update --init`);
     }
-    const ksy = YAML.parse(fs.readFileSync(ksyPath, 'utf8'));
+    const ksy = readKsy(ksyPath);
     // The parameters of this type and of every type it imports.
     const params = collectParams(ksy);
     const importRoot = inGallery ? galleryDir : formatsDir;
@@ -152,7 +177,7 @@ async function main() {
         ];
         const found = candidates.find((candidate) => fs.existsSync(candidate));
         if (!found) throw new Error(`cannot find the import ${importName} of ${name}`);
-        const imported = YAML.parse(fs.readFileSync(found, 'utf8'));
+        const imported = readKsy(found);
         collectParams(imported, params);
         return Promise.resolve(imported);
       },

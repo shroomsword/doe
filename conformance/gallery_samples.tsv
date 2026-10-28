@@ -18,7 +18,7 @@ archive/xar	none	-	-	-
 archive/zchunk	none	-	-	-	
 archive/zip	real	archive/zip	zipfile module of Python, run by make_gallery_samples.py	MIT (this repository)	
 archive/zisofs	crafted	archive/zisofs	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-cad/monomakh_sapr_chg	none	-	-	-	
+cad/monomakh_sapr_chg	crafted	cad/monomakh_sapr_chg	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 common/bcd	none	-	-	-	made to be imported by other definitions; none of the gallery does
 common/bytes_with_io	part-of	-	-	-	imported by font/pcf_font, macos/compressed_resource, macos/resource_compression/dcmp_2, macos/resource_fork
 common/dos_datetime	part-of	-	-	-	imported by archive/lzh, archive/rar, archive/zip, filesystem/vfat
@@ -45,16 +45,16 @@ executable/uefi_te	failing	executable/uefi_te	built by make_samples_by_hand.py f
 filesystem/amlogic_emmc_partitions	crafted	filesystem/amlogic_emmc_partitions	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/android_super	none	-	-	-	
 filesystem/apm_partition_table	crafted	filesystem/apm_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-filesystem/apple_single_double	none	-	-	-	
-filesystem/btrfs_stream	none	-	-	-	
+filesystem/apple_single_double	crafted	filesystem/apple_single_double	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+filesystem/btrfs_stream	crafted	filesystem/btrfs_stream	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/cramfs	crafted	filesystem/cramfs	built by make_samples_by_hand.py from the format's documentation (directories only, what the definition reads)	MIT (this repository)	
 filesystem/ext2	none	-	-	-	
 filesystem/gpt_partition_table	crafted	filesystem/gpt_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/iso9660	failing	filesystem/iso9660	genisoimage, run by make_real_samples.py	MIT (this repository)	does not finish: #150
-filesystem/luks	none	-	-	-	
+filesystem/luks	crafted	filesystem/luks	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/lvm2	none	-	-	-	
 filesystem/mbr_partition_table	crafted	filesystem/mbr_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-filesystem/tr_dos_image	none	-	-	-	
+filesystem/tr_dos_image	crafted	filesystem/tr_dos_image	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/ubifs	none	-	-	-	
 filesystem/vdi	real	filesystem/vdi	qemu-img create (QEMU)	MIT (this repository)	
 filesystem/vfat	none	-	-	-	
@@ -68,7 +68,7 @@ firmware/uimage	crafted	firmware/uimage	built by make_samples_by_hand.py from th
 font/grub2_font	real	font/grub2_font	grub-mkfont, run by make_real_samples.py (ten glyphs of DejaVu Sans Mono)	MIT (this repository) for the script; the glyphs are DejaVu Sans Mono, Bitstream Vera licence, shared under another name	
 font/pcf_font	none	-	-	-	
 font/ttf	none	-	-	-	
-game/allegro_dat	none	-	-	-	
+game/allegro_dat	crafted	game/allegro_dat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/doom_wad	crafted	game/doom_wad	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/dune_2_pak	crafted	game/dune_2_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/fallout2_dat	crafted	game/fallout2_dat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -82,11 +82,11 @@ game/minecraft_nbt	crafted	game/minecraft_nbt	built by make_samples_by_hand.py f
 game/quake2_md2	crafted	game/quake2_md2	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/quake_mdl	crafted	game/quake_mdl	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/quake_pak	crafted	game/quake_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-game/renderware_binary_stream	none	-	-	-	
-game/saints_row_2_vpp_pc	none	-	-	-	
+game/renderware_binary_stream	crafted	game/renderware_binary_stream	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+game/saints_row_2_vpp_pc	crafted	game/saints_row_2_vpp_pc	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/warcraft_2_pud	crafted	game/warcraft_2_pud	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 geospatial/shapefile_index	crafted	geospatial/shapefile_index	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-geospatial/shapefile_main	none	-	-	-	
+geospatial/shapefile_main	crafted	geospatial/shapefile_main	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 hardware/dtb	crafted	hardware/dtb	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 hardware/edid	crafted	hardware/edid	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 hardware/mifare/mifare_classic	crafted	hardware/mifare/mifare_classic	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the sample has no value block: ~ of a u4 is read differently (#162)

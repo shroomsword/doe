@@ -1,0 +1,111 @@
+{
+  "header": {
+    "boundingbox": {
+      "m": {
+        "max": 0,
+        "min": 0
+      },
+      "x": {
+        "max": 0,
+        "min": 0
+      },
+      "y": {
+        "max": 4,
+        "min": 4
+      },
+      "z": {
+        "max": 0,
+        "min": 0
+      }
+    },
+    "filecode": "0000270a",
+    "filelength": 166,
+    "shapetype": 5,
+    "unusedfield1": "00000000",
+    "unusedfield2": "00000000",
+    "unusedfield3": "00000000",
+    "unusedfield4": "00000000",
+    "unusedfield5": "00000000",
+    "version": "e8030000"
+  },
+  "records": [
+    {
+      "contents": {
+        "shapeparameters": {
+          "boundingbox": {
+            "x": {
+              "max": 0,
+              "min": 0
+            },
+            "y": {
+              "max": 4,
+              "min": 4
+            }
+          },
+          "numberofparts": 2,
+          "numberofpoints": 10,
+          "parts": [
+            0,
+            5
+          ],
+          "points": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 4
+            },
+            {
+              "x": 4,
+              "y": 4
+            },
+            {
+              "x": 4,
+              "y": 0
+            },
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 1,
+              "y": 1
+            },
+            {
+              "x": 3,
+              "y": 1
+            },
+            {
+              "x": 3,
+              "y": 3
+            },
+            {
+              "x": 1,
+              "y": 3
+            },
+            {
+              "x": 1,
+              "y": 1
+            }
+          ]
+        },
+        "shapetype": 5
+      },
+      "header": {
+        "contentlength": 106,
+        "recordnumber": 1
+      }
+    },
+    {
+      "contents": {
+        "shapetype": 0
+      },
+      "header": {
+        "contentlength": 2,
+        "recordnumber": 2
+      }
+    }
+  ]
+}
