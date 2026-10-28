@@ -1450,7 +1450,7 @@ def small():
     put("hardware/edid", "monitor", edid)
 
     # MIFARE Classic 1K dump: sixteen sectors of four blocks; block 0 has the UID, and each sector ends with a trailer.
-    # No value block: doe inverts a u4 with ~ in 128 bits, the reference in 32 (#162).
+    # Sector 1, block 0 is a value block: 1000, its inverse, 1000 again, and the block's address with its inverse.
     uid = bytes([0xDE, 0xAD, 0xBE, 0xEF])
     bcc = uid[0] ^ uid[1] ^ uid[2] ^ uid[3]
     dump = b""
@@ -1458,6 +1458,8 @@ def small():
         blocks = [bytes((sector * 16 + i) & 0xFF for i in range(16)) for _ in range(3)]
         if sector == 0:
             blocks[0] = uid + bytes([bcc, 0x08, 0x04, 0x00]) + bytes(8)
+        if sector == 1:
+            blocks[0] = struct.pack("<III", 1000, ~1000 & 0xFFFFFFFF, 1000) + bytes([4, 0xFB, 4, 0xFB])
         dump += b"".join(blocks) + bytes([0xFF] * 6) + bytes([0xFF, 0x07, 0x80, 0x69]) + bytes([0xFF] * 6)
     put("hardware/mifare/mifare_classic", "one_k", dump)
 

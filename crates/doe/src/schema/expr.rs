@@ -1678,6 +1678,11 @@ fn unary(op: UnaryOp, v: ExprValue, src: &str) -> Result<ExprValue> {
             .map(ExprValue::Int)
             .ok_or_else(|| fail(src, "integer overflow")),
         (UnaryOp::Neg, ExprValue::Float(x)) => Ok(ExprValue::Float(-x)),
+        // A number that fits 32 bits is inverted as a 32-bit signed integer, as in the
+        // reference (`~0xFFFFFC17` is 1000), so a value block of three `u4` compares.
+        (UnaryOp::BitNot, ExprValue::Int(n)) if (0x8000_0000..=0xFFFF_FFFF).contains(&n) => {
+            Ok(ExprValue::Int(0xFFFF_FFFF - n))
+        }
         (UnaryOp::BitNot, ExprValue::Int(n)) => Ok(ExprValue::Int(!n)),
         (UnaryOp::Not, v) => Ok(ExprValue::Bool(!truthy(&v, src)?)),
         (op, v) => Err(fail(
