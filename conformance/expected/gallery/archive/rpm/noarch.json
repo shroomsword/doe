@@ -1,0 +1,453 @@
+{
+  "hasheaderpayloadsizetag": false,
+  "haspayload": true,
+  "hassignaturelongsizetag": false,
+  "hassignaturesizetag": true,
+  "header": {
+    "headerrecord": {
+      "lenstoragesection": 181,
+      "magic": "8eade801",
+      "numindexrecords": 16,
+      "reserved": "00000000"
+    },
+    "indexrecords": [
+      {
+        "body": {
+          "values": [
+            "0000003f00000007ffffff0000000010"
+          ]
+        },
+        "count": 16,
+        "headertag": 63,
+        "lenvalue": 16,
+        "numvalues": null,
+        "ofsbody": 165,
+        "recordtype": 7,
+        "signaturetag": null,
+        "tagraw": 63
+      },
+      {
+        "body": {
+          "values": [
+            "C"
+          ]
+        },
+        "count": 1,
+        "headertag": 100,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 0,
+        "recordtype": 8,
+        "signaturetag": null,
+        "tagraw": 100
+      },
+      {
+        "body": {
+          "values": [
+            "doe-sample"
+          ]
+        },
+        "count": 1,
+        "headertag": 1000,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 2,
+        "recordtype": 6,
+        "signaturetag": null,
+        "tagraw": 1000
+      },
+      {
+        "body": {
+          "values": [
+            "1.0"
+          ]
+        },
+        "count": 1,
+        "headertag": 1001,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 13,
+        "recordtype": 6,
+        "signaturetag": null,
+        "tagraw": 1001
+      },
+      {
+        "body": {
+          "values": [
+            "1"
+          ]
+        },
+        "count": 1,
+        "headertag": 1002,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 17,
+        "recordtype": 6,
+        "signaturetag": null,
+        "tagraw": 1002
+      },
+      {
+        "body": {
+          "values": [
+            "A sample package for doe"
+          ]
+        },
+        "count": 1,
+        "headertag": 1004,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 19,
+        "recordtype": 9,
+        "signaturetag": null,
+        "tagraw": 1004
+      },
+      {
+        "body": {
+          "values": [
+            "A package made only to have a sample of the RPM format."
+          ]
+        },
+        "count": 1,
+        "headertag": 1005,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 44,
+        "recordtype": 9,
+        "signaturetag": null,
+        "tagraw": 1005
+      },
+      {
+        "body": {
+          "values": [
+            1700000000
+          ]
+        },
+        "count": 1,
+        "headertag": 1006,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 100,
+        "recordtype": 4,
+        "signaturetag": null,
+        "tagraw": 1006
+      },
+      {
+        "body": {
+          "values": [
+            "doe-build"
+          ]
+        },
+        "count": 1,
+        "headertag": 1007,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 104,
+        "recordtype": 6,
+        "signaturetag": null,
+        "tagraw": 1007
+      },
+      {
+        "body": {
+          "values": [
+            38
+          ]
+        },
+        "count": 1,
+        "headertag": 1009,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 116,
+        "recordtype": 4,
+        "signaturetag": null,
+        "tagraw": 1009
+      },
+      {
+        "body": {
+          "values": [
+            "MIT"
+          ]
+        },
+        "count": 1,
+        "headertag": 1014,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 120,
+        "recordtype": 6,
+        "signaturetag": null,
+        "tagraw": 1014
+      },
+      {
+        "body": {
+          "values": [
+            "Development/Tools"
+          ]
+        },
+        "count": 1,
+        "headertag": 1016,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 124,
+        "recordtype": 9,
+        "signaturetag": null,
+        "tagraw": 1016
+      },
+      {
+        "body": {
+          "values": [
+            "linux"
+          ]
+        },
+        "count": 1,
+        "headertag": 1021,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 142,
+        "recordtype": 6,
+        "signaturetag": null,
+        "tagraw": 1021
+      },
+      {
+        "body": {
+          "values": [
+            "noarch"
+          ]
+        },
+        "count": 1,
+        "headertag": 1022,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 148,
+        "recordtype": 6,
+        "signaturetag": null,
+        "tagraw": 1022
+      },
+      {
+        "body": {
+          "values": [
+            "cpio"
+          ]
+        },
+        "count": 1,
+        "headertag": 1124,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 155,
+        "recordtype": 6,
+        "signaturetag": null,
+        "tagraw": 1124
+      },
+      {
+        "body": {
+          "values": [
+            "gzip"
+          ]
+        },
+        "count": 1,
+        "headertag": 1125,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 160,
+        "recordtype": 6,
+        "signaturetag": null,
+        "tagraw": 1125
+      }
+    ],
+    "isheader": true,
+    "storagesection": {}
+  },
+  "headerpayloadsizetag": null,
+  "headertagssteps": [
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    },
+    {
+      "payloadsizetagidx": -1
+    }
+  ],
+  "lead": {
+    "architecture": 1,
+    "magic": "edabeedb",
+    "os": 1,
+    "packagename": "doe-sample-1.0-1",
+    "reserved": "00000000000000000000000000000000",
+    "signaturetype": 5,
+    "type": 0,
+    "version": {
+      "major": 3,
+      "minor": 0
+    }
+  },
+  "lenheader": 453,
+  "lenpayload": 157,
+  "ofsheader": 280,
+  "ofspayload": 733,
+  "payload": "1f8b08000000000002ff333037303730348000306d61e86862801d189a999a1abb19c2b9c60644014347184b4fbfb4b848bf3823b128553f253f553f233527275fafa4a284c103c452482bcacf5548cc53080af0d5e3623040769b118ddc668ecb6d41ae8e2ebeae0c4000e4291427e616e4a42a1424266727a6a7a2b98d905d686e231a38c11821418e9e3eae418a8a8a20f7000056872342b4010000",
+  "signature": {
+    "headerrecord": {
+      "lenstoragesection": 84,
+      "magic": "8eade801",
+      "numindexrecords": 5,
+      "reserved": "00000000"
+    },
+    "indexrecords": [
+      {
+        "body": {
+          "values": [
+            "0000003e00000007ffffffb000000010"
+          ]
+        },
+        "count": 16,
+        "headertag": null,
+        "lenvalue": 16,
+        "numvalues": null,
+        "ofsbody": 68,
+        "recordtype": 7,
+        "signaturetag": 62,
+        "tagraw": 62
+      },
+      {
+        "body": {
+          "values": [
+            "fcb692d0e7def5eb4a1a39707b7f2bc552330952"
+          ]
+        },
+        "count": 1,
+        "headertag": null,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 0,
+        "recordtype": 6,
+        "signaturetag": 269,
+        "tagraw": 269
+      },
+      {
+        "body": {
+          "values": [
+            610
+          ]
+        },
+        "count": 1,
+        "headertag": null,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 44,
+        "recordtype": 4,
+        "signaturetag": 1000,
+        "tagraw": 1000
+      },
+      {
+        "body": {
+          "values": [
+            "b6bb1c84ee549986b6ac571b69f23f6c"
+          ]
+        },
+        "count": 16,
+        "headertag": null,
+        "lenvalue": 16,
+        "numvalues": null,
+        "ofsbody": 48,
+        "recordtype": 7,
+        "signaturetag": 1004,
+        "tagraw": 1004
+      },
+      {
+        "body": {
+          "values": [
+            436
+          ]
+        },
+        "count": 1,
+        "headertag": null,
+        "lenvalue": null,
+        "numvalues": 1,
+        "ofsbody": 64,
+        "recordtype": 4,
+        "signaturetag": 1007,
+        "tagraw": 1007
+      }
+    ],
+    "isheader": false,
+    "storagesection": {}
+  },
+  "signaturelongsizetag": null,
+  "signaturepadding": "00000000",
+  "signaturesizetag": {
+    "body": {
+      "values": [
+        610
+      ]
+    },
+    "count": 1,
+    "headertag": null,
+    "lenvalue": null,
+    "numvalues": 1,
+    "ofsbody": 44,
+    "recordtype": 4,
+    "signaturetag": 1000,
+    "tagraw": 1000
+  },
+  "signaturetagssteps": [
+    {
+      "longsizetagidx": -1,
+      "sizetagidx": -1
+    },
+    {
+      "longsizetagidx": -1,
+      "sizetagidx": -1
+    },
+    {
+      "longsizetagidx": -1,
+      "sizetagidx": 2
+    },
+    {
+      "longsizetagidx": -1,
+      "sizetagidx": 2
+    },
+    {
+      "longsizetagidx": -1,
+      "sizetagidx": 2
+    }
+  ]
+}

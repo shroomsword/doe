@@ -82,7 +82,11 @@ fn bind_knows_only_the_size_of_what_is_not_kept_in_memory() {
 fn bind_leaves_out_absent_fields() {
     let mut ctx = ParseContext::new();
     ctx.bind("gone", Value::Absent);
-    assert!(doe::schema::expr::eval_str("gone", &ctx.eval_ctx).is_err());
+    assert_eq!(
+        doe::schema::expr::eval_str("gone == 1", &ctx.eval_ctx).unwrap(),
+        ExprValue::Bool(false)
+    );
+    assert!(doe::schema::expr::eval_str("gone + 1", &ctx.eval_ctx).is_err());
     let record = Value::Struct {
         type_name: "r".into(),
         fields: vec![("a".into(), Value::UInt(1)), ("b".into(), Value::Absent)],

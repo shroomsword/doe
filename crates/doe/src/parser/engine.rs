@@ -1836,6 +1836,9 @@ fn to_value(computed: &ExprValue) -> std::result::Result<Value, String> {
     if let Some(id) = deferred_id(computed) {
         return Ok(deferred_placeholder(id));
     }
+    if expr::is_absent(computed) {
+        return Ok(Value::Absent);
+    }
     Ok(match computed {
         ExprValue::Int(n) => {
             if let Ok(n) = u64::try_from(*n) {

@@ -1,0 +1,227 @@
+{
+  "elements": [
+    {
+      "isforcedexplicit": true,
+      "islonglen": false,
+      "istransfersyntaxchangeexplicit": false,
+      "pistransfersyntaxchangeexplicit": false,
+      "tag": 131072,
+      "tagelem": 0,
+      "taggroup": 2,
+      "value": "9a000000",
+      "valuelen": 4,
+      "vr": "UL"
+    },
+    {
+      "isforcedexplicit": true,
+      "islonglen": true,
+      "istransfersyntaxchangeexplicit": false,
+      "pistransfersyntaxchangeexplicit": false,
+      "reserved": 0,
+      "tag": 131073,
+      "tagelem": 1,
+      "taggroup": 2,
+      "value": "0001",
+      "valuelen": 2,
+      "vr": "OB"
+    },
+    {
+      "isforcedexplicit": true,
+      "islonglen": false,
+      "istransfersyntaxchangeexplicit": false,
+      "pistransfersyntaxchangeexplicit": false,
+      "tag": 131074,
+      "tagelem": 2,
+      "taggroup": 2,
+      "value": "312e322e3834302e31303030382e352e312e342e312e312e3700",
+      "valuelen": 26,
+      "vr": "UI"
+    },
+    {
+      "isforcedexplicit": true,
+      "islonglen": false,
+      "istransfersyntaxchangeexplicit": false,
+      "pistransfersyntaxchangeexplicit": false,
+      "tag": 131075,
+      "tagelem": 3,
+      "taggroup": 2,
+      "value": "312e322e3832362e302e312e333638303034332e392e373135362e312e3230323400",
+      "valuelen": 34,
+      "vr": "UI"
+    },
+    {
+      "elements": [
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 131090,
+          "tagelem": 18,
+          "taggroup": 2,
+          "value": "312e322e3832362e302e312e333638303034332e392e373135362e31",
+          "valuelen": 28,
+          "vr": "UI"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 524310,
+          "tagelem": 22,
+          "taggroup": 8,
+          "value": "312e322e3834302e31303030382e352e312e342e312e312e3700",
+          "valuelen": 26,
+          "vr": "UI"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 524312,
+          "tagelem": 24,
+          "taggroup": 8,
+          "value": "312e322e3832362e302e312e333638303034332e392e373135362e312e3230323400",
+          "valuelen": 34,
+          "vr": "UI"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 524320,
+          "tagelem": 32,
+          "taggroup": 8,
+          "value": "3230323430353137",
+          "valuelen": 8,
+          "vr": "DA"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 524384,
+          "tagelem": 96,
+          "taggroup": 8,
+          "value": "4f54",
+          "valuelen": 2,
+          "vr": "CS"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": true,
+          "istransfersyntaxchangeimplicit": false,
+          "reserved": 0,
+          "tag": 528704,
+          "tagelem": 4416,
+          "taggroup": 8,
+          "value": "feff00e04c0000000800501155491a00312e322e3834302e31303030382e352e312e342e312e312e37000800551155492200312e322e3832362e302e312e333638303034332e392e373135362e312e3230323400",
+          "valuelen": 84,
+          "vr": "SQ"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 1048592,
+          "tagelem": 16,
+          "taggroup": 16,
+          "value": "446f655e53616d706c65",
+          "valuelen": 10,
+          "vr": "PN"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 1048608,
+          "tagelem": 32,
+          "taggroup": 16,
+          "value": "494430303031",
+          "valuelen": 6,
+          "vr": "LO"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 2621442,
+          "tagelem": 2,
+          "taggroup": 40,
+          "value": "0100",
+          "valuelen": 2,
+          "vr": "US"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 2621444,
+          "tagelem": 4,
+          "taggroup": 40,
+          "value": "4d4f4e4f4348524f4d453220",
+          "valuelen": 12,
+          "vr": "CS"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 2621456,
+          "tagelem": 16,
+          "taggroup": 40,
+          "value": "0400",
+          "valuelen": 2,
+          "vr": "US"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 2621457,
+          "tagelem": 17,
+          "taggroup": 40,
+          "value": "0400",
+          "valuelen": 2,
+          "vr": "US"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": false,
+          "istransfersyntaxchangeimplicit": false,
+          "tag": 2621696,
+          "tagelem": 256,
+          "taggroup": 40,
+          "value": "1000",
+          "valuelen": 2,
+          "vr": "US"
+        },
+        {
+          "isforcedimplicit": false,
+          "islonglen": true,
+          "istransfersyntaxchangeimplicit": false,
+          "reserved": 0,
+          "tag": 2145386512,
+          "tagelem": 16,
+          "taggroup": 32736,
+          "value": "00006400c8002c019001f4015802bc0220038403e8034c04b00414057805dc05",
+          "valuelen": 32,
+          "vr": "OW"
+        }
+      ],
+      "isforcedexplicit": true,
+      "islonglen": false,
+      "istransfersyntaxchangeexplicit": true,
+      "pistransfersyntaxchangeexplicit": true,
+      "tag": 131088,
+      "tagelem": 16,
+      "taggroup": 2,
+      "value": "312e322e3834302e31303030382e312e322e3100",
+      "valuelen": 20,
+      "vr": "UI"
+    }
+  ],
+  "fileheader": {
+    "magic": "4449434d",
+    "preamble": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

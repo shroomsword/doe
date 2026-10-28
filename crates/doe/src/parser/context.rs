@@ -365,8 +365,13 @@ impl ParseContext {
     /// `header.section_count` or `entries[0].offset`. A value that is not kept
     /// in memory (a [`Value::Blob`]) or too large to copy (see
     /// [`MAX_BOUND_VALUES`]) is bound as [`ExprValue::Omitted`], which knows only
-    /// its size. Absent fields are not bound.
+    /// its size. A field that is not there is bound as a marker that is equal to nothing.
     fn bind_eval(&mut self, name: &str, value: &Value) {
+        if matches!(value, Value::Absent) {
+            self.eval_ctx
+                .bind(name, crate::schema::expr::absent_marker());
+            return;
+        }
         let mut budget = MAX_BOUND_VALUES;
         if let Some(v) = to_expr_value(value, &mut budget) {
             self.eval_ctx.bind(name, v);
