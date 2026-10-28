@@ -1,0 +1,130 @@
+{
+  "resources": [
+    {
+      "characteristics": 0,
+      "flags": 48,
+      "formatversion": 0,
+      "headersize": 48,
+      "language": 1033,
+      "name": {
+        "asstring": "DOE",
+        "first": 68,
+        "isstring": true,
+        "noop": "",
+        "rest": [
+          79,
+          69,
+          0
+        ],
+        "savepos1": 22,
+        "savepos2": 30
+      },
+      "padding1": "0000",
+      "padding2": "000000",
+      "type": {
+        "asstring": "RCDATA",
+        "first": 82,
+        "isstring": true,
+        "noop": "",
+        "rest": [
+          67,
+          68,
+          65,
+          84,
+          65,
+          0
+        ],
+        "savepos1": 8,
+        "savepos2": 22
+      },
+      "typeaspredef": null,
+      "value": "68656c6c6f",
+      "valuesize": 5,
+      "valueversion": 0
+    },
+    {
+      "characteristics": 0,
+      "flags": 48,
+      "formatversion": 0,
+      "headersize": 48,
+      "language": 1033,
+      "name": {
+        "asstring": "ONE",
+        "first": 79,
+        "isstring": true,
+        "noop": "",
+        "rest": [
+          78,
+          69,
+          0
+        ],
+        "savepos1": 78,
+        "savepos2": 86
+      },
+      "padding1": "0000",
+      "padding2": "",
+      "type": {
+        "asstring": "MYTYPE",
+        "first": 77,
+        "isstring": true,
+        "noop": "",
+        "rest": [
+          89,
+          84,
+          89,
+          80,
+          69,
+          0
+        ],
+        "savepos1": 64,
+        "savepos2": 78
+      },
+      "typeaspredef": null,
+      "value": "01020304",
+      "valuesize": 4,
+      "valueversion": 0
+    },
+    {
+      "characteristics": 0,
+      "flags": 48,
+      "formatversion": 0,
+      "headersize": 48,
+      "language": 1031,
+      "name": {
+        "asstring": "VS",
+        "first": 86,
+        "isstring": true,
+        "noop": "",
+        "rest": [
+          83,
+          0
+        ],
+        "savepos1": 132,
+        "savepos2": 138
+      },
+      "padding1": "0000",
+      "padding2": "0000",
+      "type": {
+        "asstring": "VERSION",
+        "first": 86,
+        "isstring": true,
+        "noop": "",
+        "rest": [
+          69,
+          82,
+          83,
+          73,
+          79,
+          78,
+          0
+        ],
+        "savepos1": 116,
+        "savepos2": 132
+      },
+      "typeaspredef": null,
+      "value": "76657273696f6e206461746120676f65732068657265",
+      "valuesize": 22,
+      "valueversion": 0
+    }
+  ]
+}

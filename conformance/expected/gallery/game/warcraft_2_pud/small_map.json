@@ -1,0 +1,107 @@
+{
+  "sections": [
+    {
+      "body": {
+        "idtag": 305419896,
+        "magic": "57415232204d41500000",
+        "unused": "0a00"
+      },
+      "name": "TYPE",
+      "size": 16
+    },
+    {
+      "body": {
+        "version": 19
+      },
+      "name": "VER ",
+      "size": 2
+    },
+    {
+      "body": {
+        "x": 32,
+        "y": 32
+      },
+      "name": "DIM ",
+      "size": 4
+    },
+    {
+      "body": {
+        "terrain": 1
+      },
+      "name": "ERA ",
+      "size": 2
+    },
+    {
+      "body": {
+        "controllerbyplayer": [
+          5,
+          4,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          2,
+          1,
+          1,
+          3,
+          3,
+          3,
+          3,
+          3
+        ]
+      },
+      "name": "OWNR",
+      "size": 16
+    },
+    {
+      "body": {
+        "resourcesbyplayer": [
+          2000,
+          2000,
+          2000,
+          2000,
+          2000,
+          2000,
+          2000,
+          2000
+        ]
+      },
+      "name": "SGLD",
+      "size": 16
+    },
+    {
+      "body": {
+        "units": [
+          {
+            "options": 120,
+            "owner": 15,
+            "resource": 300000,
+            "utype": 92,
+            "x": 10,
+            "y": 12
+          },
+          {
+            "options": 60,
+            "owner": 15,
+            "resource": 150000,
+            "utype": 93,
+            "x": 4,
+            "y": 4
+          },
+          {
+            "options": 0,
+            "owner": 1,
+            "resource": null,
+            "utype": 1,
+            "x": 30,
+            "y": 31
+          }
+        ]
+      },
+      "name": "UNIT",
+      "size": 24
+    }
+  ]
+}

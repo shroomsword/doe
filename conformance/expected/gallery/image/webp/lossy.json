@@ -1,0 +1,26 @@
+{
+  "lendata": 30,
+  "magic": "52494646",
+  "payload": {
+    "chunks": [
+      {
+        "data": {
+          "data": "00112233445566",
+          "frametype": false,
+          "height": 16,
+          "horizontalscale": 0,
+          "lenfirstpartition": 7,
+          "showframe": true,
+          "startcode": "9d012a",
+          "version": 0,
+          "verticalscale": 0,
+          "width": 16
+        },
+        "lendata": 17,
+        "name": 540561494,
+        "padding": "00"
+      }
+    ]
+  },
+  "webp": "57454250"
+}

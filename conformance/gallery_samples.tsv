@@ -10,7 +10,7 @@ archive/cpio_old_le	real	archive/cpio_old_le	cpio -H bin, run by make_real_sampl
 archive/gzip	real	archive/gzip	gzip module of Python, run by make_gallery_samples.py	MIT (this repository)	
 archive/lzh	none	-	-	-	
 archive/mozilla_mar	crafted	archive/mozilla_mar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-archive/phar_without_stub	none	-	-	-	
+archive/phar_without_stub	crafted	archive/phar_without_stub	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/rar	none	-	-	-	
 archive/respack	crafted	archive/respack	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/rpm	none	-	-	-	
@@ -84,7 +84,7 @@ game/quake_mdl	crafted	game/quake_mdl	built by make_samples_by_hand.py from the 
 game/quake_pak	crafted	game/quake_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/renderware_binary_stream	none	-	-	-	
 game/saints_row_2_vpp_pc	none	-	-	-	
-game/warcraft_2_pud	none	-	-	-	
+game/warcraft_2_pud	crafted	game/warcraft_2_pud	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 geospatial/shapefile_index	crafted	geospatial/shapefile_index	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 geospatial/shapefile_main	none	-	-	-	
 hardware/dtb	crafted	hardware/dtb	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -105,7 +105,7 @@ image/pif	none	-	-	-
 image/png	crafted	image/png	built by make_gallery_samples.py	MIT (this repository)	
 image/psx_tim	crafted	image/psx_tim	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/tga	crafted	image/tga	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-image/webp	none	-	-	-	
+image/webp	crafted	image/webp	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/wmf	crafted	image/wmf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/xwd	crafted	image/xwd	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/aix_utmp	crafted	log/aix_utmp	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -124,7 +124,7 @@ macos/resource_compression/dcmp_1	none	-	-	-
 macos/resource_compression/dcmp_2	none	-	-	-	
 macos/resource_compression/dcmp_variable_length_integer	none	-	-	-	
 macos/resource_fork	none	-	-	-	
-media/android_opengl_shaders_cache	none	-	-	-	
+media/android_opengl_shaders_cache	crafted	media/android_opengl_shaders_cache	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/au	crafted	media/au	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/avi	crafted	media/avi	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/blender_blend	crafted	media/blender_blend	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -186,6 +186,6 @@ serialization/ruby_marshal	crafted	serialization/ruby_marshal	built by make_samp
 windows/regf	none	-	-	-	
 windows/windows_lnk_file	crafted	windows/windows_lnk_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_minidump	none	-	-	-	
-windows/windows_resource_file	none	-	-	-	
+windows/windows_resource_file	crafted	windows/windows_resource_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the sample has no empty first resource and no number as a type or name: the position that the definition keeps for a number is read at the end of the file by the reference (#170)
 windows/windows_shell_items	crafted	windows/windows_shell_items	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_systemtime	part-of	-	-	-	imported by network/microsoft_network_monitor_v2, whose sample has a start time

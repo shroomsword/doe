@@ -1,0 +1,37 @@
+{
+  "contents": {
+    "buildid": {
+      "alignment": {
+        "alignment": ""
+      },
+      "lenstr": 12,
+      "str": "doe-build-"
+    },
+    "deviceversion": 1,
+    "entries": [
+      {
+        "alignment": {
+          "alignment": ""
+        },
+        "key": "6b657930",
+        "lenkey": 4,
+        "lenvalue": 24,
+        "value": "766572746578207368616465722062696e61727920010101"
+      },
+      {
+        "alignment": {
+          "alignment": ""
+        },
+        "key": "6b65792d74776f2d",
+        "lenkey": 8,
+        "lenvalue": 20,
+        "value": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+      }
+    ],
+    "magic": "2462425f",
+    "numentries": 2,
+    "version": 3
+  },
+  "crc32": 3094749591,
+  "magic": "45474c24"
+}

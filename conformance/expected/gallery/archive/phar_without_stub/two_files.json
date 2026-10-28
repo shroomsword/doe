@@ -1,0 +1,128 @@
+{
+  "files": [
+    "3c3f706870206563686f2027646f65273b0a",
+    "3c3f7068702066756e6374696f6e20662829207b7d0a"
+  ],
+  "manifest": {
+    "alias": "646f652e70686172",
+    "apiversion": {
+      "major": 1,
+      "minor": 1,
+      "release": 1,
+      "unused": 0
+    },
+    "fileentries": [
+      {
+        "crc32": 1382838470,
+        "filename": "696e6465782e706870",
+        "flags": {
+          "bzip2compressed": false,
+          "permissions": 420,
+          "value": 420,
+          "zlibcompressed": false
+        },
+        "lendatacompressed": 18,
+        "lendatauncompressed": 18,
+        "lenfilename": 9,
+        "lenmetadata": 0,
+        "timestamp": 1700000000
+      },
+      {
+        "crc32": 297726534,
+        "filename": "6c69622f7574696c2e706870",
+        "flags": {
+          "bzip2compressed": false,
+          "permissions": 420,
+          "value": 420,
+          "zlibcompressed": false
+        },
+        "lendatacompressed": 22,
+        "lendatauncompressed": 22,
+        "lenfilename": 12,
+        "lenmetadata": 20,
+        "metadata": {
+          "parsed": {
+            "contents": {
+              "colon": "3a",
+              "elements": {
+                "closingbrace": "7d",
+                "entries": [
+                  {
+                    "key": {
+                      "contents": {
+                        "colon": "3a",
+                        "semicolon": "3b",
+                        "string": {
+                          "closingquote": "22",
+                          "data": "666f6f",
+                          "lendata": 3,
+                          "lendatadec": "3",
+                          "openingquote": "22"
+                        },
+                        "value": "666f6f"
+                      },
+                      "type": 115
+                    },
+                    "value": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 1,
+                        "valuedec": "1"
+                      },
+                      "type": 105
+                    }
+                  }
+                ],
+                "numentries": 1,
+                "numentriesdec": "1",
+                "openingbrace": "7b"
+              }
+            },
+            "type": 97
+          },
+          "raw": "613a313a7b733a333a22666f6f223b693a313b7d"
+        },
+        "timestamp": 1700000000
+      }
+    ],
+    "flags": {
+      "anybzip2compressed": false,
+      "anyzlibcompressed": false,
+      "hassignature": true,
+      "value": 65536
+    },
+    "lenalias": 8,
+    "lenmanifest": 142,
+    "lenmetadata": 19,
+    "metadata": {
+      "parsed": {
+        "contents": {
+          "classname": {
+            "closingquote": "22",
+            "data": "737464436c617373",
+            "lendata": 8,
+            "lendatadec": "8",
+            "openingquote": "22"
+          },
+          "colon1": "3a",
+          "colon2": "3a",
+          "properties": {
+            "closingbrace": "7d",
+            "entries": [],
+            "numentries": 0,
+            "numentriesdec": "0",
+            "openingbrace": "7b"
+          }
+        },
+        "type": 79
+      },
+      "raw": "4f3a383a22737464436c617373223a303a7b7d"
+    },
+    "numfiles": 2
+  },
+  "signature": {
+    "data": "1fbedc69a964f70884fa1015d9e5adc994def156",
+    "magic": "47424d42",
+    "type": 2
+  }
+}

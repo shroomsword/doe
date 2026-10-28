@@ -1,0 +1,62 @@
+{
+  "lendata": 100,
+  "magic": "52494646",
+  "payload": {
+    "chunks": [
+      {
+        "data": {
+          "alpha": true,
+          "animation": false,
+          "canvasheight": 16,
+          "canvasheightminus1": 15,
+          "canvaswidth": 16,
+          "canvaswidthminus1": 15,
+          "exif": false,
+          "iccprofile": false,
+          "reserved1": 0,
+          "reserved2": false,
+          "reserved3": 0,
+          "xmp": true
+        },
+        "lendata": 10,
+        "name": 1480085590
+      },
+      {
+        "data": {
+          "compression": 1,
+          "data": "000102030405060708",
+          "filtering": 2,
+          "preprocessing": 1,
+          "reserved": 0
+        },
+        "lendata": 10,
+        "name": 1213221953
+      },
+      {
+        "data": {
+          "data": "00112233445566",
+          "frametype": false,
+          "height": 16,
+          "horizontalscale": 0,
+          "lenfirstpartition": 7,
+          "showframe": true,
+          "startcode": "9d012a",
+          "version": 0,
+          "verticalscale": 0,
+          "width": 16
+        },
+        "lendata": 17,
+        "name": 540561494,
+        "padding": "00"
+      },
+      {
+        "data": {
+          "data": "<x:xmpmeta>doe</x:xmpmeta>"
+        },
+        "lendata": 26,
+        "name": 542133592
+      }
+    ]
+  },
+  "webp": "57454250"
+}
