@@ -343,6 +343,7 @@ gallery!(
     gallery_filesystem_mbr_partition_table = "gallery/filesystem/mbr_partition_table",
     gallery_filesystem_tr_dos_image = "gallery/filesystem/tr_dos_image",
     gallery_filesystem_vdi = "gallery/filesystem/vdi",
+    gallery_filesystem_vfat = "gallery/filesystem/vfat",
     gallery_filesystem_vmware_vmdk = "gallery/filesystem/vmware_vmdk",
     gallery_filesystem_zx_spectrum_tap = "gallery/filesystem/zx_spectrum_tap",
     gallery_firmware_andes_firmware = "gallery/firmware/andes_firmware",

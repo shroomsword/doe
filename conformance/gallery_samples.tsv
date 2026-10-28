@@ -29,7 +29,7 @@ common/vlq_base128_be	part-of	-	-	-	imported by database/sqlite3, media/standard
 common/vlq_base128_le	part-of	-	-	-	imported by executable/dex, serialization/google_protobuf
 database/dbf	crafted	database/dbf	built by make_gallery_samples.py	MIT (this repository)	
 database/gettext_mo	crafted	database/gettext_mo	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-database/sqlite3	none	-	-	-	left out of the conformance suite on purpose: the definition reads every column as a string, which only works in the reference's JavaScript runtime (see the README)
+database/sqlite3	failing	database/sqlite3	sqlite3 module of Python (SQLite)	MIT (this repository)	cannot be read: a size that uses an absent instance (len_content) is an error, and empty in the reference (#176)
 database/tsm	crafted	database/tsm	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/android_nanoapp_header	crafted	executable/android_nanoapp_header	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/dex	crafted	executable/dex	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -57,7 +57,7 @@ filesystem/mbr_partition_table	crafted	filesystem/mbr_partition_table	built by m
 filesystem/tr_dos_image	crafted	filesystem/tr_dos_image	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/ubifs	none	-	-	-	
 filesystem/vdi	real	filesystem/vdi	qemu-img create (QEMU)	MIT (this repository)	
-filesystem/vfat	none	-	-	-	
+filesystem/vfat	crafted	filesystem/vfat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/vmware_vmdk	crafted	filesystem/vmware_vmdk	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/zx_spectrum_tap	crafted	filesystem/zx_spectrum_tap	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 firmware/andes_firmware	crafted	firmware/andes_firmware	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	

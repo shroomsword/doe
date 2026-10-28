@@ -171,6 +171,27 @@ def make_openpgp():
         put("security/openpgp_message", "public_key", packet(6, key_body) + packet(13, user_id) + packet(2, sig_body))
 
 
+# ── SQLite ───────────────────────────────────────────────────────────────────
+# The sqlite3 module of Python (the SQLite library) writes a database of two tables with an index.
+def make_sqlite():
+    import sqlite3
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "doe.db"
+        connection = sqlite3.connect(path)
+        connection.execute("PRAGMA page_size = 1024")
+        connection.execute("CREATE TABLE words (id INTEGER PRIMARY KEY, word TEXT NOT NULL, length INTEGER)")
+        connection.execute("CREATE INDEX words_by_word ON words (word)")
+        connection.execute("CREATE TABLE notes (title TEXT, body BLOB)")
+        connection.executemany(
+            "INSERT INTO words (word, length) VALUES (?, ?)", [(w, len(w)) for w in "decoder of everything reads binary files".split()]
+        )
+        connection.execute("INSERT INTO notes VALUES (?, ?)", ("note", bytes(range(16))))
+        connection.commit()
+        connection.close()
+        put("database/sqlite3", "two_tables", path.read_bytes())
+
+
 # ── utmp ─────────────────────────────────────────────────────────────────────
 # glibc writes the file: utmpxname and pututxline of the C library, called through ctypes.
 def make_utmp():
@@ -227,6 +248,7 @@ def make_disk_images():
 if __name__ == "__main__":
     make_disk_images()
     make_openpgp()
+    make_sqlite()
     make_utmp()
     make_cpio()
     make_ssh()

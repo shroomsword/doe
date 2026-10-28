@@ -1,0 +1,619 @@
+{
+  "bootsector": {
+    "bpb": {
+      "bytesperls": 512,
+      "lsperclus": 1,
+      "lsperfat": 1,
+      "maxrootdirrec": 16,
+      "mediacode": 248,
+      "numfats": 2,
+      "numheads": 2,
+      "numhiddensectors": 0,
+      "numreservedls": 1,
+      "pspertrack": 32,
+      "totalls2": 80,
+      "totalls4": 0
+    },
+    "ebpbfat16": {
+      "extbootsign": 41,
+      "fstypestr": "FAT12",
+      "partitionvolumelabel": "DOE DISK",
+      "physdrivenum": 0,
+      "reserved1": 0,
+      "volumeid": "78563412"
+    },
+    "isfat32": false,
+    "jmpinstruction": "eb3c90",
+    "lsperfat": 1,
+    "lsperrootdir": 1,
+    "oemname": "DOEOS",
+    "posfats": 512,
+    "posrootdir": 1536,
+    "sizefat": 512,
+    "sizerootdir": 512
+  },
+  "fats": [
+    "f8ffffffff0f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "f8ffffffff0f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  ],
+  "rootdir": {
+    "records": [
+      {
+        "attrs": {
+          "archive": false,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": true
+        },
+        "filename": "444f45204449534b202020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "48454c4c4f202020545854",
+        "filesize": 14,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 2
+      },
+      {
+        "attrs": {
+          "archive": false,
+          "hidden": false,
+          "isdirectory": true,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "444f435320202020202020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 3
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4430302020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4430312020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4430322020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4430332020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4430342020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4430352020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4430362020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4430372020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4430382020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4430392020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4431302020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4431312020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      },
+      {
+        "attrs": {
+          "archive": true,
+          "hidden": false,
+          "isdirectory": false,
+          "longname": false,
+          "readonly": false,
+          "reserved": 0,
+          "system": false,
+          "volumeid": false
+        },
+        "filename": "e54c4431322020544d5020",
+        "filesize": 0,
+        "lastwritetime": {
+          "date": {
+            "day": 17,
+            "month": 5,
+            "paddedday": "17",
+            "paddedmonth": "05",
+            "paddedyear": "2024",
+            "year": 2024,
+            "yearminus1980": 44
+          },
+          "time": {
+            "hour": 13,
+            "minute": 45,
+            "paddedhour": "13",
+            "paddedminute": "45",
+            "paddedsecond": "14",
+            "second": 14,
+            "seconddiv2": 7
+          }
+        },
+        "reserved": "00000000000000000000",
+        "startclus": 0
+      }
+    ]
+  }
+}
