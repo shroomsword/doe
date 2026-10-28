@@ -89,7 +89,7 @@ geospatial/shapefile_index	crafted	geospatial/shapefile_index	built by make_samp
 geospatial/shapefile_main	crafted	geospatial/shapefile_main	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 hardware/dtb	crafted	hardware/dtb	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 hardware/edid	crafted	hardware/edid	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-hardware/mifare/mifare_classic	crafted	hardware/mifare/mifare_classic	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the sample has no value block: ~ of a u4 is read differently (#162)
+hardware/mifare/mifare_classic	crafted	hardware/mifare/mifare_classic	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	sector 1 block 0 is a value block
 image/bmp	crafted	image/bmp	built by make_gallery_samples.py	MIT (this repository)	
 image/dicom	crafted	image/dicom	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/exif	crafted	image/exif	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	

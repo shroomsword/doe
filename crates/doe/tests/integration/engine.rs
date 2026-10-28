@@ -6005,3 +6005,29 @@ fn the_size_of_a_root_field_of_a_fixed_size_is_known_before_it_is_read() {
         panic!("not a struct")
     };
 }
+
+#[test]
+fn a_u4_is_inverted_in_32_bits() {
+    // a value block stores a number, its inverse and the number again
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: v
+            type: u4le
+            repeat: expr
+            repeat-expr: 3
+        instances:
+          valid:
+            value: 'v[0] == ~v[1] and v[0] == v[2]'
+          small:
+            value: ~5 == -6
+    "};
+    let bytes = [0xE8, 0x03, 0, 0, 0x17, 0xFC, 0xFF, 0xFF, 0xE8, 0x03, 0, 0];
+    let v = parse(schema, "t", &bytes);
+    for name in ["valid", "small"] {
+        let Value::Instance { value, .. } = get_field(&v, name) else {
+            panic!("not an instance")
+        };
+        assert_eq!(**value, Value::Bool(true), "{name}");
+    }
+}

@@ -350,7 +350,7 @@ internally); a literal that does not fit in 128 bits is a schema error, and
 arithmetic that overflows is an error rather than wrapping. `/` and `%` round
 towards negative infinity, as in Kaitai Struct, so `-7 / 2` is `-4` and `-7 % 3`
 is `2`. An integer and a float can be mixed (the result is a float). A shift
-amount must be from 0 to 126. `&&`, `||`, `!` and `?:` also take an integer as a
+amount must be from 0 to 126. `~` of a number from 2^31 to 2^32-1 (a `u4` with its top bit set) inverts it in 32 bits, as the reference does, so `~0xFFFFFC17` is `1000`. `&&`, `||`, `!` and `?:` also take an integer as a
 condition, where non-zero is true.
 
 **Strings** can be compared (`==`, `<`, ...) and joined with `+`; a string or
