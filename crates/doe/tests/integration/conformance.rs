@@ -392,6 +392,7 @@ gallery!(
     gallery_log_glibc_utmp = "gallery/log/glibc_utmp",
     gallery_log_hashcat_restore = "gallery/log/hashcat_restore",
     gallery_log_sudoers_ts = "gallery/log/sudoers_ts",
+    gallery_log_windows_evt_log = "gallery/log/windows_evt_log",
     gallery_machine_code_code_6502 = "gallery/machine_code/code_6502",
     gallery_media_android_opengl_shaders_cache = "gallery/media/android_opengl_shaders_cache",
     gallery_media_au = "gallery/media/au",
@@ -437,6 +438,7 @@ gallery!(
     gallery_scientific_nt_mdt_nt_mdt_pal = "gallery/scientific/nt_mdt/nt_mdt_pal",
     gallery_scientific_spectroscopy_avantes_roh60 = "gallery/scientific/spectroscopy/avantes_roh60",
     gallery_security_efivar_signature_list = "gallery/security/efivar_signature_list",
+    gallery_security_openpgp_message = "gallery/security/openpgp_message",
     gallery_security_ssh_public_key = "gallery/security/ssh_public_key",
     gallery_serialization_asn1_asn1_der = "gallery/serialization/asn1/asn1_der",
     gallery_serialization_bson = "gallery/serialization/bson",
@@ -448,6 +450,7 @@ gallery!(
     gallery_serialization_python_pickle = "gallery/serialization/python_pickle",
     gallery_serialization_ruby_marshal = "gallery/serialization/ruby_marshal",
     gallery_windows_windows_lnk_file = "gallery/windows/windows_lnk_file",
+    gallery_windows_windows_minidump = "gallery/windows/windows_minidump",
     gallery_windows_windows_resource_file = "gallery/windows/windows_resource_file",
     gallery_windows_windows_shell_items = "gallery/windows/windows_shell_items",
 );

@@ -128,6 +128,49 @@ def make_grub_font():
         put("font/grub2_font", "glyphs_a_to_j", out.read_bytes())
 
 
+# ── OpenPGP ──────────────────────────────────────────────────────────────────
+# A public key with a user id and a self-signature, in the old packet format (the only one the definition reads). The key
+# and the RSA signature are made by openssl; the packets around them are assembled here, from RFC 4880.
+def make_openpgp():
+    import hashlib
+    import struct
+
+    def packet(tag, body):
+        assert len(body) < 256
+        return bytes([0x80 | (tag << 2)]) + bytes([len(body)]) + body
+
+    def mpi(number):
+        data = number.to_bytes((number.bit_length() + 7) // 8, "big")
+        return struct.pack(">H", number.bit_length()) + data
+
+    with tempfile.TemporaryDirectory() as tmp:
+        key = Path(tmp) / "key.pem"
+        run(["openssl", "genrsa", "-out", str(key), "1024"])
+        modulus = int(run(["openssl", "rsa", "-in", str(key), "-noout", "-modulus"]).decode().strip().split("=")[1], 16)
+        assert modulus.bit_length() == 1024
+        key_body = bytes([4]) + struct.pack(">IB", 1700000000, 1) + mpi(modulus) + mpi(65537)
+        user_id = b"Doe Sample <doe@example.org>"
+
+        def subpacket(kind, data):
+            return bytes([len(data) + 1, kind]) + data
+
+        hashed = (
+            subpacket(2, struct.pack(">I", 1700000100)) + subpacket(27, bytes([0x03])) + subpacket(9, struct.pack(">I", 31536000))
+            + subpacket(21, bytes([8, 2])) + subpacket(22, bytes([2, 1, 0]))
+        )
+        unhashed = b""  # (an issuer key id of 8 bytes would not be read exactly by the reference, which has no 64-bit integers)
+        header = bytes([4, 0x13, 1, 8]) + struct.pack(">H", len(hashed)) + hashed
+        trailer = bytes([4, 0xFF]) + struct.pack(">I", len(header))
+        digest = hashlib.sha256(
+            b"\x99" + struct.pack(">H", len(key_body)) + key_body + b"\xb4" + struct.pack(">I", len(user_id)) + user_id + header + trailer
+        ).digest()
+        (Path(tmp) / "digest").write_bytes(digest)
+        signature = run(["openssl", "pkeyutl", "-sign", "-inkey", str(key), "-in", str(Path(tmp) / "digest"), "-pkeyopt", "digest:sha256"])
+        number = int.from_bytes(signature, "big")
+        sig_body = header + struct.pack(">H", len(unhashed)) + unhashed + digest[:2] + mpi(number)
+        put("security/openpgp_message", "public_key", packet(6, key_body) + packet(13, user_id) + packet(2, sig_body))
+
+
 # ── utmp ─────────────────────────────────────────────────────────────────────
 # glibc writes the file: utmpxname and pututxline of the C library, called through ctypes.
 def make_utmp():
@@ -183,6 +226,7 @@ def make_disk_images():
 
 if __name__ == "__main__":
     make_disk_images()
+    make_openpgp()
     make_utmp()
     make_cpio()
     make_ssh()

@@ -2223,6 +2223,59 @@ def more():
     stream = b"A small stream kept in the mini stream of a compound file. " + bytes(range(41))
     put("serialization/microsoft_cfb", "one_stream", header.ljust(512, b"\0") + fat + directory + minifat + stream.ljust(512, b"\0"))
 
+    # Windows event log (.evt): the header, records of events, and the cursor record that ends the log
+    def utf16z(text):
+        return text.encode("utf-16-le") + b"\0\0"
+
+    def evt_record(number, when, event_id, kind, source, computer, strings, sid, data):
+        names = utf16z(source) + utf16z(computer)
+        ofs_sid = 56 + len(names)
+        strings_blob = b"".join(utf16z(s) for s in strings)
+        ofs_strings = ofs_sid + len(sid)
+        ofs_data = ofs_strings + len(strings_blob)
+        length = (ofs_data + len(data) + 4 + 3) // 4 * 4
+        fixed = struct.pack("<IIII", number, when, when, event_id) + struct.pack("<HHH", kind, len(strings), 0) + bytes(6)
+        fixed += struct.pack("<IIIII", ofs_strings, len(sid), ofs_sid, len(data), ofs_data)
+        record = struct.pack("<II", length, 0x654C664C) + fixed + names + sid + strings_blob + data
+        return record.ljust(length - 4, b"\0") + struct.pack("<I", length)
+
+    sid = bytes.fromhex("010500000000000515000000a1b2c3d4e5f60718090a0b0c")
+    records = evt_record(1, 1700000000, 6005, 4, "EventLog", "DOE-PC", ["The Event log service was started."], b"", b"")
+    records += evt_record(2, 1700000060, 7036, 5, "Service Control Manager", "DOE-PC", ["Spooler", "stopped"], sid, bytes(range(8)))
+    first, next_offset = 48, 48 + len(records)
+    cursor = struct.pack("<II", 0x28, 0x11111111) + bytes([0x22] * 4 + [0x33] * 4 + [0x44] * 4) + struct.pack("<IIII", first, next_offset, 3, 1) + struct.pack("<I", 0x28)
+    flags = 0
+    log_header = struct.pack("<I", 0x30) + b"LfLe" + struct.pack("<IIIIIIIIII", 1, 1, first, next_offset, 3, 1, 0x80000, flags, 0, 0x30)
+    put("log/windows_evt_log", "two_events", log_header + records + cursor)
+
+    # Minidump: system information, miscellaneous information, a thread, memory, an exception and 64-bit memory
+    def location(size, ofs):
+        return struct.pack("<II", size, ofs)
+
+    streams_total = 6
+    base = 32 + 12 * streams_total
+    stack, context = bytes(range(16)), bytes(range(32))
+    system = struct.pack("<HHHBBIIIIIHH", 9, 6, 0x3C03, 4, 1, 10, 0, 19045, 2, 0, 0, 0)
+    misc = struct.pack("<11I", 44, 0x3, 4321, 1700000000, 12, 3, 3600, 3600, 3600, 0, 0)
+    exception_data = struct.pack("<IIQQII", 0xC0000005, 0, 0, 0x7FF612341000, 2, 0) + struct.pack("<15Q", 1, 0xDEADBEEF, *([0] * 13))
+    # contents that the descriptors point at come after the streams
+    stream_sizes = [len(system), len(misc), 4 + 48, 4 + 16, 168, 16 + 16]
+    after_streams = base + sum(stream_sizes)
+    stack_at, context_at, memory_at, memory64_at = after_streams, after_streams + 16, after_streams + 48, after_streams + 64
+    thread = struct.pack("<IIII", 0x1A4C, 0, 2, 8) + struct.pack("<Q", 0x7FF000) + struct.pack("<Q", 0x7FFE0000) + location(16, stack_at) + location(32, context_at)
+    thread_list = struct.pack("<I", 1) + thread
+    memory_list = struct.pack("<I", 1) + struct.pack("<Q", 0x7FFE0000) + location(16, memory_at)
+    memory64 = struct.pack("<QQ", 1, memory64_at) + struct.pack("<QQ", 0x10000, 16)
+    exception = struct.pack("<II", 0x1A4C, 0) + exception_data + location(32, context_at)
+    contents = [(7, system), (15, misc), (3, thread_list), (5, memory_list), (6, exception), (9, memory64)]
+    directory, bodies, cursor_at = b"", b"", base
+    for kind, data in contents:
+        directory += struct.pack("<III", kind, len(data), cursor_at + len(bodies))
+        bodies += data
+    dump = b"MDMP" + bytes([0x93, 0xA7]) + struct.pack("<HIIII", 0xA793 & 0, len(contents), 32, 0, 1700000000) + struct.pack("<Q", 0)
+    dump += directory + bodies + stack + context + stack + bytes(16)
+    put("windows/windows_minidump", "crash", dump)
+
     # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
     # transport feedback (the receiver's reports have no blocks)
     def rtcp(kind, body, subtype=0):

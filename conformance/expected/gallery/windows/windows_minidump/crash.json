@@ -1,0 +1,152 @@
+{
+  "checksum": 0,
+  "flags": 0,
+  "magic1": "4d444d50",
+  "magic2": "93a7",
+  "numstreams": 6,
+  "ofsstreams": 32,
+  "streams": [
+    {
+      "data": {
+        "cpuarch": 9,
+        "cpulevel": 6,
+        "cpurevision": 15363,
+        "numcpus": 4,
+        "ofsservicepack": 0,
+        "osbuild": 19045,
+        "osplatform": 2,
+        "ossuitemask": 0,
+        "ostype": 1,
+        "osvermajor": 10,
+        "osverminor": 0,
+        "reserved2": 0,
+        "servicepack": null
+      },
+      "lendata": 32,
+      "ofsdata": 104,
+      "streamtype": 7
+    },
+    {
+      "data": {
+        "cpucuridlestate": 0,
+        "cpucurmhz": 3600,
+        "cpulimitmhz": 3600,
+        "cpumaxidlestate": 0,
+        "cpumaxmhz": 3600,
+        "flags1": 3,
+        "leninfo": 44,
+        "processcreatetime": 1700000000,
+        "processid": 4321,
+        "processkerneltime": 3,
+        "processusertime": 12
+      },
+      "lendata": 44,
+      "ofsdata": 136,
+      "streamtype": 15
+    },
+    {
+      "data": {
+        "numthreads": 1,
+        "threads": [
+          {
+            "priority": 8,
+            "priorityclass": 2,
+            "stack": {
+              "addrmemoryrange": 2147352576,
+              "memory": {
+                "data": "000102030405060708090a0b0c0d0e0f",
+                "lendata": 16,
+                "ofsdata": 452
+              }
+            },
+            "suspendcount": 0,
+            "teb": 8384512,
+            "threadcontext": {
+              "data": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+              "lendata": 32,
+              "ofsdata": 468
+            },
+            "threadid": 6732
+          }
+        ]
+      },
+      "lendata": 52,
+      "ofsdata": 180,
+      "streamtype": 3
+    },
+    {
+      "data": {
+        "memranges": [
+          {
+            "addrmemoryrange": 2147352576,
+            "memory": {
+              "data": "000102030405060708090a0b0c0d0e0f",
+              "lendata": 16,
+              "ofsdata": 500
+            }
+          }
+        ],
+        "nummemranges": 1
+      },
+      "lendata": 20,
+      "ofsdata": 232,
+      "streamtype": 5
+    },
+    {
+      "data": {
+        "exceptionrec": {
+          "addr": 140694844084224,
+          "code": 3221225477,
+          "flags": 0,
+          "innerexception": 0,
+          "numparams": 2,
+          "params": [
+            1,
+            3735928559,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "reserved": 0
+        },
+        "reserved": 0,
+        "threadcontext": {
+          "data": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "lendata": 32,
+          "ofsdata": 468
+        },
+        "threadid": 6732
+      },
+      "lendata": 168,
+      "ofsdata": 252,
+      "streamtype": 6
+    },
+    {
+      "data": {
+        "memranges": [
+          {
+            "addrmemoryrange": 65536,
+            "lendata": 16
+          }
+        ],
+        "nummemranges": 1,
+        "ofsbase": 516
+      },
+      "lendata": 32,
+      "ofsdata": 420,
+      "streamtype": 9
+    }
+  ],
+  "timestamp": 1700000000,
+  "version": 0
+}

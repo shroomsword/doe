@@ -114,7 +114,7 @@ log/hashcat_restore	crafted	log/hashcat_restore	built by make_samples_by_hand.py
 log/mcap	failing	log/mcap	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	cannot be read: ofs_footer needs the size of fields of footer, which needs ofs_footer (#160)
 log/sudoers_ts	crafted	log/sudoers_ts	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/systemd_journal	none	-	-	-	
-log/windows_evt_log	none	-	-	-	
+log/windows_evt_log	crafted	log/windows_evt_log	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 machine_code/code_6502	crafted	machine_code/code_6502	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 macos/compressed_resource	none	-	-	-	
 macos/ds_store	none	-	-	-	
@@ -172,7 +172,7 @@ scientific/nt_mdt/nt_mdt_pal	crafted	scientific/nt_mdt/nt_mdt_pal	built by make_
 scientific/spectroscopy/avantes_roh60	crafted	scientific/spectroscopy/avantes_roh60	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 scientific/spectroscopy/specpr	none	-	-	-	
 security/efivar_signature_list	crafted	security/efivar_signature_list	built by make_samples_by_hand.py from the format's documentation (the certificate is the openssl one of the asn1_der sample)	MIT (this repository)	
-security/openpgp_message	none	-	-	-	
+security/openpgp_message	crafted	security/openpgp_message	built by make_real_samples.py: OpenPGP packets (RFC 4880) around an RSA key and a signature made by openssl	MIT (this repository)	
 security/ssh_public_key	real	security/ssh_public_key	ssh-keygen, run by make_real_samples.py (the key as the base64 of the .pub file holds it)	MIT (this repository)	ed25519, rsa 2048 and ecdsa 256 keys made for the samples
 serialization/asn1/asn1_der	real	serialization/asn1/asn1_der	openssl, run by make_real_samples.py	MIT (this repository)	a self-signed certificate and a request, with a key made for the samples
 serialization/bson	crafted	serialization/bson	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -185,7 +185,7 @@ serialization/python_pickle	real	serialization/python_pickle	pickle of Python, r
 serialization/ruby_marshal	crafted	serialization/ruby_marshal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/regf	none	-	-	-	
 windows/windows_lnk_file	crafted	windows/windows_lnk_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-windows/windows_minidump	none	-	-	-	
+windows/windows_minidump	crafted	windows/windows_minidump	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_resource_file	crafted	windows/windows_resource_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the sample has no empty first resource and no number as a type or name: the position that the definition keeps for a number is read at the end of the file by the reference (#170)
 windows/windows_shell_items	crafted	windows/windows_shell_items	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_systemtime	part-of	-	-	-	imported by network/microsoft_network_monitor_v2, whose sample has a start time

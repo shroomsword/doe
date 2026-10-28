@@ -762,7 +762,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 11 with a file written by its own tool, 136 with a file built by hand, 4 failing on a file, 9 part of another, 30 without a sample
+> 190 definitions: 11 with a file written by its own tool, 139 with a file built by hand, 4 failing on a file, 9 part of another, 27 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -790,14 +790,14 @@ and compared with the reference compiler's output:
 | `geospatial` | `shapefile_index`, `shapefile_main` |
 | `hardware` | `dtb`, `edid`, `mifare/mifare_classic` |
 | `image` | `bmp`, `gif`, `gimp_brush`, `ico`, `jpeg`, `pcx`, `pcx_dcx`, `pif`, `png`, `psx_tim`, `tga`, `webp`, `wmf`, `xwd` |
-| `log` | `aix_utmp`, `glibc_utmp`, `hashcat_restore`, `sudoers_ts` |
+| `log` | `aix_utmp`, `glibc_utmp`, `hashcat_restore`, `sudoers_ts`, `windows_evt_log` |
 | `machine_code` | `code_6502` |
 | `media` | `android_opengl_shaders_cache`, `au`, `avi`, `blender_blend`, `creative_voice_file`, `genmidi_op2`, `id3v1_1`, `id3v2_3`, `id3v2_4`, `magicavoxel_vox`, `ogg`, `quicktime_mov`, `standard_midi_file`, `stl`, `tracker_modules/fasttracker_xm_module`, `tracker_modules/s3m`, `vp8_duck_ivf`, `wav` |
 | `network` | `bitcoin_transaction`, `dime_message`, `dns_packet`, `ethernet_frame`, `hccap`, `hccapx`, `icmp_packet`, `ipv4_packet`, `ipv6_packet`, `microsoft_network_monitor_v2`, `packet_ppi`, `pcap`, `rtcp_payload`, `rtp_packet`, `rtpdump`, `some_ip/some_ip`, `some_ip/some_ip_container`, `some_ip/some_ip_sd`, `tcp_segment`, `tls_client_hello`, `udp_datagram`, `websocket` |
 | `scientific` | `nt_mdt/nt_mdt_pal`, `spectroscopy/avantes_roh60` |
-| `security` | `efivar_signature_list`, `ssh_public_key` |
+| `security` | `efivar_signature_list`, `openpgp_message`, `ssh_public_key` |
 | `serialization` | `asn1/asn1_der`, `bson`, `chrome_pak`, `google_protobuf`, `microsoft_cfb`, `msgpack`, `php_serialized_value`, `python_pickle`, `ruby_marshal` |
-| `windows` | `windows_lnk_file`, `windows_resource_file`, `windows_shell_items` |
+| `windows` | `windows_lnk_file`, `windows_minidump`, `windows_resource_file`, `windows_shell_items` |
 <!-- gallery-formats:end -->
 
 Four formats have a file that `doe` does not read yet, and their rows say
@@ -1083,8 +1083,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 207 samples of the Kaitai gallery
-in the tests, 88 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 210 samples of the Kaitai gallery
+in the tests, 90 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 
