@@ -333,6 +333,7 @@ gallery!(
     gallery_executable_elf = "gallery/executable/elf",
     gallery_executable_java_class = "gallery/executable/java_class",
     gallery_executable_mach_o = "gallery/executable/mach_o",
+    gallery_executable_mach_o_fat = "gallery/executable/mach_o_fat",
     gallery_executable_microsoft_pe = "gallery/executable/microsoft_pe",
     gallery_executable_python_pyc_27 = "gallery/executable/python_pyc_27",
     gallery_executable_swf = "gallery/executable/swf",

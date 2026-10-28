@@ -37,7 +37,7 @@ executable/dos_mz	crafted	executable/dos_mz	built by make_samples_by_hand.py fro
 executable/elf	real	executable/elf	the C compiler (cc), run by make_gallery_samples.py	MIT (this repository)	
 executable/java_class	crafted	executable/java_class	built by make_gallery_samples.py	MIT (this repository)	
 executable/mach_o	real	executable/mach_o	clang for the macOS targets, run by make_gallery_samples.py	MIT (this repository)	
-executable/mach_o_fat	failing	executable/mach_o_fat	built by make_samples_by_hand.py: the two Mach-O objects that clang wrote for the mach_o samples, in the fat container that lipo writes	MIT (this repository)	cannot be read: the imported mach_o compares _root.magic, which is the fat file's (#155)
+executable/mach_o_fat	crafted	executable/mach_o_fat	built by make_samples_by_hand.py: the two Mach-O objects that clang wrote for the mach_o samples, in the fat container that lipo writes	MIT (this repository)	
 executable/microsoft_pe	crafted	executable/microsoft_pe	built by make_gallery_samples.py	MIT (this repository)	
 executable/python_pyc_27	crafted	executable/python_pyc_27	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/swf	crafted	executable/swf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	

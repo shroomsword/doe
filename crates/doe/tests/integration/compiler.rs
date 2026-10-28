@@ -1031,6 +1031,50 @@ fn imports_are_loaded_before_the_importing_schema() {
 }
 
 #[test]
+fn an_imported_type_is_its_own_root_and_has_no_parent() {
+    let dir = tempfile::TempDir::new().unwrap();
+    write(
+        dir.path(),
+        "inner.yaml",
+        indoc! {"
+            id: inner
+            seq:
+              - id: magic
+                type: u1
+              - id: x
+                type: u1
+                if: _root.magic == 1
+        "},
+    );
+    let main = write(
+        dir.path(),
+        "main.yaml",
+        indoc! {"
+            id: main
+            imports: [./inner.yaml]
+            seq:
+              - id: magic
+                type: u1
+              - id: part
+                type: inner
+        "},
+    );
+    let sample = dir.path().join("sample.bin");
+    std::fs::write(&sample, [9u8, 1, 5]).unwrap();
+    let text = doe::parse_file(
+        &sample,
+        main.to_str().unwrap(),
+        &[],
+        Some(std::path::Path::new("/nonexistent/config.toml")),
+        doe::OutputFormat::Json,
+    )
+    .unwrap();
+    // `_root` of the imported type is the imported type (magic 1), not the importing file (magic 9), as in Kaitai Struct
+    let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(json["part"]["x"], 5, "{text}");
+}
+
+#[test]
 fn schemas_may_import_each_other() {
     let dir = tempfile::TempDir::new().unwrap();
     write(

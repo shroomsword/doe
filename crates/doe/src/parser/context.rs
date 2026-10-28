@@ -341,6 +341,13 @@ impl ParseContext {
         self.start_scope(id);
     }
 
+    /// Push a new scope for a type of another schema than the one around it, which is its own `_root` and has no
+    /// `_parent`.
+    pub fn push_scope_root(&mut self) {
+        let id = self.eval_ctx.push_frame_root();
+        self.start_scope(id);
+    }
+
     /// Push a new scope for a sub-type of a field with `parent: _parent`: its
     /// `_parent` is that of the current scope, `up` times over.
     pub fn push_scope_under(&mut self, up: usize) {

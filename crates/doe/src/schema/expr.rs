@@ -1103,6 +1103,8 @@ struct Frame {
     parent: Option<usize>,
     /// Whether the frame stays when its scope is left.
     keep: bool,
+    /// The frame `_root` means: that of the outermost type of the schema the frame's type is from.
+    root: usize,
 }
 
 /// The stream the expression being evaluated is in.
@@ -1189,7 +1191,13 @@ impl EvalContext {
     /// Enter a new, empty scope, and return its number.
     pub fn push_frame(&mut self) -> usize {
         let parent = self.current_frame();
-        self.enter_new(Some(parent))
+        self.enter_new(Some(parent), false)
+    }
+
+    /// Enter a new scope for a type of another schema than the one around: as in Kaitai Struct, which passes no
+    /// parent and no root to a type it imports, the type is the `_root` of what is read in it, and has no `_parent`.
+    pub fn push_frame_root(&mut self) -> usize {
+        self.enter_new(None, true)
     }
 
     /// Enter a new scope whose `_parent` is not the scope it is entered from but
@@ -1199,25 +1207,26 @@ impl EvalContext {
         for _ in 0..up {
             target = target.and_then(|frame| self.parent_of(frame));
         }
-        self.enter_new(target)
+        self.enter_new(target, false)
     }
 
-    fn enter_new(&mut self, parent: Option<usize>) -> usize {
+    fn enter_new(&mut self, parent: Option<usize>, is_root: bool) -> usize {
+        let inherited = parent
+            .and_then(|p| self.frames.get(p))
+            .map_or(0, |frame| frame.root);
         let id = if let Some(id) = self.free.pop() {
-            if let Some(frame) = self.frames.get_mut(id) {
-                *frame = Frame {
-                    parent,
-                    ..Frame::default()
-                };
-            }
             id
         } else {
-            self.frames.push(Frame {
-                parent,
-                ..Frame::default()
-            });
+            self.frames.push(Frame::default());
             self.frames.len() - 1
         };
+        if let Some(frame) = self.frames.get_mut(id) {
+            *frame = Frame {
+                parent,
+                root: if is_root { id } else { inherited },
+                ..Frame::default()
+            };
+        }
         self.stack.push(id);
         id
     }
@@ -1326,12 +1335,14 @@ impl EvalContext {
             return apply_members(Cow::Owned(stream), tail, &self.resolved, src);
         }
 
-        // Start at the innermost frame, or at the outermost for `_root`.
+        // Start at the innermost frame, or at the root of its schema for `_root`.
         let mut frame_idx = self.current_frame();
+        let mut is_root_path = false;
         if let Some((first, tail)) = rest.split_first()
             && first == "_root"
         {
-            frame_idx = 0;
+            frame_idx = self.frames.get(frame_idx).map_or(0, |frame| frame.root);
+            is_root_path = true;
             rest = tail;
         }
 
@@ -1351,18 +1362,26 @@ impl EvalContext {
                 "a field path ends at _root or _parent with no field name",
             ));
         }
-        let frame = self
-            .frames
-            .get(frame_idx)
-            .ok_or_else(|| fail(src, "no scope available"))?;
-        // The longest prefix of the path that is bound names a value; anything
-        // after it is a member of that value.
-        for split in (1..=rest.len()).rev() {
-            let (Some(head), Some(members)) = (rest.get(..split), rest.get(split..)) else {
-                continue;
-            };
-            if let Some(value) = frame.vars.get(head.join(".").as_str()) {
-                return apply_members(Cow::Borrowed(value), members, &self.resolved, src);
+        // What the schema around the whole parse binds (`sizeof<type>`) is looked for there when it is not in the root
+        // of this schema.
+        let candidates = [
+            Some(frame_idx),
+            (is_root_path && frame_idx != 0).then_some(0),
+        ];
+        for candidate in candidates.into_iter().flatten() {
+            let frame = self
+                .frames
+                .get(candidate)
+                .ok_or_else(|| fail(src, "no scope available"))?;
+            // The longest prefix of the path that is bound names a value; anything
+            // after it is a member of that value.
+            for split in (1..=rest.len()).rev() {
+                let (Some(head), Some(members)) = (rest.get(..split), rest.get(split..)) else {
+                    continue;
+                };
+                if let Some(value) = frame.vars.get(head.join(".").as_str()) {
+                    return apply_members(Cow::Borrowed(value), members, &self.resolved, src);
+                }
             }
         }
         Err(fail(src, &format!("unknown field '{}'", parts.join("."))))
