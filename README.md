@@ -104,6 +104,21 @@ doe -I types --json libc.so.6 elf | jq '.program_headers[].p_type.name'
 
 Running `doe --help` with `-I types` lists the available types.
 
+A type path is searched through its subdirectories, and a type is found by the
+`id` in the file (`meta.id` in a `.ksy` file) and not only by the name of the
+file. With the Kaitai Struct formats checked out, this reads `ls` with
+`executable/elf.ksy`:
+
+```sh
+doe -I conformance/kaitai_struct_formats /bin/ls elf
+```
+
+A file of the name is tried first (`elf.ksy` or `elf.yaml` in the type path).
+Two files below one type path that declare the same id are an error that
+names them; the same id in two type paths is not, and the earlier path wins.
+The search goes eight directories deep and looks at 20,000 files at most, and
+does not follow a link to a directory.
+
 ## Schema format
 
 A schema is a YAML file that describes the layout of a binary file.

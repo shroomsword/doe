@@ -23,6 +23,7 @@ use etcetera::BaseStrategy;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{DoeError, Result};
+use crate::schema::source::FsSource;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config struct
@@ -292,31 +293,17 @@ pub fn discover_types(
     let mut errors: Vec<DuplicateTypeError> = Vec::new();
 
     for dir in include_paths {
-        let Ok(entries) = std::fs::read_dir(dir) else {
-            continue;
-        };
-
-        // Collect all valid schema headers from this directory first, so we
-        // can detect within-directory duplicates before committing any of them.
-        let mut dir_entries: Vec<(PathBuf, ResolvedHeader)> = entries
-            .filter_map(|entry| {
-                let path = entry.ok()?.path();
-                let ext = path.extension()?.to_str()?;
-                if !crate::SCHEMA_EXTENSIONS.contains(&ext) {
-                    return None;
-                }
-                let text = std::fs::read_to_string(&path).ok()?;
-                let header: SchemaHeader = crate::schema::raw::parse_yaml(&text).ok()?;
-                let id = header.id.or_else(|| header.meta?.id)?;
-                Some((
-                    path,
-                    ResolvedHeader {
-                        id,
-                        doc: header.doc,
-                    },
-                ))
-            })
-            .collect();
+        // Collect all valid schema headers from this directory and below it
+        // first, so we can detect duplicates before committing any of them.
+        let mut dir_entries: Vec<(PathBuf, ResolvedHeader)> =
+            crate::schema::source::schema_files_below(&FsSource, dir)
+                .into_iter()
+                .filter_map(|path| {
+                    let text = std::fs::read_to_string(&path).ok()?;
+                    let (id, doc) = crate::schema::source::schema_header(&text)?;
+                    Some((path, ResolvedHeader { id, doc }))
+                })
+                .collect();
 
         // Sort for deterministic ordering and error messages.
         dir_entries.sort_by(|a, b| a.0.cmp(&b.0));
@@ -373,26 +360,7 @@ pub fn discover_types(
     }
 }
 
-/// Minimal serde struct for parsing just the `id` and `doc` fields of a
-/// schema file without pulling in the full `RawSchema` machinery.
-#[derive(serde::Deserialize)]
-struct SchemaHeader {
-    #[serde(default)]
-    id: Option<String>,
-    /// Kaitai Struct files give the id as `meta.id`.
-    #[serde(default)]
-    meta: Option<MetaHeader>,
-    #[serde(default)]
-    doc: Option<String>,
-}
-
-#[derive(serde::Deserialize)]
-struct MetaHeader {
-    #[serde(default)]
-    id: Option<String>,
-}
-
-/// A [`SchemaHeader`] with its id found.
+/// The id and doc of a schema file.
 struct ResolvedHeader {
     id: String,
     doc: Option<String>,

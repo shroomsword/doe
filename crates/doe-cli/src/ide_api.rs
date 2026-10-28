@@ -106,6 +106,14 @@ impl SchemaSource for Recording {
         FsSource.exists(path)
     }
 
+    fn list_dir(&self, dir: &Path) -> Vec<(PathBuf, bool)> {
+        FsSource.list_dir(dir)
+    }
+
+    fn peek(&self, path: &Path) -> Option<String> {
+        FsSource.peek(path)
+    }
+
     fn read(&self, path: &Path) -> doe::error::Result<String> {
         let text = FsSource.read(path)?;
         if let Ok(mut seen) = self.seen.lock() {
