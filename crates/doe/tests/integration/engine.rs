@@ -5840,6 +5840,59 @@ fn an_instance_that_would_read_the_same_type_at_the_same_place_inside_itself_is_
 }
 
 #[test]
+fn a_size_that_uses_something_that_is_not_there_is_zero() {
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: kind
+            type: u1
+          - id: part
+            type: part(kind)
+          - id: tail
+            type: u1
+        types:
+          part:
+            params:
+              - id: kind
+                type: u1
+            seq:
+              - id: text
+                size: len
+              - id: more
+                size: _parent.kind
+            instances:
+              len:
+                value: kind * 2
+                if: kind >= 2
+    "};
+    // `len` is there for a kind of 2 or more
+    let v = parse(schema, "t", &[2, 1, 2, 3, 4, 5, 6, 7]);
+    let Value::Struct { fields, .. } = get_field(&v, "part") else {
+        panic!("not a struct")
+    };
+    assert_eq!(
+        fields
+            .iter()
+            .find(|(name, _)| name == "text")
+            .map(|(_, v)| v),
+        Some(&Value::Bytes(vec![1, 2, 3, 4]))
+    );
+    // for a kind of 1 it is not, and the size is 0 and not an error
+    let v = parse(schema, "t", &[1, 9, 8]);
+    let Value::Struct { fields, .. } = get_field(&v, "part") else {
+        panic!("not a struct")
+    };
+    assert_eq!(
+        fields
+            .iter()
+            .find(|(name, _)| name == "text")
+            .map(|(_, v)| v),
+        Some(&Value::Bytes(Vec::new()))
+    );
+    assert_eq!(get_field(&v, "tail"), &Value::UInt(8));
+}
+
+#[test]
 fn the_fixed_size_of_a_field_of_an_instance_does_not_need_the_instance() {
     // `tail` is placed where `where` says, and `where` asks for the sizes of two of its fields; `rec` asks for `where`
     // too, so reading `tail` first would be reading it before the place of it is known

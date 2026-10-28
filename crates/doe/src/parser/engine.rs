@@ -1840,7 +1840,17 @@ fn eval_size(size: &SizeExpr, ctx: &mut ParseContext, cursor: &Cursor<'_>) -> Re
         SizeExpr::Eos => Ok(cursor.remaining()),
         SizeExpr::Dynamic(e) => {
             ctx.set_io(cursor);
-            let v = expr::eval_int(e, &ctx.eval_ctx, "<size>")?;
+            // the size that a field or an instance that is not there gives is 0, as in the reference
+            let v = match expr::eval(e, &ctx.eval_ctx, "<size>")? {
+                ExprValue::Int(v) => v,
+                absent if expr::is_absent(&absent) => 0,
+                other => {
+                    return Err(DoeError::ExprEval {
+                        expr: "<size>".to_owned(),
+                        message: format!("expected an integer, found a {}", other.type_name()),
+                    });
+                }
+            };
             if v < 0 {
                 return Err(DoeError::Schema(format!(
                     "size expression evaluated to negative value: {v}"

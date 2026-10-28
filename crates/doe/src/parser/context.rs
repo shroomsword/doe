@@ -436,6 +436,9 @@ impl ParseContext {
         let mut budget = MAX_BOUND_VALUES;
         if let Some(v) = to_expr_value(inner, &mut budget) {
             self.eval_ctx.bind(id, v);
+        } else if inner.is_absent() {
+            // an instance that is not there (its `if:` was false) is a value that is equal to nothing
+            self.eval_ctx.bind(id, crate::schema::expr::absent_marker());
         }
         if let Some(scope) = self.scope_mut() {
             scope
@@ -618,7 +621,13 @@ fn to_expr_value(value: &Value, budget: &mut usize) -> Option<ExprValue> {
                 fields
                     .iter()
                     .filter_map(|(name, field)| {
-                        to_expr_value(field, budget).map(|v| (name.clone(), v))
+                        // a field or instance that is not there is a value equal to nothing
+                        let v = match to_expr_value(field, budget) {
+                            Some(v) => v,
+                            None if field.is_absent() => crate::schema::expr::absent_marker(),
+                            None => return None,
+                        };
+                        Some((name.clone(), v))
                     })
                     .collect(),
             )
