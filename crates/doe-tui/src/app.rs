@@ -767,10 +767,19 @@ impl App {
             _ => return,
         }
         // the tree follows the byte: the innermost field that holds it
-        if let Some(path) = self.tree.find_byte(self.hex.cursor())
-            && path.as_slice() != self.tree.selected_path()
-        {
-            self.tree.select_path(&path);
+        match self.tree.find_byte(self.hex.cursor()) {
+            Some(path) => {
+                if path.as_slice() != self.tree.selected_path() {
+                    self.tree.select_path(&path);
+                }
+            }
+            // what was parsed does not reach the byte: the selection stays where it was
+            None => {
+                self.notice = Some(format!(
+                    "byte {:#x} is not in a field (it is after what was parsed)",
+                    self.hex.cursor()
+                ));
+            }
         }
     }
 }
@@ -1776,6 +1785,20 @@ types:
         key(&mut app, KeyCode::End);
         key(&mut app, KeyCode::Home);
         assert!(app.hex.cursor() <= 2);
+    }
+
+    #[test]
+    fn a_byte_after_what_was_parsed_is_not_in_a_field_and_the_selection_stays() {
+        let (mut app, _dir) = app_for("id: t\nseq:\n  - id: a\n    type: u1\n", &[1, 2, 3]);
+        key(&mut app, KeyCode::Tab);
+        assert_eq!(app.tree.selected().name, "t");
+        key(&mut app, KeyCode::Right);
+        assert_eq!(app.hex.cursor(), 1);
+        assert!(app.notice.as_deref().unwrap().contains("not in a field"));
+        // the notice goes with the next key
+        key(&mut app, KeyCode::Left);
+        assert_eq!(app.hex.cursor(), 0);
+        assert!(app.notice.is_none());
     }
 
     #[test]
