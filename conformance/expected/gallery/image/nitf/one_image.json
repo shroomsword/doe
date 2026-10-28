@@ -1,0 +1,136 @@
+{
+  "dataextensionsegments": [],
+  "graphicssegments": [],
+  "header": {
+    "complexitylevel": "3033",
+    "encryption": {},
+    "extendedheader": {
+      "headerdatalength": "00000"
+    },
+    "filebgcolor": "000000",
+    "filecopynumber": "00001",
+    "filedatetime": {},
+    "fileheaderlength": "000404",
+    "filelength": "000000001051",
+    "filenumofcopys": "00001",
+    "fileprofilename": "4e495446",
+    "filesecurity": {
+      "classauthority": "                                        ",
+      "classauthoritytype": " ",
+      "classreason": " ",
+      "classtext": "                                           ",
+      "codewords": "           ",
+      "controlandhandling": "  ",
+      "controlnumber": "               ",
+      "declassdate": "        ",
+      "declassexemption": "    ",
+      "declasstype": "  ",
+      "downgrade": " ",
+      "downgradedate": "        ",
+      "releaseability": "                    ",
+      "securityclass": "U",
+      "securitysystem": "  ",
+      "sourcedate": "        "
+    },
+    "filetitle": "Sample NITF file for doe                                                        ",
+    "fileversion": "30322e3130",
+    "ldnfo": [],
+    "linfo": [
+      {
+        "lengthimagesegment": "0000000064",
+        "lengthimagesubheader": "000583"
+      }
+    ],
+    "lnnfo": [],
+    "lrnfo": [],
+    "ltnfo": [],
+    "numdataextension": "000",
+    "numgraphicssegments": "000",
+    "numimagesegments": "001",
+    "numreservedextension": "000",
+    "numtextfiles": "000",
+    "originatingstationid": "DOESTATION",
+    "originatorname": "Doe Sample              ",
+    "originatorphone": "+0000000000       ",
+    "reservednumx": "000",
+    "standardtype": "42463031",
+    "userdefinedheader": {
+      "headerdatalength": "00000"
+    }
+  },
+  "imagesegments": [
+    {
+      "hasmask": false,
+      "imagesubheader": {
+        "actualbitsperpixelperband": "08",
+        "attachmentlevel": "000",
+        "bands": [
+          {
+            "imgfiltercode": "   ",
+            "imgfiltercondition": "4e",
+            "luts": [],
+            "numluts": "0",
+            "representation": "M ",
+            "subcategory": "      "
+          }
+        ],
+        "compressionratecode": "N001",
+        "encryption": {},
+        "fileparttype": "494d",
+        "imagecategory": "VIS     ",
+        "imagecoordinaterep": "G",
+        "imagedatetime": {},
+        "imageextendedsubheader": {
+          "headerdatalength": "00000"
+        },
+        "imagegeoloc": "                                                            ",
+        "imageid1": "IMG0000001",
+        "imageid2": "Sample image                                                                    ",
+        "imagerepresentation": "MONO    ",
+        "imagesecurityclassification": {
+          "classauthority": "                                        ",
+          "classauthoritytype": " ",
+          "classreason": " ",
+          "classtext": "                                           ",
+          "codewords": "           ",
+          "controlandhandling": "  ",
+          "controlnumber": "               ",
+          "declassdate": "        ",
+          "declassexemption": "    ",
+          "declasstype": "  ",
+          "downgrade": " ",
+          "downgradedate": "        ",
+          "releaseability": "                    ",
+          "securityclass": "U",
+          "securitysystem": "  ",
+          "sourcedate": "        "
+        },
+        "imagesource": "DOE                                       ",
+        "imgcomments": [
+          {}
+        ],
+        "imgcompression": "C8",
+        "imgdisplaylevel": "001",
+        "imglocation": "0000000000",
+        "imgmagnification": "1.0 ",
+        "imgmode": "B",
+        "imgsynccode": "N",
+        "numbands": "1",
+        "numblockspercol": "0001",
+        "numblocksperrow": "0001",
+        "numimgcomments": "1",
+        "numpixelsperband": "08",
+        "numpixelsperblockhorz": "0016",
+        "numpixelsperblockvert": "0016",
+        "numsigcols": "00000016",
+        "numsigrows": "00000016",
+        "pixeljustification": "R",
+        "pixelvaluetype": "INT",
+        "targetid": "                 ",
+        "userdefimgdatalen": "00000"
+      }
+    }
+  ],
+  "reservedextensionsegments": [],
+  "textsegments": []
+}

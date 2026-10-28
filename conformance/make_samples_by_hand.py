@@ -2660,6 +2660,107 @@ def more():
     icc_header += struct.pack(">I", 0) + s15(0.9642) + s15(1.0) + s15(0.8249) + b"lcms" + bytes(16) + bytes(28)
     put("image/icc_4", "srgb_matrix", icc_header + struct.pack(">I", len(elements)) + table + data)
 
+    # NITF 2.1: a file header of text fields, and either one graphics segment and a data extension segment, or one image
+    # segment (JPEG 2000, whose data here is a placeholder: nothing reads it)
+    def field(text, width):
+        assert len(text) <= width, (text, width)
+        return text.ljust(width).encode()
+
+    def digits(number, width):
+        return str(number).zfill(width).encode()
+
+    def security():
+        return (
+            field("U", 1) + field("", 2) + field("", 11) + field("", 2) + field("", 20) + field("", 2) + field("", 8) + field("", 4)
+            + field("", 1) + field("", 8) + field("", 43) + field("", 1) + field("", 40) + field("", 1) + field("", 8) + field("", 15)
+        )
+
+    def nitf(image=None, graphics=None, extension=None):
+        images = [image] if image else []
+        graphics_list = [graphics] if graphics else []
+        extensions = [extension] if extension else []
+        body = b""
+        lengths = digits(len(images), 3) + b"".join(digits(len(s), 6) + digits(len(d), 10) for s, d in images)
+        lengths += digits(len(graphics_list), 3) + b"".join(digits(len(s), 4) + digits(len(d), 6) for s, d in graphics_list)
+        lengths += digits(0, 3) + digits(0, 3)  # reserved, and no text segments
+        lengths += digits(len(extensions), 3) + b"".join(digits(len(s), 4) + digits(len(d), 9) for s, d in extensions)
+        lengths += digits(0, 3)  # no reserved extension segments
+        lengths += digits(0, 5) + digits(0, 5)  # no user-defined or extended header data
+        for group in (images, graphics_list, extensions):
+            for sub_header, data in group:
+                body += sub_header + data
+        head_fixed = (
+            b"NITF02.10" + digits(3, 2) + b"BF01" + field("DOESTATION", 10) + b"20240517134507" + field("Sample NITF file for doe", 80) + security()
+            + field("00001", 5) + field("00001", 5) + field("0", 1) + b"\x00\x00\x00" + field("Doe Sample", 24) + field("+0000000000", 18)
+        )
+        header_length = len(head_fixed) + 12 + 6 + len(lengths)
+        total = header_length + len(body)
+        return head_fixed + digits(total, 12) + digits(header_length, 6) + lengths + body
+
+    comment = field("A comment on the image.", 80)
+    image_sub_header = (
+        b"IM" + field("IMG0000001", 10) + b"20240517134507" + field("", 17) + field("Sample image", 80) + security() + field("0", 1)
+        + field("DOE", 42) + digits(16, 8) + digits(16, 8) + b"INT" + field("MONO", 8) + field("VIS", 8) + digits(8, 2) + b"R" + b"G"
+        + field("", 60) + b"1" + comment + b"C8" + field("N001", 4) + b"1" + field("M", 2) + field("", 6) + b"N" + field("", 3) + b"0"
+        + b"N" + b"B" + digits(1, 4) + digits(1, 4) + digits(16, 4) + digits(16, 4) + digits(8, 2) + digits(1, 3) + digits(0, 3)
+        + field("0000000000", 10) + field("1.0", 4) + digits(0, 5) + digits(0, 5)
+    )
+    put("image/nitf", "one_image", nitf(image=(image_sub_header, bytes(range(64)))))
+
+    graphic_sub_header = (
+        b"SY" + field("SYM0000001", 10) + field("A symbol", 20) + security() + field("0", 1) + b"C" + field("", 13) + digits(1, 3) + digits(0, 3)
+        + field("0000000000", 10) + field("0000000000", 10) + b"C" + field("0000000000", 10) + field("", 2) + digits(0, 5)
+    )
+    extension_sub_header = b"DE" + field("CONTROLLED_EXTENSIONS", 25) + b"01" + security() + digits(0, 4)
+    put(
+        "image/nitf",
+        "graphic_and_extension",
+        nitf(graphics=(graphic_sub_header, b"\x00\x20\x00\x00" * 16), extension=(extension_sub_header, b"Data in a data extension segment.\n")),
+    )
+
+    # NT-MDT: a file of one scanned frame (an image of 4 by 4 points, a title and an XML text)
+    def axis(offset, step, unit):
+        return struct.pack("<ffh", offset, step, unit)
+
+    scan_vars = axis(0.0, 2.5, -1) + axis(0.0, 2.5, -1) + axis(0.0, 0.01, 0)
+    scan_vars += bytes([0, 1]) + struct.pack("<HHHfH", 4, 4, 4, 1.0, 1) + bytes([3, 0, 1, 0, 0b0000_1001, 8]) + struct.pack("<fff", 1.0, 0.5, 0.1)
+    scan_vars += bytes([0, 0]) + struct.pack("<ii", 0, 0) + bytes([0])
+    title = b"Height"
+    xml_text = "<xml>sample</xml>".encode("utf-16-le")
+    scanned = scan_vars + struct.pack("<HHH", 0, 4, 4) + struct.pack("<H", 0) + struct.pack("<16h", *range(16))
+    scanned += struct.pack("<I", len(title)) + title + struct.pack("<I", len(xml_text)) + xml_text
+    when = struct.pack("<HHHHHH", 2024, 5, 17, 13, 45, 7)
+    frame_main = struct.pack("<H", 0) + bytes([0, 1]) + when + struct.pack("<H", len(scan_vars)) + scanned
+    frame = struct.pack("<I", 4 + len(frame_main)) + frame_main
+    put("scientific/nt_mdt/nt_mdt", "one_frame", bytes([0x01, 0xB0, 0x93, 0xFF]) + struct.pack("<I", len(frame)) + bytes(4) + struct.pack("<H", 0) + bytes(18) + bytes(1) + frame)
+
+    # zchunk, not compressed: a header with the index of the chunks (and the empty dictionary), then the chunks
+    def cint(value):
+        out = []
+        while True:
+            low, value = value & 0x7F, value >> 7
+            if not value:
+                out.append(0x80 | low)
+                return bytes(out)
+            out.append(low)
+
+    def zchunk(flags):
+        chunks = [b"Hello, zchunk!\n", bytes(range(100)), b"The last chunk of the file.\n" * 5]
+        sha = lambda data: hashlib.sha256(data).digest()
+        streams, optional, uncompressed = flags & 1, flags & 2, flags & 4
+        preface = sha(b"".join(chunks)) + cint(flags) + cint(0)
+        if optional:
+            preface += cint(1) + cint(1) + cint(len(b"made for doe")) + b"made for doe"
+        index = cint(1) + cint(len(chunks) + 1) + (cint(0) if streams else b"") + sha(b"") + (sha(b"") if uncompressed else b"") + cint(0) + cint(0)
+        for chunk in chunks:
+            index += (cint(1) if streams else b"") + sha(chunk) + (sha(chunk) if uncompressed else b"") + cint(len(chunk)) + cint(len(chunk))
+        rest = preface + cint(len(index)) + index + cint(0)
+        lead = b"\0ZCK1" + cint(1) + cint(len(rest))
+        return lead + sha(lead + rest) + rest + b"".join(chunks)
+
+    put("archive/zchunk", "plain", zchunk(0))
+    put("archive/zchunk", "streams_and_elements", zchunk(0b111))
+
     # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
     # transport feedback (the receiver's reports have no blocks)
     def rtcp(kind, body, subtype=0):

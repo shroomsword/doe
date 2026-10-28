@@ -762,7 +762,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 11 with a file written by its own tool, 154 with a file built by hand, 5 failing on a file, 9 part of another, 11 without a sample
+> 190 definitions: 11 with a file written by its own tool, 157 with a file built by hand, 5 failing on a file, 9 part of another, 8 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -778,7 +778,7 @@ and compared with the reference compiler's output:
 | Directory | Formats |
 | --- | --- |
 | `3d` | `gltf_binary` |
-| `archive` | `android_bootldr_asus`, `android_bootldr_huawei`, `android_bootldr_qcom`, `android_dto`, `android_img`, `android_sparse`, `cpio_old_le`, `gzip`, `lzh`, `mozilla_mar`, `phar_without_stub`, `rar`, `respack`, `xar`, `zip`, `zisofs` |
+| `archive` | `android_bootldr_asus`, `android_bootldr_huawei`, `android_bootldr_qcom`, `android_dto`, `android_img`, `android_sparse`, `cpio_old_le`, `gzip`, `lzh`, `mozilla_mar`, `phar_without_stub`, `rar`, `respack`, `xar`, `zchunk`, `zip`, `zisofs` |
 | `cad` | `monomakh_sapr_chg` |
 | `common` | `utf16_with_bom`, `utf8_string` |
 | `database` | `dbf`, `gettext_mo`, `tsm` |
@@ -789,13 +789,13 @@ and compared with the reference compiler's output:
 | `game` | `allegro_dat`, `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake2_md2`, `quake_mdl`, `quake_pak`, `renderware_binary_stream`, `saints_row_2_vpp_pc`, `warcraft_2_pud` |
 | `geospatial` | `shapefile_index`, `shapefile_main` |
 | `hardware` | `dtb`, `edid`, `mifare/mifare_classic` |
-| `image` | `bmp`, `exif`, `gif`, `gimp_brush`, `icc_4`, `ico`, `jpeg`, `pcx`, `pcx_dcx`, `pif`, `png`, `psx_tim`, `tga`, `webp`, `wmf`, `xwd` |
+| `image` | `bmp`, `exif`, `gif`, `gimp_brush`, `icc_4`, `ico`, `jpeg`, `nitf`, `pcx`, `pcx_dcx`, `pif`, `png`, `psx_tim`, `tga`, `webp`, `wmf`, `xwd` |
 | `log` | `aix_utmp`, `glibc_utmp`, `hashcat_restore`, `sudoers_ts`, `systemd_journal`, `windows_evt_log` |
 | `machine_code` | `code_6502` |
 | `macos` | `compressed_resource`, `ds_store`, `mac_os_resource_snd`, `resource_compression/dcmp_0`, `resource_compression/dcmp_1`, `resource_compression/dcmp_variable_length_integer`, `resource_fork` |
 | `media` | `android_opengl_shaders_cache`, `au`, `avi`, `blender_blend`, `creative_voice_file`, `genmidi_op2`, `id3v1_1`, `id3v2_3`, `id3v2_4`, `magicavoxel_vox`, `ogg`, `quicktime_mov`, `standard_midi_file`, `stl`, `tracker_modules/fasttracker_xm_module`, `tracker_modules/s3m`, `vp8_duck_ivf`, `wav` |
 | `network` | `bitcoin_transaction`, `dime_message`, `dns_packet`, `ethernet_frame`, `hccap`, `hccapx`, `icmp_packet`, `ipv4_packet`, `ipv6_packet`, `microsoft_network_monitor_v2`, `packet_ppi`, `pcap`, `rtcp_payload`, `rtp_packet`, `rtpdump`, `some_ip/some_ip`, `some_ip/some_ip_container`, `some_ip/some_ip_sd`, `tcp_segment`, `tls_client_hello`, `udp_datagram`, `websocket` |
-| `scientific` | `nt_mdt/nt_mdt_pal`, `spectroscopy/avantes_roh60`, `spectroscopy/specpr` |
+| `scientific` | `nt_mdt/nt_mdt`, `nt_mdt/nt_mdt_pal`, `spectroscopy/avantes_roh60`, `spectroscopy/specpr` |
 | `security` | `efivar_signature_list`, `openpgp_message`, `ssh_public_key` |
 | `serialization` | `asn1/asn1_der`, `bson`, `chrome_pak`, `google_protobuf`, `microsoft_cfb`, `msgpack`, `php_serialized_value`, `python_pickle`, `ruby_marshal` |
 | `windows` | `windows_lnk_file`, `windows_minidump`, `windows_resource_file`, `windows_shell_items` |
@@ -1084,8 +1084,8 @@ without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 229 samples of the Kaitai gallery
-in the tests, 96 are found with their own schema (those of the formats whose
+the file are compared with signatures. Of the 234 samples of the Kaitai gallery
+in the tests, 99 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 

@@ -1,0 +1,115 @@
+{
+  "frames": {
+    "frames": [
+      {
+        "main": {
+          "datetime": {
+            "date": {
+              "day": 17,
+              "month": 5,
+              "year": 2024
+            },
+            "time": {
+              "hour": 13,
+              "min": 45,
+              "sec": 7
+            }
+          },
+          "framedata": {
+            "dots": {
+              "coordinates": [],
+              "data": [],
+              "fmndots": 0
+            },
+            "fmmode": 0,
+            "fmxres": 4,
+            "fmyres": 4,
+            "image": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "title": {
+              "title": "Height",
+              "titlelen": 6
+            },
+            "vars": {
+              "adcgainamplog10": 3,
+              "adcindex": 0,
+              "adt": 1,
+              "biasvoltage": 0.10000000149011612,
+              "channelindex": 0,
+              "draw": 0,
+              "inputsignalorversion": 1,
+              "mode": 1,
+              "ndacq": 4,
+              "nlcorr": 0,
+              "powerof2": 8,
+              "reserved": 0,
+              "scandir": {
+                "bottom": false,
+                "doublepass": true,
+                "horizontal": true,
+                "left": false,
+                "unkn": 0
+              },
+              "setpoint": 0.5,
+              "steplength": 1,
+              "substrplaneorderorpassnum": 0,
+              "velocity": 1,
+              "xscale": {
+                "offset": 0,
+                "step": 2.5,
+                "unit": -1
+              },
+              "xoff": 0,
+              "xres": 4,
+              "yscale": {
+                "offset": 0,
+                "step": 2.5,
+                "unit": -1
+              },
+              "yoff": 0,
+              "yres": 4,
+              "zscale": {
+                "offset": 0,
+                "step": 0.009999999776482582,
+                "unit": 0
+              }
+            },
+            "xml": {
+              "xml": "<xml>sample</xml>",
+              "xmllen": 34
+            }
+          },
+          "type": 0,
+          "varsize": 73,
+          "version": {
+            "major": 1,
+            "minor": 0
+          }
+        },
+        "size": 183
+      }
+    ]
+  },
+  "lastframe": 0,
+  "reserved0": "00000000",
+  "reserved1": "000000000000000000000000000000000000",
+  "signature": "01b093ff",
+  "size": 183,
+  "wronddoc": "00"
+}

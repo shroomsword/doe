@@ -1,0 +1,300 @@
+{
+  "chunks": [
+    "48656c6c6f2c207a6368756e6b210a",
+    "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f60616263",
+    "546865206c617374206368756e6b206f66207468652066696c652e0a546865206c617374206368756e6b206f66207468652066696c652e0a546865206c617374206368756e6b206f66207468652066696c652e0a546865206c617374206368756e6b206f66207468652066696c652e0a546865206c617374206368756e6b206f66207468652066696c652e0a"
+  ],
+  "dict": "",
+  "headerrest": {
+    "index": {
+      "chunkchecksumtype": {
+        "lenchecksum": 32,
+        "raw": {
+          "groups": [
+            {
+              "islast": true,
+              "value": 1
+            }
+          ],
+          "len": 1,
+          "value": 1
+        },
+        "value": 1
+      },
+      "chunksmetadata": [
+        {
+          "chunkchecksum": "d052f5e734ee503b7fd3630429599a5a104132101f8eefb9ee36f8c3466580bb",
+          "chunkstream": {
+            "groups": [
+              {
+                "islast": true,
+                "value": 1
+              }
+            ],
+            "len": 1,
+            "value": 1
+          },
+          "lenchunk": {
+            "groups": [
+              {
+                "islast": true,
+                "value": 15
+              }
+            ],
+            "len": 1,
+            "value": 15
+          },
+          "lenuncompressedchunk": {
+            "groups": [
+              {
+                "islast": true,
+                "value": 15
+              }
+            ],
+            "len": 1,
+            "value": 15
+          },
+          "uncompressedchunkchecksum": "d052f5e734ee503b7fd3630429599a5a104132101f8eefb9ee36f8c3466580bb"
+        },
+        {
+          "chunkchecksum": "bce0aff19cf5aa6a7469a30d61d04e4376e4bbf6381052ee9e7f33925c954d52",
+          "chunkstream": {
+            "groups": [
+              {
+                "islast": true,
+                "value": 1
+              }
+            ],
+            "len": 1,
+            "value": 1
+          },
+          "lenchunk": {
+            "groups": [
+              {
+                "islast": true,
+                "value": 100
+              }
+            ],
+            "len": 1,
+            "value": 100
+          },
+          "lenuncompressedchunk": {
+            "groups": [
+              {
+                "islast": true,
+                "value": 100
+              }
+            ],
+            "len": 1,
+            "value": 100
+          },
+          "uncompressedchunkchecksum": "bce0aff19cf5aa6a7469a30d61d04e4376e4bbf6381052ee9e7f33925c954d52"
+        },
+        {
+          "chunkchecksum": "492c95b840e2185c128511ad9ce00c48738d959c36810faf225cf556886299fb",
+          "chunkstream": {
+            "groups": [
+              {
+                "islast": true,
+                "value": 1
+              }
+            ],
+            "len": 1,
+            "value": 1
+          },
+          "lenchunk": {
+            "groups": [
+              {
+                "islast": false,
+                "value": 12
+              },
+              {
+                "islast": true,
+                "value": 1
+              }
+            ],
+            "len": 2,
+            "value": 140
+          },
+          "lenuncompressedchunk": {
+            "groups": [
+              {
+                "islast": false,
+                "value": 12
+              },
+              {
+                "islast": true,
+                "value": 1
+              }
+            ],
+            "len": 2,
+            "value": 140
+          },
+          "uncompressedchunkchecksum": "492c95b840e2185c128511ad9ce00c48738d959c36810faf225cf556886299fb"
+        }
+      ],
+      "dictchecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "dictstream": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 0
+          }
+        ],
+        "len": 1,
+        "value": 0
+      },
+      "lendict": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 0
+          }
+        ],
+        "len": 1,
+        "value": 0
+      },
+      "lenuncompresseddict": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 0
+          }
+        ],
+        "len": 1,
+        "value": 0
+      },
+      "numchunks": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 4
+          }
+        ],
+        "len": 1,
+        "value": 4
+      },
+      "numdatachunks": 3,
+      "uncompresseddictchecksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "lenindex": {
+      "groups": [
+        {
+          "islast": false,
+          "value": 16
+        },
+        {
+          "islast": true,
+          "value": 2
+        }
+      ],
+      "len": 2,
+      "value": 272
+    },
+    "numsignatures": {
+      "groups": [
+        {
+          "islast": true,
+          "value": 0
+        }
+      ],
+      "len": 1,
+      "value": 0
+    },
+    "preface": {
+      "compressiontype": 0,
+      "compressiontypeint": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 0
+          }
+        ],
+        "len": 1,
+        "value": 0
+      },
+      "datachecksum": "7b3b5d8a9992f113775b9e3220b4a8f8ad371b6634fd4ff726db42561bda4909",
+      "flags": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 7
+          }
+        ],
+        "len": 1,
+        "value": 7
+      },
+      "hasdatastreams": true,
+      "hasoptionalelements": true,
+      "hasuncompressedsource": true,
+      "numoptionalelements": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 1
+          }
+        ],
+        "len": 1,
+        "value": 1
+      },
+      "optionalelements": [
+        {
+          "data": "6d61646520666f7220646f65",
+          "elementid": {
+            "groups": [
+              {
+                "islast": true,
+                "value": 1
+              }
+            ],
+            "len": 1,
+            "value": 1
+          },
+          "lendata": {
+            "groups": [
+              {
+                "islast": true,
+                "value": 12
+              }
+            ],
+            "len": 1,
+            "value": 12
+          }
+        }
+      ]
+    }
+  },
+  "lead": {
+    "headerchecksum": "90e6e4675183e552a06a9074ff1598cc164278ae78b08731ac7b0c38207133a9",
+    "isdetachedheader": false,
+    "lenheaderrest": {
+      "groups": [
+        {
+          "islast": false,
+          "value": 68
+        },
+        {
+          "islast": true,
+          "value": 2
+        }
+      ],
+      "len": 2,
+      "value": 324
+    },
+    "magic": "005a434b31",
+    "overallchecksumtype": {
+      "lenchecksum": 32,
+      "raw": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 1
+          }
+        ],
+        "len": 1,
+        "value": 1
+      },
+      "value": 1
+    }
+  }
+}

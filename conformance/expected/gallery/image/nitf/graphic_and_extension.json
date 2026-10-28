@@ -1,0 +1,142 @@
+{
+  "dataextensionsegments": [
+    {
+      "datadatafield": "4461746120696e2061206461746120657874656e73696f6e207365676d656e742e0a",
+      "datasubheader": {
+        "desbase": {
+          "datadefinitionversion": "01",
+          "declasnfo": {
+            "classauthority": "                                        ",
+            "classauthoritytype": " ",
+            "classreason": " ",
+            "classtext": "                                           ",
+            "codewords": "           ",
+            "controlandhandling": "  ",
+            "controlnumber": "               ",
+            "declassdate": "        ",
+            "declassexemption": "    ",
+            "declasstype": "  ",
+            "downgrade": " ",
+            "downgradedate": "        ",
+            "releaseability": "                    ",
+            "securityclass": "U",
+            "securitysystem": "  ",
+            "sourcedate": "        "
+          },
+          "desid": "CONTROLLED_EXTENSIONS    ",
+          "fileparttypede": "4445"
+        },
+        "desdefineddatafield": "",
+        "desdefinedsubheaderfieldslen": "0000",
+        "desshf": "",
+        "treofl": false
+      }
+    }
+  ],
+  "graphicssegments": [
+    {
+      "graphicdatafield": "00200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000002000000020000000200000",
+      "graphicsubheader": {
+        "encryption": {},
+        "fileparttypesy": "5359",
+        "firstgraphicboundloc": "0000000000",
+        "graphicattachmentlevel": "000",
+        "graphicclassification": {
+          "classauthority": "                                        ",
+          "classauthoritytype": " ",
+          "classreason": " ",
+          "classtext": "                                           ",
+          "codewords": "           ",
+          "controlandhandling": "  ",
+          "controlnumber": "               ",
+          "declassdate": "        ",
+          "declassexemption": "    ",
+          "declasstype": "  ",
+          "downgrade": " ",
+          "downgradedate": "        ",
+          "releaseability": "                    ",
+          "securityclass": "U",
+          "securitysystem": "  ",
+          "sourcedate": "        "
+        },
+        "graphiccolor": "C",
+        "graphicdisplaylevel": "001",
+        "graphicid": "SYM0000001",
+        "graphiclocation": "0000000000",
+        "graphicname": "A symbol            ",
+        "graphictype": "43",
+        "graphicsextendedsubheader": {
+          "headerdatalength": "00000"
+        },
+        "reserved1": "             ",
+        "reserved2": "  ",
+        "secondgraphicboundloc": "0000000000"
+      }
+    }
+  ],
+  "header": {
+    "complexitylevel": "3033",
+    "encryption": {},
+    "extendedheader": {
+      "headerdatalength": "00000"
+    },
+    "filebgcolor": "000000",
+    "filecopynumber": "00001",
+    "filedatetime": {},
+    "fileheaderlength": "000411",
+    "filelength": "000000000967",
+    "filenumofcopys": "00001",
+    "fileprofilename": "4e495446",
+    "filesecurity": {
+      "classauthority": "                                        ",
+      "classauthoritytype": " ",
+      "classreason": " ",
+      "classtext": "                                           ",
+      "codewords": "           ",
+      "controlandhandling": "  ",
+      "controlnumber": "               ",
+      "declassdate": "        ",
+      "declassexemption": "    ",
+      "declasstype": "  ",
+      "downgrade": " ",
+      "downgradedate": "        ",
+      "releaseability": "                    ",
+      "securityclass": "U",
+      "securitysystem": "  ",
+      "sourcedate": "        "
+    },
+    "filetitle": "Sample NITF file for doe                                                        ",
+    "fileversion": "30322e3130",
+    "ldnfo": [
+      {
+        "lengthdataextensionsegment": "000000034",
+        "lengthdataextensionsubheader": "0200"
+      }
+    ],
+    "linfo": [],
+    "lnnfo": [
+      {
+        "lengthgraphicsegment": "000064",
+        "lengthgraphicsubheader": "0258"
+      }
+    ],
+    "lrnfo": [],
+    "ltnfo": [],
+    "numdataextension": "001",
+    "numgraphicssegments": "001",
+    "numimagesegments": "000",
+    "numreservedextension": "000",
+    "numtextfiles": "000",
+    "originatingstationid": "DOESTATION",
+    "originatorname": "Doe Sample              ",
+    "originatorphone": "+0000000000       ",
+    "reservednumx": "000",
+    "standardtype": "42463031",
+    "userdefinedheader": {
+      "headerdatalength": "00000"
+    }
+  },
+  "imagesegments": [],
+  "reservedextensionsegments": [],
+  "textsegments": []
+}
