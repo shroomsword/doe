@@ -11,7 +11,7 @@ archive/gzip	real	archive/gzip	gzip module of Python, run by make_gallery_sample
 archive/lzh	crafted	archive/lzh	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/mozilla_mar	crafted	archive/mozilla_mar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/phar_without_stub	crafted	archive/phar_without_stub	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-archive/rar	none	-	-	-	
+archive/rar	crafted	archive/rar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	RAR 4 only: the definition reads a block of RAR 5 as nothing
 archive/respack	crafted	archive/respack	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/rpm	none	-	-	-	
 archive/xar	crafted	archive/xar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -43,12 +43,12 @@ executable/python_pyc_27	crafted	executable/python_pyc_27	built by make_samples_
 executable/swf	crafted	executable/swf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/uefi_te	failing	executable/uefi_te	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	cannot be read: _io as a member of a value is not known (#154)
 filesystem/amlogic_emmc_partitions	crafted	filesystem/amlogic_emmc_partitions	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-filesystem/android_super	none	-	-	-	
+filesystem/android_super	crafted	filesystem/android_super	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/apm_partition_table	crafted	filesystem/apm_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/apple_single_double	crafted	filesystem/apple_single_double	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/btrfs_stream	crafted	filesystem/btrfs_stream	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/cramfs	crafted	filesystem/cramfs	built by make_samples_by_hand.py from the format's documentation (directories only, what the definition reads)	MIT (this repository)	
-filesystem/ext2	none	-	-	-	
+filesystem/ext2	none	-	-	-	no sample: every directory entry has an instance for its inode, and the dot entries lead back to their directory, so the reference output is endless
 filesystem/gpt_partition_table	crafted	filesystem/gpt_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/iso9660	failing	filesystem/iso9660	genisoimage, run by make_real_samples.py	MIT (this repository)	does not finish: #150
 filesystem/luks	crafted	filesystem/luks	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -113,7 +113,7 @@ log/glibc_utmp	real	log/glibc_utmp	glibc (pututxline), run by make_real_samples.
 log/hashcat_restore	crafted	log/hashcat_restore	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/mcap	failing	log/mcap	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	cannot be read: ofs_footer needs the size of fields of footer, which needs ofs_footer (#160)
 log/sudoers_ts	crafted	log/sudoers_ts	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-log/systemd_journal	none	-	-	-	
+log/systemd_journal	crafted	log/systemd_journal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/windows_evt_log	crafted	log/windows_evt_log	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 machine_code/code_6502	crafted	machine_code/code_6502	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 macos/compressed_resource	none	-	-	-	

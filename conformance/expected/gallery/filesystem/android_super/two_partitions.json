@@ -1,0 +1,220 @@
+{
+  "root": {
+    "backupgeometry": {
+      "checksum": "166865230ed3da58b4b38b6935ec3b4eacf8686e3659db54f16067c79f1f5faa",
+      "logicalblocksize": 4096,
+      "magic": "67446c61",
+      "metadatamaxsize": 4096,
+      "metadataslotcount": 1,
+      "structsize": 52
+    },
+    "backupmetadata": [
+      {
+        "blockdevices": {
+          "entrysize": 64,
+          "numentries": 1,
+          "offset": 272,
+          "table": [
+            {
+              "alignment": 4096,
+              "alignmentoffset": 0,
+              "firstlogicalsector": 2048,
+              "flagslotsuffixed": false,
+              "flagsreserved": 0,
+              "partitionname": "super",
+              "size": 8388608
+            }
+          ]
+        },
+        "extents": {
+          "entrysize": 24,
+          "numentries": 3,
+          "offset": 104,
+          "table": [
+            {
+              "numsectors": 2048,
+              "targetdata": 2048,
+              "targetsource": 0,
+              "targettype": 0
+            },
+            {
+              "numsectors": 1024,
+              "targetdata": 4096,
+              "targetsource": 0,
+              "targettype": 0
+            },
+            {
+              "numsectors": 512,
+              "targetdata": 8192,
+              "targetsource": 0,
+              "targettype": 0
+            }
+          ]
+        },
+        "groups": {
+          "entrysize": 48,
+          "numentries": 2,
+          "offset": 176,
+          "table": [
+            {
+              "flagslotsuffixed": false,
+              "flagsreserved": 0,
+              "maximumsize": 0,
+              "name": "default"
+            },
+            {
+              "flagslotsuffixed": true,
+              "flagsreserved": 0,
+              "maximumsize": 4194304,
+              "name": "doe_dynamic_partitions_a"
+            }
+          ]
+        },
+        "headerchecksum": "0a9d4d356c375d8cad5be538f6a9acf1c7ea738e4c5d560721cdea9e407ab8fb",
+        "headersize": 128,
+        "magic": "30504c41",
+        "majorversion": 10,
+        "minorversion": 2,
+        "partitions": {
+          "entrysize": 52,
+          "numentries": 2,
+          "offset": 0,
+          "table": [
+            {
+              "attrdisabled": false,
+              "attrreadonly": true,
+              "attrslotsuffixed": false,
+              "attrupdated": false,
+              "attrsreserved": 0,
+              "firstextentindex": 0,
+              "groupindex": 0,
+              "name": "system_a",
+              "numextents": 2
+            },
+            {
+              "attrdisabled": false,
+              "attrreadonly": true,
+              "attrslotsuffixed": false,
+              "attrupdated": false,
+              "attrsreserved": 0,
+              "firstextentindex": 2,
+              "groupindex": 0,
+              "name": "vendor_a",
+              "numextents": 1
+            }
+          ]
+        },
+        "tableschecksum": "8b54a5c1877830a23844c11c579cd722702470e344e333d8891c7a686dabd275",
+        "tablessize": 336
+      }
+    ],
+    "primarygeometry": {
+      "checksum": "166865230ed3da58b4b38b6935ec3b4eacf8686e3659db54f16067c79f1f5faa",
+      "logicalblocksize": 4096,
+      "magic": "67446c61",
+      "metadatamaxsize": 4096,
+      "metadataslotcount": 1,
+      "structsize": 52
+    },
+    "primarymetadata": [
+      {
+        "blockdevices": {
+          "entrysize": 64,
+          "numentries": 1,
+          "offset": 272,
+          "table": [
+            {
+              "alignment": 4096,
+              "alignmentoffset": 0,
+              "firstlogicalsector": 2048,
+              "flagslotsuffixed": false,
+              "flagsreserved": 0,
+              "partitionname": "super",
+              "size": 8388608
+            }
+          ]
+        },
+        "extents": {
+          "entrysize": 24,
+          "numentries": 3,
+          "offset": 104,
+          "table": [
+            {
+              "numsectors": 2048,
+              "targetdata": 2048,
+              "targetsource": 0,
+              "targettype": 0
+            },
+            {
+              "numsectors": 1024,
+              "targetdata": 4096,
+              "targetsource": 0,
+              "targettype": 0
+            },
+            {
+              "numsectors": 512,
+              "targetdata": 8192,
+              "targetsource": 0,
+              "targettype": 0
+            }
+          ]
+        },
+        "groups": {
+          "entrysize": 48,
+          "numentries": 2,
+          "offset": 176,
+          "table": [
+            {
+              "flagslotsuffixed": false,
+              "flagsreserved": 0,
+              "maximumsize": 0,
+              "name": "default"
+            },
+            {
+              "flagslotsuffixed": true,
+              "flagsreserved": 0,
+              "maximumsize": 4194304,
+              "name": "doe_dynamic_partitions_a"
+            }
+          ]
+        },
+        "headerchecksum": "0a9d4d356c375d8cad5be538f6a9acf1c7ea738e4c5d560721cdea9e407ab8fb",
+        "headersize": 128,
+        "magic": "30504c41",
+        "majorversion": 10,
+        "minorversion": 2,
+        "partitions": {
+          "entrysize": 52,
+          "numentries": 2,
+          "offset": 0,
+          "table": [
+            {
+              "attrdisabled": false,
+              "attrreadonly": true,
+              "attrslotsuffixed": false,
+              "attrupdated": false,
+              "attrsreserved": 0,
+              "firstextentindex": 0,
+              "groupindex": 0,
+              "name": "system_a",
+              "numextents": 2
+            },
+            {
+              "attrdisabled": false,
+              "attrreadonly": true,
+              "attrslotsuffixed": false,
+              "attrupdated": false,
+              "attrsreserved": 0,
+              "firstextentindex": 2,
+              "groupindex": 0,
+              "name": "vendor_a",
+              "numextents": 1
+            }
+          ]
+        },
+        "tableschecksum": "8b54a5c1877830a23844c11c579cd722702470e344e333d8891c7a686dabd275",
+        "tablessize": 336
+      }
+    ]
+  }
+}

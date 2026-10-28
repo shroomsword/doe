@@ -2295,6 +2295,133 @@ def more():
     volume = boot + fat + fat + root.ljust(512, b"\0") + text + docs.ljust(512, b"\0")
     put("filesystem/vfat", "fat12_floppy", volume.ljust(80 * 512, b"\0"))
 
+    # RAR 4: the marker, the archive header, two stored files (header and data) and the end of the archive
+    def rar_block(kind, flags, body, packed=None):
+        size = 7 + len(body) + (4 if packed is not None else 0)
+        rest = struct.pack("<BHH", kind, flags, size) + (struct.pack("<I", len(packed)) if packed is not None else b"") + body
+        return struct.pack("<H", zlib.crc32(rest) & 0xFFFF) + rest + (packed or b"")
+
+    def rar_file(name, data):
+        date = ((2024 - 1980) << 9) | (5 << 5) | 17
+        clock = (13 << 11) | (45 << 5) | 7
+        body = struct.pack("<IBI", len(data), 2, zlib.crc32(data)) + struct.pack("<HH", clock, date)
+        body += struct.pack("<BBHI", 29, 0x30, len(name), 0x20) + name.encode()
+        return rar_block(0x74, 0x8000, body, data)
+
+    rar = b"Rar!\x1a\x07\x00" + rar_block(0x73, 0, bytes(6)) + rar_file("hello.txt", b"Hello, RAR.\n") + rar_file("data.bin", bytes(range(64)))
+    put("archive/rar", "stored", rar + rar_block(0x7B, 0x4000, b""))
+
+    # Android super partition: 4 KiB before the geometry, the geometry twice, and the metadata of one slot twice
+    import hashlib
+
+    geometry = b"gDla" + struct.pack("<I", 52)
+    tail = struct.pack("<III", 4096, 1, 4096)
+    geometry = geometry + hashlib.sha256(geometry + bytes(32) + tail).digest() + tail
+
+    def name36(text):
+        return text.encode().ljust(36, b"\0")
+
+    partitions = name36("system_a") + struct.pack("<IIII", 0b0001, 0, 2, 0) + name36("vendor_a") + struct.pack("<IIII", 0b0001, 2, 1, 0)
+    extents = struct.pack("<QIQI", 2048, 0, 2048, 0) + struct.pack("<QIQI", 1024, 0, 4096, 0) + struct.pack("<QIQI", 512, 0, 8192, 0)
+    groups = name36("default") + struct.pack("<IQ", 0, 0) + name36("doe_dynamic_partitions_a") + struct.pack("<IQ", 1, 4 << 20)
+    devices = struct.pack("<QIIQ", 2048, 4096, 0, 8 << 20) + name36("super") + struct.pack("<I", 0)
+    tables = partitions + extents + groups + devices
+    offsets, running = [], 0
+    for blob, count, size in [(partitions, 2, 52), (extents, 3, 24), (groups, 2, 48), (devices, 1, 64)]:
+        offsets.append(struct.pack("<III", running, count, size))
+        running += len(blob)
+    descriptors = b"".join(offsets)
+
+    def super_metadata(checksum=None):
+        head = b"0PLA" + struct.pack("<HHI", 10, 2, 128)
+        rest = struct.pack("<I", len(tables)) + hashlib.sha256(tables).digest() + descriptors
+        return head + hashlib.sha256(head + bytes(32) + rest).digest() + rest
+
+    slot = (super_metadata() + tables).ljust(4096, b"\0")
+    put("filesystem/android_super", "two_partitions", bytes(4096) + geometry.ljust(4096, b"\0") * 2 + slot * 2)
+
+    # systemd journal file: the header and objects (hash tables, data, a field, an entry and an array of entries). The
+    # data objects hold the 64-bit Jenkins hash of their payload; the payloads are chosen so that the hash fits 53 bits,
+    # the largest integer that the reference reads exactly.
+    def lookup3(key):
+        mask = 0xFFFFFFFF
+
+        def rot(x, k):
+            return ((x << k) | (x >> (32 - k))) & mask
+
+        a = b = c = (0xDEADBEEF + len(key)) & mask
+        data = key
+        while len(data) > 12:
+            a, b, c = (a + int.from_bytes(data[0:4], "little")) & mask, (b + int.from_bytes(data[4:8], "little")) & mask, (c + int.from_bytes(data[8:12], "little")) & mask
+            a = (a - c) & mask; a ^= rot(c, 4); c = (c + b) & mask
+            b = (b - a) & mask; b ^= rot(a, 6); a = (a + c) & mask
+            c = (c - b) & mask; c ^= rot(b, 8); b = (b + a) & mask
+            a = (a - c) & mask; a ^= rot(c, 16); c = (c + b) & mask
+            b = (b - a) & mask; b ^= rot(a, 19); a = (a + c) & mask
+            c = (c - b) & mask; c ^= rot(b, 4); b = (b + a) & mask
+            data = data[12:]
+        if not data:
+            return (c << 32) | b
+        padded = data.ljust(12, b"\0")
+        a = (a + int.from_bytes(padded[0:4], "little")) & mask
+        b = (b + int.from_bytes(padded[4:8], "little")) & mask
+        c = (c + int.from_bytes(padded[8:12], "little")) & mask
+        c ^= b; c = (c - rot(b, 14)) & mask
+        a ^= c; a = (a - rot(c, 11)) & mask
+        b ^= a; b = (b - rot(a, 25)) & mask
+        c ^= b; c = (c - rot(b, 16)) & mask
+        a ^= c; a = (a - rot(c, 4)) & mask
+        b ^= a; b = (b - rot(a, 14)) & mask
+        c ^= b; c = (c - rot(b, 24)) & mask
+        return (c << 32) | b
+
+    def with_small_hash(text):
+        for number in range(1 << 20):
+            candidate = text + (b"" if number == 0 else b" %d" % number)
+            if lookup3(candidate) < 1 << 53:
+                return candidate
+        raise ValueError(text)
+
+    def journal_object(kind, payload):
+        length = 16 + len(payload)
+        return (bytes([kind, 0]) + bytes(6) + struct.pack("<Q", length) + payload).ljust((length + 7) // 8 * 8, b"\0")
+
+    header_size = 240
+    sizes = {"dht": 16 + 64, "fht": 16 + 32}
+    ofs_dht = header_size
+    ofs_fht = ofs_dht + sizes["dht"]
+    ofs_message = ofs_fht + sizes["fht"]
+    message, priority = with_small_hash(b"MESSAGE=Hello from the journal"), with_small_hash(b"PRIORITY=6")
+    data_size = 16 + 48
+    ofs_priority = ofs_message + (data_size + len(message) + 7) // 8 * 8
+    ofs_field = ofs_priority + (data_size + len(priority) + 7) // 8 * 8
+    field_payload = struct.pack("<QQQ", 0, 0, ofs_message) + b"MESSAGE"
+    ofs_entry = ofs_field + (16 + len(field_payload) + 7) // 8 * 8
+    entry_payload = struct.pack("<QQQ", 1, 1700000000_000000, 5_000000) + bytes(range(16)) + struct.pack("<Q", 0) + b"".join(struct.pack("<QQ", offset, 0) for offset in (ofs_message, ofs_priority))
+    ofs_array = ofs_entry + (16 + len(entry_payload) + 7) // 8 * 8
+    array_payload = struct.pack("<QQ", 0, ofs_entry)
+
+    def data_object(text, entry, head_field=0):
+        return journal_object(1, struct.pack("<QQQQQQ", lookup3(text), 0, head_field, entry, 0, 1) + text)
+
+    objects = [
+        journal_object(4, struct.pack("<QQ", ofs_message, ofs_message) + bytes(48)),
+        journal_object(5, bytes(32)),
+        data_object(message, ofs_entry, ofs_field),
+        data_object(priority, ofs_entry),
+        journal_object(2, field_payload),
+        journal_object(3, entry_payload),
+        journal_object(6, array_payload),
+    ]
+    arena = b"".join(objects)
+    fields = [
+        b"LPKSHHRH", struct.pack("<II", 0, 0), bytes([1]) + bytes(7), bytes(range(16)), bytes(range(16, 32)), bytes(range(32, 48)), bytes(range(48, 64)),
+        struct.pack("<QQQQQQQQQQQQQQ", header_size, len(arena) + 0, ofs_dht + 16, 64, ofs_fht + 16, 32, ofs_array, len(objects), 1, 1, 1, ofs_array, 1700000000_000000, 1700000000_000000),
+        struct.pack("<Q", 5_000000), struct.pack("<QQQQ", 2, 1, 0, 1),
+    ]
+    head = b"".join(fields)
+    put("log/systemd_journal", "one_entry", head.ljust(header_size, b"\0") + arena)
+
     # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
     # transport feedback (the receiver's reports have no blocks)
     def rtcp(kind, body, subtype=0):
