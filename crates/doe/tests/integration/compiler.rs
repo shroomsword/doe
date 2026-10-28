@@ -2698,3 +2698,84 @@ fn a_compiler_keeps_its_auto_traits() {
     all::<doe::schema::source::MemorySource>();
     all::<doe::schema::source::FsSource>();
 }
+
+mod recursive_lookup {
+    use std::path::PathBuf;
+
+    use doe::error::DoeError;
+    use doe::schema::compiler::Compiler;
+    use doe::schema::source::MemorySource;
+
+    fn schema(id: &str) -> String {
+        format!("meta:\n  id: {id}\nseq: []\n")
+    }
+
+    fn load(files: MemorySource, include: &[&str], name: &str) -> Result<Compiler, DoeError> {
+        let include = include.iter().map(PathBuf::from).collect();
+        let mut compiler = Compiler::with_source(include, Box::new(files));
+        compiler.load(name, None)?;
+        Ok(compiler)
+    }
+
+    #[test]
+    fn a_type_is_found_in_a_subdirectory_by_its_id() {
+        let files = MemorySource::new()
+            .with_file("lib/executable/elf_file.ksy", schema("elf"))
+            .with_file("lib/other/png.ksy", schema("png"));
+        let compiler = load(files, &["lib"], "elf").unwrap();
+        assert!(compiler.registry.contains("elf"));
+        assert!(!compiler.registry.contains("png"));
+    }
+
+    #[test]
+    fn a_file_of_the_name_is_taken_before_the_search() {
+        let files = MemorySource::new()
+            .with_file("lib/elf.ksy", schema("elf"))
+            .with_file("lib/deeper/more/elf2.ksy", schema("elf"));
+        assert!(
+            load(files, &["lib"], "elf")
+                .unwrap()
+                .registry
+                .contains("elf")
+        );
+    }
+
+    #[test]
+    fn two_files_that_declare_a_name_are_an_error_that_names_them() {
+        let files = MemorySource::new()
+            .with_file("lib/a/one.ksy", schema("dup"))
+            .with_file("lib/b/two.yaml", schema("dup"));
+        let Err(DoeError::Schema(message)) = load(files, &["lib"], "dup") else {
+            panic!("not the error");
+        };
+        assert!(message.contains("lib/a/one.ksy") && message.contains("lib/b/two.yaml"));
+    }
+
+    #[test]
+    fn the_earlier_type_path_wins() {
+        let files = MemorySource::new()
+            .with_file("first/x/one.ksy", schema("dup"))
+            .with_file("second/y/two.ksy", schema("dup"))
+            .with_file("second/z/three.ksy", schema("dup"));
+        assert!(load(files, &["first", "second"], "dup").is_ok());
+    }
+
+    #[test]
+    fn a_name_that_nothing_declares_is_not_found() {
+        let files = MemorySource::new().with_file("lib/a/one.ksy", schema("one"));
+        assert!(matches!(
+            load(files, &["lib"], "two"),
+            Err(DoeError::SchemaNotFound { .. })
+        ));
+    }
+
+    #[test]
+    fn a_tree_that_is_too_deep_is_not_searched_past_the_limit() {
+        let deep = "lib/1/2/3/4/5/6/7/8/9/deep.ksy";
+        let files = MemorySource::new().with_file(deep, schema("deep"));
+        assert!(matches!(
+            load(files, &["lib"], "deep"),
+            Err(DoeError::SchemaNotFound { .. })
+        ));
+    }
+}

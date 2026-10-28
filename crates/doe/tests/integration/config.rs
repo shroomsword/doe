@@ -429,3 +429,44 @@ fn discover_types_finds_ksy_files_and_ids_in_meta() {
     assert_eq!(ids, ["plain", "riff"]);
     assert_eq!(types[1].doc.as_deref(), Some("Chunks"));
 }
+
+#[test]
+fn discover_types_looks_in_subdirectories() {
+    let dir = tempfile::TempDir::new().unwrap();
+    std::fs::create_dir_all(dir.path().join("executable/deeper")).unwrap();
+    std::fs::write(
+        dir.path().join("executable/elf.ksy"),
+        "meta:\n  id: elf\nseq: []\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("executable/deeper/other_name.yaml"),
+        "id: png\nseq: []\n",
+    )
+    .unwrap();
+
+    let types = discover_types(&[dir.path().to_owned()]).unwrap();
+    let ids: Vec<&str> = types.iter().map(|t| t.id.as_str()).collect();
+    assert_eq!(ids, ["elf", "png"]);
+}
+
+#[test]
+fn discover_types_reports_a_duplicate_in_different_subdirectories() {
+    let dir = tempfile::TempDir::new().unwrap();
+    std::fs::create_dir_all(dir.path().join("a")).unwrap();
+    std::fs::create_dir_all(dir.path().join("b")).unwrap();
+    std::fs::write(dir.path().join("a/x.yaml"), "id: same\nseq: []\n").unwrap();
+    std::fs::write(dir.path().join("b/y.yaml"), "id: same\nseq: []\n").unwrap();
+    let errors = discover_types(&[dir.path().to_owned()]).unwrap_err();
+    assert_eq!(errors.len(), 1);
+}
+
+#[cfg(unix)]
+#[test]
+fn discover_types_does_not_follow_a_link_that_loops() {
+    let dir = tempfile::TempDir::new().unwrap();
+    std::fs::write(dir.path().join("png.yaml"), "id: png\nseq: []\n").unwrap();
+    std::os::unix::fs::symlink(dir.path(), dir.path().join("loop")).unwrap();
+    let types = discover_types(&[dir.path().to_owned()]).unwrap();
+    assert_eq!(types.len(), 1);
+}

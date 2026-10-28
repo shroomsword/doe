@@ -1011,7 +1011,16 @@ impl Compiler {
 
         // Bare name (or absolute path): search the include paths.
         let dirs: Vec<&Path> = self.include_paths.iter().map(PathBuf::as_path).collect();
-        find_schema(self.source.as_ref(), name_or_path, name_or_path, &dirs)
+        match find_schema(self.source.as_ref(), name_or_path, name_or_path, &dirs) {
+            Err(DoeError::SchemaNotFound { name, searched }) => {
+                // not a file of that name: a file in a subdirectory, or of another name, may declare it
+                match find_schema_by_id(self.source.as_ref(), name_or_path, &dirs)? {
+                    Some(found) => Ok(found),
+                    None => Err(DoeError::SchemaNotFound { name, searched }),
+                }
+            }
+            other => other,
+        }
     }
 
     /// Where an import is. A name that starts with `./` or `../` is relative
@@ -1075,6 +1084,48 @@ fn find_schema(
         name: shown.to_owned(),
         searched,
     })
+}
+
+/// Find the schema that declares the id `name` in a file anywhere below the
+/// directories `dirs`, which are searched in order: the first directory that has
+/// one wins. A name that is a path, or has an extension, is not an id.
+///
+/// # Errors
+///
+/// Two files below one directory that declare the same id are an error that
+/// names them.
+fn find_schema_by_id(
+    source: &dyn SchemaSource,
+    name: &str,
+    dirs: &[&Path],
+) -> Result<Option<PathBuf>> {
+    if name.is_empty() || name.contains(['/', '\\']) || crate::has_schema_extension(name) {
+        return Ok(None);
+    }
+    for dir in dirs {
+        let mut found: Vec<PathBuf> = Vec::new();
+        for path in crate::schema::source::schema_files_below(source, dir) {
+            // a file that does not even have the name in it cannot declare it
+            let Some(text) = source.peek(&path).filter(|text| text.contains(name)) else {
+                continue;
+            };
+            if crate::schema::source::schema_header(&text).is_some_and(|(id, _)| id == name) {
+                found.push(path);
+            }
+        }
+        if found.len() > 1 {
+            let files: Vec<String> = found.iter().map(|p| format!("  {}", p.display())).collect();
+            return Err(DoeError::Schema(format!(
+                "the type {name} is declared by more than one file below {}:\n{}",
+                dir.display(),
+                files.join("\n")
+            )));
+        }
+        if let Some(path) = found.pop() {
+            return Ok(Some(path));
+        }
+    }
+    Ok(None)
 }
 
 /// Context passed through field compilation.
