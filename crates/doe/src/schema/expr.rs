@@ -1655,6 +1655,22 @@ fn unary(op: UnaryOp, v: ExprValue, src: &str) -> Result<ExprValue> {
     }
 }
 
+/// Whether the value of an expression is the same wherever and whenever it is
+/// worked out: it names no field, no enum member and no stream.
+pub fn is_constant(expr: &Expr) -> bool {
+    match expr {
+        Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) => true,
+        Expr::Array(items) => items.iter().all(is_constant),
+        Expr::Enum(_) | Expr::Field(_) => false,
+        Expr::Member(inner, _) | Expr::Unary(_, inner) => is_constant(inner),
+        Expr::Call(inner, _, args) => is_constant(inner) && args.iter().all(is_constant),
+        Expr::Index(left, right) | Expr::Binary(_, left, right) => {
+            is_constant(left) && is_constant(right)
+        }
+        Expr::Ternary(a, b, c) => is_constant(a) && is_constant(b) && is_constant(c),
+    }
+}
+
 /// Evaluate an expression that must yield a boolean, or an integer read as
 /// one (non-zero is true).
 ///

@@ -386,6 +386,12 @@ impl<'reg> Engine<'reg> {
             ctx.eval_ctx.bind("_io", stream_expr(cursor));
         }
 
+        if ctx.depth() == 1 {
+            // A constant of the root (`value: 3`) is known before anything is read, so that the types read
+            // first can use it as `_root.name`.
+            self.compute_constants(ty, cursor, ctx)?;
+        }
+
         for field in &ty.fields {
             let start = cursor.absolute_pos();
             let start_bits = Self::trace_start(&field.kind, cursor);
@@ -521,6 +527,27 @@ impl<'reg> Engine<'reg> {
         switch
             .default
             .ok_or_else(|| fail(format!("{selector} matches no case of the byte order")))
+    }
+
+    /// Compute the instances of `ty` whose value is a constant of the schema.
+    fn compute_constants(
+        &self,
+        ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<()> {
+        for instance in &ty.instances {
+            if let InstanceKind::Value {
+                expr: value_expr,
+                if_expr: None,
+                ..
+            } = &instance.kind
+                && expr::is_constant(value_expr)
+            {
+                self.ensure_instance(ty, instance, cursor, ctx)?;
+            }
+        }
+        Ok(())
     }
 
     /// Compute the instances of `ty` and add them to `fields`, in schema

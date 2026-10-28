@@ -302,6 +302,7 @@ macro_rules! gallery {
 }
 
 gallery!(
+    gallery_3d_gltf_binary = "gallery/3d/gltf_binary",
     gallery_archive_android_bootldr_asus = "gallery/archive/android_bootldr_asus",
     gallery_archive_android_bootldr_huawei = "gallery/archive/android_bootldr_huawei",
     gallery_archive_android_bootldr_qcom = "gallery/archive/android_bootldr_qcom",
@@ -310,9 +311,11 @@ gallery!(
     gallery_archive_android_sparse = "gallery/archive/android_sparse",
     gallery_archive_cpio_old_le = "gallery/archive/cpio_old_le",
     gallery_archive_gzip = "gallery/archive/gzip",
+    gallery_archive_lzh = "gallery/archive/lzh",
     gallery_archive_mozilla_mar = "gallery/archive/mozilla_mar",
     gallery_archive_phar_without_stub = "gallery/archive/phar_without_stub",
     gallery_archive_respack = "gallery/archive/respack",
+    gallery_archive_xar = "gallery/archive/xar",
     gallery_archive_zip = "gallery/archive/zip",
     gallery_archive_zisofs = "gallery/archive/zisofs",
     gallery_cad_monomakh_sapr_chg = "gallery/cad/monomakh_sapr_chg",
@@ -322,6 +325,7 @@ gallery!(
     gallery_database_gettext_mo = "gallery/database/gettext_mo",
     gallery_database_tsm = "gallery/database/tsm",
     gallery_executable_android_nanoapp_header = "gallery/executable/android_nanoapp_header",
+    gallery_executable_dex = "gallery/executable/dex",
     gallery_executable_dos_mz = "gallery/executable/dos_mz",
     gallery_executable_elf = "gallery/executable/elf",
     gallery_executable_java_class = "gallery/executable/java_class",
@@ -347,6 +351,7 @@ gallery!(
     gallery_firmware_uf2 = "gallery/firmware/uf2",
     gallery_firmware_uimage = "gallery/firmware/uimage",
     gallery_font_grub2_font = "gallery/font/grub2_font",
+    gallery_font_pcf_font = "gallery/font/pcf_font",
     gallery_game_allegro_dat = "gallery/game/allegro_dat",
     gallery_game_doom_wad = "gallery/game/doom_wad",
     gallery_game_dune_2_pak = "gallery/game/dune_2_pak",

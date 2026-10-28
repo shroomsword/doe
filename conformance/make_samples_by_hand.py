@@ -2077,6 +2077,110 @@ def more():
     luks = luks.ljust(1024, b"\0") + material + b"payload of the encrypted volume".ljust(512, b"\0")
     put("filesystem/luks", "one_slot", luks)
 
+    # X11 bitmap font (PCF), little-endian tables: properties, metrics, bitmaps, encodings, scalable widths, glyph names
+    font_name = b"-doe-sample-medium-r-normal--8-80-75-75-c-80-iso8859-1\0"
+    strings = b"FONT\0" + font_name + b"POINT_SIZE\0"
+    properties = struct.pack("<II", 0, 3)
+    properties += struct.pack("<IBI", 0, 1, 5) + struct.pack("<IBI", 5 + len(font_name), 0, 80) + struct.pack("<IBI", 5 + len(font_name), 0, 8)
+    properties += bytes(1) + bytes(0)  # three properties of 9 bytes, then padding to 4 bytes
+    properties += struct.pack("<I", len(strings)) + strings
+    glyph_a, glyph_b = bytes([0x18, 0x24, 0x42, 0x42, 0x7E, 0x42, 0x42, 0x00]), bytes([0x7C, 0x42, 0x42, 0x7C, 0x42, 0x42, 0x7C, 0x00])
+    bitmaps = struct.pack("<II", 0, 2) + struct.pack("<II", 0, 8) + struct.pack("<4I", 16, 16, 16, 16) + glyph_a + glyph_b
+    encodings = struct.pack("<I", 0) + struct.pack("<5H", 65, 66, 0, 0, 65) + struct.pack("<2H", 0, 1)
+    swidths = struct.pack("<II", 0, 2) + struct.pack("<2I", 500, 500)
+    names = b"A\0B\0"
+    glyph_names = struct.pack("<II", 0, 2) + struct.pack("<2I", 0, 2) + struct.pack("<I", len(names)) + names
+    metrics = struct.pack("<II", 0, 2) + bytes(10)
+    accelerators = struct.pack("<I", 0) + bytes(20)
+    tables = [(1, properties), (2, accelerators), (4, metrics), (8, bitmaps), (0x20, encodings), (0x40, swidths), (0x80, glyph_names)]
+    offset = 8 + 16 * len(tables)
+    directory, bodies = b"", b""
+    for kind, body in tables:
+        body = body.ljust((len(body) + 3) // 4 * 4, b"\0")
+        directory += struct.pack("<I", kind) + struct.pack("<I", 0) + struct.pack("<II", len(body), offset + len(bodies))
+        bodies += body
+    put("font/pcf_font", "two_glyphs", b"\x01fcp" + struct.pack("<I", len(tables)) + directory + bodies)
+
+    # Dalvik executable (DEX 035): a class with a constructor and a method, and no code
+    import hashlib
+
+    texts = [b"<init>", b"Hello.java", b"LHello;", b"Ljava/lang/Object;", b"V", b"main"]
+    string_data, string_offsets = b"", []
+    data_start = 208
+    for text in texts:
+        string_offsets.append(data_start + len(string_data))
+        string_data += bytes([len(text)]) + text + b"\0"
+    class_data = bytes([0, 0, 1, 1]) + bytes([0, 0x81, 0x80, 0x04, 0]) + bytes([1, 1, 0])  # <init> public constructor; main public
+    ofs_class_data = data_start + len(string_data)
+    data = string_data + class_data
+    data += bytes(-(data_start + len(data)) % 4)
+    ofs_map = data_start + len(data)
+    items = [
+        (0x0000, 1, 0), (0x0001, 6, 112), (0x0002, 3, 136), (0x0003, 1, 148), (0x0005, 2, 160), (0x0006, 1, 176),
+        (0x2002, 6, data_start), (0x2000, 1, ofs_class_data), (0x1000, 1, ofs_map),
+    ]
+    data += struct.pack("<I", len(items)) + b"".join(struct.pack("<HHII", kind, 0, count, off) for kind, count, off in items)
+    string_ids = b"".join(struct.pack("<I", off) for off in string_offsets)
+    type_ids = b"".join(struct.pack("<I", index) for index in (2, 3, 4))
+    proto_ids = struct.pack("<III", 4, 2, 0)
+    method_ids = struct.pack("<HHI", 0, 0, 0) + struct.pack("<HHI", 0, 0, 5)
+    class_defs = struct.pack("<8I", 0, 1, 1, 0, 1, 0, ofs_class_data, 0)
+    body = string_ids + type_ids + proto_ids + method_ids + class_defs + data
+    file_size = 112 + len(body)
+    tail = struct.pack("<" + "I" * 17, file_size, 112, 0x12345678, 0, 0, ofs_map, 6, 112, 3, 136, 1, 148, 0, 0, 2, 160, 1)
+    tail += struct.pack("<III", 176, len(data), data_start)
+    dex_rest = tail + body
+    signature = hashlib.sha1(dex_rest).digest()
+    checksum = zlib.adler32(signature + dex_rest)
+    put("executable/dex", "hello_class", b"dex\n035\0" + struct.pack("<I", checksum) + signature + dex_rest)
+
+    # glTF binary (GLB): a header and chunks, JSON padded with spaces and binary data padded with zeros to 4 bytes
+    import json
+
+    positions = struct.pack("<9f", 0, 0, 0, 1, 0, 0, 0, 1, 0) + struct.pack("<3H", 0, 1, 2) + bytes(2)
+    scene = {
+        "asset": {"version": "2.0", "generator": "doe sample"},
+        "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0}],
+        "meshes": [{"primitives": [{"attributes": {"POSITION": 0}, "indices": 1}]}],
+        "buffers": [{"byteLength": len(positions)}],
+        "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": 36}, {"buffer": 0, "byteOffset": 36, "byteLength": 6}],
+        "accessors": [
+            {"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3", "min": [0, 0, 0], "max": [1, 1, 0]},
+            {"bufferView": 1, "componentType": 5123, "count": 3, "type": "SCALAR"},
+        ],
+    }
+    text = json.dumps(scene, separators=(",", ":")).encode()
+    text += b" " * (-len(text) % 4)
+    glb_body = struct.pack("<II", len(text), 0x4E4F534A) + text + struct.pack("<II", len(positions), 0x004E4942) + positions
+    put("3d/gltf_binary", "triangle", b"glTF" + struct.pack("<II", 2, 12 + len(glb_body)) + glb_body)
+
+    # LHA archive, level 0, stored (-lh0-): a header with the name, the CRC-16 of the data, and the data; a zero byte ends it
+    def crc16(data):
+        value = 0
+        for byte in data:
+            value ^= byte
+            for _ in range(8):
+                value = (value >> 1) ^ (0xA001 if value & 1 else 0)
+        return value
+
+    def lha_entry(name, data):
+        date = ((2024 - 1980) << 9) | (5 << 5) | 17
+        clock = (13 << 11) | (45 << 5) | 15
+        body = b"-lh0-" + struct.pack("<II", len(data), len(data)) + struct.pack("<HH", clock, date) + bytes([0x20, 0])
+        body += bytes([len(name)]) + name.encode()
+        header = bytes([sum(body) & 0xFF]) + body
+        return bytes([len(header) + 1]) + header + struct.pack("<H", crc16(data)) + data
+
+    put("archive/lzh", "two_files", lha_entry("hello.txt", b"Hello, LHA.\n") + lha_entry("data.bin", bytes(range(40))) + b"\0")
+
+    # xar: the header of 28 bytes and the table of contents (XML, compressed with zlib)
+    toc = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n<xar><toc><checksum style="sha1"><offset>0</offset><size>20</size></checksum>'
+        '<creation-time>2024-05-17T13:45:15</creation-time><file id="1"><name>hello.txt</name><type>file</type></file></toc></xar>'
+    ).encode()
+    packed = zlib.compress(toc)
+    put("archive/xar", "one_file", b"xar!" + struct.pack(">HHQQI", 28, 1, len(packed), len(toc), 1) + packed + bytes(20))
+
     # RTCP: a compound packet of a sender report, a receiver report and a source description, then REMB and
     # transport feedback (the receiver's reports have no blocks)
     def rtcp(kind, body, subtype=0):

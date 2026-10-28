@@ -1,0 +1,19 @@
+{
+  "checksumalgorithmother": 3,
+  "header": {
+    "checksumalgorithmint": 1,
+    "checksumalgorithmname": "sha1",
+    "haschecksumalgname": false,
+    "lenheader": 28,
+    "lentoccompressed": 177,
+    "toclengthuncompressed": 237,
+    "version": 1
+  },
+  "headerprefix": {
+    "lenheader": 28,
+    "magic": "78617221"
+  },
+  "toc": {
+    "xmlstring": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<xar><toc><checksum style=\"sha1\"><offset>0</offset><size>20</size></checksum><creation-time>2024-05-17T13:45:15</creation-time><file id=\"1\"><name>hello.txt</name><type>file</type></file></toc></xar>"
+  }
+}
