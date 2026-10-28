@@ -1796,7 +1796,9 @@ fn stream_expr(cursor: &Cursor<'_>) -> ExprValue {
     let number = |n: usize| ExprValue::Int(i128::try_from(n).unwrap_or(i128::MAX));
     ExprValue::Struct(vec![
         ("start".to_owned(), number(cursor.window_start())),
+        ("pos".to_owned(), number(cursor.pos())),
         ("size".to_owned(), number(cursor.len())),
+        ("eof".to_owned(), ExprValue::Bool(cursor.is_eof())),
     ])
 }
 
@@ -1807,7 +1809,9 @@ fn stream_value(cursor: &Cursor<'_>) -> Value {
         type_name: STREAM_FIELD.to_owned(),
         fields: vec![
             ("start".to_owned(), number(cursor.window_start())),
+            ("pos".to_owned(), number(cursor.pos())),
             ("size".to_owned(), number(cursor.len())),
+            ("eof".to_owned(), Value::Bool(cursor.is_eof())),
         ],
     }
 }

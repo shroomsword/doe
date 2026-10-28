@@ -317,11 +317,14 @@ impl Compiler {
             }
         }
         self.registry.static_field_sizes = field_sizes;
-        self.registry.uses_io = self
-            .registry
-            .types
-            .values()
-            .any(|ty| ty.instances.iter().any(|instance| instance.io.is_some()));
+        // the stream of a value is needed by an instance that reads from it (`io:`), and by an expression that names
+        // it (`header._io.size`, `_root._io.size`)
+        self.registry.uses_io = self.registry.types.values().any(|ty| {
+            ty.instances.iter().any(|instance| instance.io.is_some())
+                || field_paths(type_exprs(ty))
+                    .iter()
+                    .any(|parts| parts.iter().skip(1).any(|part| part == "_io"))
+        });
         self.registry.uses_field_sizes = self.registry.types.values().any(|ty| {
             field_paths(type_exprs(ty))
                 .iter()

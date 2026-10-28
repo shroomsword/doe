@@ -41,7 +41,7 @@ executable/mach_o_fat	failing	executable/mach_o_fat	built by make_samples_by_han
 executable/microsoft_pe	crafted	executable/microsoft_pe	built by make_gallery_samples.py	MIT (this repository)	
 executable/python_pyc_27	crafted	executable/python_pyc_27	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/swf	crafted	executable/swf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-executable/uefi_te	failing	executable/uefi_te	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	cannot be read: _io as a member of a value is not known (#154)
+executable/uefi_te	crafted	executable/uefi_te	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/amlogic_emmc_partitions	crafted	filesystem/amlogic_emmc_partitions	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/android_super	crafted	filesystem/android_super	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/apm_partition_table	crafted	filesystem/apm_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
