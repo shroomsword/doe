@@ -18,6 +18,8 @@ The columns are tab-separated:
               failing   there is a file, and doe does not read it as it should; the
                         note has the issue (#N). Its files are not in the test
                         until it is fixed
+              (a real or crafted row whose note starts with "no reference output" is tested against fields written
+              in conformance.rs, because the reference compiler cannot give output for the file)
               part-of   only imported by other definitions (the gallery's common/)
               none      no sample yet
     sample    the directory of the samples under samples/gallery/, or -
@@ -39,6 +41,10 @@ GALLERY = HERE / "kaitai_struct_formats"
 TABLE = HERE / "gallery_samples.tsv"
 HEADER = ["format", "status", "sample", "source", "licence", "note"]
 STATUSES = {"real", "crafted", "failing", "part-of", "none"}
+
+# A row whose note starts like this has files that the reference compiler cannot give output for: the test of
+# conformance.rs checks fields written in it instead
+NO_REFERENCE = "no reference output"
 
 # What the rows that were there before the table are, for the first run.
 SCRIPT = "make_gallery_samples.py"
@@ -183,7 +189,7 @@ def update_tests():
     end = text.index("\n);", start)
     lines = ["gallery!("]
     for name, cells in sorted(read_table().items()):
-        if cells[1] in ("real", "crafted"):
+        if cells[1] in ("real", "crafted") and not cells[5].startswith(NO_REFERENCE):
             lines.append(f'    gallery_{name.replace("/", "_")} = "gallery/{name}",')
     path.write_text(text[:start] + "\n".join(lines) + text[end:], encoding="utf-8")
     print(f"{len(lines) - 1} tests")

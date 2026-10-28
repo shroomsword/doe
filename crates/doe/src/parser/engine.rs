@@ -1346,6 +1346,40 @@ impl<'reg> Engine<'reg> {
         Ok(())
     }
 
+    /// Where a read instance with `pos:` reads, in the input, if it can be told before reading.
+    fn read_position(
+        field: &CompiledField,
+        cursor: &Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Option<usize> {
+        let pos = field.pos.as_ref()?;
+        ctx.set_io(cursor);
+        let target = expr::eval_int(pos, &ctx.eval_ctx, "<pos>").ok()?;
+        let base = cursor.absolute_pos().saturating_sub(cursor.pos());
+        usize::try_from(target).ok().map(|t| base.saturating_add(t))
+    }
+
+    /// For a read instance of a type with no parameters at a `pos:`, note that it starts to read: `Some(true)` if it
+    /// did, `Some(false)` if the same is being read already, `None` if this is not a read to note.
+    fn begin_reading(
+        field: &CompiledField,
+        cursor: &Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Option<bool> {
+        let FieldKind::TypeRef {
+            type_name, args, ..
+        } = &field.kind
+        else {
+            return None;
+        };
+        if !args.is_empty() || !matches!(field.repeat, RepeatMode::Once) {
+            return None;
+        }
+        let at = Self::read_position(field, cursor, ctx)?;
+        let base = cursor.absolute_pos().saturating_sub(cursor.pos());
+        Some(ctx.begin_reading(type_name, base, cursor.len(), at))
+    }
+
     /// The stream that `io:` of an instance names, positioned at its start.
     fn open_stream<'buf>(
         &self,
@@ -1409,7 +1443,18 @@ impl<'reg> Engine<'reg> {
                 };
                 let start = cursor.absolute_pos();
                 let start_bits = cursor.bit_position();
-                let value = self.parse_field(field, ty, cursor, ctx)?;
+                let reading = Self::begin_reading(field, cursor, ctx);
+                if reading == Some(false) {
+                    // The same type is being read at the same place by an instance around this one (the `.` entry
+                    // of a directory leads to the directory): it is that one, so it is not read again.
+                    let at = Self::read_position(field, cursor, ctx).unwrap_or(start);
+                    return Ok((Value::Absent, Some(u64::try_from(at).unwrap_or(u64::MAX))));
+                }
+                let read = self.parse_field(field, ty, cursor, ctx);
+                if reading == Some(true) {
+                    ctx.end_reading();
+                }
+                let value = read?;
                 if value.is_absent() {
                     return Ok((value, None));
                 }

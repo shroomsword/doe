@@ -683,7 +683,10 @@ because it uses something that is read later (`_parent.method` of a field after
 it, or `_root.header.names` while `header` is still being parsed), is computed
 once the whole input is read, as Kaitai Struct computes instances on first use,
 and still appears in its place in the output; one that still cannot be computed
-then, or two that need each other, abort the parse. A value that was copied from
+then, or two that need each other, abort the parse. An instance that reads a type at
+the place and in the stream where an instance around it is reading the same type (the `.` entry of a
+directory, which leads back to the directory) is not read again: it is shown as absent, with the offset
+it would be read from. A value that was copied from
 a struct (`linked: value: _root.sections[3]`) has its instances too. A name
 cannot be both a field and an instance. A sub-type
 can use an instance of an enclosing type as `_parent.name`: the field of the
@@ -764,7 +767,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 11 with a file written by its own tool, 159 with a file built by hand, 5 failing on a file, 9 part of another, 6 without a sample
+> 190 definitions: 12 with a file written by its own tool, 159 with a file built by hand, 4 failing on a file, 9 part of another, 6 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -785,7 +788,7 @@ and compared with the reference compiler's output:
 | `common` | `utf16_with_bom`, `utf8_string` |
 | `database` | `dbf`, `gettext_mo`, `tsm` |
 | `executable` | `android_nanoapp_header`, `dex`, `dos_mz`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `python_pyc_27`, `swf` |
-| `filesystem` | `amlogic_emmc_partitions`, `android_super`, `apm_partition_table`, `apple_single_double`, `btrfs_stream`, `cramfs`, `gpt_partition_table`, `luks`, `mbr_partition_table`, `tr_dos_image`, `vdi`, `vfat`, `vmware_vmdk`, `zx_spectrum_tap` |
+| `filesystem` | `amlogic_emmc_partitions`, `android_super`, `apm_partition_table`, `apple_single_double`, `btrfs_stream`, `cramfs`, `gpt_partition_table`, `iso9660`, `luks`, `mbr_partition_table`, `tr_dos_image`, `vdi`, `vfat`, `vmware_vmdk`, `zx_spectrum_tap` |
 | `firmware` | `andes_firmware`, `broadcom_trx`, `ines`, `uf2`, `uimage` |
 | `font` | `grub2_font`, `pcf_font`, `ttf` |
 | `game` | `allegro_dat`, `doom_wad`, `dune_2_pak`, `fallout2_dat`, `fallout_dat`, `ftl_dat`, `gran_turismo_vol`, `heaps_pak`, `heroes_of_might_and_magic_agg`, `heroes_of_might_and_magic_bmp`, `minecraft_nbt`, `quake2_md2`, `quake_mdl`, `quake_pak`, `renderware_binary_stream`, `saints_row_2_vpp_pc`, `warcraft_2_pud` |
@@ -803,10 +806,9 @@ and compared with the reference compiler's output:
 | `windows` | `windows_lnk_file`, `windows_minidump`, `windows_resource_file`, `windows_shell_items` |
 <!-- gallery-formats:end -->
 
-Five formats have a file that `doe` does not read yet, and their rows say
+Four formats have a file that `doe` does not read yet, and their rows say
 `failing` (their files are not in the suite until each is fixed):
-`filesystem/iso9660`, a file written by `genisoimage` that `doe` does not finish
-reading ([#150](https://github.com/shroomsword/doe/issues/150)); `executable/uefi_te`,
+`executable/uefi_te`,
 which needs `_io` as a member of a value
 ([#154](https://github.com/shroomsword/doe/issues/154)); `executable/mach_o_fat`,
 whose imported `mach_o` compares `_root.magic` of the fat file

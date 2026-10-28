@@ -5798,6 +5798,48 @@ fn a_constant_of_the_root_can_be_used_by_a_type_read_before_the_root_ends() {
 }
 
 #[test]
+fn an_instance_that_would_read_the_same_type_at_the_same_place_inside_itself_is_cut() {
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: top
+            type: node
+        types:
+          node:
+            seq:
+              - id: n
+                type: u1
+            instances:
+              again:
+                pos: 0
+                type: node
+    "};
+    let v = parse(schema, "t", &[7]);
+    let Value::Struct { fields, .. } = get_field(&v, "top") else {
+        panic!("not a struct")
+    };
+    let again = fields
+        .iter()
+        .find(|(name, _)| name == "again")
+        .map(|(_, value)| value)
+        .expect("the instance");
+    let Value::Instance { value, offset } = again else {
+        panic!("not an instance")
+    };
+    // the first read of the instance is a real one, and the one inside it is cut
+    assert_eq!(*offset, Some(0));
+    let Value::Struct { fields, .. } = value.as_ref() else {
+        panic!("not a struct: {value:?}")
+    };
+    let inner = fields
+        .iter()
+        .find(|(name, _)| name == "again")
+        .map(|(_, value)| value)
+        .expect("the instance inside");
+    assert!(inner.is_absent(), "{inner:?}");
+}
+
+#[test]
 fn a_field_that_is_not_there_is_equal_to_nothing() {
     let schema = indoc! {r"
         id: t

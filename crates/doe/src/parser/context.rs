@@ -52,6 +52,9 @@ pub struct ParseContext {
     partial: Option<Value>,
     /// How much work the parse may do, when it is limited.
     limits: Option<Meter>,
+    /// The types being read by instances, with the stream and the position they are read at: an instance that
+    /// would read the same again, inside itself, is not read.
+    reading: Vec<(String, usize, usize, usize)>,
 }
 
 /// What a limited parse has used so far.
@@ -148,6 +151,7 @@ impl ParseContext {
             keep_partial: false,
             partial: None,
             limits: None,
+            reading: Vec::new(),
         }
     }
 
@@ -242,6 +246,25 @@ impl ParseContext {
     /// Whether `cursor` reads the input that the parse started from.
     pub fn is_input(&self, cursor: &Cursor<'_>) -> bool {
         cursor.root_len() == self.root_len
+    }
+
+    /// Note that an instance starts to read the type `name` at `pos` of the stream `(base, len)`. False if one is
+    /// reading the same already: the instance is then the one being read, and reading it again would not end.
+    pub fn begin_reading(&mut self, name: &str, base: usize, len: usize, pos: usize) -> bool {
+        if self
+            .reading
+            .iter()
+            .any(|(n, b, l, p)| n == name && *b == base && *l == len && *p == pos)
+        {
+            return false;
+        }
+        self.reading.push((name.to_owned(), base, len, pos));
+        true
+    }
+
+    /// Note that the read that [`ParseContext::begin_reading`] let start is over.
+    pub fn end_reading(&mut self) {
+        self.reading.pop();
     }
 
     /// Account for `n` bytes read by a `pos:` field.
