@@ -5840,6 +5840,45 @@ fn an_instance_that_would_read_the_same_type_at_the_same_place_inside_itself_is_
 }
 
 #[test]
+fn the_fixed_size_of_a_field_of_an_instance_does_not_need_the_instance() {
+    // `tail` is placed where `where` says, and `where` asks for the sizes of two of its fields; `rec` asks for `where`
+    // too, so reading `tail` first would be reading it before the place of it is known
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: head
+            type: u1
+        instances:
+          tail:
+            pos: where
+            type: rec
+            size-eos: true
+          where:
+            value: _io.size - tail.op._sizeof - tail.len._sizeof
+        types:
+          rec:
+            seq:
+              - id: op
+                type: u1
+              - id: len
+                type: u2
+            instances:
+              from:
+                value: _root.where
+    "};
+    let v = parse(schema, "t", &[9, 1, 5, 0]);
+    let Value::Struct { fields, .. } = &v else {
+        panic!("not a struct")
+    };
+    let place = fields
+        .iter()
+        .find(|(name, _)| name == "where")
+        .map(|(_, value)| value)
+        .expect("the instance");
+    assert_eq!(place.as_int(), Some(1));
+}
+
+#[test]
 fn the_stream_of_a_value_is_a_member_of_it() {
     let schema = indoc! {r"
         id: t

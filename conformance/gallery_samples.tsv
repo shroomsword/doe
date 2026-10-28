@@ -111,7 +111,7 @@ image/xwd	crafted	image/xwd	built by make_samples_by_hand.py from the format's d
 log/aix_utmp	crafted	log/aix_utmp	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/glibc_utmp	real	log/glibc_utmp	glibc (pututxline), run by make_real_samples.py	MIT (this repository)	
 log/hashcat_restore	crafted	log/hashcat_restore	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-log/mcap	failing	log/mcap	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	cannot be read: ofs_footer needs the size of fields of footer, which needs ofs_footer (#160)
+log/mcap	crafted	log/mcap	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/sudoers_ts	crafted	log/sudoers_ts	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/systemd_journal	crafted	log/systemd_journal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/windows_evt_log	crafted	log/windows_evt_log	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	

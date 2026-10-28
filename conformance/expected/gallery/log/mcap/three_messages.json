@@ -88,8 +88,8 @@
       "body": {
         "channelid": 1,
         "data": "7b2278223a307d",
-        "logtime": 1700000000000000000,
-        "publishtime": 1700000000000000000,
+        "logtime": 1700000000000,
+        "publishtime": 1700000000000,
         "sequence": 0
       },
       "lenbody": 29,
@@ -99,8 +99,8 @@
       "body": {
         "channelid": 1,
         "data": "7b2278223a317d",
-        "logtime": 1700000000000000000,
-        "publishtime": 1700000000000000000,
+        "logtime": 1700000000001,
+        "publishtime": 1700000000001,
         "sequence": 1
       },
       "lenbody": 29,
@@ -110,8 +110,8 @@
       "body": {
         "channelid": 1,
         "data": "7b2278223a327d",
-        "logtime": 1700000000000000000,
-        "publishtime": 1700000000000000000,
+        "logtime": 1700000000002,
+        "publishtime": 1700000000002,
         "sequence": 2
       },
       "lenbody": 29,

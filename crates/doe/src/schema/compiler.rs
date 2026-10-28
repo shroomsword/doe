@@ -231,6 +231,7 @@ impl Compiler {
 
         self.link_parent_instances();
         self.measure_types();
+        self.forget_instances_used_for_fixed_sizes();
 
         self.loading_stack.pop();
         self.processed.insert(schema.id.clone());
@@ -304,14 +305,17 @@ impl Compiler {
         let mut field_sizes = HashMap::new();
         for (name, ty) in &self.registry.types {
             let mut known = HashMap::new();
-            let fixed: Vec<(String, u64)> = ty
-                .fields
+            let mut fixed: Vec<(String, u64)> = Vec::new();
+            let read_instances = ty
+                .instances
                 .iter()
-                .filter_map(|field| {
-                    let size = field_static_size(&self.registry, field, &mut known, 0)?;
-                    Some((field.id.clone(), size))
-                })
-                .collect();
+                .filter_map(|instance| match &instance.kind {
+                    InstanceKind::Read(field) => Some(field.as_ref()),
+                    InstanceKind::Value { .. } => None,
+                });
+            for field in ty.fields.iter().chain(read_instances) {
+                fixed_sizes_in(&self.registry, field, &field.id, &mut known, 0, &mut fixed);
+            }
             if !fixed.is_empty() {
                 field_sizes.insert(name.clone(), fixed);
             }
@@ -330,6 +334,55 @@ impl Compiler {
                 .iter()
                 .any(|parts| parts.len() > 1 && parts.last().is_some_and(|p| p == "_sizeof"))
         });
+    }
+
+    /// An expression that asks for the size of a field of a fixed size of an instance (`footer.op._sizeof`) does not
+    /// need the instance: its size is known before it is read, so the instance is not read first.
+    fn forget_instances_used_for_fixed_sizes(&mut self) {
+        let names: Vec<String> = self.registry.types.keys().cloned().collect();
+        for name in names {
+            let fixed: HashSet<String> = self
+                .registry
+                .static_field_sizes
+                .get(&name)
+                .into_iter()
+                .flatten()
+                .map(|(path, _)| path.clone())
+                .collect();
+            if fixed.is_empty() {
+                continue;
+            }
+            let Some(ty) = self.registry.types.get_mut(&name) else {
+                continue;
+            };
+            let instance_names: HashSet<String> =
+                ty.instances.iter().map(|i| i.id.clone()).collect();
+            let unneeded = |exprs: &[&expr::Expr]| -> Vec<String> {
+                let needed = instance_refs_skipping(exprs, &instance_names, &fixed);
+                instance_refs(exprs, &instance_names)
+                    .into_iter()
+                    .filter(|used| !needed.contains(used))
+                    .collect()
+            };
+            for field in all_fields_mut(ty) {
+                let drop = unneeded(&field_exprs(&*field));
+                field.uses_instances.retain(|used| !drop.contains(used));
+            }
+            for instance in &mut ty.instances {
+                if let InstanceKind::Value {
+                    expr,
+                    if_expr,
+                    uses_instances,
+                    ..
+                } = &mut instance.kind
+                {
+                    let mut exprs = vec![&*expr];
+                    exprs.extend(if_expr.as_ref());
+                    let drop = unneeded(&exprs);
+                    uses_instances.retain(|used| !drop.contains(used));
+                }
+            }
+        }
     }
 
     // ── Name collection (pass 1) ─────────────────────────────────────────────
@@ -1241,6 +1294,41 @@ fn static_size(
     Some(total)
 }
 
+/// The sizes that are the same whatever is read, of a field and of the fields of its type, as paths
+/// (`footer`, `footer.op`, `footer.body.len`): `x._sizeof` of each is known before `x` is read, as the Kaitai
+/// Struct compiler knows it.
+fn fixed_sizes_in(
+    registry: &TypeRegistry,
+    field: &CompiledField,
+    path: &str,
+    known: &mut HashMap<String, Option<u64>>,
+    depth: usize,
+    out: &mut Vec<(String, u64)>,
+) {
+    if let Some(size) = field_static_size(registry, field, known, 0) {
+        out.push((path.to_owned(), size));
+    }
+    if let FieldKind::TypeRef {
+        type_name, args, ..
+    } = &field.kind
+        && args.is_empty()
+        && matches!(field.repeat, RepeatMode::Once)
+        && depth < 8
+        && let Some(inner) = registry.get(type_name)
+    {
+        for member in &inner.fields {
+            fixed_sizes_in(
+                registry,
+                member,
+                &format!("{path}.{}", member.id),
+                known,
+                depth + 1,
+                out,
+            );
+        }
+    }
+}
+
 /// The size in bytes of one field of a type, if it is always the same (see [`static_size`]).
 fn field_static_size(
     registry: &TypeRegistry,
@@ -1736,6 +1824,16 @@ fn field_exprs(field: &CompiledField) -> Vec<&expr::Expr> {
 /// The names in `names` that the expressions refer to (as the first part of a
 /// field path), in order of first use.
 fn instance_refs(exprs: &[&expr::Expr], names: &HashSet<String>) -> Vec<String> {
+    instance_refs_skipping(exprs, names, &HashSet::new())
+}
+
+/// Like [`instance_refs`], but a path that is `x._sizeof` of one of the `fixed` ones (`footer.op`) does not use the
+/// instance it starts with: that size is known without reading it.
+fn instance_refs_skipping(
+    exprs: &[&expr::Expr],
+    names: &HashSet<String>,
+    fixed: &HashSet<String>,
+) -> Vec<String> {
     use expr::Expr;
     let mut found: Vec<String> = Vec::new();
     if names.is_empty() {
@@ -1745,7 +1843,13 @@ fn instance_refs(exprs: &[&expr::Expr], names: &HashSet<String>) -> Vec<String> 
     while let Some(node) = stack.pop() {
         match node {
             Expr::Field(parts) => {
+                let fixed_size = parts.len() > 1
+                    && parts.last().is_some_and(|last| last == "_sizeof")
+                    && parts
+                        .get(..parts.len() - 1)
+                        .is_some_and(|path| fixed.contains(&path.join(".")));
                 if let Some(first) = parts.first()
+                    && !fixed_size
                     && names.contains(first)
                     && !found.contains(first)
                 {

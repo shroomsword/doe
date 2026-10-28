@@ -403,6 +403,7 @@ gallery!(
     gallery_log_aix_utmp = "gallery/log/aix_utmp",
     gallery_log_glibc_utmp = "gallery/log/glibc_utmp",
     gallery_log_hashcat_restore = "gallery/log/hashcat_restore",
+    gallery_log_mcap = "gallery/log/mcap",
     gallery_log_sudoers_ts = "gallery/log/sudoers_ts",
     gallery_log_systemd_journal = "gallery/log/systemd_journal",
     gallery_log_windows_evt_log = "gallery/log/windows_evt_log",
