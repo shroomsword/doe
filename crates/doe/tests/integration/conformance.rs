@@ -336,6 +336,7 @@ gallery!(
     gallery_executable_microsoft_pe = "gallery/executable/microsoft_pe",
     gallery_executable_python_pyc_27 = "gallery/executable/python_pyc_27",
     gallery_executable_swf = "gallery/executable/swf",
+    gallery_executable_uefi_te = "gallery/executable/uefi_te",
     gallery_filesystem_amlogic_emmc_partitions = "gallery/filesystem/amlogic_emmc_partitions",
     gallery_filesystem_android_super = "gallery/filesystem/android_super",
     gallery_filesystem_apm_partition_table = "gallery/filesystem/apm_partition_table",

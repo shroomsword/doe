@@ -245,7 +245,8 @@ string, a byte sequence, an array or a sub-type. `size:`, `repeat-expr:` and
 large to copy into an expression: only their `.size` can be used.
 
 `_io` is the stream the expression is in, which is a window for a sized
-sub-type: `_io.pos` (bytes from its start), `_io.size` and `_io.eof`. An enum
+sub-type: `_io.pos` (bytes from its start), `_io.size` and `_io.eof`. The stream of a value that was parsed
+earlier is `value._io` (`_root.header._io.size` is the size of the window of `header`; its `.pos` and `.eof` are what they were when `header` was done). An enum
 member is written `enum_name::member` and stands for its value, using the enums
 visible in the type (see [Sub-types](#sub-types)), or `type::enum::member` for an
 enum declared in another type (`type` is looked up as a type name is: in the
@@ -767,7 +768,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 12 with a file written by its own tool, 159 with a file built by hand, 4 failing on a file, 9 part of another, 6 without a sample
+> 190 definitions: 12 with a file written by its own tool, 160 with a file built by hand, 3 failing on a file, 9 part of another, 6 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
@@ -787,7 +788,7 @@ and compared with the reference compiler's output:
 | `cad` | `monomakh_sapr_chg` |
 | `common` | `utf16_with_bom`, `utf8_string` |
 | `database` | `dbf`, `gettext_mo`, `tsm` |
-| `executable` | `android_nanoapp_header`, `dex`, `dos_mz`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `python_pyc_27`, `swf` |
+| `executable` | `android_nanoapp_header`, `dex`, `dos_mz`, `elf`, `java_class`, `mach_o`, `microsoft_pe`, `python_pyc_27`, `swf`, `uefi_te` |
 | `filesystem` | `amlogic_emmc_partitions`, `android_super`, `apm_partition_table`, `apple_single_double`, `btrfs_stream`, `cramfs`, `gpt_partition_table`, `iso9660`, `luks`, `mbr_partition_table`, `tr_dos_image`, `vdi`, `vfat`, `vmware_vmdk`, `zx_spectrum_tap` |
 | `firmware` | `andes_firmware`, `broadcom_trx`, `ines`, `uf2`, `uimage` |
 | `font` | `grub2_font`, `pcf_font`, `ttf` |
@@ -806,11 +807,9 @@ and compared with the reference compiler's output:
 | `windows` | `windows_lnk_file`, `windows_minidump`, `windows_resource_file`, `windows_shell_items` |
 <!-- gallery-formats:end -->
 
-Four formats have a file that `doe` does not read yet, and their rows say
+Three formats have a file that `doe` does not read yet, and their rows say
 `failing` (their files are not in the suite until each is fixed):
-`executable/uefi_te`,
-which needs `_io` as a member of a value
-([#154](https://github.com/shroomsword/doe/issues/154)); `executable/mach_o_fat`,
+`executable/mach_o_fat`,
 whose imported `mach_o` compares `_root.magic` of the fat file
 ([#155](https://github.com/shroomsword/doe/issues/155)); `log/mcap`, whose
 `ofs_footer` needs the sizes of fields of the footer it places
@@ -1089,7 +1088,7 @@ than a field of a size that is not fixed) is only found by its name, or when
 `--detect all` is given, which tries every schema that is left in the order of
 their names and can take a long time for a big library. Only the first 64 KiB of
 the file are compared with signatures. Of the 237 samples of the Kaitai gallery
-in the tests, 102 are found with their own schema (those of the formats whose
+in the tests, 103 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 

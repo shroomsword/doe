@@ -5840,6 +5840,30 @@ fn an_instance_that_would_read_the_same_type_at_the_same_place_inside_itself_is_
 }
 
 #[test]
+fn the_stream_of_a_value_is_a_member_of_it() {
+    let schema = indoc! {r"
+        id: t
+        seq:
+          - id: head
+            type: head
+            size: 3
+          - id: body
+            size: _root.head._io.size
+          - id: rest
+            size: head._io.size - _root.head._io.pos
+        types:
+          head:
+            seq:
+              - id: a
+                type: u1
+    "};
+    // `head` is read in a window of 3 bytes: its stream has a size of 3, and its position is 1 when the value is done
+    let v = parse(schema, "t", &[1, 0, 0, 7, 8, 9, 10, 11, 12]);
+    assert_eq!(get_field(&v, "body"), &Value::Bytes(vec![7, 8, 9]));
+    assert_eq!(get_field(&v, "rest"), &Value::Bytes(vec![10, 11]));
+}
+
+#[test]
 fn a_field_that_is_not_there_is_equal_to_nothing() {
     let schema = indoc! {r"
         id: t
