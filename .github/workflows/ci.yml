@@ -50,7 +50,9 @@ jobs:
       - name: Dependency checks
         run: cargo deny --locked check
 
-  # Same platforms as the build matrix below. Keep the two matrices in sync.
+  # The macOS runners are the slow ones to get (a job can wait ten minutes or more for one, and is cancelled after
+  # fifteen), so each run uses one of them for the tests: it runs them for the host's architecture and compiles them
+  # for the other.
   test:
     name: test (${{ matrix.target }})
     strategy:
@@ -59,17 +61,12 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            native: true
           - os: macos-latest
             target: aarch64-apple-darwin
-            native: true
-          # The runner is Apple Silicon, so this variant compiles the tests but cannot execute them.
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            native: false
+            # The runner is Apple Silicon, so tests for this architecture are compiled and not run.
+            also: x86_64-apple-darwin
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            native: true
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -81,42 +78,30 @@ jobs:
           submodules: true
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.target }}${{ matrix.also && format(',{0}', matrix.also) || '' }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           key: test-${{ matrix.target }}
 
-      # Native variants run unit, integration, and doc tests on the host. The cross-compiled variant only
-      # compiles them (--no-run), which still catches platform-specific compile errors in test code.
       - name: Test
-        env:
-          TARGET: ${{ matrix.target }}
-          NATIVE: ${{ matrix.native }}
-        run: |
-          set -euo pipefail
-          if [[ "$NATIVE" == "true" ]]; then
-            cargo test --workspace --all-features --locked
-          else
-            cargo test --workspace --all-features --locked --target "$TARGET" --no-run
-          fi
+        run: cargo test --workspace --all-features --locked
 
-  # One variant per shipped platform. Keep this matrix in sync with the test matrix above and with the release
-  # workflow's build matrix.
+      # Compiling the tests for the other architecture still catches platform-specific compile errors in test code.
+      - name: Compile the tests for ${{ matrix.also }}
+        if: matrix.also
+        env:
+          ALSO: ${{ matrix.also }}
+        run: cargo test --workspace --all-features --locked --target "$ALSO" --no-run
+
+  # One variant per shipped platform. A pull request builds the ones that start quickly; on main and for a release
+  # (which calls this workflow, and has the same build matrix as the release workflow) all of them are built. The
+  # test job compiles the code for every platform on each pull request already.
   build:
     name: build (${{ matrix.target }})
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          # Cross-compiled on the Apple Silicon runner; the macOS SDK supports both architectures.
-          - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
+        include: ${{ fromJSON(github.event_name == 'pull_request' && '[{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"},{"os":"windows-latest","target":"x86_64-pc-windows-msvc"}]' || '[{"os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"},{"os":"macos-latest","target":"aarch64-apple-darwin"},{"os":"macos-latest","target":"x86_64-apple-darwin"},{"os":"windows-latest","target":"x86_64-pc-windows-msvc"}]') }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
