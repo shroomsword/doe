@@ -97,9 +97,18 @@ struct MetaHeader {
 /// The id and the doc of the schema in `text`, or nothing if it is not one or
 /// has no id.
 pub(crate) fn schema_header(text: &str) -> Option<(String, Option<String>)> {
-    let header: SchemaHeader = crate::schema::raw::parse_yaml(text).ok()?;
-    let id = header.id.or_else(|| header.meta?.id)?;
-    Some((id, header.doc))
+    schema_header_checked(text).ok().flatten()
+}
+
+/// The same, with why the text is not YAML that a schema can be, when it is not.
+pub(crate) fn schema_header_checked(
+    text: &str,
+) -> std::result::Result<Option<(String, Option<String>)>, String> {
+    let header: SchemaHeader = crate::schema::raw::parse_yaml(text).map_err(|e| e.to_string())?;
+    let Some(id) = header.id.or_else(|| header.meta?.id) else {
+        return Ok(None);
+    };
+    Ok(Some((id, header.doc)))
 }
 
 /// The files of the filesystem.

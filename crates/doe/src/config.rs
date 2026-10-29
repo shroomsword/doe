@@ -360,6 +360,36 @@ pub fn discover_types(
     }
 }
 
+/// A schema file below a type path that could not be read as a schema.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnreadableSchema {
+    /// The file.
+    pub path: PathBuf,
+    /// Why: the file could not be read, or it is not YAML a schema can be.
+    pub message: String,
+}
+
+/// The schema files below `include_paths` (their subdirectories too) that
+/// [`discover_types`] leaves out because they cannot be read, in sorted order.
+/// A file that reads but has no `id` is not in this list: it is not a type.
+#[must_use]
+pub fn unreadable_schemas(include_paths: &[PathBuf]) -> Vec<UnreadableSchema> {
+    let mut out = Vec::new();
+    for dir in include_paths {
+        for path in crate::schema::source::schema_files_below(&FsSource, dir) {
+            let message = match std::fs::read_to_string(&path) {
+                Ok(text) => match crate::schema::source::schema_header_checked(&text) {
+                    Ok(_) => continue,
+                    Err(message) => message,
+                },
+                Err(error) => error.to_string(),
+            };
+            out.push(UnreadableSchema { path, message });
+        }
+    }
+    out
+}
+
 /// The id and doc of a schema file.
 struct ResolvedHeader {
     id: String,

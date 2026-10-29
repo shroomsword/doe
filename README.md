@@ -102,7 +102,16 @@ doe -I types --json libc.so.6 elf | jq '.program_headers[].p_type.name'
 |------|-----------|
 | `elf` | ELF64 little-endian files: the header, the program header table and the section header table, each found through the header. Contents are not decoded. See the comments in [`types/elf.yaml`](https://github.com/shroomsword/doe/blob/main/types/elf.yaml) for its limits. |
 
-Running `doe --help` with `-I types` lists the available types.
+Running `doe --help` with `-I types` lists the available types, and
+`doe -I types --list-types` prints them for a script: one per line with the id,
+the file (relative to the type path) and the first line of its `doc`, separated
+by tabs when the output is not a terminal (aligned when it is). `--json` makes it
+an array of `{id, path, type_path, doc, signature, error}`, where `signature` says
+whether the type starts with a signature (so `--detect` tries it first) and `error`
+why a type cannot be compiled. A schema file that cannot be read as YAML is listed
+with no id and its error; the command still exits 0, but a type path that is not a
+directory is an error. `doe --list-types SCHEMA` lists the types that a schema
+defines (`SCHEMA::TYPE`) and the ones that it imports.
 
 A type path is searched through its subdirectories, and a type is found by the
 `id` in the file (`meta.id` in a `.ksy` file) and not only by the name of the
@@ -1055,6 +1064,7 @@ Options:
       --pretty               Emit pretty-printed JSON output
       --no-instances         Leave out the values a schema's `instances` compute or read elsewhere
       --indent <STR>         Indentation string for text output [default: "  "]
+      --list-types           Print the types that can be used and exit: one per line with the file each is in (relative to its type path) and the first line of its doc, aligned on a terminal and separated by tabs otherwise; with `--json` or `--pretty`, an array of objects with `id`, `path`, `type_path`, `doc`, `signature` and `error`. The type paths are searched in their subdirectories too. Give a SCHEMA instead of a FILE to list the types it defines and imports
   -h, --help                 Print help, including available types from the include paths
       --color <WHEN>         When to use color on stderr [default: auto] [possible values: auto, always, never]
       --log-level <LEVEL>    Verbosity of the log file [default: debug] [possible values: off, error, warn, info, debug, trace]

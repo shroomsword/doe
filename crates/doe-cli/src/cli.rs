@@ -27,7 +27,7 @@ use clap_verbosity_flag::{Verbosity, WarnLevel};
 )]
 pub(crate) struct Cli {
     /// Binary file to parse.
-    #[arg(required_unless_present_any = ["help", "completions", "man", "ide"])]
+    #[arg(required_unless_present_any = ["help", "completions", "man", "ide", "list_types"])]
     pub(crate) file: Option<PathBuf>,
 
     /// Type name (e.g. `png`) or path to a YAML schema file; add `::TYPE` to
@@ -66,6 +66,19 @@ pub(crate) struct Cli {
     /// Indentation string for text output.
     #[arg(long, default_value = "  ", value_name = "STR")]
     pub(crate) indent: String,
+
+    /// Print the types that can be used and exit: one per line, with the file
+    /// each is in (relative to its type path) and the first line of its doc,
+    /// aligned on a terminal and separated by tabs otherwise; with `--json` or
+    /// `--pretty`, an array of objects with `id`, `path`, `type_path`, `doc`,
+    /// `signature` and `error`. The type paths are searched in their
+    /// subdirectories too. Give a SCHEMA instead of a FILE to list the types
+    /// it defines and imports.
+    #[arg(
+        long,
+        conflicts_with_all = ["type_or_schema", "detect", "no_instances", "help", "completions", "man", "ide", "tui"]
+    )]
+    pub(crate) list_types: bool,
 
     /// Print help, including available types from the include paths.
     #[arg(long, short = 'h', action = clap::ArgAction::SetTrue)]
