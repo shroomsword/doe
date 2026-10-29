@@ -2025,6 +2025,7 @@ fn build_needs_tui_and_does_not_go_with_a_schema() {
         .stderr(predicate::str::contains("cannot be used with"));
 }
 
+#[cfg(feature = "tui")]
 #[test]
 fn build_refuses_a_file_that_is_there_and_a_name_that_is_not_a_schema_name() {
     let dir = TempDir::new().unwrap();
