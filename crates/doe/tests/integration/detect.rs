@@ -225,3 +225,63 @@ fn a_file_that_nothing_fits_has_every_reason() {
     assert_eq!(found.attempts.len(), 1);
     assert!(found.report().contains("did not fit"));
 }
+
+#[test]
+fn the_source_of_one_type_has_its_signature_and_names() {
+    let dir = library();
+    schema(
+        dir.path(),
+        "png_file",
+        &with_signature("png", "[0x89, PNG]", "").replace("seq:", "  file-extension: png\nseq:"),
+    );
+    schema(dir.path(), "plain", "meta:\n  id: plain\nseq: []\n");
+    let include = vec![dir.path().to_owned()];
+    let types = doe::config::discover_types(&include).unwrap();
+    let png = types.iter().find(|t| t.id == "png").unwrap();
+    let (source, error) = doe::detect::source_of(&include, png);
+    assert_eq!(error, None);
+    assert_eq!(source.name, "png");
+    assert_eq!(source.magic.len(), 1);
+    // the id, the name of the file and the extension
+    for name in ["png", "png_file"] {
+        assert!(
+            source.names.iter().any(|n| n == name),
+            "{name}: {:?}",
+            source.names
+        );
+    }
+    let plain = types.iter().find(|t| t.id == "plain").unwrap();
+    let (source, error) = doe::detect::source_of(&include, plain);
+    assert_eq!((source.magic.len(), error), (0, None));
+}
+
+#[test]
+fn a_type_that_does_not_compile_has_the_error_and_no_signature() {
+    let dir = library();
+    schema(
+        dir.path(),
+        "bad",
+        "meta:\n  id: bad\nseq:\n  - id: x\n    type: nowhere\n",
+    );
+    let include = vec![dir.path().to_owned()];
+    let types = doe::config::discover_types(&include).unwrap();
+    let (source, error) = doe::detect::source_of(&include, &types[0]);
+    assert_eq!(source.magic, []);
+    assert!(error.is_some_and(|e| e.contains("nowhere")), "{source:?}");
+}
+
+#[test]
+fn the_signature_of_a_type_of_a_schema_is_asked_by_the_type() {
+    let schema = "meta:\n  id: top\nseq:\n  - id: a\n    type: u1\ntypes:\n  inner:\n    seq:\n      - id: m\n        contents: XY\n";
+    let ask = |type_name: Option<&str>| {
+        let mut request = serde_json::json!({"schema": schema});
+        if let Some(name) = type_name {
+            request["type"] = serde_json::json!(name);
+        }
+        doe::api::signature(&request.to_string())
+    };
+    assert_eq!(ask(None).magic, []);
+    let inner = ask(Some("top::inner"));
+    assert_eq!(inner.magic.len(), 1);
+    assert_eq!(inner.magic[0].bytes, b"XY");
+}

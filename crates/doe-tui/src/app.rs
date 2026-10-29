@@ -381,6 +381,32 @@ impl App {
         self.search.is_some()
     }
 
+    /// Whether the viewer has work to do between keys: a search that goes on, or
+    /// the schemas of the type browser that have not been read for their signatures.
+    #[must_use]
+    pub fn working(&self) -> bool {
+        self.searching() || self.types.as_ref().is_some_and(|t| t.pending() > 0)
+    }
+
+    /// Do a piece of the work that goes on between keys.
+    pub fn work_step(&mut self) {
+        if self.searching() {
+            self.search_step();
+        } else {
+            self.types_step();
+        }
+    }
+
+    /// Read the schemas of some more types of the browser, for their signatures.
+    fn types_step(&mut self) {
+        let Some(include_paths) = self.options.as_ref().map(|o| o.include_paths.clone()) else {
+            return;
+        };
+        if let Some(browser) = self.types.as_mut() {
+            browser.step(&include_paths, std::time::Duration::from_millis(20));
+        }
+    }
+
     /// What a key does. The keys are in [`keymap::BINDINGS`] and in the help
     /// (`?`); this decides who gets a key:
     ///
@@ -530,6 +556,13 @@ impl App {
                 }
                 KeyCode::Char('/') if !reading => {
                     browser.editing = true;
+                    TypesOutcome::Nothing
+                }
+                KeyCode::Char('r') if !reading => {
+                    let file = self.file.clone();
+                    if let Err(message) = browser.toggle_rank(&file) {
+                        self.notice = Some(message);
+                    }
                     TypesOutcome::Nothing
                 }
                 KeyCode::Char('v' | 'l') | KeyCode::Right if !reading => {

@@ -34,6 +34,9 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
       case 'inspect':
         send({ op: 'inspected', id: message.id, response: need().inspect(message.request) });
         break;
+      case 'signature':
+        send({ op: 'signed', id: message.id, response: need().signature(message.request) });
+        break;
       case 'order':
         send({ op: 'ordered', id: message.id, response: need().detectOrder(message.sources, input.subarray(0, HEAD_BYTES), message.name, message.all) });
         break;

@@ -102,6 +102,14 @@ export interface DetectSource {
   names: string[];
 }
 
+/** What `signature` answers: what a type starts with and what the format is called. */
+export interface SignatureResponse {
+  ok: boolean;
+  magic: Magic[];
+  names: string[];
+  diagnostics: Diagnostic[];
+}
+
 export type DetectWhy = 'signatureandname' | 'signature' | 'name' | 'remaining';
 
 export interface OrderResponse {
@@ -120,6 +128,8 @@ export interface Doe {
   version(): string;
   check(request: Request): CheckResponse;
   inspect(request: Request): InspectResponse;
+  /** The signature of the type of the request (`type`, or the schema's own). */
+  signature(request: Request): SignatureResponse;
   parse(request: Request, bytes: Uint8Array): ParseResponse;
   export(request: Request, bytes: Uint8Array, format: ExportFormat): ExportResponse;
   /** The order in which to try schemas on a file that starts with `head`. */
@@ -133,6 +143,7 @@ export async function loadDoe(wasmUrl: URL | string): Promise<Doe> {
     version: () => wasm.version(),
     check: (request) => JSON.parse(wasm.check(JSON.stringify(request))) as CheckResponse,
     inspect: (request) => JSON.parse(wasm.inspect(JSON.stringify(request))) as InspectResponse,
+    signature: (request) => JSON.parse(wasm.signature(JSON.stringify(request))) as SignatureResponse,
     parse: (request, bytes) =>
       JSON.parse(wasm.parse(JSON.stringify(request), bytes)) as ParseResponse,
     export: (request, bytes, format) =>

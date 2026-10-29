@@ -2,13 +2,14 @@
 // that takes longer than the limit, or that is cancelled, ends the worker and
 // starts a new one, which is the only way to stop WebAssembly that is running.
 
-import type { CheckResponse, DetectSource, ExportFormat, ExportResponse, InspectResponse, OrderResponse, ParseResponse, Request } from './doe.js';
+import type { CheckResponse, DetectSource, ExportFormat, ExportResponse, InspectResponse, OrderResponse, ParseResponse, Request, SignatureResponse } from './doe.js';
 
 export type ToWorker =
   | { op: 'init'; wasmUrl: string }
   | { op: 'input'; bytes: ArrayBuffer }
   | { op: 'check'; id: number; request: Request }
   | { op: 'inspect'; id: number; request: Request }
+  | { op: 'signature'; id: number; request: Request }
   | { op: 'order'; id: number; sources: DetectSource[]; name: string | null; all: boolean }
   | { op: 'parse'; id: number; request: Request }
   | { op: 'export'; id: number; request: Request; format: ExportFormat };
@@ -17,6 +18,7 @@ export type FromWorker =
   | { op: 'ready'; version: string }
   | { op: 'checked'; id: number; response: CheckResponse }
   | { op: 'inspected'; id: number; response: InspectResponse }
+  | { op: 'signed'; id: number; response: SignatureResponse }
   | { op: 'ordered'; id: number; response: OrderResponse }
   | { op: 'parsed'; id: number; response: ParseResponse }
   | { op: 'exported'; id: number; response: ExportResponse }
@@ -123,6 +125,18 @@ export class DoeClient {
     });
   }
 
+  /** The signature of the type of a request. Like `inspect`, it does not end the running call. */
+  async signature(request: Request): Promise<SignatureResponse> {
+    await this.start();
+    const worker = this.worker;
+    if (!worker) throw new CallEnded('failed', 'doe is not running');
+    const id = this.next++;
+    return new Promise<SignatureResponse>((resolve, reject) => {
+      this.inspecting.set(id, { resolve, reject });
+      worker.postMessage({ op: 'signature', id, request } satisfies ToWorker);
+    });
+  }
+
   /**
    * The order in which to try schemas on the input (the first 64 KiB of it, as
    * set with `setInput`). Like `inspect`, it does not end the running call.
@@ -175,7 +189,7 @@ export class DoeClient {
   }
 
   private answer(message: FromWorker): void {
-    if (message.op === 'inspected' || message.op === 'ordered') {
+    if (message.op === 'inspected' || message.op === 'ordered' || message.op === 'signed') {
       this.inspecting.get(message.id)?.resolve(message.response as never);
       this.inspecting.delete(message.id);
       return;

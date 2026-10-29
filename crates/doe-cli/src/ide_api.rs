@@ -160,6 +160,7 @@ impl Local {
         match (method, api) {
             ("GET" | "HEAD", "local") => self.info(),
             ("GET" | "HEAD", "types") => self.types(),
+            ("GET" | "HEAD", "signatures") => self.signatures(),
             ("GET" | "HEAD", "schema") => self.schema(query),
             ("GET" | "HEAD", "input") => self.bytes(query),
             ("GET" | "HEAD", "detect") => self.detect(query),
@@ -178,6 +179,37 @@ impl Local {
                 "input": self.input.as_ref().map(|i| json!({"name": i.name, "size": i.size})),
             }),
         )
+    }
+
+    /// What each type starts with and what it is called, to rank them by the
+    /// input file (see `doe::detect::source_of`): a list of
+    /// `{id, path, magic, names, error}`. The schemas are compiled to see the
+    /// signatures, so the page asks for this only when it needs it.
+    fn signatures(&self) -> Response {
+        match discover_types(&self.include_paths) {
+            Ok(types) => json_response(
+                200,
+                &Value::Array(
+                    types
+                        .iter()
+                        .map(|t| {
+                            let (source, error) = doe::detect::source_of(&self.include_paths, t);
+                            json!({
+                                "id": t.id,
+                                "path": t.source,
+                                "magic": source.magic,
+                                "names": source.names,
+                                "error": error,
+                            })
+                        })
+                        .collect(),
+                ),
+            ),
+            Err(duplicates) => {
+                log::warn!("duplicate type ids on the include paths: {duplicates:?}");
+                error(500, "duplicate type ids on the include paths\n")
+            }
+        }
     }
 
     fn types(&self) -> Response {
@@ -442,6 +474,20 @@ mod tests {
             .map(|t| t["id"].as_str().unwrap().to_owned())
             .collect();
         assert_eq!(ids, ["common", "pair"]);
+    }
+
+    #[test]
+    fn the_signatures_of_the_types_are_listed_with_their_names() {
+        let f = Fixture::new();
+        let r = f.get("signatures", "");
+        assert_eq!(r.status, 200);
+        let answer = json(&r);
+        let list = answer.as_array().unwrap();
+        assert_eq!(list.len(), 2);
+        let pair = list.iter().find(|t| t["id"] == "pair").unwrap();
+        assert_eq!(pair["magic"], json!([]));
+        assert!(pair["names"].as_array().unwrap().contains(&json!("pair")));
+        assert_eq!(pair["error"], Value::Null);
     }
 
     #[test]

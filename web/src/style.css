@@ -175,3 +175,7 @@ header label { display: inline-flex; gap: 4px; align-items: center; max-width: 1
 .browse-empty { color: var(--muted); }
 #browse-reader { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 #browse-reader-text { margin: 0; padding: 8px 12px; overflow: auto; font-family: var(--mono); font-size: .85em; white-space: pre; }
+#browse-note { margin: 0; padding: 4px 12px; color: var(--muted); font-size: .85em; }
+#browse-note:empty { display: none; }
+#browse-rank-box { display: inline-flex; gap: 4px; align-items: center; font-size: .85em; }
+#browse-list .browse-why { grid-column: 1; font-size: .85em; color: var(--string); }

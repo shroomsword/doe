@@ -467,6 +467,56 @@ pub fn extensions_of(value: Option<&serde_json::Value>) -> Vec<String> {
     }
 }
 
+/// What is known of a type of the include paths before it is tried: its
+/// signature and its names. The type is compiled to see its signature, which
+/// takes as long as the schema is big, so a program that lists many types does
+/// it in steps. An error is why it cannot be compiled (the signature is then
+/// empty).
+///
+/// A type is found through the include paths by its id, as [`Library::load`] does.
+#[cfg(feature = "fs")]
+#[must_use]
+pub fn source_of(
+    include_paths: &[PathBuf],
+    available: &crate::config::AvailableType,
+) -> (Source, Option<String>) {
+    use crate::schema::compiler::Compiler;
+
+    let mut fresh = Compiler::new(include_paths.to_vec());
+    let compiled = fresh
+        .load(&available.id, None)
+        .map(|()| fresh)
+        .map_err(|e| e.to_string());
+    let source = source_from(include_paths, available, compiled.as_ref().ok());
+    (source, compiled.err())
+}
+
+/// The [`Source`] of an available type, given its compiled schema if it has one.
+#[cfg(feature = "fs")]
+fn source_from(
+    include_paths: &[PathBuf],
+    available: &crate::config::AvailableType,
+    compiled: Option<&crate::schema::compiler::Compiler>,
+) -> Source {
+    use crate::schema::compiler::Compiler;
+
+    let mut names = vec![available.id.to_ascii_lowercase()];
+    if let Some(stem) = available.source.file_stem().and_then(|s| s.to_str()) {
+        names.push(stem.to_ascii_lowercase());
+    }
+    if let Ok(raw) = Compiler::new(include_paths.to_vec()).read_schema(&available.source) {
+        names.extend(extensions_of(raw.meta.file_extension.as_ref()));
+    }
+    let magic = compiled
+        .map(|c| magic_of(&c.registry, &available.id))
+        .unwrap_or_default();
+    Source {
+        name: available.id.clone(),
+        magic,
+        names,
+    }
+}
+
 /// A schema of the include paths, compiled for trying.
 #[cfg(feature = "fs")]
 struct Loaded {
@@ -520,23 +570,9 @@ impl Library {
                 .load(&available.id, None)
                 .map(|()| fresh)
                 .map_err(|e| e.to_string());
-            let mut names = vec![available.id.to_ascii_lowercase()];
-            if let Some(stem) = available.source.file_stem().and_then(|s| s.to_str()) {
-                names.push(stem.to_ascii_lowercase());
-            }
-            if let Ok(raw) = Compiler::new(include_paths.to_vec()).read_schema(&available.source) {
-                names.extend(extensions_of(raw.meta.file_extension.as_ref()));
-            }
-            let magic = compiled
-                .as_ref()
-                .map(|c| magic_of(&c.registry, &available.id))
-                .unwrap_or_default();
+            let source = source_from(include_paths, &available, compiled.as_ref().ok());
             loaded.push(Loaded {
-                source: Source {
-                    name: available.id.clone(),
-                    magic,
-                    names,
-                },
+                source,
                 path: available.source,
                 id: available.id,
                 compiled,
