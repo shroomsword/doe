@@ -39,9 +39,22 @@ pub enum Focus {
     Hex,
 }
 
+/// What the questions about a field lead to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DialogAction {
+    /// A field is added.
+    Add,
+    /// The field at this place is renamed.
+    Rename(usize),
+    /// The field at this place gets another kind.
+    Retype(usize),
+}
+
 /// What is known of a field that is being added, between one question and the next.
 #[derive(Debug, Clone)]
 struct FieldDialog {
+    /// What the questions are for.
+    action: DialogAction,
     /// How many bytes to skip before it, from where the schema ends.
     gap: u64,
     /// The length of the selection that starts at `at`, if there is one.
@@ -124,6 +137,10 @@ pub struct App {
     pub schemas: Option<SchemaList>,
     /// The browser of the types on the type paths, while it is open.
     pub types: Option<TypeBrowser>,
+    /// The field that `d` asked to be removed again for, until the next key.
+    remove_armed: Option<usize>,
+    /// The same, for the key that is being handled.
+    remove_was_armed: Option<usize>,
     /// The questions of a field that is being added, while they are asked.
     field_dialog: Option<FieldDialog>,
     /// Hex that `y` asked to be put on the clipboard, until the event loop does it.
@@ -193,6 +210,8 @@ impl App {
             schemas: None,
             types: None,
             builder: None,
+            remove_armed: None,
+            remove_was_armed: None,
             field_dialog: None,
             clipboard: None,
             quit_armed: false,
@@ -250,6 +269,8 @@ impl App {
             schemas: None,
             types: None,
             builder: None,
+            remove_armed: None,
+            remove_was_armed: None,
             field_dialog: None,
             clipboard: None,
             quit_armed: false,
@@ -292,6 +313,8 @@ impl App {
             schemas: None,
             types: None,
             builder: None,
+            remove_armed: None,
+            remove_was_armed: None,
             field_dialog: None,
             clipboard: None,
             quit_armed: false,
@@ -481,6 +504,7 @@ impl App {
     pub fn on_key(&mut self, key: KeyEvent) {
         self.notice = None;
         self.quit_was_armed = std::mem::take(&mut self.quit_armed);
+        self.remove_was_armed = self.remove_armed.take();
         if self.search.take().is_some() {
             let stops = key.code == KeyCode::Esc
                 || (key.code == KeyCode::Char('c')
@@ -981,7 +1005,13 @@ impl App {
             Action::ToggleInspector => self.inspector = !self.inspector,
             Action::Help => self.help = true,
             Action::ToggleReport => self.show_report = !self.show_report,
+            Action::Reload if self.builder.is_some() => self.rename_field(),
             Action::Reload => self.reload(),
+            Action::Undo
+            | Action::Redo
+            | Action::RemoveField
+            | Action::ChangeKind
+            | Action::ToggleByteOrder => self.builder_action(action),
             Action::Search => self.open_prompt(Kind::Search),
             Action::SearchNext | Action::SearchPrevious => match self.last_query.clone() {
                 Some(query) => self.start_search(&query, action == Action::SearchNext),
@@ -1146,6 +1176,265 @@ impl App {
         }
     }
 
+    /// The kind (and what goes with it) is known: a new field needs a name, a field that
+    /// changes kind is changed.
+    fn after_kind(&mut self, dialog: FieldDialog) {
+        match dialog.action {
+            DialogAction::Retype(index) => {
+                match field_dialog::kind_of(&dialog.kind, dialog.length, &dialog.encoding) {
+                    Ok(kind) => self.finish_retype(index, kind),
+                    Err(message) => self.notice = Some(message),
+                }
+            }
+            DialogAction::Add | DialogAction::Rename(_) => self.ask_name(dialog),
+        }
+    }
+
+    /// The index of the field of the schema that is selected: a row of the tree that is a
+    /// field of the schema itself, not something inside one.
+    fn selected_field(&mut self) -> Option<usize> {
+        let path = self.tree.selected_path().to_vec();
+        let index = match path.as_slice() {
+            [index] => Some(*index),
+            _ => None,
+        }
+        .filter(|i| {
+            self.builder
+                .as_ref()
+                .is_some_and(|b| *i < b.draft.fields().len())
+        });
+        if index.is_none() {
+            self.notice =
+                Some("select a field of the schema first (a row just under the top)".to_owned());
+        }
+        index
+    }
+
+    /// The keys that change the schema that is built: undo, redo, remove, rename, change the
+    /// kind, and the byte order.
+    fn builder_action(&mut self, action: Action) {
+        if self.builder.is_none() {
+            self.notice =
+                Some("the schema is changed when the viewer is started with --build".to_owned());
+            return;
+        }
+        let armed = self.remove_was_armed.take();
+        match action {
+            Action::Undo => self.undo(),
+            Action::Redo => self.redo(),
+            Action::ToggleByteOrder => {
+                let result = self.edit_draft(|d| {
+                    let to = d.endian().flipped();
+                    Ok(d.set_endian(to))
+                });
+                self.notice = Some(match result {
+                    Ok(()) => format!(
+                        "the schema is {}-endian now",
+                        self.builder
+                            .as_ref()
+                            .map_or("", |b| match b.draft.endian() {
+                                crate::draft::Endian::Little => "little",
+                                crate::draft::Endian::Big => "big",
+                            })
+                    ),
+                    Err(message) => message,
+                });
+            }
+            Action::RemoveField => {
+                let Some(index) = self.selected_field() else {
+                    return;
+                };
+                let after = self
+                    .builder
+                    .as_ref()
+                    .map_or(0, |b| b.draft.fields().len().saturating_sub(index + 1));
+                let name = self
+                    .builder
+                    .as_ref()
+                    .and_then(|b| b.draft.fields().get(index))
+                    .map(|f| f.id.clone())
+                    .unwrap_or_default();
+                if after > 0 && armed != Some(index) {
+                    self.remove_armed = Some(index);
+                    self.notice = Some(format!(
+                        "d again removes {name} and moves the {after} field{} after it up",
+                        if after == 1 { "" } else { "s" }
+                    ));
+                    return;
+                }
+                match self.edit_draft(|d| d.remove(index)) {
+                    Ok(()) => {
+                        self.select_field_near(index);
+                        self.notice = Some(format!("removed {name}"));
+                    }
+                    Err(message) => self.notice = Some(message),
+                }
+            }
+            Action::ChangeKind => {
+                let Some(index) = self.selected_field() else {
+                    return;
+                };
+                let Some(field) = self
+                    .builder
+                    .as_ref()
+                    .and_then(|b| b.draft.fields().get(index))
+                    .cloned()
+                else {
+                    return;
+                };
+                let (length, encoding) = match &field.kind {
+                    DraftKind::Bytes(n) => (Some(*n), field_dialog::DEFAULT_ENCODING.to_owned()),
+                    DraftKind::Text { len, encoding } => (Some(*len), encoding.clone()),
+                    _ => (None, field_dialog::DEFAULT_ENCODING.to_owned()),
+                };
+                self.field_dialog = Some(FieldDialog {
+                    action: DialogAction::Retype(index),
+                    gap: 0,
+                    selection: length,
+                    kind: String::new(),
+                    length,
+                    encoding,
+                });
+                self.open_prompt_with(Kind::FieldKind, &field.kind.label());
+            }
+            _ => {}
+        }
+    }
+
+    /// `r` while building: ask for another name for the selected field.
+    fn rename_field(&mut self) {
+        let Some(index) = self.selected_field() else {
+            return;
+        };
+        let name = self
+            .builder
+            .as_ref()
+            .and_then(|b| b.draft.fields().get(index))
+            .map(|f| f.id.clone())
+            .unwrap_or_default();
+        self.field_dialog = Some(FieldDialog {
+            action: DialogAction::Rename(index),
+            gap: 0,
+            selection: None,
+            kind: String::new(),
+            length: None,
+            encoding: field_dialog::DEFAULT_ENCODING.to_owned(),
+        });
+        self.open_prompt_with(Kind::FieldName, &name);
+    }
+
+    fn finish_rename(&mut self, index: usize, name: &str) {
+        match self.edit_draft(|d| d.rename(index, name)) {
+            Ok(()) => {
+                self.select_field_near(index);
+                self.notice = Some(format!("renamed to {name}"));
+            }
+            Err(message) => {
+                self.notice = Some(message);
+                // asked again, so that the name can be corrected
+                self.field_dialog = Some(FieldDialog {
+                    action: DialogAction::Rename(index),
+                    gap: 0,
+                    selection: None,
+                    kind: String::new(),
+                    length: None,
+                    encoding: field_dialog::DEFAULT_ENCODING.to_owned(),
+                });
+                self.open_prompt_with(Kind::FieldName, name);
+            }
+        }
+    }
+
+    fn finish_retype(&mut self, index: usize, kind: DraftKind) {
+        let label = kind.label();
+        match self.edit_draft(|d| d.retype(index, kind)) {
+            Ok(()) => {
+                self.select_field_near(index);
+                self.notice = Some(format!("field {} is {label} now", index + 1));
+            }
+            Err(message) => self.notice = Some(message),
+        }
+    }
+
+    /// Select the field at `index`, or the one before it if it was the last that was removed.
+    fn select_field_near(&mut self, index: usize) {
+        let count = self.builder.as_ref().map_or(0, |b| b.draft.fields().len());
+        if count == 0 {
+            self.tree.select_path(&[]);
+        } else {
+            self.tree.select_path(&[index.min(count - 1)]);
+        }
+        self.show_selected_field();
+    }
+
+    /// Take the last change to the schema back.
+    fn undo(&mut self) {
+        let Some(builder) = self.builder.as_mut() else {
+            return;
+        };
+        let Some(edit) = builder.history.pop() else {
+            self.notice = Some("nothing to undo".to_owned());
+            return;
+        };
+        if let Err(error) = builder.draft.apply(&edit.inverse()) {
+            self.notice = Some(error.to_string());
+            return;
+        }
+        match self.parse_draft() {
+            Ok(()) => {
+                if let Some(builder) = self.builder.as_mut() {
+                    builder.redo.push(edit.clone());
+                }
+                if let Some(index) = edit.index() {
+                    self.select_field_near(index);
+                }
+                self.notice = Some(format!("undid {}", edit.describe()));
+            }
+            Err(reason) => {
+                if let Some(builder) = self.builder.as_mut() {
+                    let _ = builder.draft.apply(&edit);
+                    builder.history.push(edit);
+                }
+                let _ = self.parse_draft();
+                self.notice = Some(reason);
+            }
+        }
+    }
+
+    /// Do again what was taken back.
+    fn redo(&mut self) {
+        let Some(builder) = self.builder.as_mut() else {
+            return;
+        };
+        let Some(edit) = builder.redo.pop() else {
+            self.notice = Some("nothing to do again".to_owned());
+            return;
+        };
+        if let Err(error) = builder.draft.apply(&edit) {
+            self.notice = Some(error.to_string());
+            return;
+        }
+        match self.parse_draft() {
+            Ok(()) => {
+                if let Some(builder) = self.builder.as_mut() {
+                    builder.history.push(edit.clone());
+                }
+                if let Some(index) = edit.index() {
+                    self.select_field_near(index);
+                }
+                self.notice = Some(format!("did again: {}", edit.describe()));
+            }
+            Err(reason) => {
+                if let Some(builder) = self.builder.as_mut() {
+                    let _ = builder.draft.apply(&edit.inverse());
+                    builder.redo.push(edit);
+                }
+                let _ = self.parse_draft();
+                self.notice = Some(reason);
+            }
+        }
+    }
+
     /// Begin adding a field: where the schema ends (`a`), or at the cursor with a
     /// field of skipped bytes before it (`A`). The questions follow, one prompt each.
     fn add_field(&mut self, at_cursor: bool) {
@@ -1169,6 +1458,7 @@ impl App {
             .filter(|(first, _)| *first == at)
             .map(|(first, last)| last - first + 1);
         self.field_dialog = Some(FieldDialog {
+            action: DialogAction::Add,
             gap: at - end,
             selection,
             kind: String::new(),
@@ -1201,7 +1491,7 @@ impl App {
                     self.field_dialog = Some(dialog);
                     self.open_prompt_with(Kind::FieldLength, &proposed);
                 } else {
-                    self.ask_name(dialog);
+                    self.after_kind(dialog);
                 }
             }
             Kind::FieldLength => match field_dialog::parse_length(text) {
@@ -1212,16 +1502,20 @@ impl App {
                         self.field_dialog = Some(dialog);
                         self.open_prompt_with(Kind::FieldEncoding, &encoding);
                     } else {
-                        self.ask_name(dialog);
+                        self.after_kind(dialog);
                     }
                 }
                 Err(message) => again(self, dialog, message),
             },
             Kind::FieldEncoding => {
                 text.trim().clone_into(&mut dialog.encoding);
-                self.ask_name(dialog);
+                self.after_kind(dialog);
             }
-            Kind::FieldName => self.finish_field(&dialog, text.trim()),
+            Kind::FieldName => match dialog.action {
+                DialogAction::Add => self.finish_field(&dialog, text.trim()),
+                DialogAction::Rename(index) => self.finish_rename(index, text.trim()),
+                DialogAction::Retype(_) => {}
+            },
             Kind::Search | Kind::Goto => {}
         }
     }

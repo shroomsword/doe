@@ -91,6 +91,16 @@ pub enum Action {
     HexAddField,
     /// Bytes (building a schema): add a field at the cursor, with a gap before it.
     HexAddFieldHere,
+    /// Building a schema: take the last change back.
+    Undo,
+    /// Building a schema: do again what was taken back.
+    Redo,
+    /// Building a schema: remove the selected field.
+    RemoveField,
+    /// Building a schema: change the kind of the selected field.
+    ChangeKind,
+    /// Building a schema: change the byte order of the whole schema.
+    ToggleByteOrder,
 }
 
 /// Where a binding applies.
@@ -226,10 +236,40 @@ pub const BINDINGS: &[Binding] = &[
         help: "show or hide the message about a parse that failed",
     },
     Binding {
+        keys: &[ch('u')],
+        scope: Scope::Anywhere,
+        action: Action::Undo,
+        help: "with --build: take the last change to the schema back",
+    },
+    Binding {
+        keys: &[ctrl(KeyCode::Char('r'))],
+        scope: Scope::Anywhere,
+        action: Action::Redo,
+        help: "with --build: do it again",
+    },
+    Binding {
+        keys: &[ch('d')],
+        scope: Scope::Anywhere,
+        action: Action::RemoveField,
+        help: "with --build: remove the selected field",
+    },
+    Binding {
+        keys: &[ch('c')],
+        scope: Scope::Anywhere,
+        action: Action::ChangeKind,
+        help: "with --build: change the kind of the selected field",
+    },
+    Binding {
+        keys: &[ch('E')],
+        scope: Scope::Anywhere,
+        action: Action::ToggleByteOrder,
+        help: "with --build: little or big endian for the schema",
+    },
+    Binding {
         keys: &[ch('r')],
         scope: Scope::Anywhere,
         action: Action::Reload,
-        help: "read the schema and the file again, and keep the place",
+        help: "read the schema and the file again (--build: rename the field)",
     },
     Binding {
         keys: &[ch('?')],
@@ -644,7 +684,7 @@ mod tests {
             lookup(Scope::Tree, &event(KeyCode::Char('c'), true)),
             Some(Action::Quit)
         );
-        assert_eq!(lookup(Scope::Tree, &event(KeyCode::Char('c'), false)), None);
+        assert_eq!(lookup(Scope::Tree, &event(KeyCode::Char('z'), false)), None);
         assert_eq!(
             lookup(Scope::Bytes, &event(KeyCode::Char('g'), false)),
             Some(Action::Goto)

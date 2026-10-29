@@ -219,6 +219,32 @@ pub enum Edit {
 }
 
 impl Edit {
+    /// What the change did, in a few words, for the status line.
+    #[must_use]
+    pub fn describe(&self) -> String {
+        match self {
+            Edit::Insert { field, .. } => format!("adding {}", field.id),
+            Edit::Remove { field, .. } => format!("removing {}", field.id),
+            Edit::Rename { from, to, .. } => format!("renaming {from} to {to}"),
+            Edit::Retype { index, to, .. } => {
+                format!("making field {} {}", index + 1, to.label())
+            }
+            Edit::ByteOrder { to, .. } => format!("making the byte order {}", to.name()),
+        }
+    }
+
+    /// The field that the change is about, if it is about one.
+    #[must_use]
+    pub fn index(&self) -> Option<usize> {
+        match self {
+            Edit::Insert { index, .. }
+            | Edit::Remove { index, .. }
+            | Edit::Rename { index, .. }
+            | Edit::Retype { index, .. } => Some(*index),
+            Edit::ByteOrder { .. } => None,
+        }
+    }
+
     /// The change that takes this one back.
     #[must_use]
     pub fn inverse(&self) -> Edit {
