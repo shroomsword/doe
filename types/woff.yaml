@@ -1,0 +1,62 @@
+id: woff
+doc: |
+  WOFF web font (version 1): the header and the table directory of the compressed font
+# Covers: the header (the font's flavor, sizes, version, the places of the metadata and the private data) and the
+#   directory of the font's tables (tag, offset, compressed and original lengths, checksum).
+# Limits: the tables are zlib-compressed (when their compressed length is smaller than the original) and are not
+#   read; open them with the offsets of the directory. For WOFF 2 see `woff2`. The font itself, once unpacked, is
+#   `ttf` in the Kaitai Struct gallery.
+# Specification: W3C Recommendation "WOFF File Format 1.0".
+meta:
+  id: woff
+  endian: be
+seq:
+  - id: signature
+    contents: "wOFF"
+  - id: flavor
+    type: u4
+    doc: The `sfnt` version of the font that was packed (0x00010000 for TrueType, "OTTO" for CFF).
+  - id: length
+    type: u4
+  - id: num_tables
+    type: u2
+  - id: reserved
+    type: u2
+  - id: total_sfnt_size
+    type: u4
+  - id: major_version
+    type: u2
+  - id: minor_version
+    type: u2
+  - id: meta_offset
+    type: u4
+  - id: meta_length
+    type: u4
+  - id: meta_orig_length
+    type: u4
+  - id: priv_offset
+    type: u4
+  - id: priv_length
+    type: u4
+  - id: tables
+    type: table_entry
+    repeat: expr
+    repeat-expr: num_tables
+types:
+  table_entry:
+    seq:
+      - id: tag
+        type: str
+        size: 4
+        encoding: ASCII
+      - id: offset
+        type: u4
+      - id: comp_length
+        type: u4
+      - id: orig_length
+        type: u4
+      - id: orig_checksum
+        type: u4
+    instances:
+      compressed:
+        value: comp_length < orig_length

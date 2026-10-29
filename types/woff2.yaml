@@ -1,0 +1,43 @@
+id: woff2
+doc: |
+  WOFF 2 web font: the header (the table directory and the data are Brotli-compressed)
+# Covers: the header: the signature, the font's flavor, the sizes, the number of tables, the version and the
+#   places of the metadata and the private data.
+# Limits: only the header (48 bytes). The table directory has variable-length numbers (UIntBase128) and the
+#   data is one Brotli stream, so they are bytes here.
+# Specification: W3C Recommendation "WOFF File Format 2.0".
+meta:
+  id: woff2
+  endian: be
+seq:
+  - id: signature
+    contents: "wOF2"
+  - id: flavor
+    type: u4
+  - id: length
+    type: u4
+  - id: num_tables
+    type: u2
+  - id: reserved
+    type: u2
+  - id: total_sfnt_size
+    type: u4
+  - id: total_compressed_size
+    type: u4
+  - id: major_version
+    type: u2
+  - id: minor_version
+    type: u2
+  - id: meta_offset
+    type: u4
+  - id: meta_length
+    type: u4
+  - id: meta_orig_length
+    type: u4
+  - id: priv_offset
+    type: u4
+  - id: priv_length
+    type: u4
+  - id: rest
+    doc: The table directory, the compressed font data, and the metadata and private data.
+    size-eos: true

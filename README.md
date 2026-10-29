@@ -107,6 +107,11 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `pcapng` | pcapng packet captures: the section header, interfaces, and enhanced and simple packets (little-endian files) |
 | `wasm` | WebAssembly modules: the sections, with their ids and sizes (LEB128) and bytes |
 | `npy` | numpy `.npy` array files: the header text and the data |
+| `woff` | WOFF web fonts: the header and the table directory |
+| `woff2` | WOFF 2 web fonts: the header |
+| `flac` | FLAC audio: the metadata blocks (stream info, tags, padding...) and the frames as bytes |
+| `flv` | Flash Video: the header and the tags with their sizes and times |
+| `tzfile` | time zone files (TZif): the transitions and local time types of the first data block |
 
 Each type begins with a comment that says what it covers, its limits and the specification it follows, and
 has a sample file in `types/samples/` that `types/make_samples.py` makes (nothing is copied from another

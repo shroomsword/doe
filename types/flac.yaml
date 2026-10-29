@@ -1,0 +1,102 @@
+id: flac
+doc: |
+  FLAC audio file: the metadata blocks (stream info, tags, padding, pictures...), then the audio frames
+# Covers: the signature, every metadata block with its type and length, the stream info (sample rate, channels,
+#   bits per sample, total samples, MD5 of the audio) and the Vorbis comments (vendor and tags).
+# Limits: the other blocks (seek table, application, cue sheet, picture, padding) are their bytes; the audio
+#   frames are one block of bytes, not decoded. Tags that are Vorbis comments are `NAME=value` strings.
+# Specification: RFC 9639, "Free Lossless Audio Codec (FLAC)".
+meta:
+  id: flac
+  endian: be
+seq:
+  - id: signature
+    contents: "fLaC"
+  - id: blocks
+    type: block
+    repeat: until
+    repeat-until: _.last
+  - id: frames
+    size-eos: true
+enums:
+  block_type:
+    0: stream_info
+    1: padding
+    2: application
+    3: seek_table
+    4: vorbis_comment
+    5: cue_sheet
+    6: picture
+types:
+  block:
+    seq:
+      - id: last
+        type: b1
+      - id: block_type
+        type: b7
+        enum: block_type
+      - id: len_data
+        type: b24
+      - id: data
+        size: len_data
+        type:
+          switch-on: block_type
+          cases:
+            'block_type::stream_info': stream_info
+            'block_type::vorbis_comment': vorbis_comment
+            _: raw
+  raw:
+    seq:
+      - id: bytes
+        size-eos: true
+  stream_info:
+    seq:
+      - id: min_block_size
+        type: u2
+      - id: max_block_size
+        type: u2
+      - id: min_frame_size
+        type: b24
+      - id: max_frame_size
+        type: b24
+      - id: sample_rate
+        type: b20
+      - id: channels_minus_1
+        type: b3
+      - id: bits_per_sample_minus_1
+        type: b5
+      - id: total_samples
+        type: b36
+      - id: md5
+        size: 16
+    instances:
+      channels:
+        value: channels_minus_1 + 1
+      bits_per_sample:
+        value: bits_per_sample_minus_1 + 1
+  vorbis_comment:
+    meta:
+      endian: le
+    seq:
+      - id: len_vendor
+        type: u4
+      - id: vendor
+        type: str
+        size: len_vendor
+        encoding: UTF-8
+      - id: num_comments
+        type: u4
+      - id: comments
+        type: comment
+        repeat: expr
+        repeat-expr: num_comments
+  comment:
+    meta:
+      endian: le
+    seq:
+      - id: len_text
+        type: u4
+      - id: text
+        type: str
+        size: len_text
+        encoding: UTF-8

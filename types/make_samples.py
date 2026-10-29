@@ -113,9 +113,76 @@ def npy() -> bytes:
     return b"\x93NUMPY" + bytes([1, 0]) + struct.pack("<H", len(text)) + text.encode("latin1") + struct.pack("<6h", 1, 2, 3, -4, -5, -6)
 
 
+def woff() -> bytes:
+    """A WOFF 1 font with two tables (one stored compressed, one not) and no metadata."""
+    tables = [(b"cmap", b"\x01\x02\x03\x04" * 5, 40), (b"head", b"\x00" * 24, 24)]
+    directory_end = 44 + 20 * len(tables)
+    offset = directory_end
+    directory = b""
+    data = b""
+    for tag, body, original in tables:
+        directory += tag + struct.pack(">IIII", offset, len(body), original, 0xDEADBEEF)
+        padded = body + b"\0" * (-len(body) % 4)
+        data += padded
+        offset += len(padded)
+    total = 44 + len(directory) + len(data)
+    header = b"wOFF" + struct.pack(">IIHHIHHIIIII", 0x00010000, total, len(tables), 0, 64, 1, 2, 0, 0, 0, 0, 0)
+    return header + directory + data
+
+
+def woff2() -> bytes:
+    """The 48 bytes of a WOFF 2 header, and a few bytes where the directory and the data would be."""
+    header = b"wOF2" + struct.pack(">IIHHIIHHIIIII", 0x00010000, 64, 3, 0, 4096, 20, 1, 0, 0, 0, 0, 0, 0)
+    return header + bytes(range(16))
+
+
+def flac() -> bytes:
+    """A stream info block, Vorbis comments, padding, and a few bytes where the frames would be."""
+
+    def block(last: bool, kind: int, body: bytes) -> bytes:
+        return bytes([(0x80 if last else 0) | kind]) + len(body).to_bytes(3, "big") + body
+
+    # 44100 Hz, 2 channels, 16 bits, 441000 samples (ten seconds)
+    packed = (44100 << 44) | (1 << 41) | (15 << 36) | 441000
+    info = struct.pack(">HH", 4096, 4096) + (0).to_bytes(3, "big") + (0).to_bytes(3, "big") + packed.to_bytes(8, "big") + bytes(range(16))
+    vendor = b"doe test"
+    comments = [b"TITLE=Sample", b"ARTIST=doe"]
+    vorbis = struct.pack("<I", len(vendor)) + vendor + struct.pack("<I", len(comments))
+    for text in comments:
+        vorbis += struct.pack("<I", len(text)) + text
+    return b"fLaC" + block(False, 0, info) + block(False, 4, vorbis) + block(True, 1, bytes(8)) + b"\xff\xf8\x00\x00frame"
+
+
+def flv() -> bytes:
+    """A header with audio and video, an empty previous-tag size, and two tags (script data, then video)."""
+
+    def tag(kind: int, timestamp: int, body: bytes) -> bytes:
+        head = bytes([kind]) + len(body).to_bytes(3, "big") + (timestamp & 0xFFFFFF).to_bytes(3, "big")
+        head += bytes([timestamp >> 24]) + (0).to_bytes(3, "big")
+        return head + body + struct.pack(">I", 11 + len(body))
+
+    header = b"FLV" + bytes([1, 0b0000_0101]) + struct.pack(">I", 9) + struct.pack(">I", 0)
+    return header + tag(18, 0, b"\x02\x00\x0aonMetaData") + tag(9, 0x1_00_00_10, b"\x17\x00\x00\x00\x00")
+
+
+def tzfile() -> bytes:
+    """A version 1 file for a zone with two transitions and two local time types (CET and CEST)."""
+    abbreviations = b"CET\0CEST\0"
+    counts = struct.pack(">IIIIII", 0, 0, 0, 2, 2, len(abbreviations))
+    times = struct.pack(">2i", 1_679_792_400, 1_698_541_200)
+    kinds = bytes([1, 0])
+    types = struct.pack(">iBB", 3600, 0, 0) + struct.pack(">iBB", 7200, 1, 4)
+    return b"TZif" + b"\0" + bytes(15) + counts + times + kinds + types + abbreviations
+
+
 if __name__ == "__main__":
     put("sample.tar", tar())
     put("sample.a", ar())
     put("sample.pcapng", pcapng())
     put("sample.wasm", wasm())
     put("sample.npy", npy())
+    put("sample.woff", woff())
+    put("sample.woff2", woff2())
+    put("sample.flac", flac())
+    put("sample.flv", flv())
+    put("sample.tzif", tzfile())

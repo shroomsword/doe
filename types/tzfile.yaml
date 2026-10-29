@@ -1,0 +1,80 @@
+id: tzfile
+doc: |
+  Time zone information file (TZif, /usr/share/zoneinfo): the transitions and local time types of a zone
+# Covers: the header with its six counts, and the first (version 1, 32-bit) data block: the transition times and
+#   the type that each one switches to, the local time types (offset from UTC, daylight saving flag, the index of
+#   its abbreviation), the abbreviation characters, the leap second records and the standard/wall and UT/local
+#   indicators.
+# Limits: files of version 2 and later have a second header and data block with 64-bit times, and a footer with a
+#   POSIX TZ string; they follow the first block and are bytes here (the second block is the same layout with
+#   eight-byte times).
+# Specification: RFC 9636, "The Time Zone Information Format (TZif)".
+meta:
+  id: tzfile
+  endian: be
+seq:
+  - id: signature
+    contents: "TZif"
+  - id: version
+    type: u1
+    doc: 0 for version 1, or the ASCII digit of the version ('2', '3'...).
+  - id: reserved
+    size: 15
+  - id: count_ut_indicators
+    type: u4
+  - id: count_std_indicators
+    type: u4
+  - id: count_leap
+    type: u4
+  - id: count_transitions
+    type: u4
+  - id: count_types
+    type: u4
+  - id: count_abbreviation_chars
+    type: u4
+  - id: transition_times
+    type: s4
+    repeat: expr
+    repeat-expr: count_transitions
+  - id: transition_types
+    type: u1
+    repeat: expr
+    repeat-expr: count_transitions
+  - id: local_time_types
+    type: local_time_type
+    repeat: expr
+    repeat-expr: count_types
+  - id: abbreviation_chars
+    type: str
+    size: count_abbreviation_chars
+    encoding: ASCII
+  - id: leap_seconds
+    type: leap_second
+    repeat: expr
+    repeat-expr: count_leap
+  - id: std_indicators
+    type: u1
+    repeat: expr
+    repeat-expr: count_std_indicators
+  - id: ut_indicators
+    type: u1
+    repeat: expr
+    repeat-expr: count_ut_indicators
+  - id: rest
+    doc: The data of version 2 and later, and the footer.
+    size-eos: true
+types:
+  local_time_type:
+    seq:
+      - id: utc_offset
+        type: s4
+      - id: is_dst
+        type: u1
+      - id: abbreviation_index
+        type: u1
+  leap_second:
+    seq:
+      - id: occurs_at
+        type: s4
+      - id: correction
+        type: s4
