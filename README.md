@@ -1211,9 +1211,20 @@ page, `Home`/`End` to the start and end of the line, `Ctrl-Home` and `Ctrl-End`
 field that holds the byte, opening its parents and scrolling the tree to it. A
 byte in a gap between the fields of a type selects the type; a byte after
 everything that was parsed leaves the selection where it was and the status line
-says it is not in a field. Instances are not selected by the cursor: only the
-fields of the sequence hold bytes. Moving in the tree puts the cursor on the
-start of the selected field.
+says it is not in a field. Moving in the tree puts the cursor on the start of the
+selected field.
+
+`b` moves the cursor by **bits**: `←`/`→` (or `h`/`l`) then move one bit, over the
+end of a byte, the tree selects the innermost field that holds the bit (so two bit
+fields that share a byte are told apart), the byte of the cursor is underlined and
+the title of the pane says `bit 3 of byte 0x1` (bits are counted from the start of
+the byte, as the title of a bit field counts them). `b` again goes back to bytes. A
+byte can be held by several fields: the one of the sequence is selected, and when
+others hold it too (an instance at `pos:`, a `value:` over a window) the status
+line says how many, and `.` and `,` go to the next and the previous of them. Only
+the instances of the types on the way to the field are looked at, so a key press
+never looks through the whole tree; an instance inside a type that is somewhere
+else in the file is found from the tree, not from its bytes.
 
 **Large files.** The viewer is built not to be what makes a big file hard to
 look at. The first screen is drawn at once and says that the file is being

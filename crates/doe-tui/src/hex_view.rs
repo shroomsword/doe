@@ -4,7 +4,7 @@
 
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
@@ -79,6 +79,9 @@ pub struct HexState {
     top: u64,
     /// The byte the cursor is on (it is in the pane when the pane has the focus).
     cursor: u64,
+    /// The bit of that byte the cursor is on (counted as the fields count them, from
+    /// the start of the byte), when the cursor moves by bits.
+    bit: Option<u8>,
     /// Bytes per line, and lines, as of the last drawing.
     bytes_per_line: usize,
     lines: usize,
@@ -89,6 +92,7 @@ impl Default for HexState {
         HexState {
             top: 0,
             cursor: 0,
+            bit: None,
             bytes_per_line: 16,
             lines: 16,
         }
@@ -106,6 +110,38 @@ impl HexState {
     #[must_use]
     pub fn cursor(&self) -> u64 {
         self.cursor
+    }
+
+    /// The bit of the cursor's byte that the cursor is on, when it moves by bits.
+    #[must_use]
+    pub fn bit(&self) -> Option<u8> {
+        self.bit
+    }
+
+    /// The bit the cursor is on, counted from the start of the file, when it moves by bits.
+    #[must_use]
+    pub fn bit_position(&self) -> Option<u64> {
+        self.bit.map(|bit| self.cursor * 8 + u64::from(bit))
+    }
+
+    /// Move by bits (on `bit` of the cursor's byte) or by bytes (`None`).
+    pub fn set_bit(&mut self, bit: Option<u8>) {
+        self.bit = bit.map(|b| b.min(7));
+    }
+
+    /// Move the cursor by `delta` bits, staying in the file (`size` bytes).
+    pub fn move_bits(&mut self, delta: i64, size: u64) {
+        let last = size.saturating_mul(8).saturating_sub(1);
+        let here = self.bit_position().unwrap_or(self.cursor * 8);
+        let moved = if delta < 0 {
+            here.saturating_sub(delta.unsigned_abs())
+        } else {
+            here.saturating_add(delta.unsigned_abs())
+        }
+        .min(last);
+        self.cursor = moved / 8;
+        self.bit = u8::try_from(moved % 8).ok();
+        self.follow_cursor();
     }
 
     /// An offset on the first line shown.
@@ -268,6 +304,27 @@ pub fn hex_line(
     cursor: Option<u64>,
     theme: &Theme,
 ) -> Line<'static> {
+    hex_line_with(
+        offset, data, per_line, digits, selection, cursor, false, theme,
+    )
+}
+
+/// The same, with the cursor underlined when it moves by bits (`by_bits`).
+#[must_use]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the parts of one line of the pane; grouping them would only move them"
+)]
+pub fn hex_line_with(
+    offset: u64,
+    data: &[u8],
+    per_line: usize,
+    digits: usize,
+    selection: Option<&Selection>,
+    cursor: Option<u64>,
+    by_bits: bool,
+    theme: &Theme,
+) -> Line<'static> {
     let cover = |index: usize| -> Cover {
         let at = offset + index as u64;
         selection.map_or(Cover::No, |s| s.cover(at))
@@ -280,7 +337,11 @@ pub fn hex_line(
         let byte = data.get(index);
         let at = offset + index as u64;
         let here = cover(index);
-        let style = byte_style(here, cursor == Some(at) && byte.is_some(), *theme);
+        let on_cursor = cursor == Some(at) && byte.is_some();
+        let mut style = byte_style(here, on_cursor, *theme);
+        if on_cursor && by_bits {
+            style = style.add_modifier(Modifier::UNDERLINED);
+        }
         spans.push(match byte {
             Some(b) => Span::styled(format!("{b:02x}"), style),
             None => Span::raw("  "),
@@ -342,13 +403,14 @@ pub fn render(
             break;
         }
         let data = bytes.window(offset, per_line).to_vec();
-        lines.push(hex_line(
+        lines.push(hex_line_with(
             offset,
             &data,
             per_line,
             digits,
             selection.as_ref(),
             focused.then_some(state.cursor),
+            state.bit.is_some(),
             theme,
         ));
     }

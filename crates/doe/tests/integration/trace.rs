@@ -644,3 +644,80 @@ fn finding_a_byte_gives_what_looking_through_the_children_gives() {
     }
     assert_eq!(seen, 16, "the 16 bytes that were read");
 }
+
+#[test]
+fn find_bit_tells_apart_bit_fields_that_share_a_byte() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: head
+            type: u1
+          - id: hi
+            type: b3
+          - id: lo
+            type: b5
+          - id: tail
+            type: u1
+    "};
+    let root = trace(yaml, &[1, 0xff, 3]);
+    // head: bits 0..8, hi: 8..11, lo: 11..16, tail: 16..24
+    assert_eq!(root.find_bit(7), Some(vec![0]));
+    assert_eq!(root.find_bit(8), Some(vec![1]));
+    assert_eq!(root.find_bit(10), Some(vec![1]));
+    assert_eq!(root.find_bit(11), Some(vec![2]));
+    assert_eq!(root.find_bit(15), Some(vec![2]));
+    assert_eq!(root.find_bit(16), Some(vec![3]));
+    assert_eq!(root.find_bit(24), None);
+    // a byte holds both of them: the first one is found
+    assert_eq!(root.find_byte(1), Some(vec![1]));
+}
+
+#[test]
+fn find_all_gives_the_field_first_and_then_the_instances_that_hold_the_byte() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: head
+            type: u1
+          - id: body
+            type: body
+        instances:
+          window:
+            pos: 1
+            size: 3
+          second:
+            pos: 2
+            type: u1
+        types:
+          body:
+            seq:
+              - id: a
+                type: u1
+              - id: b
+                type: u2le
+    "};
+    let root = trace(yaml, &[1, 2, 3, 4]);
+    let names = |path: &[usize]| -> Vec<String> {
+        let mut node = &root;
+        let mut out = Vec::new();
+        for &i in path {
+            node = &node.children[i];
+            out.push(node.name.clone());
+        }
+        out
+    };
+    // byte 0: only the field
+    assert_eq!(root.find_all(0).len(), 1);
+    // byte 2: the field b of body, the instance window, and the instance second
+    let all: Vec<Vec<String>> = root.find_all(2).iter().map(|p| names(p)).collect();
+    assert_eq!(all[0], ["body", "b"]);
+    assert_eq!(all.len(), 3, "{all:?}");
+    assert!(all.contains(&vec!["window".to_owned()]));
+    assert!(all.contains(&vec!["second".to_owned()]));
+    // the first of them is what find_byte gives
+    assert_eq!(root.find_all(2)[0], root.find_byte(2).unwrap());
+    // a byte that nothing holds
+    assert_eq!(root.find_all(9), Vec::<Vec<usize>>::new());
+}

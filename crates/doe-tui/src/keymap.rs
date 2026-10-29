@@ -77,6 +77,12 @@ pub enum Action {
     HexStart,
     /// Bytes: the last byte of the file.
     HexEnd,
+    /// Bytes: move by a bit and not by a byte, or back.
+    HexBits,
+    /// Bytes: the next field that holds the byte under the cursor.
+    HexNextField,
+    /// Bytes: the previous field that holds the byte under the cursor.
+    HexPrevField,
 }
 
 /// Where a binding applies.
@@ -336,6 +342,24 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Bytes,
         action: Action::HexLineEnd,
         help: "the end of the line",
+    },
+    Binding {
+        keys: &[ch('b')],
+        scope: Scope::Bytes,
+        action: Action::HexBits,
+        help: "move by bits and not bytes (again: back)",
+    },
+    Binding {
+        keys: &[ch('.')],
+        scope: Scope::Bytes,
+        action: Action::HexNextField,
+        help: "the next field that holds this byte",
+    },
+    Binding {
+        keys: &[ch(',')],
+        scope: Scope::Bytes,
+        action: Action::HexPrevField,
+        help: "the previous field that holds this byte",
     },
     Binding {
         keys: &[ctrl(KeyCode::Home)],

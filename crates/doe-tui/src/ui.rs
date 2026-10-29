@@ -403,11 +403,14 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
 
     if let Some(hex_area) = hex_area {
         let size = app.bytes.as_ref().map_or(0, crate::bytes::FileBytes::size);
-        let described = if app.loading {
+        let mut described = if app.loading {
             "the file is being parsed".to_owned()
         } else {
             hex_view::describe(app.tree.selected(), hex_view::offset_digits(size))
         };
+        if let Some(bit) = app.hex.bit() {
+            described = format!("{described} · bit {bit} of byte {:#x}", app.hex.cursor());
+        }
         let note = format::truncate(&described, usize::from(hex_area.width.saturating_sub(4)));
         let block = Block::default()
             .borders(Borders::ALL)

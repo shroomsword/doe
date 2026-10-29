@@ -438,6 +438,19 @@ impl TreeModel {
         self.root.find_byte(offset)
     }
 
+    /// The same for one bit, counted from the start of the file.
+    #[must_use]
+    pub fn find_bit(&self, bit: u64) -> Option<Vec<usize>> {
+        self.root.find_bit(bit)
+    }
+
+    /// Every field that holds the byte, the one of the sequence first (see
+    /// [`doe::parser::trace::TraceNode::find_all`]).
+    #[must_use]
+    pub fn find_all(&self, offset: u64) -> Vec<Vec<usize>> {
+        self.root.find_all(offset)
+    }
+
     // ── building the rows ────────────────────────────────────────────────────
 
     fn rebuild(&mut self) {

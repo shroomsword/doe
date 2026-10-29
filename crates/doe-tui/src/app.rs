@@ -33,6 +33,17 @@ pub enum Focus {
     Hex,
 }
 
+/// The fields that hold one byte, and the one that is selected.
+#[derive(Debug, Clone)]
+pub(crate) struct Overlap {
+    /// The byte.
+    offset: u64,
+    /// The paths of the fields, the one in the sequence first.
+    paths: Vec<Vec<usize>>,
+    /// The one that is selected.
+    at: usize,
+}
+
 /// The line that is being typed at the bottom of the screen.
 #[derive(Debug, Clone)]
 pub struct Prompt {
@@ -92,6 +103,8 @@ pub struct App {
     pub schemas: Option<SchemaList>,
     /// The browser of the types on the type paths, while it is open.
     pub types: Option<TypeBrowser>,
+    /// The fields that hold the byte under the cursor, while they are being cycled through (`.`).
+    pub(crate) overlap: Option<Overlap>,
     /// The radix of the integers: one for all, and some of the fields.
     pub radixes: Radixes,
     /// What was last searched for, for `n` and `N`.
@@ -148,6 +161,7 @@ impl App {
             schema_files: loaded.schema_files,
             schemas: None,
             types: None,
+            overlap: None,
             radixes: Radixes::default(),
             prompt: None,
             search: None,
@@ -199,6 +213,7 @@ impl App {
             schema_files: failure.schema_files.clone(),
             schemas: None,
             types: None,
+            overlap: None,
             radixes: Radixes::default(),
             prompt: None,
             search: None,
@@ -235,6 +250,7 @@ impl App {
             schema_files: Vec::new(),
             schemas: None,
             types: None,
+            overlap: None,
             radixes: Radixes::default(),
             prompt: None,
             search: None,
@@ -818,6 +834,9 @@ impl App {
     }
 
     fn act(&mut self, action: Action) {
+        if !matches!(action, Action::HexNextField | Action::HexPrevField) {
+            self.overlap = None;
+        }
         match action {
             Action::Quit => self.quit = true,
             Action::ToggleFocus => {
@@ -864,7 +883,10 @@ impl App {
             | Action::HexLineStart
             | Action::HexLineEnd
             | Action::HexStart
-            | Action::HexEnd => self.hex_action(action),
+            | Action::HexEnd
+            | Action::HexBits
+            | Action::HexNextField
+            | Action::HexPrevField => self.hex_action(action),
             tree_action => {
                 let before = self.tree.selected_path().to_vec();
                 self.tree_action(tree_action);
@@ -881,6 +903,9 @@ impl App {
         let row = self.tree.selected();
         if let Some(selection) = Selection::of(row) {
             self.hex.reveal(selection.first_byte(), size);
+            if self.hex.bit().is_some() {
+                self.hex.set_bit(u8::try_from(selection.start % 8).ok());
+            }
         } else if let Some(span) = row.span.filter(|_| !row.processed) {
             // a field that failed has no bits, but it has a place
             self.hex.reveal(span.start / 8, size);
@@ -921,12 +946,21 @@ impl App {
     }
 
     fn hex_action(&mut self, action: Action) {
+        match action {
+            Action::HexBits => return self.toggle_bits(),
+            Action::HexNextField => return self.cycle_fields(1),
+            Action::HexPrevField => return self.cycle_fields(-1),
+            _ => {}
+        }
         let size = self.bytes.as_ref().map_or(0, FileBytes::size);
         let line = i64::try_from(self.hex.bytes_per_line()).unwrap_or(16);
         let page = line.saturating_mul(i64::try_from(self.hex.page_lines()).unwrap_or(16));
         let cursor = self.hex.cursor();
         let width = u64::try_from(line).unwrap_or(16).max(1);
+        let by_bits = self.hex.bit().is_some();
         match action {
+            Action::HexLeft if by_bits => self.hex.move_bits(-1, size),
+            Action::HexRight if by_bits => self.hex.move_bits(1, size),
             Action::HexLeft => self.hex.move_by(-1, size),
             Action::HexRight => self.hex.move_by(1, size),
             Action::HexUp => self.hex.move_by(-line, size),
@@ -941,11 +975,28 @@ impl App {
             Action::HexEnd => self.hex.set_cursor(size, size),
             _ => return,
         }
-        // the tree follows the byte: the innermost field that holds it
-        match self.tree.find_byte(self.hex.cursor()) {
+        self.follow_cursor();
+    }
+
+    /// The tree follows the cursor: the innermost field that holds the byte, or the
+    /// bit when the cursor moves by bits.
+    fn follow_cursor(&mut self) {
+        let found = match self.hex.bit_position() {
+            Some(bit) => self.tree.find_bit(bit),
+            None => self.tree.find_byte(self.hex.cursor()),
+        };
+        match found {
             Some(path) => {
                 if path.as_slice() != self.tree.selected_path() {
                     self.tree.select_path(&path);
+                }
+                if self.hex.bit().is_none() {
+                    let holding = self.tree.find_all(self.hex.cursor()).len();
+                    if holding > 1 {
+                        self.notice = Some(format!(
+                            "{holding} fields hold this byte: . and , go through them"
+                        ));
+                    }
                 }
             }
             // what was parsed does not reach the byte: the selection stays where it was
@@ -956,6 +1007,61 @@ impl App {
                 ));
             }
         }
+    }
+
+    /// Move by bits, or by bytes again. Going to bits starts on the first bit of the
+    /// selected field when it begins in this byte.
+    fn toggle_bits(&mut self) {
+        if self.hex.bit().is_some() {
+            self.hex.set_bit(None);
+            self.notice = Some("moving by bytes".to_owned());
+            return;
+        }
+        let start = Selection::of(self.tree.selected())
+            .filter(|s| s.first_byte() == self.hex.cursor())
+            .and_then(|s| u8::try_from(s.start % 8).ok())
+            .unwrap_or(0);
+        self.hex.set_bit(Some(start));
+        self.follow_cursor();
+        self.notice = Some("moving by bits: ← → move one bit, b goes back to bytes".to_owned());
+    }
+
+    /// Select the next (or previous) field that holds the byte under the cursor.
+    fn cycle_fields(&mut self, step: isize) {
+        let offset = self.hex.cursor();
+        let mut overlap = match self.overlap.take() {
+            Some(o) if o.offset == offset => o,
+            _ => {
+                let paths = self.tree.find_all(offset);
+                let at = paths
+                    .iter()
+                    .position(|p| p.as_slice() == self.tree.selected_path())
+                    .unwrap_or(0);
+                Overlap { offset, paths, at }
+            }
+        };
+        let count = overlap.paths.len();
+        if count == 0 {
+            self.notice = Some(format!("byte {offset:#x} is not in a field"));
+            return;
+        }
+        overlap.at = overlap
+            .at
+            .saturating_add_signed(step.rem_euclid(isize::try_from(count).unwrap_or(1)))
+            % count;
+        if let Some(path) = overlap.paths.get(overlap.at) {
+            self.tree.select_path(path);
+        }
+        self.notice = Some(if count == 1 {
+            format!("only one field holds byte {offset:#x}")
+        } else {
+            format!(
+                "field {} of {count} that hold byte {offset:#x}: {}",
+                overlap.at + 1,
+                crate::format::safe(&self.tree.selected().name)
+            )
+        });
+        self.overlap = Some(overlap);
     }
 }
 
