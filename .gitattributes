@@ -1,0 +1,4 @@
+# The sample files of the library are bytes, and some of them hold the bytes of line ends: git must not touch them
+# (on Windows it would turn a line feed into a carriage return and a line feed).
+types/samples/* binary
+conformance/samples/** binary
