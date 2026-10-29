@@ -26,8 +26,8 @@ here; *next* means in scope and not written yet; the others are left out, with t
 | FLAC | none | **library** (`flac`) |
 | FLV | none | **library** (`flv`) |
 | tzfile | none | **library** (`tzfile`) |
-| PSD | none | next (header and sections) |
-| bzip2, xz, zstd, lz4 | `gzip` only | next (the frame headers; the data is compressed) |
+| PSD / PSB | none | **library** (`psd`) |
+| bzip2, xz, zstd, lz4 | `gzip` only | **library** (`bzip2`, `xz`, `zstd`, `lz4`: the headers and, where the format has them at byte boundaries, the blocks; the compressed data is bytes) |
 | COFF object files | `microsoft_pe` has a COFF header | next (as a file of its own) |
 | MPEG transport stream | none | next (the 188-byte packets) |
 | MP3 / MPEG audio | `id3v1_1`, `id3v2_3`, `id3v2_4` for the tags | next (the frame headers) |

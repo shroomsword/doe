@@ -112,6 +112,11 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `flac` | FLAC audio: the metadata blocks (stream info, tags, padding...) and the frames as bytes |
 | `flv` | Flash Video: the header and the tags with their sizes and times |
 | `tzfile` | time zone files (TZif): the transitions and local time types of the first data block |
+| `psd` | Photoshop documents (PSD and PSB): the header, the image resource blocks, the lengths of the other sections |
+| `bzip2` | bzip2 streams: the header and the first block's magic and CRC |
+| `xz` | xz files: the stream header, and the footer read from the end |
+| `zstd` | Zstandard files: the frames, their headers and the blocks as bytes |
+| `lz4` | LZ4 frames: the descriptor, the blocks with their sizes and the checksums |
 
 Each type begins with a comment that says what it covers, its limits and the specification it follows, and
 has a sample file in `types/samples/` that `types/make_samples.py` makes (nothing is copied from another

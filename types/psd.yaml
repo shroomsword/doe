@@ -1,0 +1,95 @@
+id: psd
+doc: |
+  Adobe Photoshop document (PSD) and large document (PSB): the header and the five sections
+# Covers: the file header (channels, size, bit depth, colour mode, and the version that tells PSD from PSB), the
+#   colour mode data, the image resource blocks (signature, id, name, data) and the lengths of the layer and mask
+#   information and of the image data with its compression.
+# Limits: the layer and mask information and the image data are bytes (layer records and the RLE/ZIP compressed
+#   channels are not decoded); the image resource data are bytes by id.
+# Specification: Adobe Photoshop File Formats Specification.
+meta:
+  id: psd
+  endian: be
+seq:
+  - id: signature
+    contents: "8BPS"
+  - id: version
+    type: u2
+    doc: 1 for a PSD, 2 for a PSB (large document format).
+  - id: reserved
+    size: 6
+  - id: num_channels
+    type: u2
+  - id: height
+    type: u4
+  - id: width
+    type: u4
+  - id: depth
+    type: u2
+  - id: color_mode
+    type: u2
+    enum: color_mode
+  - id: len_color_mode_data
+    type: u4
+  - id: color_mode_data
+    size: len_color_mode_data
+  - id: len_image_resources
+    type: u4
+  - id: image_resources
+    size: len_image_resources
+    type: resources
+  - id: len_layer_and_mask
+    type: u4
+    if: version == 1
+  - id: len_layer_and_mask_large
+    type: u8
+    if: version == 2
+  - id: layer_and_mask
+    size: 'version == 1 ? len_layer_and_mask : len_layer_and_mask_large'
+  - id: compression
+    type: u2
+    enum: compression
+  - id: image_data
+    size-eos: true
+enums:
+  color_mode:
+    0: bitmap
+    1: grayscale
+    2: indexed
+    3: rgb
+    4: cmyk
+    7: multichannel
+    8: duotone
+    9: lab
+  compression:
+    0: raw
+    1: rle
+    2: zip
+    3: zip_with_prediction
+types:
+  resources:
+    seq:
+      - id: blocks
+        type: resource_block
+        repeat: eos
+  resource_block:
+    seq:
+      - id: signature
+        contents: "8BIM"
+      - id: id
+        type: u2
+      - id: len_name
+        type: u1
+      - id: name
+        type: str
+        size: len_name
+        encoding: latin1
+      - id: name_padding
+        size: (len_name + 1) % 2
+        doc: The name with its length byte takes an even number of bytes.
+      - id: len_data
+        type: u4
+      - id: data
+        size: len_data
+      - id: data_padding
+        size: len_data % 2

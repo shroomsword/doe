@@ -1,0 +1,31 @@
+id: bzip2
+doc: |
+  bzip2 compressed stream: the stream header and the start of the first block
+# Covers: the signature `BZh`, the block size level (1 to 9, in units of 100 kB) and the magic and CRC of the
+#   first block.
+# Limits: the blocks are bit-packed, not byte-aligned, and Huffman- and BWT-coded, so everything after the first
+#   block's CRC is bytes; the end-of-stream marker (0x177245385090) and the stream CRC are inside those bits.
+#   Decompress with `bzip2 -d` to read the content.
+# Specification: the bzip2 format description of the bzip2 1.0.8 sources (`manual`, and Joe Tsai's "bzip2
+#   format" notes); there is no RFC.
+meta:
+  id: bzip2
+  endian: be
+seq:
+  - id: signature
+    contents: "BZh"
+  - id: level
+    type: str
+    size: 1
+    encoding: ASCII
+    doc: '"1" to "9": the block size is 100 kB times this.'
+  - id: first_block_magic
+    contents: [0x31, 0x41, 0x59, 0x26, 0x53, 0x59]
+    doc: Pi, in binary-coded decimal (an empty stream has the end-of-stream magic here instead).
+  - id: first_block_crc
+    type: u4
+  - id: rest
+    size-eos: true
+instances:
+  block_size_kb:
+    value: level.to_i * 100
