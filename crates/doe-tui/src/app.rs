@@ -8,7 +8,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use doe::DoeError;
 
 use crate::Options;
+use crate::builder::Builder;
 use crate::bytes::FileBytes;
+use crate::draft::{Draft, DraftError, Edit};
 use crate::hex_view::{HexState, Selection};
 use crate::keymap::{self, Action, Scope};
 use crate::load::{self, LoadFailure, Loaded};
@@ -103,6 +105,12 @@ pub struct App {
     pub schemas: Option<SchemaList>,
     /// The browser of the types on the type paths, while it is open.
     pub types: Option<TypeBrowser>,
+    /// The schema that is being built, when the viewer was started with `--build`.
+    pub builder: Option<Builder>,
+    /// Whether `q` was pressed on a schema that is not saved, so that a second one leaves.
+    quit_armed: bool,
+    /// Whether the key being handled came right after that.
+    quit_was_armed: bool,
     /// The fields that hold the byte under the cursor, while they are being cycled through (`.`).
     pub(crate) overlap: Option<Overlap>,
     /// The radix of the integers: one for all, and some of the fields.
@@ -161,6 +169,9 @@ impl App {
             schema_files: loaded.schema_files,
             schemas: None,
             types: None,
+            builder: None,
+            quit_armed: false,
+            quit_was_armed: false,
             overlap: None,
             radixes: Radixes::default(),
             prompt: None,
@@ -213,6 +224,9 @@ impl App {
             schema_files: failure.schema_files.clone(),
             schemas: None,
             types: None,
+            builder: None,
+            quit_armed: false,
+            quit_was_armed: false,
             overlap: None,
             radixes: Radixes::default(),
             prompt: None,
@@ -250,6 +264,9 @@ impl App {
             schema_files: Vec::new(),
             schemas: None,
             types: None,
+            builder: None,
+            quit_armed: false,
+            quit_was_armed: false,
             overlap: None,
             radixes: Radixes::default(),
             prompt: None,
@@ -433,6 +450,7 @@ impl App {
     /// - otherwise the pane that has the keys, then the keys for both.
     pub fn on_key(&mut self, key: KeyEvent) {
         self.notice = None;
+        self.quit_was_armed = std::mem::take(&mut self.quit_armed);
         if self.search.take().is_some() {
             let stops = key.code == KeyCode::Esc
                 || (key.code == KeyCode::Char('c')
@@ -702,6 +720,66 @@ impl App {
         }
     }
 
+    /// Change the schema that is being built, parse the file with it, and show
+    /// the result. If the file cannot be parsed with the new schema (a field
+    /// does not fit in it, the schema does not compile), the change is taken
+    /// back, the old tree stays, and the reason is the error.
+    ///
+    /// # Errors
+    ///
+    /// The change was refused, by the draft or by the file, or the viewer is
+    /// not building a schema.
+    pub fn edit_draft(
+        &mut self,
+        change: impl FnOnce(&mut Draft) -> Result<Edit, DraftError>,
+    ) -> Result<(), String> {
+        let Some(builder) = self.builder.as_mut() else {
+            return Err("the viewer is not building a schema".to_owned());
+        };
+        let edit = change(&mut builder.draft).map_err(|e| e.to_string())?;
+        match self.parse_draft() {
+            Ok(()) => {
+                if let Some(builder) = self.builder.as_mut() {
+                    builder.history.push(edit);
+                    builder.redo.clear();
+                }
+                Ok(())
+            }
+            Err(reason) => {
+                if let Some(builder) = self.builder.as_mut() {
+                    // the draft was valid before: taking the change back cannot fail
+                    let _ = builder.draft.apply(&edit.inverse());
+                    let _ = builder.write();
+                }
+                Err(reason)
+            }
+        }
+    }
+
+    /// Write the draft and parse the file with it; nothing changes if that fails.
+    fn parse_draft(&mut self) -> Result<(), String> {
+        let (Some(builder), Some(mut options)) = (self.builder.as_ref(), self.options.clone())
+        else {
+            return Err("the viewer is not building a schema".to_owned());
+        };
+        builder
+            .write()
+            .map_err(|e| format!("could not write the schema: {e}"))?;
+        options.type_or_schema = builder.schema_path().to_string_lossy().into_owned();
+        match load::try_load(&options) {
+            Ok(loaded) => {
+                if let Some(error) = &loaded.error {
+                    return Err(format!("the file does not fit the schema: {error}"));
+                }
+                self.options = Some(options);
+                self.adopt(loaded);
+                self.notice = None;
+                Ok(())
+            }
+            Err(failure) => Err(failure.error.to_string()),
+        }
+    }
+
     /// Parse with another type of the open schemas: the viewer reads the file
     /// again as `SCHEMA::TYPE` (`SCHEMA` alone for the schema's own type).
     pub fn choose_type(&mut self, name: &str, main_id: Option<&str>) {
@@ -838,7 +916,16 @@ impl App {
             self.overlap = None;
         }
         match action {
-            Action::Quit => self.quit = true,
+            Action::Quit => {
+                if self.builder.as_ref().is_some_and(Builder::dirty) && !self.quit_was_armed {
+                    self.quit_armed = true;
+                    self.notice = Some(
+                        "the schema is not saved: q again leaves without saving it".to_owned(),
+                    );
+                } else {
+                    self.quit = true;
+                }
+            }
             Action::ToggleFocus => {
                 self.focus = match self.focus {
                     Focus::Tree => Focus::Hex,

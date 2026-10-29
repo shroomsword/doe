@@ -141,6 +141,17 @@ pub(crate) struct Cli {
     )]
     pub(crate) tui: bool,
 
+    /// With `--tui`: build a new schema one field at a time from the hex view
+    /// of FILE, to be saved to OUT (a file that is not there yet; the schema is
+    /// named for it). Instead of a `TYPE_OR_SCHEMA`.
+    #[arg(
+        long,
+        value_name = "OUT",
+        requires = "tui",
+        conflicts_with_all = ["type_or_schema", "watch"]
+    )]
+    pub(crate) build: Option<PathBuf>,
+
     /// With `--tui`: read the schema and the file again when either changes
     /// on disk (the modification times are looked at twice a second).
     #[arg(long, requires = "tui")]

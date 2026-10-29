@@ -12,6 +12,7 @@
 //! - [`run`] ties them together with the event loop.
 
 pub mod app;
+pub mod builder;
 pub mod bytes;
 pub mod draft;
 pub mod format;
@@ -34,7 +35,7 @@ pub mod ui;
 pub mod watch;
 
 use std::io::{self, IsTerminal};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, bail};
@@ -141,6 +142,36 @@ const TICK: Duration = Duration::from_millis(100);
 /// terminal is set up: the tests use it to check that a panic puts the terminal
 /// back.
 pub fn run(options: &Options) -> anyhow::Result<()> {
+    run_with(options, None)
+}
+
+/// Start the viewer on an empty schema that grows as fields are added from the
+/// hex pane (`doe --tui FILE --build OUT`). `options.type_or_schema` is not used:
+/// the schema is the one being built, which is saved to `out`.
+///
+/// # Errors
+///
+/// As [`run`]; also when `out` exists already or is not named like a schema
+/// (before the terminal is touched).
+pub fn run_build(options: &Options, out: &Path) -> anyhow::Result<()> {
+    let (options, builder) = prepare_build(options, out)?;
+    run_with(&options, Some(builder))
+}
+
+/// The options for a viewer that builds a schema, and the builder: the schema
+/// is written to a temporary file that the options name.
+///
+/// # Errors
+///
+/// `out` exists already, or its name is not one a schema can have.
+pub fn prepare_build(options: &Options, out: &Path) -> anyhow::Result<(Options, builder::Builder)> {
+    let builder = builder::Builder::new(out).map_err(anyhow::Error::msg)?;
+    let mut options = options.clone();
+    options.type_or_schema = builder.schema_path().to_string_lossy().into_owned();
+    Ok((options, builder))
+}
+
+fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Result<()> {
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         bail!(
             "--tui needs a terminal on stdin and on stdout (use --json or --pretty to print to a pipe)"
@@ -155,6 +186,14 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
     // cannot be read. The person sees what and where, and leaves with `q`.
     let mut app = App::loading(options.file.clone(), &options.type_or_schema);
     app.options = Some(options.clone());
+    if let Some(builder) = builder {
+        app.notice = Some(format!(
+            "building {}: nothing is saved yet",
+            format::safe(&builder.out.display().to_string())
+        ));
+        app.builder = Some(builder);
+        app.focus = app::Focus::Hex;
+    }
     app.radixes = radixes::Radixes::new(options.radix.unwrap_or_default());
     let loader = spawn_load(options.clone());
     let mut loader = Some(loader);

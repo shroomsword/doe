@@ -320,7 +320,13 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         match (&app.error, &app.report) {
             (Some(_), _) => Span::styled(" the parse failed ", theme.bad()),
             (None, Some(_)) => Span::styled(" could not read again ", theme.bad()),
-            (None, None) => Span::styled(" parsed ", theme.good()),
+            (None, None) => match &app.builder {
+                Some(builder) if builder.dirty() => {
+                    Span::styled(" building · not saved ", theme.title())
+                }
+                Some(_) => Span::styled(" building ", theme.good()),
+                None => Span::styled(" parsed ", theme.good()),
+            },
         }
     };
     let hint = if hex_area.is_some() {
