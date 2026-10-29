@@ -1845,3 +1845,157 @@ mod tui_in_a_terminal {
         assert!(!seen.contains(ENTER_SCREEN), "{seen:?}");
     }
 }
+
+// ── --list-types ──────────────────────────────────────────────────────────────
+
+/// A type path with `pair` (with a doc) and `plain`, and in a subdirectory `nested`
+/// (whose file is not named for it), and a file that is not YAML.
+fn types_dir() -> TempDir {
+    let dir = TempDir::new().unwrap();
+    std::fs::create_dir_all(dir.path().join("sub")).unwrap();
+    std::fs::write(
+        dir.path().join("pair.yaml"),
+        "id: pair\ndoc: |\n  A pair\n  of bytes\nseq:\n  - id: magic\n    contents: [1, 2]\n",
+    )
+    .unwrap();
+    std::fs::write(dir.path().join("plain.yaml"), "id: plain\nseq: []\n").unwrap();
+    std::fs::write(
+        dir.path().join("sub/other_name.ksy"),
+        "meta:\n  id: nested\nseq: []\n",
+    )
+    .unwrap();
+    dir
+}
+
+fn list(dir: &TempDir, extra: &[&str]) -> String {
+    let out = doe()
+        .args(["-c", NO_CONFIG, "-I"])
+        .arg(dir.path())
+        .arg("--list-types")
+        .args(extra)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    String::from_utf8(out).unwrap()
+}
+
+#[test]
+fn list_types_prints_one_type_per_line_separated_by_tabs_when_piped() {
+    let dir = types_dir();
+    let lines: Vec<String> = list(&dir, &[]).lines().map(str::to_owned).collect();
+    let sub = Path::new("sub").join("other_name.ksy");
+    assert_eq!(
+        lines,
+        [
+            "nested\t".to_owned() + &sub.display().to_string() + "\t",
+            "pair\tpair.yaml\tA pair".to_owned(),
+            "plain\tplain.yaml\t".to_owned(),
+        ]
+    );
+}
+
+#[test]
+fn list_types_json_has_the_fields_and_the_signature() {
+    let dir = types_dir();
+    let value: serde_json::Value = serde_json::from_str(&list(&dir, &["--json"])).unwrap();
+    let items = value.as_array().unwrap();
+    assert_eq!(items.len(), 3);
+    let pair = items.iter().find(|i| i["id"] == "pair").unwrap();
+    assert_eq!(pair["path"], "pair.yaml");
+    assert_eq!(pair["doc"], "A pair");
+    assert_eq!(pair["signature"], true);
+    assert_eq!(pair["error"], serde_json::Value::Null);
+    assert_eq!(pair["type_path"], dir.path().to_str().unwrap());
+    let plain = items.iter().find(|i| i["id"] == "plain").unwrap();
+    assert_eq!(plain["signature"], false);
+    assert_eq!(plain["doc"], serde_json::Value::Null);
+    // --pretty is the same list, on many lines
+    let pretty = list(&dir, &["--pretty"]);
+    assert!(pretty.lines().count() > 5);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&pretty).unwrap(),
+        value
+    );
+}
+
+#[test]
+fn list_types_lists_a_file_that_does_not_read_with_its_error_and_exits_zero() {
+    let dir = types_dir();
+    std::fs::write(dir.path().join("broken.yaml"), "id: [unclosed\n").unwrap();
+    let text = list(&dir, &[]);
+    let broken = text.lines().find(|l| l.contains("broken.yaml")).unwrap();
+    assert!(
+        broken.starts_with("-\t") && broken.contains("error: "),
+        "{text}"
+    );
+    let value: serde_json::Value = serde_json::from_str(&list(&dir, &["--json"])).unwrap();
+    let bad = value
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["error"].is_string())
+        .unwrap();
+    assert_eq!(bad["id"], serde_json::Value::Null);
+    assert_eq!(bad["path"], "broken.yaml");
+}
+
+#[test]
+fn list_types_with_a_missing_type_path_is_an_error_and_with_none_is_empty() {
+    doe()
+        .args(["-c", NO_CONFIG, "-I", "/nonexistent/types", "--list-types"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not a directory"));
+    doe()
+        .args(["-c", NO_CONFIG, "--list-types"])
+        .assert()
+        .success()
+        .stdout("");
+}
+
+#[test]
+fn list_types_of_a_schema_lists_its_types_and_what_it_imports() {
+    let dir = TempDir::new().unwrap();
+    std::fs::write(
+        dir.path().join("top.yaml"),
+        "meta:\n  id: top\n  imports:\n    - lib\nseq: []\ntypes:\n  chunk:\n    seq: []\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("lib.yaml"),
+        "meta:\n  id: lib\nseq: []\ntypes:\n  piece:\n    seq: []\n",
+    )
+    .unwrap();
+    let out = doe()
+        .args(["-c", NO_CONFIG, "-I"])
+        .arg(dir.path())
+        .arg("--list-types")
+        .arg(dir.path().join("top.yaml"))
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let ids: Vec<String> = String::from_utf8(out)
+        .unwrap()
+        .lines()
+        .map(|l| l.split('\t').next().unwrap().to_owned())
+        .collect();
+    assert_eq!(ids, ["lib", "lib::piece", "top", "top::chunk"]);
+}
+
+#[test]
+fn list_types_does_not_go_with_a_type_or_the_modes_that_do_something_else() {
+    for other in ["--help", "--tui", "--ide", "--detect=all"] {
+        doe()
+            .args(["-c", NO_CONFIG, "--list-types", other])
+            .assert()
+            .failure();
+    }
+    doe()
+        .args(["-c", NO_CONFIG, "--list-types", "some.yaml", "type"])
+        .assert()
+        .failure();
+}

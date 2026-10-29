@@ -21,6 +21,8 @@ pub(crate) fn dispatch(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         ide(cli, config)
     } else if cli.tui {
         tui(cli, config)
+    } else if cli.list_types {
+        crate::list_types::run(cli, config)
     } else if cli.help {
         print_help(&cli.include_paths, config)
     } else {
@@ -29,7 +31,7 @@ pub(crate) fn dispatch(cli: &Cli, config: &Config) -> anyhow::Result<()> {
 }
 
 /// Write `bytes` to stdout, reporting failures (including a closed pipe).
-fn write_stdout(bytes: &[u8]) -> anyhow::Result<()> {
+pub(crate) fn write_stdout(bytes: &[u8]) -> anyhow::Result<()> {
     let mut stdout = io::stdout().lock();
     stdout.write_all(bytes)?;
     stdout.flush()?;
@@ -237,6 +239,10 @@ fn print_help(cli_include_paths: &[PathBuf], config: &Config) -> anyhow::Result<
             None => writeln!(stdout, "  {}", t.id)?,
         }
     }
+    writeln!(
+        stdout,
+        "\n`doe --list-types` prints them with their files, for scripts."
+    )?;
     Ok(())
 }
 
