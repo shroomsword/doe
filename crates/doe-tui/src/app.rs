@@ -371,7 +371,13 @@ impl App {
     /// The parse that was going on is done: show what it made, or what stopped it.
     pub fn finish_loading(&mut self, result: Result<Loaded, Box<LoadFailure>>) {
         match result {
-            Ok(loaded) => self.adopt(loaded),
+            Ok(loaded) => {
+                if let Some(builder) = self.builder.as_mut() {
+                    // a schema that was gone on with: the file decides some lengths
+                    builder.draft.fit_to_trace(&loaded.trace);
+                }
+                self.adopt(loaded);
+            }
             Err(failure) => {
                 let schema = self.options.as_ref().and_then(load::schema_file);
                 let broken = App::broken(self.file.clone(), &failure, schema.as_deref());
@@ -857,6 +863,9 @@ impl App {
                     return Err(format!("the file does not fit the schema: {error}"));
                 }
                 self.options = Some(options);
+                if let Some(builder) = self.builder.as_mut() {
+                    builder.draft.fit_to_trace(&loaded.trace);
+                }
                 self.adopt(loaded);
                 self.notice = None;
                 Ok(())
@@ -1017,7 +1026,8 @@ impl App {
                 if self.builder.as_ref().is_some_and(Builder::dirty) && !self.quit_was_armed {
                     self.quit_armed = true;
                     self.notice = Some(
-                        "the schema is not saved: q again leaves without saving it".to_owned(),
+                        "the schema is not saved: w saves it, q again leaves without saving it"
+                            .to_owned(),
                     );
                 } else {
                     self.quit = true;
@@ -1042,7 +1052,8 @@ impl App {
             | Action::Redo
             | Action::RemoveField
             | Action::ChangeKind
-            | Action::ToggleByteOrder => self.builder_action(action),
+            | Action::ToggleByteOrder
+            | Action::Save => self.builder_action(action),
             Action::Search => self.open_prompt(Kind::Search),
             Action::SearchNext | Action::SearchPrevious => match self.last_query.clone() {
                 Some(query) => self.start_search(&query, action == Action::SearchNext),
@@ -1251,6 +1262,24 @@ impl App {
         match action {
             Action::Undo => self.undo(),
             Action::Redo => self.redo(),
+            Action::Save => {
+                let result = self.builder.as_mut().map(Builder::save);
+                self.notice = Some(match result {
+                    Some(Ok(())) => {
+                        let (out, count) = self.builder.as_ref().map_or_else(
+                            || (String::new(), 0),
+                            |b| (b.out.display().to_string(), b.draft.fields().len()),
+                        );
+                        format!(
+                            "saved {} ({count} field{})",
+                            crate::format::safe(&out),
+                            if count == 1 { "" } else { "s" }
+                        )
+                    }
+                    Some(Err(message)) => message,
+                    None => String::new(),
+                });
+            }
             Action::ToggleByteOrder => {
                 let result = self.edit_draft(|d| {
                     let to = d.endian().flipped();

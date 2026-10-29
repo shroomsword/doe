@@ -141,9 +141,10 @@ pub(crate) struct Cli {
     )]
     pub(crate) tui: bool,
 
-    /// With `--tui`: build a new schema one field at a time from the hex view
-    /// of FILE, to be saved to OUT (a file that is not there yet; the schema is
-    /// named for it). Instead of a `TYPE_OR_SCHEMA`.
+    /// With `--tui`: build a schema one field at a time from the hex view of
+    /// FILE, to be saved to OUT with `w`: a file that is not there yet (the
+    /// schema is named for it), or a schema that this made, to go on with.
+    /// Instead of a `TYPE_OR_SCHEMA`.
     #[arg(
         long,
         value_name = "OUT",

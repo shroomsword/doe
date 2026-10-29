@@ -2027,7 +2027,7 @@ fn build_needs_tui_and_does_not_go_with_a_schema() {
 
 #[cfg(feature = "tui")]
 #[test]
-fn build_refuses_a_file_that_is_there_and_a_name_that_is_not_a_schema_name() {
+fn build_refuses_a_schema_it_did_not_make_and_a_name_that_is_not_a_schema_name() {
     let dir = TempDir::new().unwrap();
     let (schema, binary) = simple_fixture(dir.path());
     doe()
@@ -2037,7 +2037,7 @@ fn build_refuses_a_file_that_is_there_and_a_name_that_is_not_a_schema_name() {
         .arg(&schema)
         .assert()
         .failure()
-        .stderr(predicate::str::contains("exists already"));
+        .stderr(predicate::str::contains("cannot be gone on with"));
     doe()
         .args(["-c", NO_CONFIG, "--tui"])
         .arg(&binary)

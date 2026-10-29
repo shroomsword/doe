@@ -101,6 +101,8 @@ pub enum Action {
     ChangeKind,
     /// Building a schema: change the byte order of the whole schema.
     ToggleByteOrder,
+    /// Building a schema: save it.
+    Save,
 }
 
 /// Where a binding applies.
@@ -258,6 +260,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::ChangeKind,
         help: "with --build: change the kind of the selected field",
+    },
+    Binding {
+        keys: &[ch('w')],
+        scope: Scope::Anywhere,
+        action: Action::Save,
+        help: "with --build: save the schema to its file",
     },
     Binding {
         keys: &[ch('E')],

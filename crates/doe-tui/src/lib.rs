@@ -167,7 +167,7 @@ pub fn run_build(options: &Options, out: &Path) -> anyhow::Result<()> {
 ///
 /// `out` exists already, or its name is not one a schema can have.
 pub fn prepare_build(options: &Options, out: &Path) -> anyhow::Result<(Options, builder::Builder)> {
-    let builder = builder::Builder::new(out).map_err(anyhow::Error::msg)?;
+    let builder = builder::Builder::open(out).map_err(anyhow::Error::msg)?;
     let mut options = options.clone();
     options.type_or_schema = builder.schema_path().to_string_lossy().into_owned();
     Ok((options, builder))
