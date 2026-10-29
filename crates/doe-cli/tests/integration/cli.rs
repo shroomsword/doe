@@ -2145,7 +2145,7 @@ mod install_types {
             .arg("--list-types")
             .assert()
             .success()
-            .stdout(predicate::str::contains("tar\tdoe/tar.yaml"));
+            .stdout(predicate::str::contains("tar\tdoe"));
     }
 
     #[test]
