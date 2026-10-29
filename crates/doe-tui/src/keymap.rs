@@ -29,6 +29,8 @@ pub enum Action {
     Goto,
     /// List the schemas and their types.
     Schemas,
+    /// Browse the types that are available on the type paths.
+    Types,
     /// Write all integers in the next radix.
     Radix,
     /// Choose a radix for the selected integer field.
@@ -184,6 +186,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::Schemas,
         help: "list the schemas and types (Enter reads a schema, or chooses the type to parse)",
+    },
+    Binding {
+        keys: &[ch('t')],
+        scope: Scope::Anywhere,
+        action: Action::Types,
+        help: "browse the types on the type paths (/ filters, v reads one, Enter parses with it)",
     },
     Binding {
         keys: &[ch('x')],

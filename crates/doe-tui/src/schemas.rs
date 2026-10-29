@@ -271,6 +271,22 @@ impl SchemaList {
 }
 
 impl Pager {
+    /// Read the text of a file that has no error to show.
+    #[must_use]
+    pub fn of_file(path: &Path) -> Pager {
+        let (lines, message) = match std::fs::read_to_string(path) {
+            Ok(text) => (text.lines().map(format::safe).collect(), None),
+            Err(error) => (Vec::new(), Some(format!("could not read it: {error}"))),
+        };
+        Pager {
+            path: path.to_owned(),
+            lines,
+            top: 0,
+            error_line: None,
+            message,
+        }
+    }
+
     /// Read the text of an entry.
     #[must_use]
     pub fn open(entry: &Entry) -> Pager {

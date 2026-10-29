@@ -19,6 +19,7 @@ use crate::schemas::{Outcome as SchemasOutcome, SchemaList};
 use crate::search::{Needle, Outcome as SearchOutcome, Search};
 use crate::tree::{Shown, TreeModel};
 use crate::tree_view::TreeView;
+use crate::types::{Outcome as TypesOutcome, TypeBrowser};
 
 /// How many fields a search looks at between two redraws of the screen.
 pub const SEARCH_STEP: usize = 5_000;
@@ -89,6 +90,8 @@ pub struct App {
     pub schema_files: Vec<std::path::PathBuf>,
     /// The list of the schemas and their types, while it is open.
     pub schemas: Option<SchemaList>,
+    /// The browser of the types on the type paths, while it is open.
+    pub types: Option<TypeBrowser>,
     /// The radix of the integers: one for all, and some of the fields.
     pub radixes: Radixes,
     /// What was last searched for, for `n` and `N`.
@@ -144,6 +147,7 @@ impl App {
             options: None,
             schema_files: loaded.schema_files,
             schemas: None,
+            types: None,
             radixes: Radixes::default(),
             prompt: None,
             search: None,
@@ -194,6 +198,7 @@ impl App {
             options: None,
             schema_files: failure.schema_files.clone(),
             schemas: None,
+            types: None,
             radixes: Radixes::default(),
             prompt: None,
             search: None,
@@ -229,6 +234,7 @@ impl App {
             options: None,
             schema_files: Vec::new(),
             schemas: None,
+            types: None,
             radixes: Radixes::default(),
             prompt: None,
             search: None,
@@ -402,6 +408,10 @@ impl App {
             self.schemas_key(&key);
             return;
         }
+        if self.types.is_some() {
+            self.types_key(&key);
+            return;
+        }
         if self.prompt.is_some() {
             self.prompt_key(&key);
             return;
@@ -428,6 +438,137 @@ impl App {
                 self.schemas = Some(list);
             }
             Err(message) => self.notice = Some(message),
+        }
+    }
+
+    /// Open the browser of the types on the type paths (read from disk now)
+    /// with the selection on the type that is parsed.
+    fn open_types(&mut self) {
+        let Some(options) = self.options.as_ref() else {
+            self.notice = Some("there are no type paths to browse".to_owned());
+            return;
+        };
+        if options.include_paths.is_empty() {
+            self.notice = Some("there are no type paths: give one with -I".to_owned());
+            return;
+        }
+        let mut browser = TypeBrowser::read(&options.include_paths);
+        let (schema, _) = doe::split_type_arg(&options.type_or_schema);
+        browser.select_type(schema);
+        self.types = Some(browser);
+    }
+
+    /// A key while the browser of types is open: move, filter, read a type,
+    /// choose one, or close it.
+    fn types_key(&mut self, key: &KeyEvent) {
+        let Some(browser) = self.types.as_mut() else {
+            return;
+        };
+        let reading = browser.pager.is_some();
+        let control_c =
+            key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL);
+        let outcome = if control_c {
+            TypesOutcome::Close
+        } else if browser.editing && !reading {
+            match key.code {
+                KeyCode::Esc | KeyCode::Enter => {
+                    browser.editing = false;
+                }
+                KeyCode::Backspace => browser.backspace(),
+                KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    browser.type_char(c);
+                }
+                KeyCode::Up => browser.move_by(-1),
+                KeyCode::Down => browser.move_by(1),
+                _ => {}
+            }
+            TypesOutcome::Nothing
+        } else {
+            let step = |down: bool| if down { 10 } else { -10 };
+            match key.code {
+                KeyCode::Esc | KeyCode::Left | KeyCode::Char('q' | 'h') => browser.back(),
+                KeyCode::Up | KeyCode::Char('k') => {
+                    if reading {
+                        browser.scroll(-1);
+                    } else {
+                        browser.move_by(-1);
+                    }
+                    TypesOutcome::Nothing
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    if reading {
+                        browser.scroll(1);
+                    } else {
+                        browser.move_by(1);
+                    }
+                    TypesOutcome::Nothing
+                }
+                KeyCode::PageUp | KeyCode::PageDown => {
+                    let delta = step(key.code == KeyCode::PageDown);
+                    if reading {
+                        browser.scroll(delta);
+                    } else {
+                        browser.move_by(delta);
+                    }
+                    TypesOutcome::Nothing
+                }
+                KeyCode::Home => {
+                    if reading {
+                        browser.scroll_to(false);
+                    } else {
+                        browser.jump(false);
+                    }
+                    TypesOutcome::Nothing
+                }
+                KeyCode::End | KeyCode::Char('G') => {
+                    if reading {
+                        browser.scroll_to(true);
+                    } else {
+                        browser.jump(true);
+                    }
+                    TypesOutcome::Nothing
+                }
+                KeyCode::Char('/') if !reading => {
+                    browser.editing = true;
+                    TypesOutcome::Nothing
+                }
+                KeyCode::Char('v' | 'l') | KeyCode::Right if !reading => {
+                    browser.view();
+                    TypesOutcome::Nothing
+                }
+                KeyCode::Enter if !reading => browser.choose(),
+                _ => TypesOutcome::Nothing,
+            }
+        };
+        match outcome {
+            TypesOutcome::Nothing => {}
+            TypesOutcome::Close => self.types = None,
+            TypesOutcome::Choose(id) => {
+                self.types = None;
+                self.choose_available(&id);
+            }
+        }
+    }
+
+    /// Parse with a type of the type paths: the viewer reads the file again as
+    /// `doe --tui FILE TYPE` would.
+    pub fn choose_available(&mut self, id: &str) {
+        if self.loading {
+            self.notice = Some("still reading the file".to_owned());
+            return;
+        }
+        let Some(mut options) = self.options.clone() else {
+            return;
+        };
+        id.clone_into(&mut options.type_or_schema);
+        match load::try_load(&options) {
+            Ok(loaded) => {
+                self.options = Some(options);
+                self.adopt(loaded);
+                self.notice = Some(format!("parsing as {id}"));
+            }
+            // the old type stays, with the old tree
+            Err(failure) => self.reload_failed(&failure, &options),
         }
     }
 
@@ -667,6 +808,7 @@ impl App {
             },
             Action::Goto => self.open_prompt(Kind::Goto),
             Action::Schemas => self.open_schemas(),
+            Action::Types => self.open_types(),
             Action::Radix => {
                 self.radixes.cycle_global();
                 self.notice = Some(format!(

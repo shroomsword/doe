@@ -1242,6 +1242,17 @@ as `doe --tui FILE SCHEMA::TYPE` does; the type that is parsed has a `●`. `r`
 reads everything again, and `Esc` closes the list. If the new type cannot be used,
 the old tree stays and the error is shown.
 
+`t` browses the types that are **available**: those of the type paths (`-I`, and
+`include_paths` of the config file), found in their subdirectories too, grouped
+by the path they are in, each with its id, the file it is in, and the first line
+of its `doc`. `/` types a filter (every word of it must be in the id, the path
+or the doc; `Enter` stops typing, `Esc` clears it), `v` reads the text of the
+selected type in a read-only pager, and `Enter` reads the open file again with
+that type, as `doe --tui FILE TYPE` does; the type in use has a `●`, and if the
+new type cannot be used the old tree stays and the error is shown. `Esc` goes back
+one step at a time and then closes the browser. It does not list whether a type has
+a signature, or rank the types by what fits the file (see #166).
+
 `x` writes the integers in the next **radix**: decimal (the first one, with the hex
 next to the numbers from 16 up), hexadecimal (`0x001f`), binary (`0b00011111`),
 octal (`0o37`), and decimal again. The digits are padded to the width of the

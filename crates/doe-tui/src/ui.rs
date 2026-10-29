@@ -17,6 +17,7 @@ use crate::status;
 use crate::theme::Palette;
 use crate::tree::Shown;
 use crate::tree_view;
+use crate::types::{Row as TypeRow, TypeBrowser};
 
 /// The styles of the viewer. Without a theme they are the colours of the
 /// terminal itself (its own palette, so it matches whatever the person has
@@ -475,9 +476,152 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     if let Some(list) = &app.schemas {
         schemas_overlay(frame, list, &app.type_name, *theme);
     }
+    if let Some(browser) = &app.types {
+        types_overlay(frame, browser, &app.type_name, *theme);
+    }
     if app.help {
         help(frame, *theme);
     }
+}
+
+/// The types of the type paths, grouped by path, with the filter on the first
+/// line; or the text of one.
+fn types_overlay(frame: &mut Frame<'_>, browser: &TypeBrowser, current: &str, theme: Theme) {
+    let screen = frame.area();
+    if screen.width < 24 || screen.height < 6 {
+        return;
+    }
+    let area = big_box(screen);
+    clear(frame, area, theme);
+    if let Some(pager) = &browser.pager {
+        schema_text(frame, area, pager, theme);
+        return;
+    }
+    let (all, kept) = browser.counts();
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(theme.border(true))
+        .title(Span::styled(
+            format!(" types on the type paths · {kept} of {all} "),
+            theme.title(),
+        ))
+        .title_bottom(Line::from(Span::styled(
+            " ↑↓ move · / filters · v reads · Enter parses with it · Esc goes back ",
+            theme.dim(),
+        )));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    if inner.height < 2 {
+        return;
+    }
+    let width = usize::from(inner.width);
+    let cursor = if browser.editing { "▏" } else { "" };
+    let filter_line = Line::from(vec![
+        Span::styled("filter: ", theme.dim()),
+        Span::styled(
+            format!("{}{cursor}", format::safe(&browser.filter)),
+            theme.name(),
+        ),
+    ]);
+    frame.render_widget(Paragraph::new(filter_line), Rect { height: 1, ..inner });
+    let list = Rect {
+        y: inner.y + 1,
+        height: inner.height - 1,
+        ..inner
+    };
+    let rows = usize::from(list.height);
+    if browser.rows.is_empty() {
+        let text = browser.problem.clone().unwrap_or_else(|| {
+            if all == 0 {
+                "no types were found on the type paths".to_owned()
+            } else {
+                "no type matches the filter".to_owned()
+            }
+        });
+        frame.render_widget(Paragraph::new(format::truncate(&text, width)), list);
+        return;
+    }
+    let first = browser.selected.saturating_sub(rows.saturating_sub(1)).max(
+        browser
+            .selected
+            .saturating_sub(rows / 2)
+            .min(browser.rows.len().saturating_sub(rows)),
+    );
+    let lines: Vec<Line<'static>> = browser
+        .rows
+        .iter()
+        .enumerate()
+        .skip(first)
+        .take(rows)
+        .map(|(index, row)| {
+            let line = types_line(browser, row, current, width, theme);
+            if index == browser.selected {
+                line.patch_style(theme.selected())
+            } else {
+                line
+            }
+        })
+        .collect();
+    frame.render_widget(Paragraph::new(lines), list);
+}
+
+/// One line of the list of types.
+fn types_line(
+    browser: &TypeBrowser,
+    row: &TypeRow,
+    current: &str,
+    width: usize,
+    theme: Theme,
+) -> Line<'static> {
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    match row {
+        TypeRow::Group(group) => {
+            spans.push(Span::styled(browser.group_name(*group), theme.name()));
+        }
+        TypeRow::Type(index) => {
+            let Some(entry) = browser.entries.get(*index) else {
+                return Line::raw("");
+            };
+            let mark = if entry.id == current { "● " } else { "  " };
+            spans.push(Span::raw("  "));
+            spans.push(Span::styled(mark, theme.good()));
+            spans.push(Span::styled(format::safe(&entry.id), theme.type_name()));
+            let relative = browser
+                .groups
+                .get(entry.group)
+                .and_then(|dir| entry.path.strip_prefix(dir).ok())
+                .unwrap_or(&entry.path);
+            spans.push(Span::styled(
+                format!("  {}", format::safe(&relative.display().to_string())),
+                theme.dim(),
+            ));
+            if let Some(doc) = &entry.doc {
+                spans.push(Span::styled(
+                    format!("  {}", format::safe(doc)),
+                    theme.dim(),
+                ));
+            }
+        }
+    }
+    let mut left = width;
+    let mut out: Vec<Span<'static>> = Vec::new();
+    for span in spans {
+        if left == 0 {
+            break;
+        }
+        let cells = format::width(&span.content);
+        if cells <= left {
+            left -= cells;
+            out.push(span);
+        } else {
+            out.push(Span::styled(
+                format::truncate(&span.content, left),
+                span.style,
+            ));
+            left = 0;
+        }
+    }
+    Line::from(out)
 }
 
 /// A box over the screen with the room that it can have: most of it.
