@@ -1,0 +1,58 @@
+id: flv
+doc: |
+  Flash Video: the header and the tags (audio, video, script data) with their sizes and times
+# Covers: the header (flags for audio and video, the offset of the data) and every tag: its type, size,
+#   timestamp (in milliseconds, with the extension byte), stream id and bytes, and the size of the tag before it.
+# Limits: the contents of a tag (the codec's frames, the AMF values of a script tag) are bytes.
+# Specification: Adobe Flash Video File Format Specification, version 10.1, annex E.
+meta:
+  id: flv
+  endian: be
+seq:
+  - id: signature
+    contents: "FLV"
+  - id: version
+    type: u1
+  - id: reserved_flags_1
+    type: b5
+  - id: has_audio
+    type: b1
+  - id: reserved_flags_2
+    type: b1
+  - id: has_video
+    type: b1
+  - id: data_offset
+    type: u4
+  - id: header_extra
+    size: data_offset - 9
+  - id: previous_tag_size_0
+    type: u4
+  - id: tags
+    type: tag
+    repeat: eos
+enums:
+  tag_type:
+    8: audio
+    9: video
+    18: script_data
+types:
+  tag:
+    seq:
+      - id: tag_type
+        type: u1
+        enum: tag_type
+      - id: data_size
+        type: b24
+      - id: timestamp_low
+        type: b24
+      - id: timestamp_extended
+        type: u1
+      - id: stream_id
+        type: b24
+      - id: data
+        size: data_size
+      - id: previous_tag_size
+        type: u4
+    instances:
+      timestamp:
+        value: (timestamp_extended << 24) | timestamp_low

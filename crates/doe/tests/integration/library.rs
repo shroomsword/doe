@@ -131,6 +131,101 @@ fn npy_has_the_header_text_and_the_data() {
 }
 
 #[test]
+fn woff_has_the_header_and_the_table_directory() {
+    let v = decode("woff", "sample.woff");
+    assert_eq!(v["flavor"], 0x0001_0000);
+    assert_eq!(v["num_tables"], 2);
+    assert_eq!(
+        (v["major_version"].as_u64(), v["minor_version"].as_u64()),
+        (Some(1), Some(2))
+    );
+    let tables = v["tables"].as_array().unwrap();
+    assert_eq!(tables[0]["tag"], "cmap");
+    assert_eq!(tables[0]["offset"], 84);
+    assert_eq!(
+        (
+            tables[0]["comp_length"].as_u64(),
+            tables[0]["orig_length"].as_u64()
+        ),
+        (Some(20), Some(40))
+    );
+    assert_eq!(tables[0]["compressed"], true);
+    assert_eq!(tables[1]["tag"], "head");
+    assert_eq!(tables[1]["compressed"], false);
+    assert_eq!(tables[1]["orig_checksum"], 0xDEAD_BEEF_u64);
+}
+
+#[test]
+fn woff2_has_the_header() {
+    let v = decode("woff2", "sample.woff2");
+    assert_eq!(v["num_tables"], 3);
+    assert_eq!(v["total_sfnt_size"], 4096);
+    assert_eq!(v["total_compressed_size"], 20);
+    assert_eq!(v["rest"]["len"], 16);
+}
+
+#[test]
+fn flac_has_the_stream_info_the_tags_and_the_frames() {
+    let v = decode("flac", "sample.flac");
+    let blocks = v["blocks"].as_array().unwrap();
+    assert_eq!(blocks.len(), 3);
+    assert_eq!(blocks[0]["last"], false);
+    assert_eq!(name_of(&blocks[0]["block_type"]), "stream_info");
+    let info = &blocks[0]["data"];
+    assert_eq!(info["sample_rate"], 44100);
+    assert_eq!(info["channels"], 2);
+    assert_eq!(info["bits_per_sample"], 16);
+    assert_eq!(info["total_samples"], 441_000);
+    assert_eq!(info["md5"]["len"], 16);
+    let tags = &blocks[1]["data"];
+    assert_eq!(tags["vendor"], "doe test");
+    assert_eq!(tags["comments"][0]["text"], "TITLE=Sample");
+    assert_eq!(tags["comments"][1]["text"], "ARTIST=doe");
+    assert_eq!(blocks[2]["last"], true);
+    assert_eq!(name_of(&blocks[2]["block_type"]), "padding");
+    assert_eq!(v["frames"]["len"], 9);
+}
+
+#[test]
+fn flv_has_the_header_and_the_tags_with_their_times() {
+    let v = decode("flv", "sample.flv");
+    assert_eq!(
+        (v["has_audio"].as_bool(), v["has_video"].as_bool()),
+        (Some(true), Some(true))
+    );
+    assert_eq!(v["data_offset"], 9);
+    let tags = v["tags"].as_array().unwrap();
+    assert_eq!(tags.len(), 2);
+    assert_eq!(name_of(&tags[0]["tag_type"]), "script_data");
+    assert_eq!(tags[0]["data_size"], 13);
+    assert_eq!(tags[0]["previous_tag_size"], 24);
+    assert_eq!(name_of(&tags[1]["tag_type"]), "video");
+    // the extension byte is the top eight bits of the 32-bit time
+    assert_eq!(tags[1]["timestamp"], 0x0100_0010);
+}
+
+#[test]
+fn tzfile_has_the_transitions_and_the_local_time_types() {
+    let v = decode("tzfile", "sample.tzif");
+    assert_eq!(v["count_transitions"], 2);
+    assert_eq!(
+        v["transition_times"],
+        serde_json::json!([1_679_792_400_i64, 1_698_541_200_i64])
+    );
+    assert_eq!(v["transition_types"], serde_json::json!([1, 0]));
+    let kinds = v["local_time_types"].as_array().unwrap();
+    assert_eq!(
+        (kinds[0]["utc_offset"].as_i64(), kinds[0]["is_dst"].as_u64()),
+        (Some(3600), Some(0))
+    );
+    assert_eq!(
+        (kinds[1]["utc_offset"].as_i64(), kinds[1]["is_dst"].as_u64()),
+        (Some(7200), Some(1))
+    );
+    assert_eq!(v["abbreviation_chars"], "CET\u{0}CEST\u{0}");
+}
+
+#[test]
 fn the_samples_are_the_ones_the_script_makes() {
     // the samples are in the repository so that the tests do not need Python; the script makes the same bytes
     let Ok(python) = std::process::Command::new("python3")

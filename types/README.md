@@ -22,10 +22,10 @@ here; *next* means in scope and not written yet; the others are left out, with t
 | WebAssembly | none | **library** (`wasm`) |
 | NumPy `.npy` | none | **library** (`npy`) |
 | ELF | `elf` | the gallery's: the library's own type was removed |
-| WOFF / WOFF2 | `ttf` for TrueType and OpenType | next (the header and table directory) |
-| FLAC | none | next (the metadata blocks) |
-| FLV | none | next (header and tags) |
-| tzfile | none | next |
+| WOFF / WOFF2 | `ttf` for TrueType and OpenType | **library** (`woff`, `woff2`: the headers and, for WOFF, the table directory) |
+| FLAC | none | **library** (`flac`) |
+| FLV | none | **library** (`flv`) |
+| tzfile | none | **library** (`tzfile`) |
 | PSD | none | next (header and sections) |
 | bzip2, xz, zstd, lz4 | `gzip` only | next (the frame headers; the data is compressed) |
 | COFF object files | `microsoft_pe` has a COFF header | next (as a file of its own) |
