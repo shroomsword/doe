@@ -183,11 +183,7 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
         // While a search goes on, keys are only looked at, not waited for; between
         // them it looks at the next fields. Redrawing between the steps keeps the
         // screen alive and any key stops the search.
-        let wait = if app.searching() {
-            Duration::ZERO
-        } else {
-            TICK
-        };
+        let wait = if app.working() { Duration::ZERO } else { TICK };
         if event::poll(wait).context("could not read the keyboard")? {
             match event::read().context("could not read the keyboard")? {
                 // Windows also reports the release of a key.
@@ -196,8 +192,8 @@ pub fn run(options: &Options) -> anyhow::Result<()> {
                 _ => {}
             }
             dirty = true;
-        } else if app.searching() {
-            app.search_step();
+        } else if app.working() {
+            app.work_step();
             dirty = true;
         }
         // The parse is done: the tree takes the place of the message. (If the thread

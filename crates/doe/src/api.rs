@@ -254,7 +254,10 @@ pub fn signature(request: &str) -> SignatureResponse {
     match compile(&request) {
         Ok(compiled) => SignatureResponse {
             ok: true,
-            magic: crate::detect::magic_of(&compiled.compiler.registry, &compiled.id),
+            magic: crate::detect::magic_of(
+                &compiled.compiler.registry,
+                request.type_name.as_deref().unwrap_or(&compiled.id),
+            ),
             names: compiled.names,
             diagnostics: Vec::new(),
         },

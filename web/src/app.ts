@@ -8,7 +8,7 @@ import { SchemaEditor } from './editor.js';
 import { EXAMPLE_BYTES, EXAMPLE_SCHEMA } from './example.js';
 import { HexView, RemoteBytes } from './hex.js';
 import { type LocalApi, type LocalType, detectLocal } from './local.js';
-import { type Entry, TypeBrowser, galleryEntries, libraryEntries, openEntries } from './browse.js';
+import { type Entry, type Ranking, TypeBrowser, galleryEntries, libraryEntries, openEntries } from './browse.js';
 import { type Path, byteRange, checkSize, describeRange, findByte, nodeAt, pathName } from './model.js';
 import { ProblemsView } from './problems.js';
 import { type Origin, SchemaList, editable, isKnownType, listing } from './schemas.js';
@@ -85,6 +85,8 @@ export class App {
       copy: (path) => this.copyFile(path),
     });
     this.browser = new TypeBrowser(element<HTMLDialogElement>('browse-dialog'), {
+      canRank: () => this.canDetect(),
+      rank: (entries) => this.rankEntries(entries),
       pick: (entry) => void this.pickEntry(entry),
       text: (entry) => this.entryText(entry),
     });
@@ -655,11 +657,55 @@ export class App {
   private browseTypes(): void {
     const rows = listing(this.found, this.schemaPath, this.mainOrigin, this.files, this.origins, this.diagnostics.length).rows;
     const current = this.mainOrigin === 'gallery' ? this.schemaPath : null;
-    this.browser.open([
+    const entries = [
       ...openEntries(rows, this.parseType),
       ...libraryEntries(this.localTypes).map((entry) => ({ ...entry, current: this.mainOrigin === 'library' && entry.path === this.schemaPath })),
       ...galleryEntries(this.gallery?.formats ?? [], current),
-    ]);
+    ];
+    this.browser.open(entries);
+    void this.readSignatures(entries);
+  }
+
+  /** Find out what the open and library types start with, a few at a time, and show it as it comes. */
+  private async readSignatures(entries: Entry[]): Promise<void> {
+    const changed = (): void => {
+      if (this.browser.isOpen) this.browser.refresh(entries);
+    };
+    const library = entries.filter((e) => e.source === 'library');
+    const fromLibrary = this.local && library.length > 0 ? this.local.signatures().catch(() => []) : Promise.resolve([]);
+    for (const entry of entries.filter((e) => e.source === 'open')) {
+      if (!this.browser.isOpen) return;
+      try {
+        const answer = await this.client.signature({ ...this.request(), type: entry.id });
+        entry.magic = answer.ok ? answer.magic : [];
+        entry.names = [...new Set([...entry.names, ...answer.names])];
+        entry.compileError = answer.ok ? null : (answer.diagnostics[0]?.message ?? 'the schema does not compile');
+      } catch {
+        entry.magic = [];
+      }
+      changed();
+    }
+    const signatures = await fromLibrary;
+    for (const entry of library) {
+      const known = signatures.find((s) => s.path === entry.path);
+      entry.magic = known?.magic ?? [];
+      entry.names = known?.names ?? entry.names;
+      entry.compileError = known?.error ?? null;
+    }
+    changed();
+  }
+
+  /** Put the entries in the order in which the library would try them on the opened file. */
+  private async rankEntries(entries: readonly Entry[]): Promise<Ranking | null> {
+    if (!this.canDetect()) return null;
+    try {
+      if (this.serverInput && this.local) this.client.setInput(await this.local.range(0, 64 * 1024));
+      const sources = entries.map((e) => ({ name: e.id, magic: e.magic ?? [], names: e.names }));
+      const answer = await this.client.order(sources, this.inputName, false);
+      return answer.ok ? { order: answer.order, excluded: answer.excluded } : null;
+    } catch {
+      return null;
+    }
   }
 
   /** A type was chosen in the browser. */

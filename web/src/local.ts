@@ -2,7 +2,7 @@
 // input file that stays where it is. A hosted page has none of it: asking for
 // /api/local gives no JSON there, and `detectLocal` says so.
 
-import type { ExportFormat, ExportResponse, ParseResponse, Request } from './doe.js';
+import type { ExportFormat, ExportResponse, Magic, ParseResponse, Request } from './doe.js';
 
 export interface LocalInfo {
   version: string;
@@ -14,6 +14,16 @@ export interface LocalType {
   id: string;
   doc: string | null;
   path: string;
+}
+
+/** What a type of this machine starts with and what it is called. */
+export interface LocalSignature {
+  id: string;
+  path: string;
+  magic: Magic[];
+  names: string[];
+  /** Why the schema could not be compiled. */
+  error: string | null;
 }
 
 /** What `doe --ide` found out when it looked for the type of its input file. */
@@ -36,6 +46,11 @@ export class LocalApi {
 
   async types(): Promise<LocalType[]> {
     return (await this.json('api/types')) as LocalType[];
+  }
+
+  /** The signatures of the types of this machine (the server compiles them, which takes a while). */
+  async signatures(): Promise<LocalSignature[]> {
+    return (await this.json('api/signatures')) as LocalSignature[];
   }
 
   /** Find the type of the input file among the types of this machine. */

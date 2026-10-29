@@ -502,11 +502,14 @@ fn types_overlay(frame: &mut Frame<'_>, browser: &TypeBrowser, current: &str, th
         .borders(Borders::ALL)
         .border_style(theme.border(true))
         .title(Span::styled(
-            format!(" types on the type paths · {kept} of {all} "),
+            format!(
+                " types on the type paths · {kept} of {all}{} ",
+                types_state(browser)
+            ),
             theme.title(),
         ))
         .title_bottom(Line::from(Span::styled(
-            " ↑↓ move · / filters · v reads · Enter parses with it · Esc goes back ",
+            " ↑↓ move · / filters · v reads · r ranks by the file · Enter parses with it · Esc goes back ",
             theme.dim(),
         )));
     let inner = block.inner(area);
@@ -565,6 +568,27 @@ fn types_overlay(frame: &mut Frame<'_>, browser: &TypeBrowser, current: &str, th
     frame.render_widget(Paragraph::new(lines), list);
 }
 
+/// What the title says besides the counts: the schemas still being read, and the ranking.
+fn types_state(browser: &TypeBrowser) -> String {
+    let pending = browser.pending();
+    let all = browser.entries.len();
+    let mut parts: Vec<String> = Vec::new();
+    if pending > 0 {
+        parts.push(format!(
+            "reading signatures {} of {all}",
+            all.saturating_sub(pending)
+        ));
+    }
+    if browser.ranked {
+        parts.push(if pending > 0 {
+            "ranked by the file (after reading)".to_owned()
+        } else {
+            "ranked by the file".to_owned()
+        });
+    }
+    parts.iter().fold(String::new(), |text, p| text + " · " + p)
+}
+
 /// One line of the list of types.
 fn types_line(
     browser: &TypeBrowser,
@@ -595,6 +619,18 @@ fn types_line(
                 format!("  {}", format::safe(&relative.display().to_string())),
                 theme.dim(),
             ));
+            if entry.has_signature() == Some(true) {
+                spans.push(Span::styled("  signature", theme.good()));
+            }
+            if let Some(error) = &entry.error {
+                spans.push(Span::styled(
+                    format!("  ✗ {}", format::safe(error)),
+                    theme.bad(),
+                ));
+            }
+            if let Some(why) = browser.why(*index) {
+                spans.push(Span::styled(format!("  {}", why.describe()), theme.good()));
+            }
             if let Some(doc) = &entry.doc {
                 spans.push(Span::styled(
                     format!("  {}", format::safe(doc)),

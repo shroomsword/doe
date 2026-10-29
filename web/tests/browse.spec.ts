@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { type Entry, filterEntries, firstLine, galleryEntries, grouped, libraryEntries, openEntries } from '../src/browse.js';
+import { type Entry, filterEntries, firstLine, galleryEntries, grouped, hasSignature, libraryEntries, openEntries } from '../src/browse.js';
 import type { GalleryFormat } from '../src/detect.js';
 import type { Row } from '../src/schemas.js';
 
@@ -35,10 +35,12 @@ test('the library and the gallery have their docs, signatures and the format in 
   expect(library[0]?.doc).toBe('ELF files');
   expect(firstLine(null)).toBeNull();
   const gallery = galleryEntries([format('gif', { magic: [{ offset: 0, bytes: [71] }], verified: 'real' }), format('png')], 'image/png.ksy');
-  expect(gallery.map((e) => [e.id, e.signature, e.verified, e.current])).toEqual([
+  expect(gallery.map((e) => [e.id, hasSignature(e), e.verified, e.current])).toEqual([
     ['gif', true, 'real', false],
     ['png', false, null, true],
   ]);
+  // the signature of an open or library type is not known until it has been asked for
+  expect(hasSignature(library[0] as Entry)).toBeNull();
 });
 
 test('the filter needs every word in the id, the path or the doc, in any case', () => {
@@ -95,4 +97,24 @@ test('a gallery format is listed with its path and signature, and the dialog fit
   await page.setViewportSize({ width: 380, height: 700 });
   const box = await page.locator('#browse-dialog').boundingBox();
   expect(box?.width ?? 999).toBeLessThanOrEqual(380);
+});
+
+test('the types that start with a signature say so, and "Rank by the opened file" puts the ones that fit first', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.doe?.ready === true);
+  await expect(page.locator('#schemas li.schema')).toHaveCount(1);
+  await page.click('#browse');
+  const dialog = page.locator('#browse-dialog');
+  // the example starts with "DOE": its signature is found out once the dialog is open
+  await expect(dialog.locator('li.current')).toContainText('signature');
+  // the example file is open, so the types can be ranked by it; the ranking waits for every signature
+  const rank = page.locator('#browse-rank');
+  await expect(rank).toBeEnabled();
+  await rank.check();
+  await expect(page.locator('#browse-note')).toContainText('ranked by the opened file', { timeout: 30_000 });
+  const first = dialog.locator('#browse-list li').first();
+  await expect(first).toContainText('example');
+  await expect(first).toContainText('the file starts with its signature');
+  await rank.uncheck();
+  await expect(dialog.locator('h4').first()).toContainText('Open schemas');
 });

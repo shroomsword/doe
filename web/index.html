@@ -95,9 +95,11 @@
       <div class="browse-bar">
         <h3 id="browse-title">Types</h3>
         <label>Filter <input id="browse-filter" type="search" autocomplete="off" placeholder="name, path or doc" /></label>
+        <label id="browse-rank-box"><input id="browse-rank" type="checkbox" /> Rank by the opened file</label>
         <span id="browse-count"></span>
         <button id="browse-close" type="button">Close</button>
       </div>
+      <p id="browse-note" role="status"></p>
       <div id="browse-list"></div>
       <div id="browse-reader" hidden>
         <div class="browse-bar"><button id="browse-back" type="button">Back to the list</button><strong id="browse-reader-title"></strong></div>

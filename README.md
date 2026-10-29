@@ -977,8 +977,16 @@ schema's type is set as *Parse as*, and a format of the library or the gallery i
 opened in the editor, as picking it from the *Types* or *Gallery* lists does. An
 open schema that does not read has its error and cannot be used. The dialog is a
 native one: it is reached with the keyboard, `Esc` closes it, and it fits a phone.
-The list does not rank the types by what fits the opened file; *Detect schema*
-does that.
+A type that starts with a **signature** says so: the page asks `doe`
+for the signature of each open type, and of each type of the library of this
+machine, while the dialog is open (the title of the list says how far it has
+got), and a type whose schema does not compile has its error. *Rank by the opened
+file* puts the types in the order in which *Detect schema* would try them on the
+file: first those whose signature the file starts with (and whose name fits),
+then those with no signature whose name fits the file's extension; the others
+are left out, and each line says why it is there. The ranking waits until every
+signature is known. It is the order of trying, not the result of it: *Detect
+schema* does the parsing that tells which one fits.
 
 **Integers** are decimal at first. *Integers* in the header writes all of them in
 hexadecimal (`0x001f`), binary (`0b00011111`) or octal (`0o37`), with the digits
@@ -1265,8 +1273,18 @@ or the doc; `Enter` stops typing, `Esc` clears it), `v` reads the text of the
 selected type in a read-only pager, and `Enter` reads the open file again with
 that type, as `doe --tui FILE TYPE` does; the type in use has a `●`, and if the
 new type cannot be used the old tree stays and the error is shown. `Esc` goes back
-one step at a time and then closes the browser. It does not list whether a type has
-a signature, or rank the types by what fits the file (see #166).
+one step at a time and then closes the browser. The schemas are compiled in steps
+while the list is open, a few at a time between keys, to see which types start
+with a **signature** (`contents:` or an exact `valid:` in their first fields); the
+title says how far it has come, and a type that has one says `signature`, and one
+that does not compile has its error. `r` **ranks** the list by the open file, in
+the order in which `--detect` would try the types on it: first those whose
+signature the file starts with (and whose name fits), then those with no
+signature whose name fits the file's extension; a type whose signature the file
+does not have is left out, and each line says why it is there. The ranking waits
+until the schemas are read. `r` again puts the groups back. It is the order of
+trying, not the result of it: `doe FILE` without a type (or *Detect schema*) does
+the parsing that tells which one fits.
 
 `x` writes the integers in the next **radix**: decimal (the first one, with the hex
 next to the numbers from 16 up), hexadecimal (`0x001f`), binary (`0b00011111`),

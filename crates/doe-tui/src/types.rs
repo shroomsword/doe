@@ -8,7 +8,11 @@
 
 use std::path::{Path, PathBuf};
 
-use doe::config::discover_types;
+use std::io::Read as _;
+use std::time::{Duration, Instant};
+
+use doe::config::{AvailableType, discover_types};
+use doe::detect::{HEAD_BYTES, Source, Why, rank};
 
 use crate::format;
 use crate::schemas::Pager;
@@ -24,6 +28,18 @@ pub struct TypeEntry {
     pub group: usize,
     /// The first line of its `doc`, if it has one.
     pub doc: Option<String>,
+    /// Its signature and names, once its schema has been read (see [`TypeBrowser::step`]).
+    pub source: Option<Source>,
+    /// Why its schema could not be compiled, if it could not.
+    pub error: Option<String>,
+}
+
+impl TypeEntry {
+    /// Whether it starts with something that can be checked, if that is known yet.
+    #[must_use]
+    pub fn has_signature(&self) -> Option<bool> {
+        self.source.as_ref().map(|s| !s.magic.is_empty())
+    }
 }
 
 /// A line of the list.
@@ -65,6 +81,16 @@ pub struct TypeBrowser {
     pub pager: Option<Pager>,
     /// Why the list is empty or short, if it is.
     pub problem: Option<String>,
+    /// The next entry whose schema is to be read for its signature.
+    pub next: usize,
+    /// Whether the list is ordered by what fits the open file.
+    pub ranked: bool,
+    /// The start of the open file, and its name, for ranking.
+    pub head: Vec<u8>,
+    /// The name of the open file.
+    pub file_name: Option<String>,
+    /// The order of ranking: the entries that can be the type of the file, and why.
+    pub order: Vec<(usize, Why)>,
 }
 
 impl TypeBrowser {
@@ -102,6 +128,8 @@ impl TypeBrowser {
                     .map(str::to_owned),
                 path: available.source,
                 id: available.id,
+                source: None,
+                error: None,
             })
             .collect();
         TypeBrowser::new(include_paths.to_vec(), entries, problem)
@@ -119,6 +147,11 @@ impl TypeBrowser {
             selected: 0,
             pager: None,
             problem,
+            next: 0,
+            ranked: false,
+            head: Vec::new(),
+            file_name: None,
+            order: Vec::new(),
         };
         browser.refilter();
         browser
@@ -145,6 +178,20 @@ impl TypeBrowser {
     pub fn refilter(&mut self) {
         let keep = self.selected_id().map(str::to_owned);
         let mut rows = Vec::new();
+        if self.ranked && self.pending() == 0 {
+            // by what fits the file: no groups, the best first
+            for (index, _) in &self.order {
+                if self.entries.get(*index).is_some_and(|e| self.keeps(e)) {
+                    rows.push(Row::Type(*index));
+                }
+            }
+            self.rows = rows;
+            self.selected = keep
+                .and_then(|id| self.position_of(&id))
+                .or_else(|| (!self.rows.is_empty()).then_some(0))
+                .unwrap_or(0);
+            return;
+        }
         for group in 0..self.groups.len() {
             let kept: Vec<usize> = self
                 .entries
@@ -242,6 +289,97 @@ impl TypeBrowser {
             Some(id) => Outcome::Choose(id.to_owned()),
             None => Outcome::Nothing,
         }
+    }
+
+    /// How many entries have not had their schema read yet.
+    #[must_use]
+    pub fn pending(&self) -> usize {
+        self.entries.len().saturating_sub(self.next)
+    }
+
+    /// Read the schemas of the entries that have not been, one after the other
+    /// for about `budget`, to see their signatures. Returns whether more are
+    /// left. When the last is read and the list is ranked, it is ranked.
+    pub fn step(&mut self, include_paths: &[PathBuf], budget: Duration) -> bool {
+        let started = Instant::now();
+        while self.next < self.entries.len() && started.elapsed() < budget {
+            if let Some(entry) = self.entries.get_mut(self.next) {
+                let available = AvailableType {
+                    id: entry.id.clone(),
+                    doc: entry.doc.clone(),
+                    source: entry.path.clone(),
+                };
+                let (source, error) = doe::detect::source_of(include_paths, &available);
+                entry.source = Some(source);
+                entry.error = error;
+            }
+            self.next += 1;
+        }
+        if self.pending() == 0 && self.ranked {
+            self.rerank();
+        }
+        self.pending() > 0
+    }
+
+    /// Put the entries in the order in which `--detect` would try them on the file.
+    fn rerank(&mut self) {
+        let sources: Vec<Source> = self
+            .entries
+            .iter()
+            .map(|e| {
+                e.source.clone().unwrap_or_else(|| Source {
+                    name: e.id.clone(),
+                    magic: Vec::new(),
+                    names: Vec::new(),
+                })
+            })
+            .collect();
+        self.order = rank(&sources, &self.head, self.file_name.as_deref(), false)
+            .into_iter()
+            .map(|r| (r.index, r.why))
+            .collect();
+        self.refilter();
+    }
+
+    /// Turn the ranking by the open file on or off.
+    ///
+    /// # Errors
+    ///
+    /// Why the file cannot be read.
+    pub fn toggle_rank(&mut self, file: &Path) -> Result<(), String> {
+        if self.ranked {
+            self.ranked = false;
+            self.refilter();
+            return Ok(());
+        }
+        let mut head = Vec::new();
+        std::fs::File::open(file)
+            .and_then(|f| f.take(HEAD_BYTES as u64).read_to_end(&mut head))
+            .map_err(|e| {
+                format!(
+                    "could not read {}: {e}",
+                    format::safe(&file.display().to_string())
+                )
+            })?;
+        self.head = head;
+        self.file_name = file.file_name().and_then(|n| n.to_str()).map(str::to_owned);
+        self.ranked = true;
+        if self.pending() == 0 {
+            self.rerank();
+        }
+        Ok(())
+    }
+
+    /// Why an entry is ranked where it is, when the list is ranked.
+    #[must_use]
+    pub fn why(&self, index: usize) -> Option<Why> {
+        if !self.ranked {
+            return None;
+        }
+        self.order
+            .iter()
+            .find(|(i, _)| *i == index)
+            .map(|(_, why)| *why)
     }
 
     /// Close the text that is being read, else stop editing the filter, else

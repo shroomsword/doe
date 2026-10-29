@@ -39,6 +39,11 @@ fn fixture() -> Fixture {
         "id: single\ndoc: One byte\nseq:\n  - id: x\n    type: u1\n",
     )
     .unwrap();
+    std::fs::write(
+        root.join("small/sig.yaml"),
+        "id: sig\nseq:\n  - id: magic\n    contents: [7, 9]\n",
+    )
+    .unwrap();
     let file = root.join("data.bin");
     std::fs::write(&file, [7, 9]).unwrap();
     Fixture {
@@ -98,7 +103,7 @@ fn t_lists_the_types_of_the_type_path_and_its_subdirectories_with_the_one_in_use
     assert!(app.types.is_some());
     let shown = screen(&mut app);
     assert!(
-        shown.contains("types on the type paths · 2 of 2"),
+        shown.contains("types on the type paths · 3 of 3"),
         "{shown}"
     );
     assert!(shown.contains("● pair"), "{shown}");
@@ -124,7 +129,7 @@ fn the_filter_narrows_the_list_and_esc_clears_it() {
     press(&mut app, KeyCode::Char('/'));
     type_text(&mut app, "byte");
     let shown = screen(&mut app);
-    assert!(shown.contains("1 of 2"), "{shown}");
+    assert!(shown.contains("1 of 3"), "{shown}");
     assert!(shown.contains("filter: byte"), "{shown}");
     assert!(!shown.contains("pair.yaml"), "{shown}");
     // keys are text while editing: `q` does not close anything
@@ -136,7 +141,7 @@ fn the_filter_narrows_the_list_and_esc_clears_it() {
     assert_eq!(app.types.as_ref().unwrap().filter, "byte");
     press(&mut app, KeyCode::Esc); // clear it
     assert_eq!(app.types.as_ref().unwrap().filter, "");
-    assert!(screen(&mut app).contains("2 of 2"));
+    assert!(screen(&mut app).contains("3 of 3"));
 }
 
 #[test]
@@ -144,7 +149,8 @@ fn v_reads_the_text_of_a_type_read_only_and_esc_goes_back_to_the_list() {
     let f = fixture();
     let mut app = app(&f, "pair");
     press(&mut app, KeyCode::Char('t'));
-    press(&mut app, KeyCode::Down); // the group line of the subdirectory does not exist: next type
+    press(&mut app, KeyCode::Down); // the types are in the order of their ids: pair, sig, single
+    press(&mut app, KeyCode::Down);
     press(&mut app, KeyCode::Char('v'));
     let shown = screen(&mut app);
     assert!(shown.contains("id: single"), "{shown}");
@@ -159,6 +165,7 @@ fn enter_parses_the_open_file_with_the_chosen_type() {
     let f = fixture();
     let mut app = app(&f, "pair");
     press(&mut app, KeyCode::Char('t'));
+    press(&mut app, KeyCode::Down);
     press(&mut app, KeyCode::Down);
     assert_eq!(app.types.as_ref().unwrap().selected_id(), Some("single"));
     press(&mut app, KeyCode::Enter);
@@ -177,4 +184,69 @@ fn without_a_type_path_it_says_so() {
     press(&mut app, KeyCode::Char('t'));
     assert!(app.types.is_none());
     assert!(app.notice.as_deref().unwrap().contains("-I"));
+}
+
+/// Read the signatures of all the types, as the event loop does between keys.
+fn read_signatures(app: &mut App) {
+    while app.working() {
+        app.work_step();
+    }
+}
+
+#[test]
+fn the_signatures_are_read_in_steps_and_the_types_that_have_one_say_so() {
+    let f = fixture();
+    let mut app = app(&f, "pair");
+    press(&mut app, KeyCode::Char('t'));
+    // not read yet: the title says how far it is, and the viewer has work to do
+    assert!(app.working());
+    assert!(screen(&mut app).contains("reading signatures 0 of 3"));
+    read_signatures(&mut app);
+    assert!(!app.working());
+    let shown = screen(&mut app);
+    assert!(!shown.contains("reading signatures"), "{shown}");
+    let line = |name: &str| shown.lines().find(|l| l.contains(name)).unwrap().to_owned();
+    assert!(line("sig.yaml").contains("signature"), "{shown}");
+    assert!(!line("pair.yaml").contains("signature"), "{shown}");
+}
+
+#[test]
+fn r_ranks_the_types_by_what_fits_the_open_file_and_again_puts_them_back() {
+    let f = fixture();
+    let mut app = app(&f, "pair");
+    press(&mut app, KeyCode::Char('t'));
+    press(&mut app, KeyCode::Char('r'));
+    assert!(screen(&mut app).contains("ranked by the file (after reading)"));
+    read_signatures(&mut app);
+    let shown = screen(&mut app);
+    assert!(shown.contains("ranked by the file"), "{shown}");
+    // the file starts with 7 9: `sig` fits by its signature; the others have none and the
+    // name of the file (data.bin) is not theirs, so they are left out
+    let browser = app.types.as_ref().unwrap();
+    assert_eq!(browser.counts(), (3, 1));
+    assert!(
+        shown.contains("the file starts with its signature"),
+        "{shown}"
+    );
+    // a filter works on the ranked list
+    press(&mut app, KeyCode::Char('/'));
+    type_text(&mut app, "zzz");
+    assert_eq!(app.types.as_ref().unwrap().counts(), (3, 0));
+    press(&mut app, KeyCode::Esc);
+    press(&mut app, KeyCode::Esc);
+    // r again: all of them, in groups
+    press(&mut app, KeyCode::Char('r'));
+    assert_eq!(app.types.as_ref().unwrap().counts(), (3, 3));
+    assert!(!screen(&mut app).contains("ranked by"));
+}
+
+#[test]
+fn a_file_that_cannot_be_read_is_said_when_ranking() {
+    let f = fixture();
+    let mut app = app(&f, "pair");
+    std::fs::remove_file(&f.file).unwrap();
+    press(&mut app, KeyCode::Char('t'));
+    press(&mut app, KeyCode::Char('r'));
+    assert!(!app.types.as_ref().unwrap().ranked);
+    assert!(app.notice.as_deref().unwrap().contains("could not read"));
 }
