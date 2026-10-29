@@ -38,7 +38,7 @@ enum Home {
 }
 
 /// Every `##` section of the README, in the page it belongs to.
-const SECTIONS: [(&str, Home); 13] = [
+const SECTIONS: [(&str, Home); 14] = [
     (
         "Installation",
         Home::Left("about getting doe, not using it"),
@@ -56,6 +56,7 @@ const SECTIONS: [(&str, Home); 13] = [
     ("Configuration", Home::Doe),
     ("Memory use", Home::Doe),
     ("Fuzzing", Home::Left("for people who work on doe")),
+    ("Test coverage", Home::Left("for people who work on doe")),
     (
         "Using as a library",
         Home::Left("Rust API, not the command"),

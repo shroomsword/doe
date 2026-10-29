@@ -16,7 +16,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The coverage of main, as the badge of the README reads it: shields.io's endpoint format, published next to the page
+  # (https://shroomsword.github.io/doe/coverage.json). It only reports; the threshold is checked by the CI workflow.
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: coverage
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: cargo-llvm-cov
+      - name: Coverage
+        run: scripts/coverage --report-only
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-badge
+          path: target/coverage/coverage.json
+
   build:
+    # The page is published even if the coverage could not be measured; the badge then keeps the one that is live now.
+    needs: coverage
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -24,6 +51,16 @@ jobs:
           # The gallery picker lists the formats of this submodule and the commit it is at.
           submodules: true
       - uses: ./.github/actions/build-web
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          name: coverage-badge
+          path: web/dist
+      - name: Keep the published badge if there is no new one
+        run: |
+          if [[ ! -f web/dist/coverage.json ]]; then
+            curl -fsS --max-time 30 -o web/dist/coverage.json https://shroomsword.github.io/doe/coverage.json || rm -f web/dist/coverage.json
+          fi
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       # The source maps stay out: they are twice the size of the page.
       - name: Leave out the source maps

@@ -61,6 +61,16 @@ const MANY: usize = 1_000_000;
 
 /// The peak resident memory of this process in KiB, and a way to start the peak
 /// again from where the process is now. Linux only: nothing elsewhere.
+/// Whether the tests run for `scripts/coverage`: the instrumented code is several times slower, so budgets in
+/// time (and in memory) mean nothing, and these tests do not run then.
+fn under_coverage() -> bool {
+    let under = std::env::var_os("DOE_COVERAGE").is_some();
+    if under {
+        eprintln!("DOE_COVERAGE is set: the budgets are not checked");
+    }
+    under
+}
+
 fn peak_kib() -> Option<u64> {
     let status = std::fs::read_to_string("/proc/self/status").ok()?;
     let line = status.lines().find(|l| l.starts_with("VmHWM:"))?;
@@ -120,6 +130,9 @@ static ALONE: Mutex<()> = Mutex::new(());
 
 #[test]
 fn a_million_fields_open_scroll_search_and_jump_within_the_budget() {
+    if under_coverage() {
+        return;
+    }
     let _alone = ALONE
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -315,6 +328,10 @@ fn a_million_fields_open_scroll_search_and_jump_within_the_budget() {
 #[test]
 fn a_file_of_gigabytes_opens_and_scrolls_without_being_read() {
     use std::io::{Seek, SeekFrom, Write};
+
+    if under_coverage() {
+        return;
+    }
 
     let _alone = ALONE
         .lock()
