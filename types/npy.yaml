@@ -1,0 +1,33 @@
+id: npy
+doc: |
+  NumPy .npy array file: the header that describes the array, and its data
+# Covers: the magic, the version, the header (the text of a Python dictionary: `descr`, `fortran_order`,
+#   `shape`) and the data as bytes.
+# Limits: the dictionary is text (read it, or pass it to numpy); the data is bytes, not elements of the dtype, as
+#   its type is in that text; .npz (a zip of .npy files) is the `zip` of the gallery.
+# Specification: NumPy Enhancement Proposal 1, "A Simple File Format for NumPy Arrays".
+meta:
+  id: npy
+  endian: le
+seq:
+  - id: magic
+    contents: [0x93, "NUMPY"]
+  - id: major_version
+    type: u1
+  - id: minor_version
+    type: u1
+  - id: len_header_v1
+    type: u2
+    if: major_version == 1
+  - id: len_header_v2
+    type: u4
+    if: major_version >= 2
+  - id: header
+    type: str
+    size: len_header
+    encoding: latin1
+  - id: data
+    size-eos: true
+instances:
+  len_header:
+    value: 'major_version == 1 ? len_header_v1 : len_header_v2'

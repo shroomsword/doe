@@ -1,0 +1,105 @@
+id: tar
+doc: |
+  tar archive (POSIX ustar and the older V7 layout): the blocks of 512 bytes, each header with its entry's bytes
+# Covers: every entry's header fields (name, mode, ids, size, times, checksum, type flag, link name, the ustar
+#   magic and version, owner names, device numbers, name prefix) and the bytes of its contents, up to the zeroed
+#   blocks that end the archive. The numbers of a header are text in octal; `size_value`, `mtime_value`... are
+#   the numbers.
+# Limits: GNU and pax extension headers (long names, sparse files, extended attributes) are entries of type
+#   `L`, `K`, `x` or `g` whose contents are not decoded; base-256 sizes (files over 8 GiB, marked by a top bit in
+#   the size field) are not read; contents are kept as bytes, so a large archive shows its entries and
+#   summarises their bytes.
+# Specification: POSIX.1-2001 pax interchange format (tar header, ustar); the GNU tar manual, "Standard".
+meta:
+  id: tar
+  encoding: ASCII
+seq:
+  - id: entries
+    type: entry
+    repeat: until
+    repeat-until: _.name == ""
+  - id: end
+    doc: The second zeroed block, and whatever follows the archive (tar pads to a multiple of the block size).
+    size-eos: true
+types:
+  entry:
+    seq:
+      - id: name
+        type: str
+        size: 100
+        terminator: 0
+      - id: mode
+        type: str
+        size: 8
+        terminator: 0
+      - id: uid
+        type: str
+        size: 8
+        terminator: 0
+      - id: gid
+        type: str
+        size: 8
+        terminator: 0
+      - id: size
+        type: str
+        size: 12
+        terminator: 0
+      - id: mtime
+        type: str
+        size: 12
+        terminator: 0
+      - id: checksum
+        type: str
+        size: 8
+      - id: type_flag
+        type: str
+        size: 1
+      - id: link_name
+        type: str
+        size: 100
+        terminator: 0
+      - id: magic
+        type: str
+        size: 6
+        terminator: 0
+      - id: version
+        type: str
+        size: 2
+      - id: user_name
+        type: str
+        size: 32
+        terminator: 0
+      - id: group_name
+        type: str
+        size: 32
+        terminator: 0
+      - id: dev_major
+        type: str
+        size: 8
+        terminator: 0
+      - id: dev_minor
+        type: str
+        size: 8
+        terminator: 0
+      - id: prefix
+        type: str
+        size: 155
+        terminator: 0
+      - id: header_padding
+        size: 12
+      - id: contents
+        size: size_value
+        if: name != ""
+      - id: contents_padding
+        size: (512 - size_value % 512) % 512
+        if: name != ""
+    instances:
+      size_value:
+        value: size.to_i(8)
+        if: name != ""
+      mtime_value:
+        value: mtime.to_i(8)
+        if: name != ""
+      mode_value:
+        value: mode.to_i(8)
+        if: name != ""

@@ -90,18 +90,40 @@ doe mystery.bin -I ~/.doe/types   # which schema? see Detecting the schema
 
 ## Type library
 
-Ready-made type definitions live in [`types/`](https://github.com/shroomsword/doe/tree/main/types). Point `doe` at the
+Ready-made type definitions live in [`types/`](https://github.com/shroomsword/doe/tree/main/types): the common
+file types that the [Kaitai Struct gallery](#the-kaitai-struct-gallery) does not have. Point `doe` at the
 directory with `-I` (or list it under `include_paths` in the config file) and
 use a type by name:
 
 ```sh
-doe -I types /bin/ls elf
-doe -I types --json libc.so.6 elf | jq '.program_headers[].p_type.name'
+doe -I types backup.tar tar
+doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 ```
 
 | Type | Describes |
 |------|-----------|
-| `elf` | ELF64 little-endian files: the header, the program header table and the section header table, each found through the header. Contents are not decoded. See the comments in [`types/elf.yaml`](https://github.com/shroomsword/doe/blob/main/types/elf.yaml) for its limits. |
+| `tar` | tar archives (ustar and V7): every entry's header and contents, up to the zeroed blocks that end it |
+| `ar` | Unix `ar` archives (static libraries `.a`, and the layer of a Debian `.deb` package): the members, with their headers and bytes |
+| `pcapng` | pcapng packet captures: the section header, interfaces, and enhanced and simple packets (little-endian files) |
+| `wasm` | WebAssembly modules: the sections, with their ids and sizes (LEB128) and bytes |
+| `npy` | numpy `.npy` array files: the header text and the data |
+
+Each type begins with a comment that says what it covers, its limits and the specification it follows, and
+has a sample file in `types/samples/` that `types/make_samples.py` makes (nothing is copied from another
+project) and a test of its values. [`types/README.md`](https://github.com/shroomsword/doe/blob/main/types/README.md)
+lists the formats that the gallery lacks, which of them the library has, and why the others are not in it.
+
+**ELF files** are not in the library: the gallery's `elf.ksy` reads both byte orders and word sizes, notes
+and dynamic sections, and `doe` parses it (check the gallery out as the submodule
+`conformance/kaitai_struct_formats`, or clone it, and point `-I` at it):
+
+```sh
+doe -I conformance/kaitai_struct_formats /bin/ls elf
+doe -I conformance/kaitai_struct_formats --json libc.so.6 elf | jq '.header.program_headers[].type.name'
+```
+
+(The library had its own `elf` type before, for ELF64 little-endian only; `-I types elf` now finds nothing.
+The gallery's definition refuses a machine number that its enum does not list, where the old type kept it.)
 
 Running `doe --help` with `-I types` lists the available types, and
 `doe -I types --list-types` prints them for a script: one per line with the id,

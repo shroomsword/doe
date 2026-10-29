@@ -1,0 +1,56 @@
+id: ar
+doc: |
+  Unix ar archive (static libraries, .a; and the outer layer of a Debian .deb package)
+# Covers: the signature and every member's header (name, time, owner, mode and size as text, the end marker) and its
+#   bytes, with the byte that pads an odd size to an even one.
+# Limits: the member names of the GNU and BSD extensions (the table of long names `//`, `#1/N` names that put the
+#   name in the first bytes of the data, the symbol tables `/` and `__.SYMDEF`) are members like the others whose
+#   contents are not decoded. A Debian package is this format with `debian-binary`, `control.tar.*` and
+#   `data.tar.*` as members; the tar files inside are bytes here (compressed, they need unpacking first).
+# Specification: ar(5) of the BSD and GNU binutils; Debian deb(5) for the package layout.
+meta:
+  id: ar
+  encoding: ASCII
+seq:
+  - id: magic
+    contents: "!<arch>\n"
+  - id: members
+    type: member
+    repeat: eos
+types:
+  member:
+    seq:
+      - id: name
+        type: str
+        size: 16
+        pad-right: 0x20
+      - id: mtime
+        type: str
+        size: 12
+        pad-right: 0x20
+      - id: uid
+        type: str
+        size: 6
+        pad-right: 0x20
+      - id: gid
+        type: str
+        size: 6
+        pad-right: 0x20
+      - id: mode
+        type: str
+        size: 8
+        pad-right: 0x20
+      - id: size
+        type: str
+        size: 10
+        pad-right: 0x20
+      - id: end_marker
+        contents: [0x60, 0x0a]
+      - id: data
+        size: size_value
+      - id: padding
+        size: 1
+        if: size_value % 2 == 1
+    instances:
+      size_value:
+        value: size.to_i(10)
