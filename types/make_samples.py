@@ -175,6 +175,49 @@ def tzfile() -> bytes:
     return b"TZif" + b"\0" + bytes(15) + counts + times + kinds + types + abbreviations
 
 
+def psd() -> bytes:
+    """A 4 x 2 RGB PSD with one image resource (the resolution, id 1005, with an empty name) and raw image data."""
+    resource = b"8BIM" + struct.pack(">H", 1005) + b"\0\0" + struct.pack(">I", 4) + b"\0\x48\0\x48"
+    header = b"8BPS" + struct.pack(">H", 1) + bytes(6) + struct.pack(">HIIHH", 3, 2, 4, 8, 3)
+    return (
+        header
+        + struct.pack(">I", 0)
+        + struct.pack(">I", len(resource))
+        + resource
+        + struct.pack(">I", 0)
+        + struct.pack(">H", 0)
+        + bytes(range(24))
+    )
+
+
+def bzip2() -> bytes:
+    import bz2
+
+    return bz2.compress(b"hello hello hello hello\n" * 20, 9)
+
+
+def xz() -> bytes:
+    import lzma
+
+    return lzma.compress(b"hello hello hello hello\n" * 20, format=lzma.FORMAT_XZ, check=lzma.CHECK_CRC32)
+
+
+def zstd() -> bytes:
+    """Two frames: a raw block with a size in the header and a checksum, and a run-length block over two bytes
+    with a window descriptor and no size."""
+    first = b"\x28\xb5\x2f\xfd" + bytes([0b0010_0100, 5]) + ((5 << 3) | 1).to_bytes(3, "little") + b"hello" + b"\x01\x02\x03\x04"
+    # frame_content_size_flag 0, not single segment, no checksum, no dictionary: a window descriptor, no size
+    second = b"\x28\xb5\x2f\xfd" + bytes([0b0000_0000, 0x58]) + ((100 << 3) | (1 << 1) | 1).to_bytes(3, "little") + b"x"
+    return first + second
+
+
+def lz4() -> bytes:
+    """A frame with the size of the content and its checksum, and one block stored uncompressed."""
+    flg = (1 << 6) | (1 << 5) | (1 << 3) | (1 << 2)
+    descriptor = bytes([flg, 0x40]) + struct.pack("<Q", 5) + b"\x9e"
+    return b"\x04\x22\x4d\x18" + descriptor + struct.pack("<I", 0x8000_0005) + b"hello" + struct.pack("<I", 0) + struct.pack("<I", 0x1234_5678)
+
+
 if __name__ == "__main__":
     put("sample.tar", tar())
     put("sample.a", ar())
@@ -186,3 +229,8 @@ if __name__ == "__main__":
     put("sample.flac", flac())
     put("sample.flv", flv())
     put("sample.tzif", tzfile())
+    put("sample.psd", psd())
+    put("sample.bz2", bzip2())
+    put("sample.xz", xz())
+    put("sample.zst", zstd())
+    put("sample.lz4", lz4())

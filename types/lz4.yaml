@@ -1,0 +1,65 @@
+id: lz4
+doc: |
+  LZ4 frame (.lz4 files): the frame descriptor and the blocks with their sizes
+# Covers: the magic, the frame descriptor (flags, block size, the size of the content and the dictionary id when
+#   they are given, the header's checksum byte), every block's size and bytes (and whether it is stored
+#   uncompressed), the block checksums when the frame has them, the end mark and the content checksum.
+# Limits: the compressed bytes of a block (LZ4 sequences) are not decoded; legacy frames (magic 0x184C2102) and
+#   skippable frames (0x184D2A5?) are not read.
+# Specification: LZ4 Frame Format Description (github.com/lz4/lz4/blob/dev/doc/lz4_Frame_format.md).
+meta:
+  id: lz4
+  endian: le
+seq:
+  - id: magic
+    contents: [0x04, 0x22, 0x4d, 0x18]
+  - id: version
+    type: b2
+  - id: block_independence
+    type: b1
+  - id: has_block_checksum
+    type: b1
+  - id: has_content_size
+    type: b1
+  - id: has_content_checksum
+    type: b1
+  - id: reserved_flg
+    type: b1
+  - id: has_dictionary_id
+    type: b1
+  - id: reserved_bd_high
+    type: b1
+  - id: block_max_size_id
+    type: b3
+    doc: 4 to 7 for blocks of at most 64 KiB, 256 KiB, 1 MiB and 4 MiB.
+  - id: reserved_bd_low
+    type: b4
+  - id: content_size
+    type: u8
+    if: has_content_size
+  - id: dictionary_id
+    type: u4
+    if: has_dictionary_id
+  - id: header_checksum
+    type: u1
+  - id: blocks
+    type: block
+    repeat: until
+    repeat-until: _.size_field == 0
+  - id: content_checksum
+    type: u4
+    if: has_content_checksum
+types:
+  block:
+    seq:
+      - id: size_field
+        type: u4
+        doc: The size of the block's data; the top bit says it is stored uncompressed. Zero ends the frame.
+      - id: data
+        size: size_field & 0x7fffffff
+      - id: checksum
+        type: u4
+        if: size_field != 0 and _root.has_block_checksum
+    instances:
+      uncompressed:
+        value: (size_field & 0x80000000) != 0

@@ -1,0 +1,55 @@
+id: xz
+doc: |
+  xz compressed file: the stream header and the stream footer
+# Covers: the stream header (the check type that the blocks use, the header's CRC32) and, read from the end of the
+#   file, the stream footer (the CRC32, the size of the index, the flags and the closing `YZ`).
+# Limits: the blocks and the index between them are bytes: the blocks hold LZMA2 data and variable-length
+#   integers. Several streams in one file (concatenated, or with padding) show the first stream's header and the
+#   last one's footer.
+# Specification: "The .xz File Format" (tukaani.org/xz/xz-file-format.txt).
+meta:
+  id: xz
+  endian: le
+seq:
+  - id: magic
+    contents: [0xfd, "7zXZ", 0x00]
+  - id: stream_flags_reserved
+    type: u1
+  - id: stream_flags
+    type: u1
+  - id: header_crc32
+    type: u4
+  - id: body
+    doc: The blocks, the index and the footer.
+    size-eos: true
+enums:
+  check:
+    0: none
+    1: crc32
+    4: crc64
+    10: sha256
+instances:
+  check_type:
+    value: stream_flags & 15
+  check_name:
+    value: 'check_type == 0 ? "none" : check_type == 1 ? "crc32" : check_type == 4 ? "crc64" : check_type == 10 ? "sha256" : "reserved"'
+  footer:
+    pos: _io.size - 12
+    type: footer
+types:
+  footer:
+    seq:
+      - id: crc32
+        type: u4
+      - id: backward_size
+        type: u4
+        doc: The size of the index, in units of four bytes, minus one.
+      - id: stream_flags_reserved
+        type: u1
+      - id: stream_flags
+        type: u1
+      - id: magic
+        contents: "YZ"
+    instances:
+      index_size:
+        value: (backward_size + 1) * 4

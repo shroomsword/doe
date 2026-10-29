@@ -226,6 +226,87 @@ fn tzfile_has_the_transitions_and_the_local_time_types() {
 }
 
 #[test]
+fn psd_has_the_header_the_resources_and_the_image_data() {
+    let v = decode("psd", "sample.psd");
+    assert_eq!(
+        (v["width"].as_u64(), v["height"].as_u64()),
+        (Some(4), Some(2))
+    );
+    assert_eq!(
+        (v["num_channels"].as_u64(), v["depth"].as_u64()),
+        (Some(3), Some(8))
+    );
+    assert_eq!(name_of(&v["color_mode"]), "rgb");
+    let blocks = v["image_resources"]["blocks"].as_array().unwrap();
+    assert_eq!(blocks.len(), 1);
+    assert_eq!(blocks[0]["id"], 1005);
+    assert_eq!(blocks[0]["data"]["hex"], "00480048");
+    assert_eq!(v["layer_and_mask"]["len"], 0);
+    assert_eq!(name_of(&v["compression"]), "raw");
+    assert_eq!(v["image_data"]["len"], 24);
+}
+
+#[test]
+fn bzip2_has_the_level_and_the_first_block() {
+    let v = decode("bzip2", "sample.bz2");
+    assert_eq!(v["level"], "9");
+    assert_eq!(v["block_size_kb"], 900);
+    assert_eq!(v["first_block_magic"]["hex"], "314159265359");
+}
+
+#[test]
+fn xz_has_the_stream_header_and_the_footer_read_from_the_end() {
+    let v = decode("xz", "sample.xz");
+    assert_eq!(v["stream_flags"], 1);
+    assert_eq!(v["check_type"], 1);
+    assert_eq!(v["check_name"], "crc32");
+    let footer = &v["footer"];
+    assert_eq!(footer["stream_flags"], 1);
+    assert_eq!(footer["magic"]["hex"], "595a");
+    assert_eq!(
+        footer["index_size"].as_u64(),
+        footer["backward_size"].as_u64().map(|n| (n + 1) * 4)
+    );
+}
+
+#[test]
+fn zstd_has_the_frames_with_their_flags_and_blocks() {
+    let v = decode("zstd", "sample.zst");
+    let frames = v["frames"].as_array().unwrap();
+    assert_eq!(frames.len(), 2);
+    assert_eq!(frames[0]["single_segment"], true);
+    assert_eq!(frames[0]["has_content_checksum"], true);
+    assert_eq!(frames[0]["frame_content_size"]["hex"], "05");
+    assert_eq!(frames[0]["blocks"][0]["last"], true);
+    assert_eq!(frames[0]["blocks"][0]["block_type"], 0);
+    assert_eq!(frames[0]["blocks"][0]["data"]["hex"], "68656c6c6f");
+    assert_eq!(frames[0]["content_checksum"], 0x0403_0201);
+    assert_eq!(frames[1]["single_segment"], false);
+    assert_eq!(frames[1]["window_descriptor"], 0x58);
+    assert!(frames[1]["frame_content_size"].is_null());
+    // a run-length block: a size of 100 is the length of the run, and one byte is stored
+    assert_eq!(frames[1]["blocks"][0]["block_type"], 1);
+    assert_eq!(frames[1]["blocks"][0]["block_size"], 100);
+    assert_eq!(frames[1]["blocks"][0]["data"]["len"], 1);
+}
+
+#[test]
+fn lz4_has_the_descriptor_the_blocks_and_the_checksum() {
+    let v = decode("lz4", "sample.lz4");
+    assert_eq!(v["version"], 1);
+    assert_eq!(v["block_independence"], true);
+    assert_eq!(v["has_content_size"], true);
+    assert_eq!(v["content_size"], 5);
+    assert_eq!(v["block_max_size_id"], 4);
+    let blocks = v["blocks"].as_array().unwrap();
+    assert_eq!(blocks.len(), 2);
+    assert_eq!(blocks[0]["uncompressed"], true);
+    assert_eq!(blocks[0]["data"]["hex"], "68656c6c6f");
+    assert_eq!(blocks[1]["size_field"], 0, "the end mark");
+    assert_eq!(v["content_checksum"], 0x1234_5678);
+}
+
+#[test]
 fn the_samples_are_the_ones_the_script_makes() {
     // the samples are in the repository so that the tests do not need Python; the script makes the same bytes
     let Ok(python) = std::process::Command::new("python3")
@@ -248,8 +329,13 @@ fn the_samples_are_the_ones_the_script_makes() {
         .status()
         .unwrap();
     assert!(run.success());
+    // made by the compressors of Python's libraries, whose output can differ between versions of them
+    let compressed = ["sample.bz2", "sample.xz"];
     for entry in std::fs::read_dir(types().join("samples")).unwrap() {
         let entry = entry.unwrap();
+        if compressed.contains(&entry.file_name().to_string_lossy().as_ref()) {
+            continue;
+        }
         let made = dir.path().join("types/samples").join(entry.file_name());
         assert_eq!(
             std::fs::read(&made).unwrap(),
