@@ -87,6 +87,10 @@ pub enum Action {
     HexSelect,
     /// Bytes: copy the selected bytes, as hex.
     HexCopy,
+    /// Bytes (building a schema): add a field where the schema ends.
+    HexAddField,
+    /// Bytes (building a schema): add a field at the cursor, with a gap before it.
+    HexAddFieldHere,
 }
 
 /// Where a binding applies.
@@ -364,6 +368,18 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Bytes,
         action: Action::HexCopy,
         help: "copy the selected bytes as hex",
+    },
+    Binding {
+        keys: &[ch('a')],
+        scope: Scope::Bytes,
+        action: Action::HexAddField,
+        help: "with --build: add a field where the schema ends",
+    },
+    Binding {
+        keys: &[ch('A')],
+        scope: Scope::Bytes,
+        action: Action::HexAddFieldHere,
+        help: "with --build: add a field at the cursor",
     },
     Binding {
         keys: &[ch('.')],

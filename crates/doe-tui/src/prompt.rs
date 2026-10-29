@@ -15,6 +15,14 @@ pub enum Kind {
     Search,
     /// An offset to go to.
     Goto,
+    /// The kind of a field that is being added to the schema that is built.
+    FieldKind,
+    /// The length of the bytes or text of that field.
+    FieldLength,
+    /// The encoding of its text.
+    FieldEncoding,
+    /// Its name.
+    FieldName,
 }
 
 impl Kind {
@@ -24,6 +32,10 @@ impl Kind {
         match self {
             Kind::Search => "/",
             Kind::Goto => "goto offset: ",
+            Kind::FieldKind => "field kind (u1 u2 u4 u8 s1 s2 s4 s8 f4 f8 bytes str): ",
+            Kind::FieldLength => "length in bytes: ",
+            Kind::FieldEncoding => "encoding (ASCII, UTF-8…): ",
+            Kind::FieldName => "field name: ",
         }
     }
 }
