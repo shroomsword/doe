@@ -210,6 +210,7 @@ fn c_changes_the_kind_and_the_fields_after_move_and_a_change_that_does_not_fit_i
     key(&mut app, 'c');
     assert_eq!(app.prompt.as_ref().unwrap().line.text(), "u2");
     answer(&mut app, "u4");
+    press(&mut app, KeyCode::Enter); // repeat: once
     assert_eq!(
         fields(&app),
         [
@@ -221,6 +222,7 @@ fn c_changes_the_kind_and_the_fields_after_move_and_a_change_that_does_not_fit_i
     // 1 + 8 + 3 is more than the ten bytes of the file
     key(&mut app, 'c');
     answer(&mut app, "u8");
+    press(&mut app, KeyCode::Enter); // repeat: once
     assert!(
         app.notice.as_deref().unwrap().contains("does not fit"),
         "{:?}",
@@ -238,6 +240,7 @@ fn c_changes_the_kind_and_the_fields_after_move_and_a_change_that_does_not_fit_i
     answer(&mut app, "bytes");
     assert_eq!(app.prompt.as_ref().unwrap().line.text(), "3");
     answer(&mut app, "5");
+    press(&mut app, KeyCode::Enter); // once
     assert_eq!(fields(&app)[2], ("c".to_owned(), 5, 5));
 }
 
@@ -310,6 +313,7 @@ fn every_change_can_be_undone_back_to_the_empty_schema() {
     select(&mut app, 1);
     key(&mut app, 'c');
     answer(&mut app, "u4");
+    press(&mut app, KeyCode::Enter); // repeat: once
     select(&mut app, 0);
     key(&mut app, 'r');
     answer(&mut app, "first");

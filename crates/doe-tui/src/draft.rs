@@ -59,19 +59,70 @@ pub enum Kind {
         /// The encoding (`ASCII`, `UTF-8`...).
         encoding: String,
     },
+    /// A field of this many bits (1 to 64); the ones that follow each other share bytes.
+    Bits(u8),
+    /// Bytes that the file must have: a signature.
+    Contents(Vec<u8>),
+    /// Text that ends with a byte (the terminator is read and left out of the text).
+    Terminated {
+        /// The byte that ends the text.
+        terminator: u8,
+        /// The encoding.
+        encoding: String,
+        /// How many bytes the text and its terminator take in the file that is being looked at.
+        sample: u64,
+    },
+    /// A field of another kind, repeated.
+    Repeat {
+        /// What is repeated: an integer, a float, bytes or text.
+        inner: Box<Kind>,
+        /// How many times.
+        count: Count,
+        /// How many elements the file that is being looked at has.
+        sample: u64,
+    },
+}
+
+/// How many times a field is repeated.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Count {
+    /// A number.
+    Fixed(u64),
+    /// The value of an earlier integer field.
+    Field(String),
+    /// Until the end of the file.
+    ToEnd,
 }
 
 impl Kind {
-    /// How many bytes the field takes.
+    /// How many bits the field takes (in the file that is being looked at, for the kinds
+    /// whose size is read from it).
     #[must_use]
-    pub fn size(&self) -> u64 {
+    pub fn bits(&self) -> u64 {
         match self {
-            Kind::Unsigned(n) | Kind::Signed(n) | Kind::Float(n) => u64::from(*n),
-            Kind::Bytes(len) | Kind::Text { len, .. } => *len,
+            Kind::Bits(n) => u64::from(*n),
+            Kind::Terminated { sample, .. } => sample * 8,
+            Kind::Repeat { inner, sample, .. } => inner.bits() * sample,
+            Kind::Contents(bytes) => bytes.len() as u64 * 8,
+            other => other.size_in_bytes() * 8,
         }
     }
 
-    /// A short name for a list: `u2`, `f8`, `bytes`, `str`.
+    /// How many bytes the field takes, a part of a byte counting as a byte.
+    #[must_use]
+    pub fn size(&self) -> u64 {
+        self.bits().div_ceil(8)
+    }
+
+    fn size_in_bytes(&self) -> u64 {
+        match self {
+            Kind::Unsigned(n) | Kind::Signed(n) | Kind::Float(n) => u64::from(*n),
+            Kind::Bytes(len) | Kind::Text { len, .. } => *len,
+            _ => 0,
+        }
+    }
+
+    /// A short name for a list: `u2`, `f8`, `bytes`, `str`, `b3`, `magic`, `strz`, `u2[]`.
     #[must_use]
     pub fn label(&self) -> String {
         match self {
@@ -80,6 +131,10 @@ impl Kind {
             Kind::Float(n) => format!("f{n}"),
             Kind::Bytes(_) => "bytes".to_owned(),
             Kind::Text { .. } => "str".to_owned(),
+            Kind::Bits(n) => format!("b{n}"),
+            Kind::Contents(_) => "magic".to_owned(),
+            Kind::Terminated { .. } => "strz".to_owned(),
+            Kind::Repeat { inner, .. } => format!("{}[]", inner.label()),
         }
     }
 
@@ -99,13 +154,50 @@ impl Kind {
             Kind::Bytes(0) | Kind::Text { len: 0, .. } => {
                 Err(DraftError::Size("a field has at least one byte".to_owned()))
             }
-            Kind::Text { encoding, .. }
+            Kind::Text { encoding, .. } | Kind::Terminated { encoding, .. }
                 if encoding.is_empty()
                     || !encoding
                         .chars()
                         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') =>
             {
                 Err(DraftError::Encoding(encoding.clone()))
+            }
+            Kind::Bits(n) if !(1..=64).contains(n) => Err(DraftError::Size(format!(
+                "a bit field has 1 to 64 bits, not {n}"
+            ))),
+            Kind::Contents(bytes) if bytes.is_empty() => Err(DraftError::Size(
+                "a signature has at least one byte".to_owned(),
+            )),
+            Kind::Terminated { sample: 0, .. } => Err(DraftError::Size(
+                "text up to a terminator has at least the terminator".to_owned(),
+            )),
+            Kind::Repeat {
+                inner,
+                count,
+                sample,
+            } => {
+                if matches!(
+                    **inner,
+                    Kind::Bits(_)
+                        | Kind::Contents(_)
+                        | Kind::Terminated { .. }
+                        | Kind::Repeat { .. }
+                ) {
+                    return Err(DraftError::Size(
+                        "only integers, floats, bytes and text of a size can be repeated"
+                            .to_owned(),
+                    ));
+                }
+                inner.check()?;
+                if matches!(count, Count::Fixed(0)) || *sample == 0 {
+                    return Err(DraftError::Size(
+                        "a field is repeated at least once".to_owned(),
+                    ));
+                }
+                if let Count::Field(name) = count {
+                    check_name(name)?;
+                }
+                Ok(())
             }
             _ => Ok(()),
         }
@@ -307,16 +399,44 @@ impl Draft {
         &self.fields
     }
 
-    /// Where the field at `index` starts, in bytes from the start of the file.
+    /// Where each field starts and ends, in bits from the start of the file. Bit fields
+    /// follow each other; any other field starts at a byte.
     #[must_use]
-    pub fn offset_of(&self, index: usize) -> u64 {
-        self.fields.iter().take(index).map(|f| f.kind.size()).sum()
+    pub fn layout(&self) -> Vec<(u64, u64)> {
+        let mut position = 0_u64;
+        self.fields
+            .iter()
+            .map(|field| {
+                if !matches!(field.kind, Kind::Bits(_)) {
+                    position = position.next_multiple_of(8);
+                }
+                let start = position;
+                position += field.kind.bits();
+                (start, position)
+            })
+            .collect()
     }
 
-    /// Where the schema ends: the offset of the next field.
+    /// Where the field at `index` starts, in bytes from the start of the file (the byte
+    /// it starts in, for a bit field).
+    #[must_use]
+    pub fn offset_of(&self, index: usize) -> u64 {
+        match self.layout().get(index) {
+            Some((start, _)) => start / 8,
+            None => self.end(),
+        }
+    }
+
+    /// Where the schema ends, in bits.
+    #[must_use]
+    pub fn end_bit(&self) -> u64 {
+        self.layout().last().map_or(0, |(_, end)| *end)
+    }
+
+    /// Where the schema ends: the offset of the next byte that no field has.
     #[must_use]
     pub fn end(&self) -> u64 {
-        self.offset_of(self.fields.len())
+        self.end_bit().div_ceil(8)
     }
 
     /// Put a field at the end.
@@ -343,7 +463,10 @@ impl Draft {
             index,
             field: field.clone(),
         };
-        self.fields.insert(index, field);
+        self.guarded(|d| {
+            d.fields.insert(index, field);
+            Ok(())
+        })?;
         Ok(edit)
     }
 
@@ -356,7 +479,7 @@ impl Draft {
         if index >= self.fields.len() {
             return Err(DraftError::NoSuchField(index));
         }
-        let field = self.fields.remove(index);
+        let field = self.guarded(|d| Ok(d.fields.remove(index)))?;
         Ok(Edit::Remove { index, field })
     }
 
@@ -367,11 +490,13 @@ impl Draft {
     /// There is no such field, or the name is not right or is taken.
     pub fn rename(&mut self, index: usize, to: &str) -> Result<Edit, DraftError> {
         self.check_new_name(to, Some(index))?;
-        let field = self
-            .fields
-            .get_mut(index)
-            .ok_or(DraftError::NoSuchField(index))?;
-        let from = std::mem::replace(&mut field.id, to.to_owned());
+        let from = self.guarded(|d| {
+            let field = d
+                .fields
+                .get_mut(index)
+                .ok_or(DraftError::NoSuchField(index))?;
+            Ok(std::mem::replace(&mut field.id, to.to_owned()))
+        })?;
         Ok(Edit::Rename {
             index,
             from,
@@ -386,11 +511,13 @@ impl Draft {
     /// There is no such field, or the kind is not right.
     pub fn retype(&mut self, index: usize, to: Kind) -> Result<Edit, DraftError> {
         to.check()?;
-        let field = self
-            .fields
-            .get_mut(index)
-            .ok_or(DraftError::NoSuchField(index))?;
-        let from = std::mem::replace(&mut field.kind, to.clone());
+        let from = self.guarded(|d| {
+            let field = d
+                .fields
+                .get_mut(index)
+                .ok_or(DraftError::NoSuchField(index))?;
+            Ok(std::mem::replace(&mut field.kind, to.clone()))
+        })?;
         Ok(Edit::Retype { index, from, to })
     }
 
@@ -443,33 +570,108 @@ impl Draft {
             return out;
         }
         out.push_str("seq:\n");
-        let mut offset = 0_u64;
-        for field in &self.fields {
-            let size = field.kind.size();
-            let _ = writeln!(out, "  # {offset:#x}..{:#x}", offset + size);
-            let _ = writeln!(out, "  - id: {}", field.id);
-            match &field.kind {
-                Kind::Unsigned(n) => {
-                    let _ = writeln!(out, "    type: u{n}");
-                }
-                Kind::Signed(n) => {
-                    let _ = writeln!(out, "    type: s{n}");
-                }
-                Kind::Float(n) => {
-                    let _ = writeln!(out, "    type: f{n}");
-                }
-                Kind::Bytes(len) => {
-                    let _ = writeln!(out, "    size: {len}");
-                }
-                Kind::Text { len, encoding } => {
-                    let _ = writeln!(out, "    type: str");
-                    let _ = writeln!(out, "    size: {len}");
-                    let _ = writeln!(out, "    encoding: {encoding}");
-                }
+        for (field, (start, end)) in self.fields.iter().zip(self.layout()) {
+            if matches!(field.kind, Kind::Bits(_)) {
+                let _ = writeln!(out, "  # bits {start}..{end} (byte {:#x})", start / 8);
+            } else {
+                let _ = writeln!(out, "  # {:#x}..{:#x}", start / 8, end.div_ceil(8));
             }
-            offset += size;
+            let _ = writeln!(out, "  - id: {}", field.id);
+            write_kind(&mut out, &field.kind);
         }
         out
+    }
+
+    /// The counts of repeated fields must be integers that are read before the field.
+    fn check_counts(&self) -> Result<(), DraftError> {
+        for (index, field) in self.fields.iter().enumerate() {
+            let Kind::Repeat {
+                count: Count::Field(name),
+                ..
+            } = &field.kind
+            else {
+                continue;
+            };
+            let counted =
+                self.fields.iter().take(index).any(|f| {
+                    &f.id == name && matches!(f.kind, Kind::Unsigned(_) | Kind::Signed(_))
+                });
+            if !counted {
+                return Err(DraftError::Size(format!(
+                    "{} is repeated as many times as {name}, which has to be an integer field before it",
+                    field.id
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    /// Run `change` on the fields, and keep it only if the counts are still right.
+    fn guarded<T>(
+        &mut self,
+        change: impl FnOnce(&mut Draft) -> Result<T, DraftError>,
+    ) -> Result<T, DraftError> {
+        let before = self.fields.clone();
+        let result = change(self).and_then(|value| self.check_counts().map(|()| value));
+        if result.is_err() {
+            self.fields = before;
+        }
+        result
+    }
+}
+
+/// Write the lines that say what a field is (the `id` is written already).
+fn write_kind(out: &mut String, kind: &Kind) {
+    match kind {
+        Kind::Unsigned(n) => {
+            let _ = writeln!(out, "    type: u{n}");
+        }
+        Kind::Signed(n) => {
+            let _ = writeln!(out, "    type: s{n}");
+        }
+        Kind::Float(n) => {
+            let _ = writeln!(out, "    type: f{n}");
+        }
+        Kind::Bytes(len) => {
+            let _ = writeln!(out, "    size: {len}");
+        }
+        Kind::Text { len, encoding } => {
+            let _ = writeln!(out, "    type: str");
+            let _ = writeln!(out, "    size: {len}");
+            let _ = writeln!(out, "    encoding: {encoding}");
+        }
+        Kind::Bits(n) => {
+            let _ = writeln!(out, "    type: b{n}");
+        }
+        Kind::Contents(bytes) => {
+            let list: Vec<String> = bytes.iter().map(|b| format!("{b:#04x}")).collect();
+            let _ = writeln!(out, "    contents: [{}]", list.join(", "));
+        }
+        Kind::Terminated {
+            terminator,
+            encoding,
+            ..
+        } => {
+            let _ = writeln!(out, "    type: str");
+            let _ = writeln!(out, "    terminator: {terminator}");
+            let _ = writeln!(out, "    encoding: {encoding}");
+        }
+        Kind::Repeat { inner, count, .. } => {
+            write_kind(out, inner);
+            match count {
+                Count::Fixed(n) => {
+                    let _ = writeln!(out, "    repeat: expr");
+                    let _ = writeln!(out, "    repeat-expr: {n}");
+                }
+                Count::Field(name) => {
+                    let _ = writeln!(out, "    repeat: expr");
+                    let _ = writeln!(out, "    repeat-expr: {name}");
+                }
+                Count::ToEnd => {
+                    let _ = writeln!(out, "    repeat: eos");
+                }
+            }
+        }
     }
 }
 
@@ -674,5 +876,186 @@ mod tests {
             draft.apply(edit).unwrap();
         }
         assert_eq!(draft, finished);
+    }
+
+    #[test]
+    fn a_signature_terminated_text_repeats_and_bit_fields_are_written_and_read() {
+        let mut draft = Draft::new("rich").unwrap();
+        for (id, kind) in [
+            ("magic", Kind::Contents(vec![0x7f, 0x45])),
+            ("count", Kind::Unsigned(1)),
+            (
+                "items",
+                Kind::Repeat {
+                    inner: Box::new(Kind::Unsigned(2)),
+                    count: Count::Field("count".to_owned()),
+                    sample: 3,
+                },
+            ),
+            (
+                "name",
+                Kind::Terminated {
+                    terminator: 0,
+                    encoding: "ASCII".to_owned(),
+                    sample: 4,
+                },
+            ),
+            ("flags", Kind::Bits(3)),
+            ("mode", Kind::Bits(5)),
+            (
+                "tail",
+                Kind::Repeat {
+                    inner: Box::new(Kind::Unsigned(1)),
+                    count: Count::ToEnd,
+                    sample: 2,
+                },
+            ),
+        ] {
+            draft.push(field(id, kind)).unwrap();
+        }
+        // magic 0..2, count 2, items 3..9, name 9..13, flags and mode share byte 13, tail 14..16
+        assert_eq!(
+            (0..7).map(|i| draft.offset_of(i)).collect::<Vec<_>>(),
+            [0, 2, 3, 9, 13, 13, 14]
+        );
+        assert_eq!((draft.end(), draft.end_bit()), (16, 128));
+        let data = [
+            0x7f,
+            0x45,
+            3,
+            1,
+            0,
+            2,
+            0,
+            3,
+            0,
+            b'a',
+            b'b',
+            b'c',
+            0,
+            0b1010_0011,
+            9,
+            10,
+        ];
+        let value = parse(&draft, &data);
+        assert_eq!(get(&value, "count"), &Value::UInt(3));
+        assert_eq!(
+            get(&value, "items"),
+            &Value::Array(vec![Value::UInt(1), Value::UInt(2), Value::UInt(3)])
+        );
+        assert_eq!(get(&value, "name"), &Value::Str("abc".to_owned()));
+        assert_eq!(get(&value, "flags"), &Value::UInt(5));
+        assert_eq!(get(&value, "mode"), &Value::UInt(3));
+        assert_eq!(
+            get(&value, "tail"),
+            &Value::Array(vec![Value::UInt(9), Value::UInt(10)])
+        );
+        let yaml = draft.to_yaml();
+        assert!(yaml.contains("contents: [0x7f, 0x45]"), "{yaml}");
+        assert!(yaml.contains("# bits 104..107 (byte 0xd)"), "{yaml}");
+    }
+
+    #[test]
+    fn a_bit_field_after_other_bits_starts_where_they_ended_and_a_byte_field_after_them_at_a_byte()
+    {
+        let mut draft = Draft::new("bits").unwrap();
+        draft.push(field("a", Kind::Bits(3))).unwrap();
+        draft.push(field("b", Kind::Bits(2))).unwrap();
+        draft.push(field("c", Kind::Unsigned(1))).unwrap();
+        assert_eq!(draft.layout(), [(0, 3), (3, 5), (8, 16)]);
+        assert_eq!((draft.end_bit(), draft.end()), (16, 2));
+        let mut half = Draft::new("half").unwrap();
+        half.push(field("a", Kind::Bits(3))).unwrap();
+        assert_eq!((half.end_bit(), half.end()), (3, 1));
+    }
+
+    #[test]
+    fn the_count_of_a_repeat_has_to_be_an_integer_before_it_and_stays_so() {
+        let mut draft = Draft::new("t").unwrap();
+        let items = |count: &str| Kind::Repeat {
+            inner: Box::new(Kind::Unsigned(1)),
+            count: Count::Field(count.to_owned()),
+            sample: 2,
+        };
+        assert!(
+            draft.push(field("items", items("n"))).is_err(),
+            "no field n yet"
+        );
+        draft.push(field("n", Kind::Unsigned(1))).unwrap();
+        draft.push(field("text", Kind::Bytes(2))).unwrap();
+        assert!(
+            draft.push(field("bad", items("text"))).is_err(),
+            "bytes are not a count"
+        );
+        let before = draft.clone();
+        draft.push(field("items", items("n"))).unwrap();
+        // the count cannot be taken out, renamed or made something else while it is used
+        assert!(draft.remove(0).is_err());
+        assert!(draft.rename(0, "m").is_err());
+        assert!(draft.retype(0, Kind::Bytes(1)).is_err());
+        assert_eq!(
+            draft.fields().len(),
+            3,
+            "nothing was changed by a refused change"
+        );
+        assert_eq!(draft.fields()[0].id, "n");
+        // another integer is fine, and so is going back
+        assert!(draft.retype(0, Kind::Signed(2)).is_ok());
+        let edit = draft.remove(2).unwrap();
+        draft.apply(&edit.inverse()).unwrap();
+        assert!(draft.remove(0).is_err());
+        draft.remove(2).unwrap();
+        draft.remove(0).unwrap();
+        assert_eq!(draft.fields().len(), 1);
+        assert_ne!(draft, before);
+    }
+
+    #[test]
+    fn the_new_kinds_are_checked() {
+        let mut draft = Draft::new("t").unwrap();
+        for bad in [
+            Kind::Bits(0),
+            Kind::Bits(65),
+            Kind::Contents(Vec::new()),
+            Kind::Terminated {
+                terminator: 0,
+                encoding: "ASCII".to_owned(),
+                sample: 0,
+            },
+            Kind::Terminated {
+                terminator: 0,
+                encoding: "no good".to_owned(),
+                sample: 2,
+            },
+            Kind::Repeat {
+                inner: Box::new(Kind::Bits(3)),
+                count: Count::Fixed(2),
+                sample: 2,
+            },
+            Kind::Repeat {
+                inner: Box::new(Kind::Unsigned(1)),
+                count: Count::Fixed(0),
+                sample: 1,
+            },
+            Kind::Repeat {
+                inner: Box::new(Kind::Repeat {
+                    inner: Box::new(Kind::Unsigned(1)),
+                    count: Count::Fixed(2),
+                    sample: 2,
+                }),
+                count: Count::Fixed(2),
+                sample: 2,
+            },
+        ] {
+            assert!(draft.push(field("x", bad.clone())).is_err(), "{bad:?}");
+        }
+        assert_eq!(draft.fields().len(), 0);
+        let ok = Kind::Repeat {
+            inner: Box::new(Kind::Bytes(3)),
+            count: Count::Fixed(2),
+            sample: 2,
+        };
+        draft.push(field("pairs", ok.clone())).unwrap();
+        assert_eq!((ok.label().as_str(), ok.size()), ("bytes[]", 6));
     }
 }

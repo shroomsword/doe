@@ -1259,6 +1259,21 @@ is asked again, `Esc` gives up). `A` adds the field at the cursor instead, with 
 `bytes` field named `skip_1` before it for the bytes that are not described yet;
 the cursor must be after the end of the schema.
 
+Besides sized fields, the kind can be `magic`, a **signature**: the bytes that the
+file must start a type with (`contents: [0x7f, 0x45]`; the selected bytes are
+proposed, or type them in hex), which `doe` uses to find the schema of a file;
+`strz`, **text that ends** with a byte (asks for the terminator, `0` by default,
+and the encoding; the length is found in the file, so it has to have the
+terminator within 64 KiB); and `b1` to `b64`, a **bit field** of that many bits,
+which follow each other in the same bytes (the cursor then moves by bits, to where
+the next one goes on). Any sized field (an integer, a float, `bytes`, `str`) can
+also be **repeated**: the last question accepts a number, the name of an earlier
+integer field (a count read from the file), or `eos` for until the end of the file
+(which has to be a whole number of elements). A field that is the count of a repeat
+cannot be removed, renamed or made something else while the repeat uses it. The
+schema counts the repeats and the text that ends by the file that is open, so the
+offsets that are shown after them are the file's.
+
 The schema can be changed as well as grown, with a field selected in the tree (or
 the cursor on its bytes, which selects it): `u` takes the last change back (an
 addition, a removal, a rename, a change of kind, of byte order) and `Ctrl-R` does

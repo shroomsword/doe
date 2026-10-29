@@ -21,6 +21,12 @@ pub enum Kind {
     FieldLength,
     /// The encoding of its text.
     FieldEncoding,
+    /// The byte that ends a field of text.
+    FieldTerminator,
+    /// The bytes of a signature.
+    FieldMagic,
+    /// How often the field is repeated.
+    FieldRepeat,
     /// Its name.
     FieldName,
 }
@@ -32,9 +38,12 @@ impl Kind {
         match self {
             Kind::Search => "/",
             Kind::Goto => "goto offset: ",
-            Kind::FieldKind => "field kind (u1 u2 u4 u8 s1 s2 s4 s8 f4 f8 bytes str): ",
+            Kind::FieldKind => "kind (u1..u8 s1..s8 f4 f8 b1..b64 bytes str strz magic): ",
             Kind::FieldLength => "length in bytes: ",
             Kind::FieldEncoding => "encoding (ASCII, UTF-8…): ",
+            Kind::FieldTerminator => "terminator byte (0, or 0x0a…): ",
+            Kind::FieldMagic => "signature bytes in hex (7f 45 4c 46): ",
+            Kind::FieldRepeat => "repeat (a number, a field name, eos; Enter for once): ",
             Kind::FieldName => "field name: ",
         }
     }
