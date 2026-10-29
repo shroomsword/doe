@@ -1065,6 +1065,7 @@ Options:
       --pretty               Emit pretty-printed JSON output
       --no-instances         Leave out the values a schema's `instances` compute or read elsewhere
       --indent <STR>         Indentation string for text output [default: "  "]
+      --build <OUT>          With `--tui`: build a new schema one field at a time from the hex view of FILE, to be saved to OUT (a file that is not there yet; the schema is named for it). Instead of a `TYPE_OR_SCHEMA`
       --list-types           Print the types that can be used and exit: one per line with the file each is in (relative to its type path) and the first line of its doc, aligned on a terminal and separated by tabs otherwise; with `--json` or `--pretty`, an array of objects with `id`, `path`, `type_path`, `doc`, `signature` and `error`. The type paths are searched in their subdirectories too. Give a SCHEMA instead of a FILE to list the types it defines and imports
   -h, --help                 Print help, including available types from the include paths
       --color <WHEN>         When to use color on stderr [default: auto] [possible values: auto, always, never]
@@ -1226,6 +1227,14 @@ line says how many, and `.` and `,` go to the next and the previous of them. Onl
 the instances of the types on the way to the field are looked at, so a key press
 never looks through the whole tree; an instance inside a type that is somewhere
 else in the file is found from the tree, not from its bytes.
+
+**Building a schema.** `doe --tui FILE --build OUT.yaml` opens the viewer on an
+empty schema (a file that is not there yet; the schema is named for it, so the
+name has lower case letters, digits and `_`) that grows as fields are added from
+the hex pane, parsing `FILE` with it after every change. The title of the tree
+says `building`, and `not saved` once the schema has changed; leaving with `q`
+asks once if it was not saved. It is not the same as `--watch`, and it takes no
+`TYPE_OR_SCHEMA`. The keys that add fields are listed in `?`.
 
 **Large files.** The viewer is built not to be what makes a big file hard to
 look at. The first screen is drawn at once and says that the file is being

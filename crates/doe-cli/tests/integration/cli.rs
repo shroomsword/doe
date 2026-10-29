@@ -1999,3 +1999,50 @@ fn list_types_does_not_go_with_a_type_or_the_modes_that_do_something_else() {
         .assert()
         .failure();
 }
+
+// ── --build ───────────────────────────────────────────────────────────────────
+
+#[test]
+fn build_needs_tui_and_does_not_go_with_a_schema() {
+    let dir = TempDir::new().unwrap();
+    let (schema, binary) = simple_fixture(dir.path());
+    doe()
+        .args(["-c", NO_CONFIG])
+        .arg(&binary)
+        .arg("--build")
+        .arg(dir.path().join("new.yaml"))
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--tui"));
+    doe()
+        .args(["-c", NO_CONFIG, "--tui"])
+        .arg(&binary)
+        .arg(&schema)
+        .arg("--build")
+        .arg(dir.path().join("new.yaml"))
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("cannot be used with"));
+}
+
+#[test]
+fn build_refuses_a_file_that_is_there_and_a_name_that_is_not_a_schema_name() {
+    let dir = TempDir::new().unwrap();
+    let (schema, binary) = simple_fixture(dir.path());
+    doe()
+        .args(["-c", NO_CONFIG, "--tui"])
+        .arg(&binary)
+        .arg("--build")
+        .arg(&schema)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("exists already"));
+    doe()
+        .args(["-c", NO_CONFIG, "--tui"])
+        .arg(&binary)
+        .arg("--build")
+        .arg(dir.path().join("Not-A-Name.yaml"))
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("lower case"));
+}

@@ -118,9 +118,11 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     let Some(file) = &cli.file else {
         anyhow::bail!("a FILE is required");
     };
-    let type_or_schema = match &cli.type_or_schema {
-        Some(given) => given.clone(),
-        None => detect_type(cli, config, file)?,
+    let type_or_schema = match (&cli.type_or_schema, &cli.build) {
+        (Some(given), _) => given.clone(),
+        // the schema is the one that is being built
+        (None, Some(_)) => String::new(),
+        (None, None) => detect_type(cli, config, file)?,
     };
     // `--color never`, and `NO_COLOR` unless `--color always`, mean no colour.
     let color = match cli.color {
@@ -128,7 +130,7 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         clap::ColorChoice::Never => false,
         clap::ColorChoice::Auto => std::env::var_os("NO_COLOR").is_none_or(|v| v.is_empty()),
     };
-    doe_tui::run(&doe_tui::Options {
+    let options = doe_tui::Options {
         file: file.clone(),
         type_or_schema,
         include_paths: resolve_include_paths(&cli.include_paths, config),
@@ -142,7 +144,11 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         theme_dir: doe_tui::theme::user_dir(
             cli.config.clone().or_else(Config::default_path).as_deref(),
         ),
-    })
+    };
+    match &cli.build {
+        Some(out) => doe_tui::run_build(&options, out),
+        None => doe_tui::run(&options),
+    }
 }
 
 #[cfg(not(feature = "tui"))]
