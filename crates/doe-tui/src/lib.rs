@@ -13,6 +13,7 @@
 
 pub mod app;
 pub mod bytes;
+pub mod draft;
 pub mod format;
 pub mod hex_view;
 pub mod inspect;
