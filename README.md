@@ -965,6 +965,21 @@ makes it the person's own. *Parse as* chooses the type to parse with from the ty
 open schemas (the main schema's own, by default); the choice is part of a share
 link and of the saved work, and the status line says which type was parsed.
 
+*Browse types* in the header opens one list of every type that can be used: the
+types of the open schemas, the type library of this machine (with `doe --ide`)
+and the formats of the Kaitai Struct gallery, grouped by where they come from,
+each with its id, its file and its doc or title, and for the gallery whether it
+has a signature (`doe` tries it first on a file that starts with it) and a ✓ or
+○ when it was tried on a file. The filter above the list keeps the entries that
+have every word you type in the id, the path or the doc. *View* reads the text of
+one (read-only; `Esc` goes back to the list), and *Use* parses with it: an open
+schema's type is set as *Parse as*, and a format of the library or the gallery is
+opened in the editor, as picking it from the *Types* or *Gallery* lists does. An
+open schema that does not read has its error and cannot be used. The dialog is a
+native one: it is reached with the keyboard, `Esc` closes it, and it fits a phone.
+The list does not rank the types by what fits the opened file; *Detect schema*
+does that.
+
 **Integers** are decimal at first. *Integers* in the header writes all of them in
 hexadecimal (`0x001f`), binary (`0b00011111`) or octal (`0o37`), with the digits
 padded to the width of the type (a bit field has as many binary digits as bits),
