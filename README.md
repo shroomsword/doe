@@ -1441,7 +1441,7 @@ comment on the right; the test `crates/doe-tui/tests/example.rs` presses exactly
 these in a viewer, so they cannot go out of date):
 
 <!-- example: keys -->
-```
+```text
 v lll                                 select the four bytes of the signature
 a <C-u>magic<Enter>                   add a field of the kind magic;
 <Enter>                               the selected bytes are proposed as its bytes;
@@ -1493,7 +1493,7 @@ seq:
 and `doe blip.bin blip.yaml` prints:
 
 <!-- example: blip.txt -->
-```
+```text
 blip
   signature  <4 bytes>
   version  1
