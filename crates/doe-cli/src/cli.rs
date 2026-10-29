@@ -27,7 +27,7 @@ use clap_verbosity_flag::{Verbosity, WarnLevel};
 )]
 pub(crate) struct Cli {
     /// Binary file to parse.
-    #[arg(required_unless_present_any = ["help", "completions", "man", "ide", "list_types"])]
+    #[arg(required_unless_present_any = ["help", "completions", "man", "ide", "list_types", "install_types"])]
     pub(crate) file: Option<PathBuf>,
 
     /// Type name (e.g. `png`) or path to a YAML schema file; add `::TYPE` to
@@ -79,6 +79,28 @@ pub(crate) struct Cli {
         conflicts_with_all = ["type_or_schema", "detect", "no_instances", "help", "completions", "man", "ide", "tui"]
     )]
     pub(crate) list_types: bool,
+
+    /// Write the type library and the Kaitai Struct gallery that are built into
+    /// this binary to DIR (default: `~/.doe/types`, or `$DOE_TYPES_DIR`) and
+    /// exit. `doe` searches that directory after the `-I` and config paths.
+    /// Run it again after an upgrade: files that were not changed are
+    /// replaced by the new version's, files that were are kept (see --force).
+    #[arg(
+        long,
+        value_name = "DIR",
+        num_args = 0..=1,
+        require_equals = true,
+        conflicts_with_all = ["file", "type_or_schema", "include_paths", "json", "pretty", "no_instances", "help", "completions", "man", "ide", "tui", "list_types", "detect"]
+    )]
+    #[allow(
+        clippy::option_option,
+        reason = "clap's way to tell the flag without a value (the default directory) from no flag"
+    )]
+    pub(crate) install_types: Option<Option<PathBuf>>,
+
+    /// With --install-types, replace the files that were changed too.
+    #[arg(long, requires = "install_types")]
+    pub(crate) force: bool,
 
     /// Print help, including available types from the include paths.
     #[arg(long, short = 'h', action = clap::ArgAction::SetTrue)]

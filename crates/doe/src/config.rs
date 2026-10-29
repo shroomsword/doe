@@ -15,7 +15,9 @@
 //!
 //! When a bare type name such as `"png"` is requested, `doe` searches each
 //! directory in order and loads `<dir>/png.yaml`.  Command-line `-I` paths
-//! are prepended and take priority over config-file paths.
+//! are prepended and take priority over config-file paths. The directory of
+//! installed types (`~/.doe/types`, made by `doe --install-types`) comes
+//! last, unless the config says `default_types = false`.
 
 use std::path::{Path, PathBuf};
 
@@ -51,6 +53,12 @@ pub struct Config {
     /// Tilde expansion (`~/`) is applied to each path.
     #[serde(default)]
     pub include_paths: Vec<PathBuf>,
+
+    /// Whether the directory of installed types ([`default_types_dir`], made
+    /// by `doe --install-types`) is searched after `include_paths`. On when
+    /// unset; `false` leaves it out, so `include_paths` is the whole list.
+    #[serde(default)]
+    pub default_types: Option<bool>,
 
     /// The colour theme of the terminal viewer (`doe --tui`): the id of a
     /// built-in theme, the name of a file in the `themes` directory next to
@@ -170,6 +178,33 @@ pub fn resolve_include_paths(cli_paths: &[PathBuf], config: &Config) -> Vec<Path
         .chain(config.include_paths.iter())
         .map(|p| expand_tilde(p))
         .collect()
+}
+
+/// The directory that `doe --install-types` fills and that is searched last:
+/// the one named by the environment variable `DOE_TYPES_DIR`, else
+/// `~/.doe/types`. `None` when the home directory cannot be determined.
+pub fn default_types_dir() -> Option<PathBuf> {
+    match std::env::var_os("DOE_TYPES_DIR") {
+        Some(dir) if !dir.is_empty() => Some(PathBuf::from(dir)),
+        _ => etcetera::home_dir()
+            .ok()
+            .map(|home| home.join(".doe").join("types")),
+    }
+}
+
+/// `paths` (from [`resolve_include_paths`]) with the [`default_types_dir`]
+/// added at the end when it exists, is not in the list already, and the
+/// config does not turn it off (`default_types = false`). A person's own
+/// types come first, so they win over the installed ones.
+pub fn with_default_types(mut paths: Vec<PathBuf>, config: &Config) -> Vec<PathBuf> {
+    if config.default_types != Some(false)
+        && let Some(dir) = default_types_dir()
+        && dir.is_dir()
+        && !paths.contains(&dir)
+    {
+        paths.push(dir);
+    }
+    paths
 }
 
 /// Expand a leading `~/` (or a bare `~`) to the user's home directory.

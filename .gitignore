@@ -32,3 +32,6 @@ target
 
 # Python bytecode
 __pycache__/
+
+# made by scripts/bundle-types for `cargo publish`
+/crates/doe-cli/bundled/

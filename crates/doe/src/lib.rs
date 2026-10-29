@@ -164,14 +164,15 @@ pub fn parse_file_with(
     format: OutputFormat,
     options: &ParseOptions,
 ) -> Result<String> {
-    use config::{Config, resolve_include_paths};
+    use config::{Config, resolve_include_paths, with_default_types};
     use parser::{cursor::Cursor, engine::Engine};
     use schema::compiler::Compiler;
 
     // ── Config ────────────────────────────────────────────────────────────────
 
     let config = Config::load_or_default(config_path)?;
-    let all_include_paths = resolve_include_paths(include_paths, &config);
+    let all_include_paths =
+        with_default_types(resolve_include_paths(include_paths, &config), &config);
 
     // ── Schema ────────────────────────────────────────────────────────────────
 
