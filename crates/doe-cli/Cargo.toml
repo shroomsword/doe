@@ -17,7 +17,7 @@ default = ["ide", "tui"]
 # `doe --ide`: a local web server with the web IDE (web/) built into the binary.
 # The page is taken from web/dist (or DOE_IDE_DIST) when the binary is built;
 # without it a page that says so is embedded. No dependencies are needed.
-ide = ["dep:serde_json"]
+ide = []
 # `doe --tui`: the viewer in the terminal (crates/doe-tui).
 tui = ["dep:doe-tui"]
 
@@ -37,7 +37,7 @@ etcetera.workspace = true
 fern.workspace = true
 humantime.workspace = true
 log.workspace = true
-serde_json = { workspace = true, features = ["std"], optional = true }
+serde_json = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 # A pseudo-terminal, to run `doe --tui` as a person's terminal would.
