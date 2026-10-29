@@ -21,7 +21,12 @@ your browser; nothing you open is uploaded (see [Web IDE](#web-ide)).
 
 ```sh
 cargo install --path crates/doe-cli
+doe --install-types
 ```
+
+`cargo install` puts the `doe` binary in `~/.cargo/bin` and nothing else, so
+the types are in the binary and `doe --install-types` writes them: see
+[Installing the types](#installing-the-types).
 
 ### The web IDE
 
@@ -91,9 +96,10 @@ doe mystery.bin -I ~/.doe/types   # which schema? see Detecting the schema
 ## Type library
 
 Ready-made type definitions live in [`types/`](https://github.com/shroomsword/doe/tree/main/types): the common
-file types that the [Kaitai Struct gallery](#the-kaitai-struct-gallery) does not have. Point `doe` at the
-directory with `-I` (or list it under `include_paths` in the config file) and
-use a type by name:
+file types that the [Kaitai Struct gallery](#the-kaitai-struct-gallery) does not have. They are in the binary
+(`doe --install-types`, see [Installing the types](#installing-the-types)); from a
+checkout, point `doe` at the directory with `-I` (or list it under `include_paths`
+in the config file) and use a type by name:
 
 ```sh
 doe -I types backup.tar tar
@@ -165,6 +171,39 @@ Two files below one type path that declare the same id are an error that
 names them; the same id in two type paths is not, and the earlier path wins.
 The search goes eight directories deep and looks at 20,000 files at most, and
 does not follow a link to a directory.
+
+### Installing the types
+
+The [type library](#type-library) and the [Kaitai Struct gallery](#the-kaitai-struct-gallery)
+(about 190 formats, 2 MB) are built into the binary, so a `doe` from
+`cargo install` or a release has them. `doe --install-types` writes them to
+`~/.doe/types` (the directory named by the environment variable `DOE_TYPES_DIR`
+when it is set), in two folders: `doe/` (this library) and `kaitai/` (the
+gallery, in its own folders). `doe` searches that directory **last**, after the
+`-I` paths and the config's `include_paths`, so types of your own win; a type is
+found by its name wherever it is below the directory:
+
+```sh
+doe --install-types
+doe backup.tar tar
+doe firmware.bin           # the schema is looked for among them too (Detecting the schema)
+doe --list-types           # shows them, the directory is a type path
+```
+
+`--install-types=DIR` writes to another directory (add it with `-I` or
+`include_paths`; a package can install to `/usr/share/doe/types` this way).
+A manifest, `.doe-types`, beside the files records the version of `doe` and a
+hash of each file as it was written. Run the command again after an upgrade:
+files that are as `doe` wrote them are replaced by the new version's, files that
+were removed from the library are removed, and **files that you changed are kept**
+and listed (`--install-types --force` replaces them too). Put your own types
+elsewhere or under other names, and they are never touched.
+
+Without the directory, `doe FILE` says to run `doe --install-types` instead of
+"no schema fits". `default_types = false` in the [config file](#configuration)
+leaves the directory out of the search whatever is installed. A build without
+the `bundled-types` feature (`cargo install doe-cli --no-default-features
+--features tui,ide`) has no types in it and `--install-types` says so.
 
 ## Schema format
 
@@ -1104,6 +1143,8 @@ Options:
       --indent <STR>         Indentation string for text output [default: "  "]
       --build <OUT>          With `--tui`: build a schema one field at a time from the hex view of FILE, to be saved to OUT with `w`: a file that is not there yet (the schema is named for it), or a schema that this made, to go on with. Instead of a `TYPE_OR_SCHEMA`
       --list-types           Print the types that can be used and exit: one per line with the file each is in (relative to its type path) and the first line of its doc, aligned on a terminal and separated by tabs otherwise; with `--json` or `--pretty`, an array of objects with `id`, `path`, `type_path`, `doc`, `signature` and `error`. The type paths are searched in their subdirectories too. Give a SCHEMA instead of a FILE to list the types it defines and imports
+      --install-types[=<DIR>] Write the type library and the Kaitai Struct gallery that are built into this binary to DIR (default: `~/.doe/types`, or `$DOE_TYPES_DIR`) and exit. `doe` searches that directory after the `-I` and config paths. Run it again after an upgrade: files that were not changed are replaced by the new version's, files that were are kept (see --force)
+      --force                With --install-types, replace the files that were changed too
   -h, --help                 Print help, including available types from the include paths
       --color <WHEN>         When to use color on stderr [default: auto] [possible values: auto, always, never]
       --log-level <LEVEL>    Verbosity of the log file [default: debug] [possible values: off, error, warn, info, debug, trace]
@@ -1690,6 +1731,7 @@ level = "debug"
 | Key | Type | Meaning | Overriding flag |
 |-----|------|---------|-----------------|
 | `include_paths` | list of paths | Directories searched for bare type names, in order. `~/` is expanded. | `-I`/`--include-path` (these come first) |
+| `default_types` | `true`, `false` | Whether the directory made by `doe --install-types` (`~/.doe/types`) is searched after `include_paths`. Default `true`; `false` leaves it out. | |
 | `theme` | text | The colour theme of `doe --tui`: a built-in id, a file in the `themes` directory next to this file, or a path (see [Themes](#themes)). Default: the terminal's own colours. | `--theme` |
 | `radix` | `dec`, `hex`, `bin`, `oct` | The radix in which `doe --tui` first shows integers (`x` changes it in the viewer). Default `dec`. | `--radix` |
 | `log.level` | `off`, `error`, `warn`, `info`, `debug`, `trace` | Verbosity of the log file. Default `debug`. | `--log-level` |

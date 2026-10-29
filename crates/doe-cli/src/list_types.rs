@@ -4,7 +4,7 @@ use std::io::IsTerminal as _;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context as _;
-use doe::config::{Config, discover_types, resolve_include_paths, unreadable_schemas};
+use doe::config::{Config, discover_types, unreadable_schemas};
 use doe::detect::{magic_of, source_of};
 use doe::inspect::inspect;
 use doe::schema::compiler::Compiler;
@@ -32,7 +32,7 @@ pub(crate) struct Item {
 /// Print the list. The schema, when `--list-types SCHEMA` gives one, is in `cli.file`.
 pub(crate) fn run(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     let json_output = cli.json || cli.pretty;
-    let include_paths = resolve_include_paths(&cli.include_paths, config);
+    let include_paths = crate::commands::include_paths(&cli.include_paths, config);
     let items = match &cli.file {
         Some(schema) => of_schema(schema, &include_paths, json_output)?,
         None => of_type_paths(&include_paths, json_output)?,

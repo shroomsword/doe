@@ -470,3 +470,28 @@ fn discover_types_does_not_follow_a_link_that_loops() {
     let types = discover_types(&[dir.path().to_owned()]).unwrap();
     assert_eq!(types.len(), 1);
 }
+
+#[test]
+fn default_types_is_unset_or_false_and_false_leaves_the_directory_out() {
+    assert_eq!(Config::default().default_types, None);
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "default_types = false").unwrap();
+    let cfg = Config::load(f.path()).unwrap();
+    assert_eq!(cfg.default_types, Some(false));
+    // whatever directory there is, none is added
+    let paths = vec![PathBuf::from("/own/types")];
+    assert_eq!(with_default_types(paths.clone(), &cfg), paths);
+}
+
+#[test]
+fn the_default_types_directory_is_searched_last_and_once() {
+    let Some(dir) = default_types_dir() else {
+        return;
+    };
+    let paths = with_default_types(vec![PathBuf::from("/own/types")], &Config::default());
+    assert_eq!(paths[0], PathBuf::from("/own/types"));
+    // it is added when it is there, and not twice
+    assert_eq!(paths.contains(&dir), dir.is_dir());
+    let again = with_default_types(paths.clone(), &Config::default());
+    assert_eq!(again, paths);
+}

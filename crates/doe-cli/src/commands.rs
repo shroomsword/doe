@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use clap::CommandFactory;
 use doe::OutputFormat;
-use doe::config::{Config, discover_types, resolve_include_paths};
+use doe::config::{Config, discover_types, resolve_include_paths, with_default_types};
 
 use crate::cli::Cli;
 use crate::manpage::{self, Page};
@@ -21,6 +21,8 @@ pub(crate) fn dispatch(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         ide(cli, config)
     } else if cli.tui {
         tui(cli, config)
+    } else if let Some(dir) = &cli.install_types {
+        install_types(dir.as_deref(), cli.force)
     } else if cli.list_types {
         crate::list_types::run(cli, config)
     } else if cli.help {
@@ -28,6 +30,38 @@ pub(crate) fn dispatch(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     } else {
         run(cli, config)
     }
+}
+
+/// The directories searched for types: `-I`, then the config's, then the
+/// installed types (`doe --install-types`) when there are some.
+pub(crate) fn include_paths(cli_paths: &[PathBuf], config: &Config) -> Vec<PathBuf> {
+    with_default_types(resolve_include_paths(cli_paths, config), config)
+}
+
+/// What to say when there is nowhere to look for types: how to get some.
+fn no_types_hint() -> Option<String> {
+    if crate::install_types::TYPES.is_empty() {
+        return None;
+    }
+    let dir = doe::config::default_types_dir()?;
+    Some(format!(
+        "There are no type paths: install the built-in types in {} with `doe --install-types`, or give a directory with -I.",
+        dir.display()
+    ))
+}
+
+/// `doe --install-types[=DIR]`: write the built-in types to `DIR`, or to the
+/// default directory when none is named.
+fn install_types(dir: Option<&Path>, force: bool) -> anyhow::Result<()> {
+    let dir = match dir {
+        Some(dir) => dir.to_owned(),
+        None => doe::config::default_types_dir()
+            .context("the home directory is not known: name the directory, --install-types=DIR")?,
+    };
+    let mut report = Vec::new();
+    let result = crate::install_types::run(&dir, force, &mut report);
+    write_stdout(&report)?;
+    result.map(|_| ())
 }
 
 /// Write `bytes` to stdout, reporting failures (including a closed pipe).
@@ -50,7 +84,7 @@ fn man(page: Page) -> anyhow::Result<()> {
 
 #[cfg(feature = "ide")]
 fn ide(cli: &Cli, config: &Config) -> anyhow::Result<()> {
-    let include_paths = resolve_include_paths(&cli.include_paths, config);
+    let include_paths = include_paths(&cli.include_paths, config);
     if !crate::ide::BUNDLED {
         log::warn!(
             "this build of doe has no web IDE in it (it was built without web/dist): the page will say so"
@@ -78,7 +112,7 @@ fn ide(_cli: &Cli, _config: &Config) -> anyhow::Result<()> {
 /// the first type that parses it. What was tried is logged (`-v`), and when
 /// nothing fits it is the error.
 fn detect_type(cli: &Cli, config: &Config, file: &std::path::Path) -> anyhow::Result<String> {
-    let include_paths = resolve_include_paths(&cli.include_paths, config);
+    let include_paths = include_paths(&cli.include_paths, config);
     let options = doe::detect::Options {
         all: cli.detect.as_deref() == Some("all"),
         ..doe::detect::Options::default()
@@ -94,6 +128,11 @@ fn detect_type(cli: &Cli, config: &Config, file: &std::path::Path) -> anyhow::Re
         );
     }
     let Some(chosen) = found.chosen() else {
+        if include_paths.is_empty()
+            && let Some(hint) = no_types_hint()
+        {
+            anyhow::bail!("no schema fits {}: {hint}", file.display());
+        }
         let hint = if options.all {
             ""
         } else {
@@ -133,7 +172,7 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     let options = doe_tui::Options {
         file: file.clone(),
         type_or_schema,
-        include_paths: resolve_include_paths(&cli.include_paths, config),
+        include_paths: include_paths(&cli.include_paths, config),
         color,
         watch: cli.watch,
         theme: cli.theme.clone().or_else(|| config.theme.clone()),
@@ -200,7 +239,7 @@ fn resolve_and_check_types(
     cli_include_paths: &[PathBuf],
     config: &Config,
 ) -> anyhow::Result<Vec<doe::AvailableType>> {
-    let include_paths = resolve_include_paths(cli_include_paths, config);
+    let include_paths = include_paths(cli_include_paths, config);
     log::debug!("include paths: {include_paths:?}");
 
     discover_types(&include_paths).map_err(|duplicates| {
@@ -228,6 +267,9 @@ fn print_help(cli_include_paths: &[PathBuf], config: &Config) -> anyhow::Result<
                 stdout,
                 "\nAvailable types: none (no include paths configured)"
             )?;
+            if let Some(hint) = no_types_hint() {
+                writeln!(stdout, "{hint}")?;
+            }
         } else {
             writeln!(stdout, "\nAvailable types: none found on include paths")?;
         }

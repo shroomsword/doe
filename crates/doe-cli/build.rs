@@ -25,6 +25,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=DOE_IDE_DIST");
     println!("cargo:rerun-if-env-changed=DOE_IDE_REQUIRE_BUNDLE");
     println!("cargo:rerun-if-changed=build.rs");
+    bundle_types();
     if env::var_os("CARGO_FEATURE_IDE").is_none() {
         return;
     }
@@ -90,6 +91,91 @@ fn collect(root: &Path, dir: &Path, files: &mut Vec<(String, PathBuf)>) {
                 .collect::<Vec<_>>()
                 .join("/");
             files.push((name, path));
+        }
+    }
+}
+
+/// Embeds the type library (`types/*.yaml`) and the Kaitai Struct gallery
+/// (the `.ksy` files of `conformance/kaitai_struct_formats`) for
+/// `doe --install-types`, when the `bundled-types` feature is on.
+///
+/// A published crate cannot reach the files outside its directory, so
+/// `bundled/` (made by `scripts/bundle-types`, and listed in the package) is
+/// used first, with the library in `bundled/doe` and the gallery in
+/// `bundled/kaitai`. In a checkout they are read where they are. When neither is
+/// there nothing is embedded, unless `DOE_TYPES_REQUIRE_BUNDLE` is set (a
+/// release sets it), which makes that an error.
+fn bundle_types() {
+    println!("cargo:rerun-if-env-changed=DOE_TYPES_REQUIRE_BUNDLE");
+    let manifest = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+    let mut files: Vec<(String, PathBuf)> = Vec::new();
+    if env::var_os("CARGO_FEATURE_BUNDLED_TYPES").is_some() {
+        let packaged = manifest.join("bundled");
+        println!("cargo:rerun-if-changed={}", packaged.display());
+        let (library, gallery) = if packaged.join("doe").is_dir() {
+            (packaged.join("doe"), packaged.join("kaitai"))
+        } else {
+            (
+                manifest.join("../../types"),
+                manifest.join("../../conformance/kaitai_struct_formats"),
+            )
+        };
+        for (prefix, dir, extension) in [("doe", library, "yaml"), ("kaitai", gallery, "ksy")] {
+            println!("cargo:rerun-if-changed={}", dir.display());
+            if dir.is_dir() {
+                collect_types(&dir, &dir, prefix, extension, &mut files);
+            }
+        }
+    }
+    files.sort();
+    assert!(
+        !files.is_empty() || env::var_os("DOE_TYPES_REQUIRE_BUNDLE").is_none(),
+        "DOE_TYPES_REQUIRE_BUNDLE is set, but there are no types to embed: check out the submodules (git submodule update --init) or run scripts/bundle-types"
+    );
+    let mut code = String::from("pub(crate) static TYPES: &[(&str, &[u8])] = &[\n");
+    for (name, path) in &files {
+        writeln!(
+            code,
+            "    ({name:?}, include_bytes!({:?})),",
+            fs::canonicalize(path).unwrap().display().to_string()
+        )
+        .unwrap();
+    }
+    code.push_str("];\n");
+    fs::write(out.join("types_bundle.rs"), code).unwrap();
+}
+
+/// The files of a type library below `dir` (`*.yaml` directly in it, the
+/// gallery's `*.ksy` at any depth, and the gallery's README), named
+/// `prefix/path`.
+fn collect_types(
+    root: &Path,
+    dir: &Path,
+    prefix: &str,
+    extension: &str,
+    files: &mut Vec<(String, PathBuf)>,
+) {
+    for entry in fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
+        if path.is_dir() {
+            // the gallery's own tooling is not types
+            if extension == "ksy" && !name.starts_with('.') && name != "_build" {
+                collect_types(root, &path, prefix, extension, files);
+            }
+        } else if path.extension().is_some_and(|e| e == extension)
+            || (extension == "ksy" && dir == root && name == "README.md")
+        {
+            let relative = path
+                .strip_prefix(root)
+                .unwrap()
+                .components()
+                .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join("/");
+            println!("cargo:rerun-if-changed={}", path.display());
+            files.push((format!("{prefix}/{relative}"), path));
         }
     }
 }

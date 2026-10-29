@@ -109,8 +109,13 @@ jobs:
       NATIVE: ${{ matrix.native }}
       # The build fails when the page is not there to be put in the binary (crates/doe-cli/build.rs).
       DOE_IDE_REQUIRE_BUNDLE: "1"
+      # Likewise for the type library and the gallery that doe --install-types writes.
+      DOE_TYPES_REQUIRE_BUNDLE: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The gallery (conformance/kaitai_struct_formats) goes in the binary.
+          submodules: true
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: web-dist
@@ -151,6 +156,21 @@ jobs:
           curl -fsS "$url" | grep -q '<script type="module" src="./main.js">'
           curl -fsS "${url}doe_wasm_bg.wasm" -o "$RUNNER_TEMP/doe.wasm"
           test "$(head -c 4 "$RUNNER_TEMP/doe.wasm" | od -An -tx1 | tr -d ' \n')" = "0061736d"
+
+      # doe --install-types writes the types that are in the binary: install them and parse a file with one.
+      - name: Check that the types are in the binary
+        if: env.NATIVE == 'true'
+        run: |
+          set -euo pipefail
+          ext=""
+          if [[ "$TARGET" == *windows* ]]; then
+            ext=".exe"
+          fi
+          dir="$RUNNER_TEMP/types"
+          "target/${TARGET}/release/${BIN}${ext}" --install-types="$dir"
+          test "$(find "$dir" -name '*.ksy' | wc -l)" -gt 150
+          test -f "$dir/doe/tar.yaml"
+          "target/${TARGET}/release/${BIN}${ext}" -c "$RUNNER_TEMP/no-config.toml" -I "$dir" types/samples/sample.tar tar > /dev/null
 
       - name: Stage binary
         run: |

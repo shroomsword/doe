@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Copy the type library (types/*.yaml) and the Kaitai Struct gallery (the
+# .ksy files and README of conformance/kaitai_struct_formats) into
+# crates/doe-cli/bundled/, which `cargo publish` packages and which build.rs
+# embeds in the binary when it is there (a crate from crates.io cannot reach the
+# files outside its directory).
+#
+# usage: scripts/bundle-types        # run before `cargo publish -p doe-cli`
+#        scripts/bundle-types --clean   # remove crates/doe-cli/bundled again
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+out=$root/crates/doe-cli/bundled
+
+rm -rf "$out"
+[[ ${1:-} == --clean ]] && exit 0
+
+gallery=$root/conformance/kaitai_struct_formats
+[[ -d $gallery/archive ]] || { echo "the gallery is not checked out: git submodule update --init" >&2; exit 1; }
+
+mkdir -p "$out/doe" "$out/kaitai"
+cp "$root"/types/*.yaml "$out/doe/"
+(cd "$gallery" && find . -name '*.ksy' -not -path './_build/*' -not -path './.*' -print0 | xargs -0 cp --parents -t "$out/kaitai")
+cp "$gallery/README.md" "$out/kaitai/"
+echo "bundled $(find "$out" -type f | wc -l) files in $out"

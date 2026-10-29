@@ -20,6 +20,8 @@ fn doe() -> Command {
     command
         .env("XDG_STATE_HOME", sandbox().join("state"))
         .env("XDG_CONFIG_HOME", sandbox().join("config"))
+        // the real ~/.doe/types, if there is one, is not searched
+        .env("DOE_TYPES_DIR", sandbox().join("no-types"))
         .env_remove("NO_COLOR");
     command
 }
@@ -2046,4 +2048,174 @@ fn build_refuses_a_schema_it_did_not_make_and_a_name_that_is_not_a_schema_name()
         .assert()
         .failure()
         .stderr(predicate::str::contains("lower case"));
+}
+
+#[cfg(feature = "bundled-types")]
+mod install_types {
+    use super::*;
+
+    fn tar_sample() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../types/samples/sample.tar")
+    }
+
+    /// `doe` with `dir` as the directory of installed types.
+    fn doe_with_types(dir: &Path) -> Command {
+        let mut command = doe();
+        command.env("DOE_TYPES_DIR", dir).args(["-c", NO_CONFIG]);
+        command
+    }
+
+    fn install(dir: &Path) {
+        doe_with_types(dir)
+            .arg("--install-types")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("written"));
+    }
+
+    #[test]
+    fn writes_the_library_the_gallery_and_a_manifest() {
+        let dir = TempDir::new().unwrap();
+        let types = dir.path().join("types");
+        install(&types);
+        assert!(types.join("doe/tar.yaml").is_file());
+        assert!(types.join("kaitai/README.md").is_file() || !types.join("kaitai").exists());
+        let manifest = std::fs::read_to_string(types.join(".doe-types")).unwrap();
+        assert!(manifest.starts_with(&format!("doe {}\n", env!("CARGO_PKG_VERSION"))));
+        assert!(manifest.contains("\tdoe/tar.yaml"));
+        // a second run has nothing to do
+        doe_with_types(&types)
+            .arg("--install-types")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("0 written, 0 updated"));
+    }
+
+    #[test]
+    fn the_directory_can_be_named() {
+        let dir = TempDir::new().unwrap();
+        let named = dir.path().join("named");
+        doe()
+            .args(["-c", NO_CONFIG])
+            .arg(format!("--install-types={}", named.display()))
+            .assert()
+            .success();
+        assert!(named.join("doe/tar.yaml").is_file());
+    }
+
+    #[test]
+    fn a_changed_file_is_kept_and_force_replaces_it() {
+        let dir = TempDir::new().unwrap();
+        let types = dir.path().join("types");
+        install(&types);
+        let tar = types.join("doe/tar.yaml");
+        let original = std::fs::read_to_string(&tar).unwrap();
+        std::fs::write(&tar, "mine\n").unwrap();
+        doe_with_types(&types)
+            .arg("--install-types")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("doe/tar.yaml"));
+        assert_eq!(std::fs::read_to_string(&tar).unwrap(), "mine\n");
+        doe_with_types(&types)
+            .args(["--install-types", "--force"])
+            .assert()
+            .success();
+        assert_eq!(std::fs::read_to_string(&tar).unwrap(), original);
+    }
+
+    #[test]
+    fn installed_types_are_found_without_a_type_path() {
+        let dir = TempDir::new().unwrap();
+        let types = dir.path().join("types");
+        install(&types);
+        doe_with_types(&types)
+            .arg(tar_sample())
+            .arg("tar")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("entries"));
+        // and detected, and listed
+        doe_with_types(&types)
+            .arg(tar_sample())
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("entries"));
+        doe_with_types(&types)
+            .arg("--list-types")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("tar\tdoe/tar.yaml"));
+    }
+
+    #[test]
+    fn a_type_path_of_the_person_comes_first() {
+        let dir = TempDir::new().unwrap();
+        let types = dir.path().join("types");
+        install(&types);
+        let own = dir.path().join("own");
+        std::fs::create_dir(&own).unwrap();
+        std::fs::write(
+            own.join("tar.yaml"),
+            "id: tar\nseq:\n  - id: mine\n    type: u1\n",
+        )
+        .unwrap();
+        doe_with_types(&types)
+            .arg("-I")
+            .arg(&own)
+            .arg(tar_sample())
+            .arg("tar")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("mine"));
+    }
+
+    #[test]
+    fn default_types_false_leaves_the_directory_out() {
+        let dir = TempDir::new().unwrap();
+        let types = dir.path().join("types");
+        install(&types);
+        let config = dir.path().join("config.toml");
+        std::fs::write(&config, "default_types = false\n").unwrap();
+        doe()
+            .env("DOE_TYPES_DIR", &types)
+            .arg("-c")
+            .arg(&config)
+            .arg(tar_sample())
+            .arg("tar")
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("schema not found"));
+    }
+
+    #[test]
+    fn without_types_installed_the_error_says_how_to_get_them() {
+        let dir = TempDir::new().unwrap();
+        doe_with_types(&dir.path().join("none"))
+            .arg(tar_sample())
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("doe --install-types"));
+        doe_with_types(&dir.path().join("none"))
+            .arg("--help")
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("doe --install-types"));
+    }
+
+    #[test]
+    fn force_needs_install_types_and_a_file_does_not_go_with_it() {
+        doe()
+            .args(["-c", NO_CONFIG, "--force"])
+            .arg(tar_sample())
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("--install-types"));
+        doe()
+            .args(["-c", NO_CONFIG, "--install-types"])
+            .arg(tar_sample())
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("cannot be used with"));
+    }
 }
