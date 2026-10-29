@@ -7,7 +7,8 @@ import type { Diagnostic, ExportFormat, ExportResponse, InspectResponse, ParseRe
 import { SchemaEditor } from './editor.js';
 import { EXAMPLE_BYTES, EXAMPLE_SCHEMA } from './example.js';
 import { HexView, RemoteBytes } from './hex.js';
-import { type LocalApi, detectLocal } from './local.js';
+import { type LocalApi, type LocalType, detectLocal } from './local.js';
+import { type Entry, TypeBrowser, galleryEntries, libraryEntries, openEntries } from './browse.js';
 import { type Path, byteRange, checkSize, describeRange, findByte, nodeAt, pathName } from './model.js';
 import { ProblemsView } from './problems.js';
 import { type Origin, SchemaList, editable, isKnownType, listing } from './schemas.js';
@@ -70,6 +71,9 @@ export class App {
   private readonly themes: Themes;
   private readonly radixes: Radixes;
   private readonly schemas: SchemaList;
+  private readonly browser: TypeBrowser;
+  /** The types of this machine, when the page is served by `doe --ide`. */
+  private localTypes: LocalType[] = [];
 
   constructor(workerUrl: URL, wasmUrl: URL) {
     this.client = new DoeClient(workerUrl, wasmUrl);
@@ -79,6 +83,10 @@ export class App {
       remove: (path) => this.removeFile(path),
       type: (type) => this.chooseType(type),
       copy: (path) => this.copyFile(path),
+    });
+    this.browser = new TypeBrowser(element<HTMLDialogElement>('browse-dialog'), {
+      pick: (entry) => void this.pickEntry(entry),
+      text: (entry) => this.entryText(entry),
     });
     this.themes = new Themes((theme) => this.editor.setTheme(theme));
     this.radixes = new Radixes(() => {
@@ -464,6 +472,7 @@ export class App {
     }
     try {
       const types = await local.types();
+      this.localTypes = types;
       if (types.length === 0) return;
       const select = element<HTMLSelectElement>('types');
       select.innerHTML = '<option value="">choose…</option>';
@@ -530,6 +539,7 @@ export class App {
         control.value = '';
       });
     };
+    element('browse').addEventListener('click', () => this.browseTypes());
     input('open-schema', (files) => void this.openSchema(files[0]));
     input('add-files', (files) => void this.addFiles(files));
     input('open-input', (files) => void this.openInput(files[0]));
@@ -637,6 +647,45 @@ export class App {
     this.setInput(EXAMPLE_BYTES, 'example.bin');
     this.setMain(EXAMPLE_SCHEMA);
     this.refreshNow();
+  }
+
+  // ── the browser of types ───────────────────────────────────────────────────
+
+  /** Open the list of every type that can be used: the open schemas, this machine's library and the gallery. */
+  private browseTypes(): void {
+    const rows = listing(this.found, this.schemaPath, this.mainOrigin, this.files, this.origins, this.diagnostics.length).rows;
+    const current = this.mainOrigin === 'gallery' ? this.schemaPath : null;
+    this.browser.open([
+      ...openEntries(rows, this.parseType),
+      ...libraryEntries(this.localTypes).map((entry) => ({ ...entry, current: this.mainOrigin === 'library' && entry.path === this.schemaPath })),
+      ...galleryEntries(this.gallery?.formats ?? [], current),
+    ]);
+  }
+
+  /** A type was chosen in the browser. */
+  private async pickEntry(entry: Entry): Promise<void> {
+    if (entry.source === 'open') {
+      this.chooseType(entry.id);
+    } else if (entry.source === 'library' && this.local) {
+      await this.openType(this.local, entry.path);
+    } else if (entry.source === 'gallery') {
+      const format = this.gallery?.formats.find((f) => f.path === entry.path);
+      if (format) await this.openGallery(format);
+    }
+  }
+
+  /** The text of the schema of an entry, to read. */
+  private async entryText(entry: Entry): Promise<string> {
+    if (entry.source === 'open') {
+      const text = entry.path === this.schemaPath ? (this.active === null ? this.editor.text : this.mainText) : this.files.get(entry.path);
+      if (text === undefined) throw new Error('the schema is not open any more');
+      return text;
+    }
+    if (entry.source === 'library') {
+      if (!this.local) throw new Error('there is no library on this machine');
+      return (await this.local.schema(entry.path)).text;
+    }
+    return this.fetchGallery(entry.path);
   }
 
   /** The list of the open schemas and the choice of the type. */

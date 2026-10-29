@@ -17,6 +17,7 @@
         <label id="types-box" hidden>Types <select id="types"></select></label>
         <label id="gallery-box" hidden>Gallery <select id="gallery"></select></label>
         <button id="use-input" type="button" hidden></button>
+        <button id="browse" type="button" title="List the types that can be used, filter them, read one and parse with it">Browse types</button>
       </div>
       <div class="actions">
         <button id="share" type="button" title="Copy a link to this schema (never the file)">Share link</button>
@@ -90,6 +91,19 @@
         </p>
       </section>
     </main>
+    <dialog id="browse-dialog" aria-labelledby="browse-title">
+      <div class="browse-bar">
+        <h3 id="browse-title">Types</h3>
+        <label>Filter <input id="browse-filter" type="search" autocomplete="off" placeholder="name, path or doc" /></label>
+        <span id="browse-count"></span>
+        <button id="browse-close" type="button">Close</button>
+      </div>
+      <div id="browse-list"></div>
+      <div id="browse-reader" hidden>
+        <div class="browse-bar"><button id="browse-back" type="button">Back to the list</button><strong id="browse-reader-title"></strong></div>
+        <pre id="browse-reader-text" tabindex="0"></pre>
+      </div>
+    </dialog>
     <script type="module" src="./main.js"></script>
   </body>
 </html>

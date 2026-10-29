@@ -153,3 +153,25 @@ header label { display: inline-flex; gap: 4px; align-items: center; max-width: 1
 #detect-report[hidden] { display: none; }
 #detect-report ul { margin: 2px 0; padding-left: 1.2em; }
 #detect-report li.fit { color: var(--string); }
+
+/* the browser of types */
+#browse-dialog { width: min(52rem, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
+#browse-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+#browse-dialog[open] { display: flex; flex-direction: column; }
+.browse-bar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.browse-bar h3 { margin: 0; font-size: 1em; }
+#browse-filter { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; min-width: 12rem; }
+#browse-count { color: var(--muted); font-size: .85em; }
+#browse-list { overflow: auto; padding: 0 12px 12px; }
+#browse-list h4 { margin: 12px 0 4px; font-size: .85em; color: var(--muted); }
+#browse-list ul { list-style: none; margin: 0; padding: 0; }
+#browse-list li { padding: 4px 6px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 0 8px; }
+#browse-list li.current { background: var(--select); }
+#browse-list .browse-path, #browse-list .browse-doc, #browse-list .browse-error { grid-column: 1; font-size: .85em; overflow-wrap: anywhere; }
+#browse-list .browse-path { color: var(--muted); font-family: var(--mono); }
+#browse-list .browse-error { color: var(--bad); }
+#browse-list .browse-buttons { grid-column: 2; grid-row: 1 / span 3; display: flex; gap: 4px; align-items: start; }
+.browse-tag { color: var(--muted); font-size: .8em; }
+.browse-empty { color: var(--muted); }
+#browse-reader { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+#browse-reader-text { margin: 0; padding: 8px 12px; overflow: auto; font-family: var(--mono); font-size: .85em; white-space: pre; }
