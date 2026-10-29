@@ -1,0 +1,102 @@
+id: cab
+doc: |
+  Microsoft Cabinet file (.cab): the header, the folders, the file entries, and the data blocks
+# Covers: the header (sizes, versions, the numbers of folders and files, the flags, the set and cabinet ids), every
+#   folder (the place of its first data block, the number of blocks and the compression method), every file entry
+#   (size, offset in its folder's uncompressed data, folder index, time, attributes, name) and the data blocks'
+#   headers (checksum, compressed and uncompressed sizes) with their bytes.
+# Limits: cabinets with the reserve fields (flag 4), or that continue from or into another cabinet (flags 1 and 2)
+#   are refused; the data blocks are bytes (stored, MSZIP, Quantum or LZX compressed). The date and time are the
+#   packed DOS values.
+# Specification: Microsoft "Cabinet File Format" (the MS-CAB document; the CAB SDK documentation).
+meta:
+  id: cab
+  endian: le
+seq:
+  - id: signature
+    contents: "MSCF"
+  - id: reserved1
+    type: u4
+  - id: len_cabinet
+    type: u4
+  - id: reserved2
+    type: u4
+  - id: ofs_files
+    type: u4
+  - id: reserved3
+    type: u4
+  - id: version_minor
+    type: u1
+  - id: version_major
+    type: u1
+  - id: num_folders
+    type: u2
+  - id: num_files
+    type: u2
+  - id: flags
+    type: u2
+    valid: 0
+  - id: set_id
+    type: u2
+  - id: cabinet_index
+    type: u2
+  - id: folders
+    type: folder
+    repeat: expr
+    repeat-expr: num_folders
+enums:
+  compression:
+    0: none
+    1: mszip
+    2: quantum
+    3: lzx
+types:
+  folder:
+    seq:
+      - id: ofs_data
+        type: u4
+      - id: num_blocks
+        type: u2
+      - id: compression_type
+        type: u2
+    instances:
+      method:
+        value: compression_type & 15
+      blocks:
+        pos: ofs_data
+        type: data_block
+        repeat: expr
+        repeat-expr: num_blocks
+  data_block:
+    seq:
+      - id: checksum
+        type: u4
+      - id: len_compressed
+        type: u2
+      - id: len_uncompressed
+        type: u2
+      - id: data
+        size: len_compressed
+  file_entry:
+    seq:
+      - id: len_file
+        type: u4
+      - id: ofs_in_folder
+        type: u4
+      - id: folder_index
+        type: u2
+      - id: date
+        type: u2
+      - id: time
+        type: u2
+      - id: attributes
+        type: u2
+      - id: name
+        type: strz
+        encoding: UTF-8
+instances:
+  files:
+    pos: ofs_files
+    type: file_entry
+    repeat: expr
+    repeat-expr: num_files

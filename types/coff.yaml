@@ -1,0 +1,97 @@
+id: coff
+doc: |
+  COFF object file (.obj, and the object files of MinGW and many embedded toolchains): header, sections, symbols
+# Covers: the file header (machine, number of sections, time stamp, the place and count of the symbol table), the
+#   section headers (name, sizes, the places of the contents and the relocations, flags) and the symbol table
+#   (each symbol's name or string table offset, value, section, type, storage class), found from the header.
+# Limits: the contents of sections, relocations and line numbers are not decoded (the headers give their places);
+#   the names longer than eight bytes are offsets into the string table that follows the symbols (`name_offset`
+#   and `string_table`); auxiliary symbol records are listed as extra symbols of their own, whose fields are not
+#   meaningful. A PE image (.exe, .dll) is `microsoft_pe` in the gallery.
+# Specification: Microsoft "PE Format", section "COFF File Header (Object and Image)" and the following.
+meta:
+  id: coff
+  endian: le
+seq:
+  - id: machine
+    type: u2
+    enum: machine
+  - id: num_sections
+    type: u2
+  - id: time_date_stamp
+    type: u4
+  - id: ofs_symbol_table
+    type: u4
+  - id: num_symbols
+    type: u4
+  - id: len_optional_header
+    type: u2
+  - id: characteristics
+    type: u2
+  - id: optional_header
+    size: len_optional_header
+  - id: sections
+    type: section_header
+    repeat: expr
+    repeat-expr: num_sections
+enums:
+  machine:
+    0x0: unknown
+    0x14c: i386
+    0x1c0: arm
+    0x1c4: armnt
+    0x200: ia64
+    0x5064: riscv64
+    0x8664: amd64
+    0xaa64: arm64
+types:
+  section_header:
+    seq:
+      - id: name
+        type: str
+        size: 8
+        terminator: 0
+        encoding: ASCII
+      - id: virtual_size
+        type: u4
+      - id: virtual_address
+        type: u4
+      - id: len_raw_data
+        type: u4
+      - id: ofs_raw_data
+        type: u4
+      - id: ofs_relocations
+        type: u4
+      - id: ofs_line_numbers
+        type: u4
+      - id: num_relocations
+        type: u2
+      - id: num_line_numbers
+        type: u2
+      - id: characteristics
+        type: u4
+  symbol:
+    seq:
+      - id: name_or_offset
+        size: 8
+      - id: value
+        type: u4
+      - id: section_number
+        type: s2
+      - id: symbol_type
+        type: u2
+      - id: storage_class
+        type: u1
+      - id: num_aux
+        type: u1
+instances:
+  symbols:
+    pos: ofs_symbol_table
+    type: symbol
+    repeat: expr
+    repeat-expr: num_symbols
+    if: ofs_symbol_table != 0
+  string_table:
+    pos: ofs_symbol_table + num_symbols * 18
+    size: 4
+    if: ofs_symbol_table != 0

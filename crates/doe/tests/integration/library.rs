@@ -307,6 +307,121 @@ fn lz4_has_the_descriptor_the_blocks_and_the_checksum() {
 }
 
 #[test]
+fn coff_has_the_sections_the_symbols_and_the_string_table() {
+    let v = decode("coff", "sample.obj");
+    assert_eq!(name_of(&v["machine"]), "amd64");
+    assert_eq!(
+        (v["num_sections"].as_u64(), v["num_symbols"].as_u64()),
+        (Some(1), Some(2))
+    );
+    let section = &v["sections"][0];
+    assert_eq!(section["name"], ".text");
+    assert_eq!(
+        (
+            section["len_raw_data"].as_u64(),
+            section["ofs_raw_data"].as_u64()
+        ),
+        (Some(4), Some(60))
+    );
+    assert_eq!(section["characteristics"], 0x6000_0020_u64);
+    let symbols = v["symbols"].as_array().unwrap();
+    assert_eq!(symbols.len(), 2);
+    assert_eq!(
+        symbols[0]["name_or_offset"]["hex"], "6d61696e00000000",
+        "main"
+    );
+    assert_eq!(symbols[0]["storage_class"], 2);
+    assert_eq!(symbols[0]["section_number"], 1);
+    // a name of more than eight bytes: four zero bytes and an offset into the string table
+    assert_eq!(symbols[1]["name_or_offset"]["hex"], "0000000004000000");
+    assert_eq!(symbols[1]["value"], 4);
+    assert_eq!(v["string_table"]["len"], 4);
+}
+
+#[test]
+fn mpegts_has_the_packets_with_their_pids_and_fields() {
+    let v = decode("mpegts", "sample.ts");
+    let packets = v["packets"].as_array().unwrap();
+    let pids: Vec<u64> = packets.iter().map(|p| p["pid"].as_u64().unwrap()).collect();
+    assert_eq!(pids, [0, 0x100, 0x1fff]);
+    assert_eq!(packets[0]["payload_unit_start"], true);
+    assert_eq!(packets[0]["adaptation_field_control"], 1);
+    assert_eq!(packets[0]["payload"]["len"], 184);
+    assert_eq!(packets[1]["adaptation_field_control"], 3);
+    assert_eq!(packets[1]["adaptation_field"]["len_adaptation_field"], 7);
+    assert_eq!(packets[1]["continuity_counter"], 5);
+    assert_eq!(packets[1]["payload"]["len"], 176);
+    assert_eq!(packets[2]["is_null"], true);
+    assert_eq!(packets[0]["is_null"], false);
+}
+
+#[test]
+fn mp3_has_the_frames_with_their_bit_rate_sample_rate_and_length() {
+    let v = decode("mp3", "sample.mp3");
+    let frames = v["frames"].as_array().unwrap();
+    assert_eq!(frames.len(), 3);
+    for frame in frames {
+        assert_eq!(frame["sync"], 0x7ff);
+        assert_eq!(name_of(&frame["version"]), "v1");
+        assert_eq!(frame["bitrate_kbps"], 128);
+        assert_eq!(frame["sample_rate"], 44100);
+        assert_eq!(name_of(&frame["channel_mode"]), "stereo");
+    }
+    let lengths: Vec<u64> = frames
+        .iter()
+        .map(|f| f["len_frame"].as_u64().unwrap())
+        .collect();
+    assert_eq!(lengths, [417, 418, 417]);
+    assert_eq!(frames[1]["padding"], true);
+    assert_eq!(frames[1]["body"]["len"], 414);
+}
+
+#[test]
+fn cab_has_the_folders_the_files_and_the_data_blocks() {
+    let v = decode("cab", "sample.cab");
+    assert_eq!(
+        (v["version_major"].as_u64(), v["version_minor"].as_u64()),
+        (Some(1), Some(3))
+    );
+    assert_eq!(
+        (v["num_folders"].as_u64(), v["num_files"].as_u64()),
+        (Some(1), Some(2))
+    );
+    assert_eq!(v["set_id"], 1234);
+    assert_eq!(v["len_cabinet"], 124);
+    let folder = &v["folders"][0];
+    assert_eq!(folder["method"], 0, "stored");
+    assert_eq!(folder["blocks"][0]["len_compressed"], 22);
+    assert_eq!(folder["blocks"][0]["data"]["len"], 22);
+    let files = v["files"].as_array().unwrap();
+    assert_eq!(files[0]["name"], "hello.txt");
+    assert_eq!(files[0]["len_file"], 14);
+    assert_eq!(files[1]["name"], "bye.txt");
+    assert_eq!(
+        (
+            files[1]["ofs_in_folder"].as_u64(),
+            files[1]["len_file"].as_u64()
+        ),
+        (Some(14), Some(8))
+    );
+}
+
+#[test]
+fn sevenzip_has_the_signature_header_and_the_next_header() {
+    let v = decode("sevenzip", "sample.7z");
+    assert_eq!(
+        (v["version_major"].as_u64(), v["version_minor"].as_u64()),
+        (Some(0), Some(4))
+    );
+    assert_eq!(v["ofs_next_header"], 0);
+    assert_eq!(v["len_next_header"], 2);
+    assert_eq!(v["next_header"]["hex"], "0100");
+    assert_eq!(v["next_header_crc"], 1_489_118_142_u64);
+    assert_eq!(v["start_header_crc"], 3_090_458_632_u64);
+    assert_eq!(v["packed_streams"]["len"], 0);
+}
+
+#[test]
 fn the_samples_are_the_ones_the_script_makes() {
     // the samples are in the repository so that the tests do not need Python; the script makes the same bytes
     let Ok(python) = std::process::Command::new("python3")

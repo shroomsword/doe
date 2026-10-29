@@ -117,6 +117,11 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `xz` | xz files: the stream header, and the footer read from the end |
 | `zstd` | Zstandard files: the frames, their headers and the blocks as bytes |
 | `lz4` | LZ4 frames: the descriptor, the blocks with their sizes and the checksums |
+| `coff` | COFF object files: the header, the sections, and the symbols and string table found from the header |
+| `mpegts` | MPEG transport streams: the 188-byte packets with their headers, adaptation fields and payloads |
+| `mp3` | MPEG audio layer III: the frames with their headers, and bit rate, sample rate and length worked out |
+| `cab` | Microsoft Cabinet files: the folders, the file entries and the data blocks |
+| `sevenzip` | 7-Zip archives: the signature header, and the packed streams and the next header as bytes |
 
 Each type begins with a comment that says what it covers, its limits and the specification it follows, and
 has a sample file in `types/samples/` that `types/make_samples.py` makes (nothing is copied from another

@@ -1,0 +1,78 @@
+id: mp3
+doc: |
+  MPEG audio layer III (.mp3): the frames, each with its header and its bytes
+# Covers: the header of every frame (MPEG version, protection, bit rate, sample rate, padding, channel mode and
+#   its extension, copyright, original, emphasis) and the frame's bytes, with the length that the header says.
+# Limits: only layer III (the length of a frame of layer I or II is computed another way); free-format streams
+#   (bit rate index 0) are not read; the frame's side information and main data are bytes. A file must start with
+#   the first frame: an ID3v2 tag at the start (read it with `id3v2_4` or `id3v2_3` of the gallery, and give the
+#   frames after it to this type) and an ID3v1 tag at the end (`id3v1_1`) are not skipped here.
+# Specification: ISO/IEC 11172-3 and ISO/IEC 13818-3; the frame header layout of "MPEG Audio Layer I/II/III frame
+#   header" (mpgedit.org/mpgedit/mpeg_format/mpeghdr.htm).
+meta:
+  id: mp3
+  endian: be
+seq:
+  - id: frames
+    type: frame
+    repeat: eos
+enums:
+  mpeg_version:
+    0: v2_5
+    2: v2
+    3: v1
+  channel_mode:
+    0: stereo
+    1: joint_stereo
+    2: dual_channel
+    3: mono
+types:
+  frame:
+    seq:
+      - id: sync
+        type: b11
+        valid: 0x7ff
+      - id: version
+        type: b2
+        enum: mpeg_version
+      - id: layer
+        type: b2
+        valid: 1
+        doc: 1 is layer III (the field is 4 - layer).
+      - id: no_crc
+        type: b1
+      - id: bitrate_index
+        type: b4
+      - id: sample_rate_index
+        type: b2
+      - id: padding
+        type: b1
+      - id: private
+        type: b1
+      - id: channel_mode
+        type: b2
+        enum: channel_mode
+      - id: mode_extension
+        type: b2
+      - id: copyright
+        type: b1
+      - id: original
+        type: b1
+      - id: emphasis
+        type: b2
+      - id: body
+        size: len_frame - 4
+    instances:
+      bitrate_kbps:
+        value: >-
+          version == 3 ?
+          [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0][bitrate_index] :
+          [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0][bitrate_index]
+      sample_rate:
+        value: >-
+          version == 3 ? [44100, 48000, 32000, 0][sample_rate_index] :
+          version == 2 ? [22050, 24000, 16000, 0][sample_rate_index] :
+          [11025, 12000, 8000, 0][sample_rate_index]
+      len_frame:
+        value: >-
+          (version == 3 ? 144 : 72) * bitrate_kbps * 1000 / sample_rate + (padding ? 1 : 0)

@@ -12,7 +12,7 @@ that the tests need no Python, and a test checks that the script makes them) and
 ## The common formats the gallery lacks
 
 Checked against the gallery's file names and `meta.id`s (the commit `f38fd7d`). *Library* means there is a type
-here; *next* means in scope and not written yet; the others are left out, with the reason.
+here; the others are left out, with the reason (a format that is in scope and not written yet would be marked *next*; there is none now).
 
 | Format | Gallery | Here |
 |--------|---------|------|
@@ -28,11 +28,11 @@ here; *next* means in scope and not written yet; the others are left out, with t
 | tzfile | none | **library** (`tzfile`) |
 | PSD / PSB | none | **library** (`psd`) |
 | bzip2, xz, zstd, lz4 | `gzip` only | **library** (`bzip2`, `xz`, `zstd`, `lz4`: the headers and, where the format has them at byte boundaries, the blocks; the compressed data is bytes) |
-| COFF object files | `microsoft_pe` has a COFF header | next (as a file of its own) |
-| MPEG transport stream | none | next (the 188-byte packets) |
-| MP3 / MPEG audio | `id3v1_1`, `id3v2_3`, `id3v2_4` for the tags | next (the frame headers) |
-| CAB | none | next (header and folders) |
-| 7z | none | next (the signature header) |
+| COFF object files | `microsoft_pe` has a COFF header | **library** (`coff`) |
+| MPEG transport stream | none | **library** (`mpegts`) |
+| MP3 / MPEG audio | `id3v1_1`, `id3v2_3`, `id3v2_4` for the tags | **library** (`mp3`: layer III frames; the tags are the gallery's) |
+| CAB | none | **library** (`cab`) |
+| 7z | none | **library** (`sevenzip`: the signature header; the next header is bytes; an identifier cannot start with a digit) |
 | TIFF | `exif` reads the TIFF structure (header, IFDs) | not needed: use `exif` |
 | HEIF / AVIF / MP4 (ISO base media) | `quicktime_mov` reads the box structure | not needed: use `quicktime_mov` for the boxes |
 | Matroska / WebM | none | out: EBML ids and sizes are variable-length numbers whose width is in their first bits; the schema language has no way to say that without a type per width, which is the `vlq` kind of workaround and not worth it for 100+ element ids |

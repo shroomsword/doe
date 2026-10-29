@@ -1,0 +1,58 @@
+id: mpegts
+doc: |
+  MPEG transport stream (.ts, .m2ts without the time codes): the 188-byte packets with their headers
+# Covers: every packet's header (sync byte, error and start indicators, priority, PID, scrambling, adaptation
+#   field control, continuity counter), the adaptation field (its length and bytes) and the payload bytes.
+# Limits: the payloads (PES packets, PAT/PMT tables) are bytes: reassembling them from the packets that carry a
+#   PID is the demultiplexer's job. Packets of 192 or 204 bytes (with a time code or error correction bytes) are
+#   not read.
+# Specification: ITU-T H.222.0 / ISO/IEC 13818-1, "Generic coding of moving pictures and associated audio
+#   information: Systems", clause 2.4.3.
+meta:
+  id: mpegts
+  endian: be
+seq:
+  - id: packets
+    type: packet
+    size: 188
+    repeat: eos
+enums:
+  adaptation_field_control:
+    1: payload_only
+    2: adaptation_only
+    3: adaptation_and_payload
+types:
+  packet:
+    seq:
+      - id: sync_byte
+        contents: [0x47]
+      - id: transport_error
+        type: b1
+      - id: payload_unit_start
+        type: b1
+      - id: transport_priority
+        type: b1
+      - id: pid
+        type: b13
+      - id: scrambling_control
+        type: b2
+      - id: adaptation_field_control
+        type: b2
+      - id: continuity_counter
+        type: b4
+      - id: adaptation_field
+        type: adaptation_field
+        if: adaptation_field_control == 2 or adaptation_field_control == 3
+      - id: payload
+        size-eos: true
+        if: adaptation_field_control == 1 or adaptation_field_control == 3
+    instances:
+      is_null:
+        value: pid == 0x1fff
+        doc: PID 0x1fff is the null packet, used for padding.
+  adaptation_field:
+    seq:
+      - id: len_adaptation_field
+        type: u1
+      - id: data
+        size: len_adaptation_field
