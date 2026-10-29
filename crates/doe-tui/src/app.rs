@@ -10,7 +10,7 @@ use doe::DoeError;
 use crate::Options;
 use crate::builder::Builder;
 use crate::bytes::FileBytes;
-use crate::draft::{Draft, DraftError, Edit, Field, Kind as DraftKind};
+use crate::draft::{Count, Draft, DraftError, Edit, Field, Kind as DraftKind};
 use crate::field_dialog;
 use crate::hex_view::{HexState, Selection};
 use crate::keymap::{self, Action, Scope};
@@ -23,6 +23,9 @@ use crate::search::{Needle, Outcome as SearchOutcome, Search};
 use crate::tree::{Shown, TreeModel};
 use crate::tree_view::TreeView;
 use crate::types::{Outcome as TypesOutcome, TypeBrowser};
+
+/// How far from the start of a field of text that ends with a byte the byte is looked for.
+const TERMINATOR_SEARCH: usize = 64 * 1024;
 
 /// The most bytes that `y` copies.
 pub const COPY_BYTES: usize = 4096;
@@ -55,16 +58,44 @@ enum DialogAction {
 struct FieldDialog {
     /// What the questions are for.
     action: DialogAction,
+    /// Where the field starts, in bytes.
+    at: u64,
     /// How many bytes to skip before it, from where the schema ends.
     gap: u64,
     /// The length of the selection that starts at `at`, if there is one.
     selection: Option<u64>,
+    /// The selection as hex, to propose as a signature.
+    selection_hex: String,
     /// The kind, once asked.
     kind: String,
     /// The length of bytes or text, once asked.
     length: Option<u64>,
     /// The encoding of text, once asked.
     encoding: String,
+    /// The bytes of a signature, once asked.
+    magic: Vec<u8>,
+    /// The byte that ends text, once asked.
+    terminator: u8,
+    /// How often the field is repeated, once asked.
+    repeat: Option<Count>,
+}
+
+impl FieldDialog {
+    fn new(action: DialogAction, at: u64) -> FieldDialog {
+        FieldDialog {
+            action,
+            at,
+            gap: 0,
+            selection: None,
+            selection_hex: String::new(),
+            kind: String::new(),
+            length: None,
+            encoding: field_dialog::DEFAULT_ENCODING.to_owned(),
+            magic: Vec::new(),
+            terminator: 0,
+            repeat: None,
+        }
+    }
 }
 
 /// The fields that hold one byte, and the one that is selected.
@@ -1180,12 +1211,10 @@ impl App {
     /// changes kind is changed.
     fn after_kind(&mut self, dialog: FieldDialog) {
         match dialog.action {
-            DialogAction::Retype(index) => {
-                match field_dialog::kind_of(&dialog.kind, dialog.length, &dialog.encoding) {
-                    Ok(kind) => self.finish_retype(index, kind),
-                    Err(message) => self.notice = Some(message),
-                }
-            }
+            DialogAction::Retype(index) => match self.make_kind(&dialog) {
+                Ok(kind) => self.finish_retype(index, kind),
+                Err(message) => self.notice = Some(message),
+            },
             DialogAction::Add | DialogAction::Rename(_) => self.ask_name(dialog),
         }
     }
@@ -1282,19 +1311,21 @@ impl App {
                 else {
                     return;
                 };
-                let (length, encoding) = match &field.kind {
-                    DraftKind::Bytes(n) => (Some(*n), field_dialog::DEFAULT_ENCODING.to_owned()),
-                    DraftKind::Text { len, encoding } => (Some(*len), encoding.clone()),
-                    _ => (None, field_dialog::DEFAULT_ENCODING.to_owned()),
-                };
-                self.field_dialog = Some(FieldDialog {
-                    action: DialogAction::Retype(index),
-                    gap: 0,
-                    selection: length,
-                    kind: String::new(),
-                    length,
-                    encoding,
-                });
+                let at = self
+                    .builder
+                    .as_ref()
+                    .map_or(0, |b| b.draft.offset_of(index));
+                let mut dialog = FieldDialog::new(DialogAction::Retype(index), at);
+                // what the field is now is what is proposed
+                match &field.kind {
+                    DraftKind::Bytes(n) => dialog.selection = Some(*n),
+                    DraftKind::Text { len, encoding } => {
+                        dialog.selection = Some(*len);
+                        dialog.encoding.clone_from(encoding);
+                    }
+                    _ => {}
+                }
+                self.field_dialog = Some(dialog);
                 self.open_prompt_with(Kind::FieldKind, &field.kind.label());
             }
             _ => {}
@@ -1312,14 +1343,7 @@ impl App {
             .and_then(|b| b.draft.fields().get(index))
             .map(|f| f.id.clone())
             .unwrap_or_default();
-        self.field_dialog = Some(FieldDialog {
-            action: DialogAction::Rename(index),
-            gap: 0,
-            selection: None,
-            kind: String::new(),
-            length: None,
-            encoding: field_dialog::DEFAULT_ENCODING.to_owned(),
-        });
+        self.field_dialog = Some(FieldDialog::new(DialogAction::Rename(index), 0));
         self.open_prompt_with(Kind::FieldName, &name);
     }
 
@@ -1332,14 +1356,7 @@ impl App {
             Err(message) => {
                 self.notice = Some(message);
                 // asked again, so that the name can be corrected
-                self.field_dialog = Some(FieldDialog {
-                    action: DialogAction::Rename(index),
-                    gap: 0,
-                    selection: None,
-                    kind: String::new(),
-                    length: None,
-                    encoding: field_dialog::DEFAULT_ENCODING.to_owned(),
-                });
+                self.field_dialog = Some(FieldDialog::new(DialogAction::Rename(index), 0));
                 self.open_prompt_with(Kind::FieldName, name);
             }
         }
@@ -1457,14 +1474,19 @@ impl App {
             .selected_range()
             .filter(|(first, _)| *first == at)
             .map(|(first, last)| last - first + 1);
-        self.field_dialog = Some(FieldDialog {
-            action: DialogAction::Add,
-            gap: at - end,
-            selection,
-            kind: String::new(),
-            length: None,
-            encoding: field_dialog::DEFAULT_ENCODING.to_owned(),
-        });
+        let mut dialog = FieldDialog::new(DialogAction::Add, at);
+        dialog.gap = at - end;
+        dialog.selection = selection;
+        if selection.is_some() {
+            dialog.selection_hex = self
+                .selected_hex()
+                .unwrap_or_default()
+                .split(' ')
+                .take(field_dialog::MAX_MAGIC)
+                .collect::<Vec<_>>()
+                .join(" ");
+        }
+        self.field_dialog = Some(dialog);
         self.open_prompt_with(Kind::FieldKind, &field_dialog::propose_kind(selection));
     }
 
@@ -1473,68 +1495,173 @@ impl App {
         let Some(mut dialog) = self.field_dialog.take() else {
             return;
         };
-        let again = |app: &mut App, dialog: FieldDialog, message: String| {
+        let refused = |app: &mut App, dialog: FieldDialog, message: String| {
             app.notice = Some(message);
             app.field_dialog = Some(dialog);
             app.open_prompt_with(step, text);
         };
         match step {
-            Kind::FieldKind => {
-                let Some(kind) = field_dialog::parse_kind(text) else {
-                    return again(self, dialog, format!("{text:?} is not a kind of field"));
-                };
-                kind.clone_into(&mut dialog.kind);
-                if field_dialog::needs_length(kind) {
-                    let proposed = dialog
-                        .selection
-                        .map_or_else(|| "1".to_owned(), |n| n.to_string());
-                    self.field_dialog = Some(dialog);
-                    self.open_prompt_with(Kind::FieldLength, &proposed);
-                } else {
-                    self.after_kind(dialog);
-                }
-            }
+            Kind::FieldKind => match field_dialog::parse_kind(text) {
+                Some(kind) => dialog.kind = kind,
+                None => return refused(self, dialog, format!("{text:?} is not a kind of field")),
+            },
             Kind::FieldLength => match field_dialog::parse_length(text) {
-                Ok(n) => {
-                    dialog.length = Some(n);
-                    if dialog.kind == "str" {
-                        let encoding = dialog.encoding.clone();
-                        self.field_dialog = Some(dialog);
-                        self.open_prompt_with(Kind::FieldEncoding, &encoding);
-                    } else {
-                        self.after_kind(dialog);
-                    }
+                Ok(n) => dialog.length = Some(n),
+                Err(message) => return refused(self, dialog, message),
+            },
+            Kind::FieldEncoding => text.trim().clone_into(&mut dialog.encoding),
+            Kind::FieldTerminator => match field_dialog::parse_byte(text) {
+                Ok(byte) => dialog.terminator = byte,
+                Err(message) => return refused(self, dialog, message),
+            },
+            Kind::FieldMagic => match field_dialog::parse_hex_bytes(text) {
+                Ok(bytes) => dialog.magic = bytes,
+                Err(message) => return refused(self, dialog, message),
+            },
+            Kind::FieldRepeat => match field_dialog::parse_repeat(text) {
+                Ok(count) => dialog.repeat = count,
+                Err(message) => return refused(self, dialog, message),
+            },
+            Kind::FieldName => {
+                match dialog.action {
+                    DialogAction::Add => self.finish_field(&dialog, text.trim()),
+                    DialogAction::Rename(index) => self.finish_rename(index, text.trim()),
+                    DialogAction::Retype(_) => {}
                 }
-                Err(message) => again(self, dialog, message),
-            },
-            Kind::FieldEncoding => {
-                text.trim().clone_into(&mut dialog.encoding);
-                self.after_kind(dialog);
+                return;
             }
-            Kind::FieldName => match dialog.action {
-                DialogAction::Add => self.finish_field(&dialog, text.trim()),
-                DialogAction::Rename(index) => self.finish_rename(index, text.trim()),
-                DialogAction::Retype(_) => {}
-            },
-            Kind::Search | Kind::Goto => {}
+            Kind::Search | Kind::Goto => return,
+        }
+        match field_dialog::next(&dialog.kind, step) {
+            Some(next) => {
+                let proposed = Self::propose_answer(next, &dialog);
+                self.field_dialog = Some(dialog);
+                self.open_prompt_with(next, &proposed);
+            }
+            None => self.after_kind(dialog),
+        }
+    }
+
+    /// What is proposed for a question: the selection's length and bytes, the usual encoding,
+    /// the usual terminator.
+    fn propose_answer(step: Kind, dialog: &FieldDialog) -> String {
+        match step {
+            Kind::FieldLength => dialog
+                .selection
+                .map_or_else(|| "1".to_owned(), |n| n.to_string()),
+            Kind::FieldEncoding => dialog.encoding.clone(),
+            Kind::FieldTerminator => dialog.terminator.to_string(),
+            Kind::FieldMagic => dialog.selection_hex.clone(),
+            _ => String::new(),
         }
     }
 
     /// The last question: the name, proposed from the kind.
     fn ask_name(&mut self, dialog: FieldDialog) {
+        let base = if field_dialog::bits_of(&dialog.kind).is_some() {
+            "bits"
+        } else {
+            dialog.kind.as_str()
+        };
         let proposed = self
             .builder
             .as_ref()
-            .map(|b| field_dialog::propose_name(&b.draft, &dialog.kind))
+            .map(|b| field_dialog::propose_name(&b.draft, base))
             .unwrap_or_default();
         self.field_dialog = Some(dialog);
         self.open_prompt_with(Kind::FieldName, &proposed);
     }
 
+    /// The kind of field that was asked for: what it is, and for text that ends and for
+    /// repeats, how much of this file they take (the draft counts in bytes).
+    fn make_kind(&mut self, dialog: &FieldDialog) -> Result<DraftKind, String> {
+        let mut answers = field_dialog::Answers {
+            length: dialog.length,
+            encoding: dialog.encoding.clone(),
+            magic: dialog.magic.clone(),
+            terminator: dialog.terminator,
+            text_sample: 0,
+        };
+        if dialog.kind == "strz" {
+            answers.text_sample = self.measure_terminated(dialog.at, dialog.terminator)?;
+        }
+        let base = field_dialog::kind_of(&dialog.kind, &answers)?;
+        let Some(count) = dialog.repeat.clone() else {
+            return Ok(base);
+        };
+        let sample = match &count {
+            Count::Fixed(n) => *n,
+            Count::Field(name) => self.value_of_field(name, dialog)?,
+            Count::ToEnd => {
+                let size = self.bytes.as_ref().map_or(0, FileBytes::size);
+                let each = base.size();
+                let left = size.saturating_sub(dialog.at);
+                if each == 0 || left == 0 || !left.is_multiple_of(each) {
+                    return Err(format!(
+                        "the {left} bytes from {:#x} to the end of the file are not a whole number of elements of {each} bytes",
+                        dialog.at
+                    ));
+                }
+                left / each
+            }
+        };
+        Ok(DraftKind::Repeat {
+            inner: Box::new(base),
+            count,
+            sample,
+        })
+    }
+
+    /// How many bytes the text that starts at `at` takes, with its terminator.
+    fn measure_terminated(&mut self, at: u64, terminator: u8) -> Result<u64, String> {
+        let Some(bytes) = self.bytes.as_mut() else {
+            return Err("the file cannot be read".to_owned());
+        };
+        let window = bytes.window(at, TERMINATOR_SEARCH);
+        match window.iter().position(|b| *b == terminator) {
+            Some(at_terminator) => Ok(at_terminator as u64 + 1),
+            None => Err(format!(
+                "no byte {terminator:#04x} from {at:#x} on (within {TERMINATOR_SEARCH} bytes): the text has to end with it"
+            )),
+        }
+    }
+
+    /// The number that the earlier integer field `name` has in this file.
+    fn value_of_field(&self, name: &str, dialog: &FieldDialog) -> Result<u64, String> {
+        let Some(builder) = self.builder.as_ref() else {
+            return Err("the viewer is not building a schema".to_owned());
+        };
+        let limit = match dialog.action {
+            DialogAction::Retype(index) => index,
+            _ => builder.draft.fields().len(),
+        };
+        let Some(index) = builder
+            .draft
+            .fields()
+            .iter()
+            .take(limit)
+            .position(|f| f.id == name)
+        else {
+            return Err(format!("there is no field called {name} before this one"));
+        };
+        let row = self
+            .tree
+            .rows()
+            .iter()
+            .find(|r| r.path == [index] && r.kind == crate::tree::RowKind::Node);
+        match row.and_then(|r| r.shown.as_ref()) {
+            Some(Shown::UInt(n)) => Ok(*n),
+            Some(Shown::SInt(n)) if *n >= 0 => Ok(n.unsigned_abs()),
+            _ => Err(format!(
+                "{name} is not a number that is read from this file"
+            )),
+        }
+    }
+
     /// Add the field that was asked for (and the skipped bytes before it), select it, and
     /// put the cursor after it.
     fn finish_field(&mut self, dialog: &FieldDialog, name: &str) {
-        let kind = match field_dialog::kind_of(&dialog.kind, dialog.length, &dialog.encoding) {
+        let kind = match self.make_kind(dialog) {
             Ok(kind) => kind,
             Err(message) => {
                 self.notice = Some(message);
@@ -1575,10 +1702,20 @@ impl App {
         };
         let index = builder.draft.fields().len().saturating_sub(1);
         let (end, at) = (builder.draft.end(), builder.draft.offset_of(index));
+        let end_bit = builder.draft.end_bit();
         self.tree.select_path(&[index]);
         let size = self.bytes.as_ref().map_or(0, FileBytes::size);
         self.hex.clear_range();
-        self.hex.set_cursor(end, size);
+        if end_bit % 8 == 0 {
+            self.hex.set_cursor(end, size);
+            if self.hex.bit().is_some() {
+                self.hex.set_bit(Some(0));
+            }
+        } else {
+            // the next bit field goes on in this byte
+            self.hex.set_cursor(end_bit / 8, size);
+            self.hex.set_bit(u8::try_from(end_bit % 8).ok());
+        }
         self.notice = Some(format!(
             "added {name} at {at:#x}; the schema reads up to {end:#x}"
         ));

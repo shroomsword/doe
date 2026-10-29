@@ -92,8 +92,10 @@ fn screen(app: &mut App) -> String {
 fn a_adds_a_byte_where_the_schema_ends_with_a_name_proposed_and_moves_on() {
     let (mut app, _dir) = building();
     key(&mut app, 'a');
-    assert!(asking(&app).unwrap().starts_with("field kind"));
+    assert!(asking(&app).unwrap().starts_with("kind ("));
     press(&mut app, KeyCode::Enter); // u1 is proposed
+    assert!(asking(&app).unwrap().starts_with("repeat"));
+    press(&mut app, KeyCode::Enter); // once
     assert_eq!(asking(&app), Some("field name: "));
     press(&mut app, KeyCode::Enter); // u1_1 is proposed
     assert!(app.prompt.is_none());
@@ -104,6 +106,7 @@ fn a_adds_a_byte_where_the_schema_ends_with_a_name_proposed_and_moves_on() {
     // and again: the next field starts where the last one ended
     key(&mut app, 'a');
     answer(&mut app, "u2");
+    press(&mut app, KeyCode::Enter); // repeat: once
     answer(&mut app, "size");
     assert_eq!(fields(&app)[1], ("size".to_owned(), 1, 2));
     assert_eq!(app.hex.cursor(), 3);
@@ -118,8 +121,9 @@ fn a_selection_gives_the_kind_and_the_length_that_are_proposed() {
     key(&mut app, 'v');
     key(&mut app, 'l');
     key(&mut app, 'a');
-    press(&mut app, KeyCode::Enter);
-    press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Enter); // u2
+    press(&mut app, KeyCode::Enter); // once
+    press(&mut app, KeyCode::Enter); // u2_1
     assert_eq!(fields(&app), [("u2_1".to_owned(), 0, 2)]);
     assert_eq!(app.hex.selected_range(), None, "the selection is used up");
     // three bytes selected from the end of the schema: bytes of that length
@@ -131,6 +135,7 @@ fn a_selection_gives_the_kind_and_the_length_that_are_proposed() {
     assert_eq!(asking(&app), Some("length in bytes: "));
     assert_eq!(app.prompt.as_ref().unwrap().line.text(), "3");
     press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Enter); // once
     assert_eq!(app.prompt.as_ref().unwrap().line.text(), "bytes_1");
     press(&mut app, KeyCode::Enter);
     assert_eq!(fields(&app)[1], ("bytes_1".to_owned(), 2, 3));
@@ -146,6 +151,7 @@ fn text_asks_for_the_length_and_the_encoding() {
     assert!(asking(&app).unwrap().starts_with("encoding"));
     assert_eq!(app.prompt.as_ref().unwrap().line.text(), "ASCII");
     press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Enter); // once
     answer(&mut app, "name");
     let kind = app.builder.as_ref().unwrap().draft.fields()[0].kind.clone();
     assert_eq!(
@@ -168,7 +174,7 @@ fn a_kind_or_a_length_that_is_not_one_is_asked_again_and_esc_gives_up() {
     let (mut app, _dir) = building();
     key(&mut app, 'a');
     answer(&mut app, "u3");
-    assert!(asking(&app).unwrap().starts_with("field kind"));
+    assert!(asking(&app).unwrap().starts_with("kind ("));
     assert!(app.notice.as_deref().unwrap().contains("not a kind"));
     answer(&mut app, "bytes");
     answer(&mut app, "0");
@@ -188,6 +194,7 @@ fn a_field_that_does_not_fit_the_file_or_a_name_that_is_taken_is_refused_and_ask
     key(&mut app, 'a');
     answer(&mut app, "bytes");
     answer(&mut app, "11");
+    press(&mut app, KeyCode::Enter); // once
     answer(&mut app, "too_long");
     assert!(
         app.notice.as_deref().unwrap().contains("does not fit"),
@@ -200,9 +207,11 @@ fn a_field_that_does_not_fit_the_file_or_a_name_that_is_taken_is_refused_and_ask
 
     key(&mut app, 'a');
     answer(&mut app, "u1");
+    press(&mut app, KeyCode::Enter); // repeat: once
     answer(&mut app, "x");
     key(&mut app, 'a');
     answer(&mut app, "u1");
+    press(&mut app, KeyCode::Enter); // repeat: once
     answer(&mut app, "x");
     assert!(
         app.notice
@@ -229,6 +238,7 @@ fn capital_a_adds_a_field_at_the_cursor_with_the_skipped_bytes_before_it() {
     }
     key(&mut app, 'A');
     answer(&mut app, "u2");
+    press(&mut app, KeyCode::Enter); // repeat: once
     answer(&mut app, "later");
     assert_eq!(
         fields(&app),
@@ -255,6 +265,7 @@ fn a_field_that_fails_after_a_gap_takes_the_gap_back() {
     }
     key(&mut app, 'A');
     answer(&mut app, "u4");
+    press(&mut app, KeyCode::Enter); // repeat: once
     answer(&mut app, "late");
     // bytes 8, 9 are the file's last two: a u4 does not fit
     assert_eq!(fields(&app), [], "the skipped bytes are not left behind");
