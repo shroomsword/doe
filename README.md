@@ -1065,7 +1065,7 @@ Options:
       --pretty               Emit pretty-printed JSON output
       --no-instances         Leave out the values a schema's `instances` compute or read elsewhere
       --indent <STR>         Indentation string for text output [default: "  "]
-      --build <OUT>          With `--tui`: build a new schema one field at a time from the hex view of FILE, to be saved to OUT (a file that is not there yet; the schema is named for it). Instead of a `TYPE_OR_SCHEMA`
+      --build <OUT>          With `--tui`: build a schema one field at a time from the hex view of FILE, to be saved to OUT with `w`: a file that is not there yet (the schema is named for it), or a schema that this made, to go on with. Instead of a `TYPE_OR_SCHEMA`
       --list-types           Print the types that can be used and exit: one per line with the file each is in (relative to its type path) and the first line of its doc, aligned on a terminal and separated by tabs otherwise; with `--json` or `--pretty`, an array of objects with `id`, `path`, `type_path`, `doc`, `signature` and `error`. The type paths are searched in their subdirectories too. Give a SCHEMA instead of a FILE to list the types it defines and imports
   -h, --help                 Print help, including available types from the include paths
       --color <WHEN>         When to use color on stderr [default: auto] [possible values: auto, always, never]
@@ -1241,7 +1241,12 @@ in the status line. Reading the file again drops the selection.
 **Building a schema.** `doe --tui FILE --build OUT.yaml` opens the viewer on an
 empty schema (a file that is not there yet; the schema is named for it, so the
 name has lower case letters, digits and `_`) that grows as fields are added from
-the hex pane, parsing `FILE` with it after every change. The title of the tree
+the hex pane, parsing `FILE` with it after every change. If `OUT.yaml` is there
+and the builder made it, the viewer goes on with it: it is read back, and the
+lengths that the file decides (text that ends, repeats) are taken from `FILE`. A
+schema that the builder did not make, or that has anything it cannot give back
+(`types`, `instances`, `if`...), is refused and the line is named, rather than
+losing a part of it. The title of the tree
 says `building`, and `not saved` once the schema has changed; leaving with `q`
 asks once if it was not saved. It is not the same as `--watch`, and it takes no
 `TYPE_OR_SCHEMA`.
@@ -1285,6 +1290,14 @@ schema `r` renames, since the schema is read again after every change anyway);
 the schema longer than the file is refused and leaves everything as it was); `E`
 switches the whole schema between little and big endian. A new change after an
 undo forgets what could have been done again. The status line says what each did.
+
+`w` **saves** the schema to `OUT`: the YAML of the draft, with a comment at the top
+and the place of each field in a comment before it, so that `doe FILE OUT.yaml`
+prints what the viewer showed. It is written to a file beside `OUT` which then takes
+its place, so a half-written schema is never seen; a file that was not there when
+the builder began and is now, and a symbolic link, are not written over. The title
+of the tree says `building · not saved` until it is saved, and `q` asks once before
+leaving a schema that is not.
 
 **Large files.** The viewer is built not to be what makes a big file hard to
 look at. The first screen is drawn at once and says that the file is being

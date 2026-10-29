@@ -582,6 +582,121 @@ impl Draft {
         out
     }
 
+    /// The schema as text without its comments: what the draft says, not where in this file
+    /// it comes to.
+    #[must_use]
+    pub fn to_text(&self) -> String {
+        self.to_yaml()
+            .lines()
+            .filter(|l| !l.trim_start().starts_with('#'))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Read back a schema that [`to_yaml`](Self::to_yaml) wrote (comments at the top and
+    /// before fields are skipped). The lengths that depend on a file (text that ends,
+    /// repeats) are set by [`fit_to_trace`](Self::fit_to_trace).
+    ///
+    /// # Errors
+    ///
+    /// Which line is not something the builder writes: the builder edits a flat `seq` of
+    /// the kinds it makes, and does not take in what it cannot give back.
+    pub fn from_yaml(text: &str) -> Result<Draft, String> {
+        let lines: Vec<(usize, &str)> = text
+            .lines()
+            .enumerate()
+            .map(|(i, l)| (i + 1, l.trim_end()))
+            .filter(|(_, l)| !l.trim().is_empty() && !l.trim_start().starts_with('#'))
+            .collect();
+        let refuse = |number: usize, line: &str, why: &str| {
+            Err(format!(
+                "line {number}, {:?}: {why}; the builder goes on only with a schema it made",
+                line.trim()
+            ))
+        };
+        let mut at = 0;
+        let expect = |at: &mut usize, wanted: &str| -> Result<(usize, String), String> {
+            let Some((number, line)) = lines.get(*at) else {
+                return Err(format!("the schema ends where {wanted:?} was expected"));
+            };
+            *at += 1;
+            line.strip_prefix(wanted)
+                .map(|rest| (*number, rest.to_owned()))
+                .ok_or_else(|| {
+                    format!(
+                        "line {number}, {:?}: expected {wanted:?}; the builder goes on only with a schema it made",
+                        line.trim()
+                    )
+                })
+        };
+        expect(&mut at, "meta:")?;
+        let (_, id) = expect(&mut at, "  id: ")?;
+        let (number, endian) = expect(&mut at, "  endian: ")?;
+        let endian = match endian.as_str() {
+            "le" => Endian::Little,
+            "be" => Endian::Big,
+            other => return refuse(number, other, "the byte order is le or be"),
+        };
+        let mut draft = Draft::new(&id).map_err(|e| e.to_string())?;
+        draft.endian = endian;
+        let Some((number, line)) = lines.get(at) else {
+            return Err("the schema has no seq".to_owned());
+        };
+        if line == &"seq: []" {
+            at += 1;
+        } else if line == &"seq:" {
+            at += 1;
+            while let Some((number, line)) = lines.get(at) {
+                let Some(id) = line.strip_prefix("  - id: ") else {
+                    return refuse(*number, line, "this is not a field of the seq");
+                };
+                at += 1;
+                let mut keys: Vec<(usize, &str, String)> = Vec::new();
+                while let Some((number, line)) = lines.get(at) {
+                    let Some(key_line) = line.strip_prefix("    ") else {
+                        break;
+                    };
+                    let Some((key, value)) = key_line.split_once(": ") else {
+                        return refuse(*number, line, "this is not a key: value");
+                    };
+                    keys.push((*number, key, value.to_owned()));
+                    at += 1;
+                }
+                let kind = kind_from_keys(&keys, *number, id)?;
+                draft
+                    .push(Field {
+                        id: id.to_owned(),
+                        kind,
+                    })
+                    .map_err(|e| format!("field {id}: {e}"))?;
+            }
+        } else {
+            return refuse(*number, line, "a flat seq was expected");
+        }
+        if let Some((number, line)) = lines.get(at) {
+            return refuse(*number, line, "this is not part of a seq of fields");
+        }
+        Ok(draft)
+    }
+
+    /// Set the lengths that depend on the file from the trace of a parse of it with this
+    /// schema: how many bytes a text that ends takes, how many elements a repeat has.
+    pub fn fit_to_trace(&mut self, trace: &doe::parser::trace::TraceNode) {
+        for (field, node) in self.fields.iter_mut().zip(&trace.children) {
+            match &mut field.kind {
+                Kind::Terminated { sample, .. } => {
+                    if let Some(span) = node.span.filter(|s| !s.is_empty()) {
+                        *sample = (span.end - span.start).div_ceil(8);
+                    }
+                }
+                Kind::Repeat { sample, .. } if !node.children.is_empty() => {
+                    *sample = node.children.len() as u64;
+                }
+                _ => {}
+            }
+        }
+    }
+
     /// The counts of repeated fields must be integers that are read before the field.
     fn check_counts(&self) -> Result<(), DraftError> {
         for (index, field) in self.fields.iter().enumerate() {
@@ -618,6 +733,94 @@ impl Draft {
         }
         result
     }
+}
+
+/// The kind that the keys of a field in a schema of the builder say.
+fn kind_from_keys(keys: &[(usize, &str, String)], first: usize, id: &str) -> Result<Kind, String> {
+    let get = |name: &str| {
+        keys.iter()
+            .find(|(_, k, _)| *k == name)
+            .map(|(_, _, v)| v.as_str())
+    };
+    for (number, key, _) in keys {
+        if !matches!(
+            *key,
+            "type" | "size" | "encoding" | "terminator" | "contents" | "repeat" | "repeat-expr"
+        ) {
+            return Err(format!(
+                "line {number}: the key {key:?} of {id} is not one the builder writes; the builder goes on only with a schema it made"
+            ));
+        }
+    }
+    let bad = |what: &str| format!("line {first}: the field {id} has {what}");
+    let size = || -> Result<u64, String> {
+        get("size")
+            .and_then(|v| v.parse().ok())
+            .ok_or_else(|| bad("no size that is a number"))
+    };
+    let encoding = || get("encoding").unwrap_or("ASCII").to_owned();
+    let base = if let Some(list) = get("contents") {
+        let inner = list.trim().trim_start_matches('[').trim_end_matches(']');
+        let bytes: Result<Vec<u8>, _> = inner
+            .split(',')
+            .map(|b| {
+                let b = b.trim();
+                b.strip_prefix("0x")
+                    .map_or_else(|| b.parse::<u8>(), |hex| u8::from_str_radix(hex, 16))
+            })
+            .collect();
+        Kind::Contents(bytes.map_err(|_| bad("contents that are not bytes"))?)
+    } else if let Some(terminator) = get("terminator") {
+        Kind::Terminated {
+            terminator: terminator
+                .parse()
+                .map_err(|_| bad("a terminator that is not a byte"))?,
+            encoding: encoding(),
+            sample: 1,
+        }
+    } else {
+        match get("type") {
+            Some("str") => Kind::Text {
+                len: size()?,
+                encoding: encoding(),
+            },
+            Some(t) if t.len() > 1 && t.is_char_boundary(1) => {
+                let (letter, digits) = t.split_at(1);
+                let n: u8 = digits
+                    .parse()
+                    .map_err(|_| bad("a type the builder does not make"))?;
+                match letter {
+                    "u" => Kind::Unsigned(n),
+                    "s" => Kind::Signed(n),
+                    "f" => Kind::Float(n),
+                    "b" => Kind::Bits(n),
+                    _ => return Err(bad("a type the builder does not make")),
+                }
+            }
+            Some(_) => return Err(bad("a type the builder does not make")),
+            None => Kind::Bytes(size()?),
+        }
+    };
+    Ok(match (get("repeat"), get("repeat-expr")) {
+        (None, None) => base,
+        (Some("eos"), None) => Kind::Repeat {
+            inner: Box::new(base),
+            count: Count::ToEnd,
+            sample: 1,
+        },
+        (Some("expr"), Some(expr)) => {
+            let (count, sample) = match expr.parse::<u64>() {
+                Ok(n) => (Count::Fixed(n), n),
+                Err(_) => (Count::Field(expr.to_owned()), 1),
+            };
+            Kind::Repeat {
+                inner: Box::new(base),
+                count,
+                sample,
+            }
+        }
+        _ => return Err(bad("a repeat the builder does not make")),
+    })
 }
 
 /// Write the lines that say what a field is (the `id` is written already).
@@ -1057,5 +1260,107 @@ mod tests {
         };
         draft.push(field("pairs", ok.clone())).unwrap();
         assert_eq!((ok.label().as_str(), ok.size()), ("bytes[]", 6));
+    }
+
+    /// A draft with every kind, the file that fits it, and its trace.
+    fn rich() -> (Draft, Vec<u8>) {
+        let mut draft = Draft::new("rich").unwrap();
+        for (id, kind) in [
+            ("magic", Kind::Contents(vec![0x7f, 0x45])),
+            ("count", Kind::Unsigned(1)),
+            (
+                "items",
+                Kind::Repeat {
+                    inner: Box::new(Kind::Unsigned(2)),
+                    count: Count::Field("count".to_owned()),
+                    sample: 3,
+                },
+            ),
+            (
+                "name",
+                Kind::Terminated {
+                    terminator: 0,
+                    encoding: "UTF-8".to_owned(),
+                    sample: 4,
+                },
+            ),
+            ("flags", Kind::Bits(3)),
+            ("mode", Kind::Bits(5)),
+            ("blob", Kind::Bytes(2)),
+            (
+                "text",
+                Kind::Text {
+                    len: 1,
+                    encoding: "ASCII".to_owned(),
+                },
+            ),
+            (
+                "tail",
+                Kind::Repeat {
+                    inner: Box::new(Kind::Signed(1)),
+                    count: Count::ToEnd,
+                    sample: 2,
+                },
+            ),
+        ] {
+            draft.push(field(id, kind)).unwrap();
+        }
+        draft.set_endian(Endian::Big);
+        let data = vec![
+            0x7f, 0x45, 3, 0, 1, 0, 2, 0, 3, b'a', b'b', b'c', 0, 0xa3, 1, 2, b'x', 9, 10,
+        ];
+        (draft, data)
+    }
+
+    #[test]
+    fn a_schema_that_was_written_is_read_back_and_the_lengths_come_from_the_file() {
+        let (draft, data) = rich();
+        let yaml = format!("# made by the builder\n\n{}", draft.to_yaml());
+        let mut back = Draft::from_yaml(&yaml).unwrap();
+        assert_eq!(back.endian(), Endian::Big);
+        // the lengths that the file decides are placeholders until the file has been read with it
+        let schema = RawSchema::from_yaml_str(&back.to_yaml()).unwrap();
+        let registry = compile_schema(&schema).unwrap();
+        let (_, trace) = Engine::new(&registry)
+            .parse_type_traced(&schema.id, &mut Cursor::new(&data))
+            .unwrap();
+        back.fit_to_trace(&trace);
+        assert_eq!(back, draft);
+        assert_eq!(back.end(), data.len() as u64);
+    }
+
+    #[test]
+    fn a_schema_that_the_builder_did_not_make_is_refused_and_the_line_is_named() {
+        let cases = [
+            ("id: t\nseq: []\n", "line 1"),
+            (
+                "meta:\n  id: t\n  endian: le\n  imports:\n    - x\nseq: []\n",
+                "line 4",
+            ),
+            (
+                "meta:\n  id: t\n  endian: le\nseq:\n  - id: a\n    type: u1\ntypes:\n  x:\n    seq: []\n",
+                "line 7",
+            ),
+            (
+                "meta:\n  id: t\n  endian: le\nseq:\n  - id: a\n    type: u1\n    if: x\n",
+                "line 7",
+            ),
+            (
+                "meta:\n  id: t\n  endian: le\nseq:\n  - id: a\n    type: thing\n",
+                "a type the builder does not make",
+            ),
+            ("meta:\n  id: t\n  endian: middle\nseq: []\n", "line 3"),
+            ("meta:\n  id: Bad\n  endian: le\nseq: []\n", "lower case"),
+            (
+                "meta:\n  id: t\n  endian: le\nseq:\n  - id: a\n    size: lots\n",
+                "no size",
+            ),
+        ];
+        for (text, mention) in cases {
+            let error = Draft::from_yaml(text).unwrap_err();
+            assert!(error.contains(mention), "{text:?}: {error}");
+        }
+        let empty = Draft::from_yaml("meta:\n  id: t\n  endian: be\nseq: []\n").unwrap();
+        assert_eq!((empty.fields().len(), empty.endian()), (0, Endian::Big));
     }
 }
