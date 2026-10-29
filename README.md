@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/shroomsword/doe/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shroomsword/doe/actions/workflows/ci.yml?query=branch%3Amain)
 [![Release](https://github.com/shroomsword/doe/actions/workflows/release.yml/badge.svg)](https://github.com/shroomsword/doe/actions/workflows/release.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fshroomsword.github.io%2Fdoe%2Fcoverage.json)](#test-coverage)
 
 decoder of everything
 
@@ -1542,6 +1543,37 @@ The first corpus directory receives the inputs the fuzzer discovers
 seeds in `fuzz/seeds/<target>` are only read. A crash is written to
 `fuzz/artifacts/<target>`: commit it as a regression test under
 `crates/*/tests/` before fixing it.
+
+## Test coverage
+
+The tests are measured for the lines of Rust they run, with
+[`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov), and CI fails when
+the total is **below 90%**. The threshold is `THRESHOLD` in
+[`scripts/coverage`](https://github.com/shroomsword/doe/blob/main/scripts/coverage), the one place it is written, and so is the list
+of what is left out of the count, each with its reason (the tests themselves,
+benchmarks, the fuzz targets, and the `doe-wasm` glue that only runs in a
+browser).
+
+```sh
+rustup component add llvm-tools-preview
+cargo install cargo-llvm-cov        # and jq must be installed
+scripts/coverage                    # the same tests as CI; --report-only does not fail below the threshold
+xdg-open target/coverage/html/index.html
+```
+
+It runs every test of the workspace with all features, so it takes as long as a
+build of them with instrumentation and needs several GiB of disk. The two tests
+with budgets in time (`crates/doe-tui/tests/performance.rs`) do not run under it,
+because instrumented code is slower (`DOE_COVERAGE` is set). Besides the HTML
+report it writes `target/coverage/lcov.info` and a summary with the least covered
+files.
+
+In CI the `coverage` job puts that summary in the job summary (with how the total
+changed against `main`), and keeps the lcov file and the HTML report as the
+`coverage` artifact of the run. The badge at the top of this page is the coverage
+of `main`: the `pages` workflow measures it on every push to `main` and publishes
+`coverage.json` next to the web IDE, where shields.io reads it. The web IDE's
+TypeScript is not measured.
 
 ## Using as a library
 

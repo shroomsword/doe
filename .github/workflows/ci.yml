@@ -93,6 +93,44 @@ jobs:
           ALSO: ${{ matrix.also }}
         run: cargo test --workspace --all-features --locked --target "$ALSO" --no-run
 
+  # Line coverage of the tests of the whole workspace, on Linux (scripts/coverage: the threshold, what is left out of the
+  # count, and the reports). It fails below the threshold; the summary with the least covered files is in the job summary,
+  # and the lcov file and the HTML report are artifacts. On a pull request the summary says how the total changed against
+  # main, read from the badge that the pages workflow publishes.
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The conformance suite reads definitions from the Kaitai Struct gallery.
+          submodules: true
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: coverage
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Coverage
+        env:
+          COVERAGE_BASE: https://shroomsword.github.io/doe/coverage.json
+        run: scripts/coverage
+
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: |
+            target/coverage/lcov.info
+            target/coverage/summary.md
+            target/coverage/summary.json
+            target/coverage/html
+          if-no-files-found: ignore
+
   # One variant per shipped platform. A pull request builds the ones that start quickly; on main and for a release
   # (which calls this workflow, and has the same build matrix as the release workflow) all of them are built. The
   # test job compiles the code for every platform on each pull request already.
@@ -295,7 +333,7 @@ jobs:
   # Aggregate result. This is the only check the ruleset requires.
   ci:
     if: always()
-    needs: [lint, test, build, doc, semver, fuzz, wasm, web]
+    needs: [lint, test, coverage, build, doc, semver, fuzz, wasm, web]
     runs-on: ubuntu-latest
     steps:
       - name: Check results

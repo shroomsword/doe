@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# Measures the line coverage of the workspace's tests with cargo-llvm-cov, writes the reports to
+# target/coverage, and fails when the total is below THRESHOLD.
+#
+#   scripts/coverage                run the tests, write the reports, check the threshold
+#   scripts/coverage --report-only  the same, but only report: a number below the threshold is not a failure
+#
+# Needs: cargo-llvm-cov (cargo install cargo-llvm-cov), the llvm-tools-preview component of rustup, and jq.
+# It runs the tests of the whole workspace with all features, as CI does, so it takes as long as a build of
+# them with instrumentation (a few minutes, and several GiB of disk).
+#
+# Written to target/coverage:
+#   lcov.info      the lines, for other tools
+#   html/          a report to browse (open html/index.html)
+#   summary.json   cargo-llvm-cov's own summary
+#   summary.md     the total and the least covered files (also appended to $GITHUB_STEP_SUMMARY in CI)
+#   coverage.json  the badge in the format of shields.io's endpoint
+#
+# With COVERAGE_BASE set to the URL of the coverage.json of the main branch, the summary also says how the
+# total changed.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# The threshold, in percent of the lines. This is the only place it is written; the README says to look here.
+THRESHOLD=90
+
+# What is not code to be tested, with the reason. Each is a regular expression on the path of a file.
+EXCLUDES=(
+  '(^|/)tests/'       # the tests themselves
+  '(^|/)benches/'     # benchmarks
+  '(^|/)fuzz/'        # fuzz targets: CI builds them and replays their seeds, but the tests do not run them
+  'crates/doe-wasm/'  # the glue that only runs in a browser (the web job tests it there)
+)
+
+report_only=0
+case "${1:-}" in
+  '') ;;
+  --report-only) report_only=1 ;;
+  *)
+    echo "usage: scripts/coverage [--report-only]" >&2
+    exit 2
+    ;;
+esac
+
+for tool in jq cargo-llvm-cov; do
+  command -v "$tool" > /dev/null || {
+    echo "scripts/coverage: $tool is needed" >&2
+    exit 2
+  }
+done
+
+regex=$(IFS='|'; echo "${EXCLUDES[*]}")
+out=target/coverage
+
+# The conformance tests read the gallery from the submodule; the gallery update check needs the network.
+export DOE_SKIP_GALLERY_CHECK=1
+# Tests whose budgets are times (crates/doe-tui/tests/performance.rs) do not hold under instrumentation.
+export DOE_COVERAGE=1
+
+mkdir -p "$out"
+cargo llvm-cov clean --workspace
+cargo llvm-cov --workspace --all-features --locked --no-report
+cargo llvm-cov report --ignore-filename-regex "$regex" --lcov --output-path "$out/lcov.info"
+cargo llvm-cov report --ignore-filename-regex "$regex" --html --output-dir "$out"
+cargo llvm-cov report --ignore-filename-regex "$regex" --json --summary-only --output-path "$out/summary.json"
+
+total=$(jq -r '.data[0].totals.lines.percent' "$out/summary.json")
+covered=$(jq -r '.data[0].totals.lines.covered' "$out/summary.json")
+lines=$(jq -r '.data[0].totals.lines.count' "$out/summary.json")
+below=$(awk -v t="$total" -v min="$THRESHOLD" 'BEGIN { print (t < min) ? 1 : 0 }')
+shown=$(printf '%.2f' "$total")
+
+# The badge: red below the threshold, then yellow, green from the threshold up.
+color=red
+if awk -v t="$total" -v min="$THRESHOLD" 'BEGIN { exit !(t >= min) }'; then
+  color=brightgreen
+elif awk -v t="$total" -v min="$THRESHOLD" 'BEGIN { exit !(t >= min - 10) }'; then
+  color=yellow
+fi
+printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s"}\n' "$shown" "$color" > "$out/coverage.json"
+
+# How the total changed since main, when the page of main can be read (it is not an error if it cannot).
+change=''
+if [[ -n "${COVERAGE_BASE:-}" ]]; then
+  base=$(curl -fsS --max-time 15 "$COVERAGE_BASE" 2> /dev/null | jq -r '.message // empty' 2> /dev/null || true)
+  base=${base%\%}
+  if [[ "$base" =~ ^[0-9.]+$ ]]; then
+    change=$(awk -v t="$total" -v b="$base" 'BEGIN { printf "%+.2f points against main (%.2f%%)", t - b, b }')
+  fi
+fi
+
+{
+  echo "## Line coverage: ${shown}%"
+  echo
+  echo "${covered} of ${lines} lines; the threshold is ${THRESHOLD}%.${change:+ ${change}.}"
+  echo
+  echo "The least covered files:"
+  echo
+  echo "| File | Lines | Missed | Coverage |"
+  echo "| --- | ---: | ---: | ---: |"
+  jq -r '.data[0].files
+    | map({file: .filename, count: .summary.lines.count, missed: (.summary.lines.count - .summary.lines.covered), percent: .summary.lines.percent})
+    | map(select(.count > 0))
+    | sort_by(.percent, -.missed)
+    | .[:25][]
+    | "| \(.file) | \(.count) | \(.missed) | \(.percent * 100 | round / 100)% |"' "$out/summary.json" \
+    | sed "s|$PWD/||"
+  echo
+  echo "Left out of the count: ${EXCLUDES[*]}"
+} > "$out/summary.md"
+
+cat "$out/summary.md"
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  cat "$out/summary.md" >> "$GITHUB_STEP_SUMMARY"
+fi
+
+if [[ "$below" == 1 ]]; then
+  echo "line coverage ${shown}% is below the threshold of ${THRESHOLD}%" >&2
+  if [[ "$report_only" == 0 ]]; then
+    echo "::error::line coverage ${shown}% is below the threshold of ${THRESHOLD}% (scripts/coverage)"
+    exit 1
+  fi
+fi
