@@ -16,6 +16,7 @@ pub mod builder;
 pub mod bytes;
 pub mod clipboard;
 pub mod draft;
+pub mod field_dialog;
 pub mod format;
 pub mod hex_view;
 pub mod inspect;

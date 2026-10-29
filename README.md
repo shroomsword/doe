@@ -1244,7 +1244,20 @@ name has lower case letters, digits and `_`) that grows as fields are added from
 the hex pane, parsing `FILE` with it after every change. The title of the tree
 says `building`, and `not saved` once the schema has changed; leaving with `q`
 asks once if it was not saved. It is not the same as `--watch`, and it takes no
-`TYPE_OR_SCHEMA`. The keys that add fields are listed in `?`.
+`TYPE_OR_SCHEMA`.
+
+In the bytes pane, `a` **adds a field** where the schema ends (the first byte that
+no field has): a prompt at the bottom asks for the *kind* (`u1 u2 u4 u8`, `s1 s2
+s4 s8`, `f4 f8`, `bytes` or `str`; one is proposed, the integer of the size of the
+selection if you made one with `v`, else a byte), the *length* for `bytes` and
+`str` (the selection's), the *encoding* of `str`, and the *name* (`u2_1`, proposed
+and checked: lower case letters, digits and `_`, not used by another field). The
+field is added, the file is read again, the tree selects the new field, the
+inspector shows its value and the cursor goes to the byte after it, ready for the
+next. A field that does not fit in the rest of the file is refused (the question
+is asked again, `Esc` gives up). `A` adds the field at the cursor instead, with a
+`bytes` field named `skip_1` before it for the bytes that are not described yet;
+the cursor must be after the end of the schema.
 
 **Large files.** The viewer is built not to be what makes a big file hard to
 look at. The first screen is drawn at once and says that the file is being

@@ -10,7 +10,8 @@ use doe::DoeError;
 use crate::Options;
 use crate::builder::Builder;
 use crate::bytes::FileBytes;
-use crate::draft::{Draft, DraftError, Edit};
+use crate::draft::{Draft, DraftError, Edit, Field, Kind as DraftKind};
+use crate::field_dialog;
 use crate::hex_view::{HexState, Selection};
 use crate::keymap::{self, Action, Scope};
 use crate::load::{self, LoadFailure, Loaded};
@@ -36,6 +37,21 @@ pub enum Focus {
     Tree,
     /// The bytes.
     Hex,
+}
+
+/// What is known of a field that is being added, between one question and the next.
+#[derive(Debug, Clone)]
+struct FieldDialog {
+    /// How many bytes to skip before it, from where the schema ends.
+    gap: u64,
+    /// The length of the selection that starts at `at`, if there is one.
+    selection: Option<u64>,
+    /// The kind, once asked.
+    kind: String,
+    /// The length of bytes or text, once asked.
+    length: Option<u64>,
+    /// The encoding of text, once asked.
+    encoding: String,
 }
 
 /// The fields that hold one byte, and the one that is selected.
@@ -108,6 +124,8 @@ pub struct App {
     pub schemas: Option<SchemaList>,
     /// The browser of the types on the type paths, while it is open.
     pub types: Option<TypeBrowser>,
+    /// The questions of a field that is being added, while they are asked.
+    field_dialog: Option<FieldDialog>,
     /// Hex that `y` asked to be put on the clipboard, until the event loop does it.
     clipboard: Option<String>,
     /// The schema that is being built, when the viewer was started with `--build`.
@@ -175,6 +193,7 @@ impl App {
             schemas: None,
             types: None,
             builder: None,
+            field_dialog: None,
             clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
@@ -231,6 +250,7 @@ impl App {
             schemas: None,
             types: None,
             builder: None,
+            field_dialog: None,
             clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
@@ -272,6 +292,7 @@ impl App {
             schemas: None,
             types: None,
             builder: None,
+            field_dialog: None,
             clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
@@ -830,7 +851,10 @@ impl App {
         };
         match prompt.line.key(key) {
             PromptOutcome::Editing => {}
-            PromptOutcome::Cancel => self.prompt = None,
+            PromptOutcome::Cancel => {
+                self.prompt = None;
+                self.field_dialog = None;
+            }
             PromptOutcome::Submit => {
                 let Some(prompt) = self.prompt.take() else {
                     return;
@@ -838,15 +862,21 @@ impl App {
                 match prompt.kind {
                     Kind::Search => self.start_search(prompt.line.text(), true),
                     Kind::Goto => self.goto(prompt.line.text()),
+                    field => self.field_step(field, prompt.line.text()),
                 }
             }
         }
     }
 
     fn open_prompt(&mut self, kind: Kind) {
+        self.open_prompt_with(kind, "");
+    }
+
+    /// A prompt with a text in it that Enter accepts as it is.
+    fn open_prompt_with(&mut self, kind: Kind, text: &str) {
         self.prompt = Some(Prompt {
             kind,
-            line: LineEditor::new(),
+            line: LineEditor::with_text(text),
         });
     }
 
@@ -987,7 +1017,9 @@ impl App {
             | Action::HexNextField
             | Action::HexPrevField
             | Action::HexSelect
-            | Action::HexCopy => self.hex_action(action),
+            | Action::HexCopy
+            | Action::HexAddField
+            | Action::HexAddFieldHere => self.hex_action(action),
             tree_action => {
                 let before = self.tree.selected_path().to_vec();
                 self.tree_action(tree_action);
@@ -1053,6 +1085,8 @@ impl App {
             Action::HexPrevField => return self.cycle_fields(-1),
             Action::HexSelect => return self.toggle_range(),
             Action::HexCopy => return self.copy_range(),
+            Action::HexAddField => return self.add_field(false),
+            Action::HexAddFieldHere => return self.add_field(true),
             _ => {}
         }
         let size = self.bytes.as_ref().map_or(0, FileBytes::size);
@@ -1110,6 +1144,160 @@ impl App {
                 ));
             }
         }
+    }
+
+    /// Begin adding a field: where the schema ends (`a`), or at the cursor with a
+    /// field of skipped bytes before it (`A`). The questions follow, one prompt each.
+    fn add_field(&mut self, at_cursor: bool) {
+        let Some(builder) = self.builder.as_ref() else {
+            self.notice =
+                Some("fields are added when the viewer is started with --build".to_owned());
+            return;
+        };
+        let end = builder.draft.end();
+        let cursor = self.hex.cursor();
+        let at = if at_cursor { cursor } else { end };
+        if at < end {
+            self.notice = Some(format!(
+                "byte {at:#x} is in a field already: the schema reads up to {end:#x}"
+            ));
+            return;
+        }
+        let selection = self
+            .hex
+            .selected_range()
+            .filter(|(first, _)| *first == at)
+            .map(|(first, last)| last - first + 1);
+        self.field_dialog = Some(FieldDialog {
+            gap: at - end,
+            selection,
+            kind: String::new(),
+            length: None,
+            encoding: field_dialog::DEFAULT_ENCODING.to_owned(),
+        });
+        self.open_prompt_with(Kind::FieldKind, &field_dialog::propose_kind(selection));
+    }
+
+    /// An answer to one of the questions about a field: ask the next, or add it.
+    fn field_step(&mut self, step: Kind, text: &str) {
+        let Some(mut dialog) = self.field_dialog.take() else {
+            return;
+        };
+        let again = |app: &mut App, dialog: FieldDialog, message: String| {
+            app.notice = Some(message);
+            app.field_dialog = Some(dialog);
+            app.open_prompt_with(step, text);
+        };
+        match step {
+            Kind::FieldKind => {
+                let Some(kind) = field_dialog::parse_kind(text) else {
+                    return again(self, dialog, format!("{text:?} is not a kind of field"));
+                };
+                kind.clone_into(&mut dialog.kind);
+                if field_dialog::needs_length(kind) {
+                    let proposed = dialog
+                        .selection
+                        .map_or_else(|| "1".to_owned(), |n| n.to_string());
+                    self.field_dialog = Some(dialog);
+                    self.open_prompt_with(Kind::FieldLength, &proposed);
+                } else {
+                    self.ask_name(dialog);
+                }
+            }
+            Kind::FieldLength => match field_dialog::parse_length(text) {
+                Ok(n) => {
+                    dialog.length = Some(n);
+                    if dialog.kind == "str" {
+                        let encoding = dialog.encoding.clone();
+                        self.field_dialog = Some(dialog);
+                        self.open_prompt_with(Kind::FieldEncoding, &encoding);
+                    } else {
+                        self.ask_name(dialog);
+                    }
+                }
+                Err(message) => again(self, dialog, message),
+            },
+            Kind::FieldEncoding => {
+                text.trim().clone_into(&mut dialog.encoding);
+                self.ask_name(dialog);
+            }
+            Kind::FieldName => self.finish_field(&dialog, text.trim()),
+            Kind::Search | Kind::Goto => {}
+        }
+    }
+
+    /// The last question: the name, proposed from the kind.
+    fn ask_name(&mut self, dialog: FieldDialog) {
+        let proposed = self
+            .builder
+            .as_ref()
+            .map(|b| field_dialog::propose_name(&b.draft, &dialog.kind))
+            .unwrap_or_default();
+        self.field_dialog = Some(dialog);
+        self.open_prompt_with(Kind::FieldName, &proposed);
+    }
+
+    /// Add the field that was asked for (and the skipped bytes before it), select it, and
+    /// put the cursor after it.
+    fn finish_field(&mut self, dialog: &FieldDialog, name: &str) {
+        let kind = match field_dialog::kind_of(&dialog.kind, dialog.length, &dialog.encoding) {
+            Ok(kind) => kind,
+            Err(message) => {
+                self.notice = Some(message);
+                return;
+            }
+        };
+        let field = Field {
+            id: name.to_owned(),
+            kind,
+        };
+        if dialog.gap > 0 {
+            let skipped = self
+                .builder
+                .as_ref()
+                .map(|b| field_dialog::propose_name(&b.draft, "skip"))
+                .unwrap_or_default();
+            let gap = Field {
+                id: skipped,
+                kind: DraftKind::Bytes(dialog.gap),
+            };
+            if let Err(message) = self.edit_draft(|d| d.push(gap)) {
+                self.notice = Some(message);
+                return;
+            }
+        }
+        if let Err(message) = self.edit_draft(|d| d.push(field)) {
+            if dialog.gap > 0 {
+                self.revert_last();
+            }
+            self.notice = Some(message);
+            // asked again, so that a name that is taken can be corrected
+            self.field_dialog = Some(dialog.clone());
+            self.open_prompt_with(Kind::FieldName, name);
+            return;
+        }
+        let Some(builder) = self.builder.as_ref() else {
+            return;
+        };
+        let index = builder.draft.fields().len().saturating_sub(1);
+        let (end, at) = (builder.draft.end(), builder.draft.offset_of(index));
+        self.tree.select_path(&[index]);
+        let size = self.bytes.as_ref().map_or(0, FileBytes::size);
+        self.hex.clear_range();
+        self.hex.set_cursor(end, size);
+        self.notice = Some(format!(
+            "added {name} at {at:#x}; the schema reads up to {end:#x}"
+        ));
+    }
+
+    /// Take the last change to the draft back.
+    fn revert_last(&mut self) {
+        if let Some(builder) = self.builder.as_mut()
+            && let Some(edit) = builder.history.pop()
+        {
+            let _ = builder.draft.apply(&edit.inverse());
+        }
+        let _ = self.parse_draft();
     }
 
     /// Start a selection of bytes at the cursor, or end the one there is.
