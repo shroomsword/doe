@@ -1238,66 +1238,9 @@ forms it shows a field in: an integer in both byte orders if there are 1, 2, 4 o
 which most terminals support, some only when it is turned on, and also says them
 in the status line. Reading the file again drops the selection.
 
-**Building a schema.** `doe --tui FILE --build OUT.yaml` opens the viewer on an
-empty schema (a file that is not there yet; the schema is named for it, so the
-name has lower case letters, digits and `_`) that grows as fields are added from
-the hex pane, parsing `FILE` with it after every change. If `OUT.yaml` is there
-and the builder made it, the viewer goes on with it: it is read back, and the
-lengths that the file decides (text that ends, repeats) are taken from `FILE`. A
-schema that the builder did not make, or that has anything it cannot give back
-(`types`, `instances`, `if`...), is refused and the line is named, rather than
-losing a part of it. The title of the tree
-says `building`, and `not saved` once the schema has changed; leaving with `q`
-asks once if it was not saved. It is not the same as `--watch`, and it takes no
-`TYPE_OR_SCHEMA`.
-
-In the bytes pane, `a` **adds a field** where the schema ends (the first byte that
-no field has): a prompt at the bottom asks for the *kind* (`u1 u2 u4 u8`, `s1 s2
-s4 s8`, `f4 f8`, `bytes` or `str`; one is proposed, the integer of the size of the
-selection if you made one with `v`, else a byte), the *length* for `bytes` and
-`str` (the selection's), the *encoding* of `str`, and the *name* (`u2_1`, proposed
-and checked: lower case letters, digits and `_`, not used by another field). The
-field is added, the file is read again, the tree selects the new field, the
-inspector shows its value and the cursor goes to the byte after it, ready for the
-next. A field that does not fit in the rest of the file is refused (the question
-is asked again, `Esc` gives up). `A` adds the field at the cursor instead, with a
-`bytes` field named `skip_1` before it for the bytes that are not described yet;
-the cursor must be after the end of the schema.
-
-Besides sized fields, the kind can be `magic`, a **signature**: the bytes that the
-file must start a type with (`contents: [0x7f, 0x45]`; the selected bytes are
-proposed, or type them in hex), which `doe` uses to find the schema of a file;
-`strz`, **text that ends** with a byte (asks for the terminator, `0` by default,
-and the encoding; the length is found in the file, so it has to have the
-terminator within 64 KiB); and `b1` to `b64`, a **bit field** of that many bits,
-which follow each other in the same bytes (the cursor then moves by bits, to where
-the next one goes on). Any sized field (an integer, a float, `bytes`, `str`) can
-also be **repeated**: the last question accepts a number, the name of an earlier
-integer field (a count read from the file), or `eos` for until the end of the file
-(which has to be a whole number of elements). A field that is the count of a repeat
-cannot be removed, renamed or made something else while the repeat uses it. The
-schema counts the repeats and the text that ends by the file that is open, so the
-offsets that are shown after them are the file's.
-
-The schema can be changed as well as grown, with a field selected in the tree (or
-the cursor on its bytes, which selects it): `u` takes the last change back (an
-addition, a removal, a rename, a change of kind, of byte order) and `Ctrl-R` does
-it again, as many times as there are changes; `d` removes the field (the last one
-at once, another after a second `d`, since the fields after it move up); `r`
-renames it, with the same checks as when it was added (in a viewer that builds a
-schema `r` renames, since the schema is read again after every change anyway);
-`c` changes its kind or length (the fields after it move, and a change that makes
-the schema longer than the file is refused and leaves everything as it was); `E`
-switches the whole schema between little and big endian. A new change after an
-undo forgets what could have been done again. The status line says what each did.
-
-`w` **saves** the schema to `OUT`: the YAML of the draft, with a comment at the top
-and the place of each field in a comment before it, so that `doe FILE OUT.yaml`
-prints what the viewer showed. It is written to a file beside `OUT` which then takes
-its place, so a half-written schema is never seen; a file that was not there when
-the builder began and is now, and a symbolic link, are not written over. The title
-of the tree says `building · not saved` until it is saved, and `q` asks once before
-leaving a schema that is not.
+**Building a schema.** `doe --tui FILE --build OUT.yaml` starts the viewer on an
+empty schema that grows one field at a time from the hex pane, and saves it with
+`w`; see [Building a schema](#building-a-schema).
 
 **Large files.** The viewer is built not to be what makes a big file hard to
 look at. The first screen is drawn at once and says that the file is being
@@ -1426,6 +1369,143 @@ viewer. Those run on Linux and macOS; **on Windows there is no pseudo-terminal
 test** (it would need `ConPTY` and a dependency for it), so the setup and
 restoring of the console there is not covered by tests, and `SIGTERM` and
 `SIGHUP` do not exist there.
+
+### Building a schema
+
+`doe --tui FILE --build OUT.yaml` is for a file that has no schema yet. The viewer
+opens on `FILE` with an empty schema, named for `OUT.yaml` (so the name has lower
+case letters, digits and `_`; the file must not be there yet), and the schema grows
+one field at a time from the hex pane: say how many bytes a field is and what it is,
+and the file is parsed again at once with what you have, the tree and the bytes
+showing it. `w` saves the schema; `doe FILE OUT.yaml` prints the same tree. The title
+of the tree says `building`, and `building · not saved` once the schema has changed.
+It takes no `TYPE_OR_SCHEMA` and is not the same as `--watch`. If `OUT.yaml` is
+there and the builder made it, the viewer goes on with it: it is read back, and the
+lengths that the file decides (text that ends, repeats) are taken from `FILE`. A
+schema that the builder did not make, or that has anything it cannot give back
+(`types`, `instances`, `if`...), is refused and the line is named, rather than
+losing a part of it.
+
+| Key | Does |
+|-----|------|
+| `v`, then the movement keys | select the bytes the next field is (its length is the selection's) |
+| `a` | add a field where the schema ends |
+| `A` | add a field at the cursor, with a `skip_1` field of the bytes before it |
+| `u`, `Ctrl-R` | take the last change back, do it again |
+| `d` | remove the selected field (the last at once, another after a second `d`) |
+| `r` | rename the selected field |
+| `c` | change its kind or length |
+| `E` | switch the whole schema between little and big endian |
+| `w` | save to `OUT.yaml` |
+| `q` | leave (asks once if the schema is not saved) |
+
+`a` asks, at the bottom of the screen, for the *kind*, then what the kind needs, then
+the *name*; `Enter` takes what is proposed and `Esc` gives up.
+
+| Kind | Is | Then asks for |
+|------|----|---------------|
+| `u1 u2 u4 u8`, `s1 s2 s4 s8` | an integer of that many bytes, in the byte order of the schema | whether it is repeated |
+| `f4 f8` | a float | whether it is repeated |
+| `bytes` | bytes kept as they are | the length, whether it is repeated |
+| `str` | text of a length | the length, the encoding, whether it is repeated |
+| `strz` | text that ends with a byte | the terminator (`0`), the encoding; the length is found in the file (within 64 KiB) |
+| `magic` | a signature: bytes the file must have (`contents:`), which `doe` uses to find the schema | the bytes in hex (the selection is proposed) |
+| `b1` to `b64` | a bit field; the ones that follow each other share bytes, and the cursor moves by bits to where the next goes on | |
+
+The kind that is proposed is the integer of the size of the selection (1, 2, 4 or 8
+bytes), else `bytes`, else `u1`; the name is proposed from the kind (`u2_1`) and has to
+be a lower case name that no other field has. A field can be **repeated**: the
+question takes a number, the name of an earlier integer field (a count read from the
+file), or `eos` for until the end of the file (which has to be a whole number of
+elements); a field that is the count of a repeat cannot be removed, renamed or made
+something else while the repeat uses it. A field that does not fit in the rest of the
+file is refused, and so is any change that makes the schema longer than the file:
+the question is asked again, or everything stays as it was.
+
+In a viewer that builds, `r` renames and does not read the files again (they are
+read again after every change anyway). `u` can go back over every change since the
+viewer was opened (an addition, a removal, a rename, a change of kind or of byte
+order); a new change forgets what could have been done again. The status line says
+what each key did.
+
+`w` writes the YAML of the schema, with a comment at the top and the place of each
+field in a comment before it, to a file beside `OUT.yaml` which then takes its
+place, so a half-written schema is never seen; a file that was not there when the
+builder began and is now, and a symbolic link, are not written over.
+
+**An example.** `blip.bin` is 18 bytes: `BLIP`, a version `01`, a count `03`,
+three little-endian 16-bit values `0a00 1400 1e00`, the text `demo` and its zero
+byte, and a byte `a3` (`101 00011`) that is a 3-bit number, 5, and a 5-bit number, 3. These are the keys that
+make a schema for it (a space separates groups of keys, and two spaces start the
+comment on the right; the test `crates/doe-tui/tests/example.rs` presses exactly
+these in a viewer, so they cannot go out of date):
+
+<!-- example: keys -->
+```
+v lll                                 select the four bytes of the signature
+a <C-u>magic<Enter>                   add a field of the kind magic;
+<Enter>                               the selected bytes are proposed as its bytes;
+<C-u>signature<Enter>                 and this is its name
+a <Enter> <Enter> <C-u>version<Enter>   a byte (u1, proposed), repeated once, called version
+a <Enter> <Enter> <C-u>count<Enter>     another byte: the number of values
+a <C-u>u2<Enter> count<Enter> <C-u>values<Enter>   a u2, repeated as many times as count says
+a <C-u>strz<Enter> <Enter> <Enter> <C-u>title<Enter>   text up to the zero: terminator 0, ASCII
+a <C-u>b3<Enter> <C-u>kind<Enter>     three bits
+a <C-u>b5<Enter> <C-u>level<Enter>    and the five bits that are left of the byte
+w                                     save
+```
+
+The schema that was saved:
+
+<!-- example: blip.yaml -->
+```yaml
+meta:
+  id: blip
+  endian: le
+seq:
+  # 0x0..0x4
+  - id: signature
+    contents: [0x42, 0x4c, 0x49, 0x50]
+  # 0x4..0x5
+  - id: version
+    type: u1
+  # 0x5..0x6
+  - id: count
+    type: u1
+  # 0x6..0xc
+  - id: values
+    type: u2
+    repeat: expr
+    repeat-expr: count
+  # 0xc..0x11
+  - id: title
+    type: str
+    terminator: 0
+    encoding: ASCII
+  # bits 136..139 (byte 0x11)
+  - id: kind
+    type: b3
+  # bits 139..144 (byte 0x11)
+  - id: level
+    type: b5
+```
+
+and `doe blip.bin blip.yaml` prints:
+
+<!-- example: blip.txt -->
+```
+blip
+  signature  <4 bytes>
+  version  1
+  count  3
+  values  [3 items]
+    [0]  10
+    [1]  20
+    [2]  30
+  title  "demo"
+  kind  5
+  level  3
+```
 
 ### Themes
 

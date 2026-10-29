@@ -13,12 +13,16 @@ use doe_tui::keymap::{BINDINGS, Key};
 
 const README: &str = include_str!("../../../README.md");
 
-/// The part of the README about the viewer.
-fn viewer_section() -> &'static str {
-    let (_, from_heading) = README.split_once("### Terminal viewer").unwrap();
-    from_heading
-        .split_once("\n### ")
-        .map_or(from_heading, |(section, _)| section)
+/// The parts of the README about the viewer: its section, and the one about building a schema in it.
+fn viewer_section() -> String {
+    let part = |heading: &str| {
+        let (_, from_heading) = README.split_once(heading).unwrap();
+        from_heading
+            .split_once("\n### ")
+            .map_or(from_heading, |(section, _)| section)
+            .to_owned()
+    };
+    part("### Terminal viewer") + &part("### Building a schema")
 }
 
 /// How the README writes a key: a character in backticks, a named key as its name.
