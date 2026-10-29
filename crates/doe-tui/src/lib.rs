@@ -28,6 +28,7 @@ pub mod terminal;
 pub mod theme;
 pub mod tree;
 pub mod tree_view;
+pub mod types;
 pub mod ui;
 pub mod watch;
 
