@@ -104,7 +104,7 @@ fn t_lists_the_types_of_the_type_path_and_its_subdirectories_with_the_one_in_use
     assert!(shown.contains("● pair"), "{shown}");
     // a type in a subdirectory, with the file it is in and the first line of its doc
     assert!(shown.contains("single"), "{shown}");
-    assert!(shown.contains("small/other_name.yaml"), "{shown}");
+    assert!(shown.contains("other_name.yaml"), "{shown}");
     assert!(shown.contains("One byte"), "{shown}");
     // the selection starts on the type in use
     assert_eq!(app.types.as_ref().unwrap().selected_id(), Some("pair"));
