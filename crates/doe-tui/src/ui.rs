@@ -191,6 +191,13 @@ impl Theme {
         }
     }
 
+    /// A byte that is in the range of bytes that was selected (`v`): reversed and
+    /// italic, so that it shows in any theme and with no colour.
+    #[must_use]
+    pub fn hex_range(self) -> Style {
+        Style::default().add_modifier(Modifier::REVERSED | Modifier::ITALIC)
+    }
+
     /// The byte the cursor is on, in the hex pane when it has the focus.
     #[must_use]
     pub fn hex_cursor(self) -> Style {
@@ -414,6 +421,16 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         } else {
             hex_view::describe(app.tree.selected(), hex_view::offset_digits(size))
         };
+        if let Some((first, last)) = app.hex.selected_range() {
+            // first, so that it is not what a narrow pane cuts
+            described = format!(
+                "{} selected ({first:#x}..{last:#x}) · {described}",
+                match last - first + 1 {
+                    1 => "1 byte".to_owned(),
+                    n => format!("{n} bytes"),
+                }
+            );
+        }
         if let Some(bit) = app.hex.bit() {
             described = format!("{described} · bit {bit} of byte {:#x}", app.hex.cursor());
         }
@@ -1060,9 +1077,15 @@ fn status_bar(frame: &mut Frame<'_>, area: Rect, app: &App, theme: Theme) {
 /// The lines of the inspector for the selected field, as text.
 fn inspector_lines(app: &mut App) -> Vec<(String, String)> {
     let row = app.tree.selected().clone();
-    let target = match inspect::target(&row) {
-        Ok(target) => target,
-        Err(reason) => return vec![(String::new(), reason.message().to_owned())],
+    // a selection of bytes is what the inspector looks at; else the selected field
+    let selected = app.hex.selected_range();
+    let target = match (selected, inspect::target(&row)) {
+        (Some((first, last)), _) => hex_view::Selection {
+            start: first * 8,
+            end: (last + 1) * 8,
+        },
+        (None, Ok(target)) => target,
+        (None, Err(reason)) => return vec![(String::new(), reason.message().to_owned())],
     };
     let (first, total) = inspect::byte_range(&target);
     let Some(bytes) = app.bytes.as_mut() else {
@@ -1082,10 +1105,13 @@ fn inspector_lines(app: &mut App) -> Vec<(String, String)> {
             "No bytes: the field is past the end of the file.".to_owned(),
         )];
     }
-    let radix = app
-        .tree
-        .field_key(&row.path)
-        .map_or(app.radixes.global, |key| app.radixes.of(&key));
+    let radix = if selected.is_some() {
+        app.radixes.global
+    } else {
+        app.tree
+            .field_key(&row.path)
+            .map_or(app.radixes.global, |key| app.radixes.of(&key))
+    };
     inspect::lines_in(
         &data,
         total,

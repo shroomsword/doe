@@ -79,6 +79,8 @@ pub struct HexState {
     top: u64,
     /// The byte the cursor is on (it is in the pane when the pane has the focus).
     cursor: u64,
+    /// The byte where a selection of bytes began, while there is one.
+    anchor: Option<u64>,
     /// The bit of that byte the cursor is on (counted as the fields count them, from
     /// the start of the byte), when the cursor moves by bits.
     bit: Option<u8>,
@@ -92,6 +94,7 @@ impl Default for HexState {
         HexState {
             top: 0,
             cursor: 0,
+            anchor: None,
             bit: None,
             bytes_per_line: 16,
             lines: 16,
@@ -110,6 +113,24 @@ impl HexState {
     #[must_use]
     pub fn cursor(&self) -> u64 {
         self.cursor
+    }
+
+    /// The selected bytes, first and last (both are in it): from where the selection
+    /// began to the cursor. None when nothing is selected.
+    #[must_use]
+    pub fn selected_range(&self) -> Option<(u64, u64)> {
+        let anchor = self.anchor?;
+        Some((anchor.min(self.cursor), anchor.max(self.cursor)))
+    }
+
+    /// Begin a selection at the cursor.
+    pub fn start_range(&mut self) {
+        self.anchor = Some(self.cursor);
+    }
+
+    /// End the selection.
+    pub fn clear_range(&mut self) {
+        self.anchor = None;
     }
 
     /// The bit of the cursor's byte that the cursor is on, when it moves by bits.
@@ -305,7 +326,7 @@ pub fn hex_line(
     theme: &Theme,
 ) -> Line<'static> {
     hex_line_with(
-        offset, data, per_line, digits, selection, cursor, false, theme,
+        offset, data, per_line, digits, selection, cursor, false, None, theme,
     )
 }
 
@@ -323,6 +344,7 @@ pub fn hex_line_with(
     selection: Option<&Selection>,
     cursor: Option<u64>,
     by_bits: bool,
+    range: Option<(u64, u64)>,
     theme: &Theme,
 ) -> Line<'static> {
     let cover = |index: usize| -> Cover {
@@ -339,6 +361,9 @@ pub fn hex_line_with(
         let here = cover(index);
         let on_cursor = cursor == Some(at) && byte.is_some();
         let mut style = byte_style(here, on_cursor, *theme);
+        if range.is_some_and(|(first, last)| (first..=last).contains(&at)) && byte.is_some() {
+            style = style.patch(theme.hex_range());
+        }
         if on_cursor && by_bits {
             style = style.add_modifier(Modifier::UNDERLINED);
         }
@@ -364,7 +389,10 @@ pub fn hex_line_with(
         match data.get(index) {
             Some(&b) => {
                 let at = offset + index as u64;
-                let style = byte_style(cover(index), cursor == Some(at), *theme);
+                let mut style = byte_style(cover(index), cursor == Some(at), *theme);
+                if range.is_some_and(|(first, last)| (first..=last).contains(&at)) {
+                    style = style.patch(theme.hex_range());
+                }
                 spans.push(Span::styled(ascii(b).to_string(), style));
             }
             None => spans.push(Span::raw(" ")),
@@ -411,6 +439,7 @@ pub fn render(
             selection.as_ref(),
             focused.then_some(state.cursor),
             state.bit.is_some(),
+            state.selected_range(),
             theme,
         ));
     }

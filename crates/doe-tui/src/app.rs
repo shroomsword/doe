@@ -23,6 +23,9 @@ use crate::tree::{Shown, TreeModel};
 use crate::tree_view::TreeView;
 use crate::types::{Outcome as TypesOutcome, TypeBrowser};
 
+/// The most bytes that `y` copies.
+pub const COPY_BYTES: usize = 4096;
+
 /// How many fields a search looks at between two redraws of the screen.
 pub const SEARCH_STEP: usize = 5_000;
 
@@ -105,6 +108,8 @@ pub struct App {
     pub schemas: Option<SchemaList>,
     /// The browser of the types on the type paths, while it is open.
     pub types: Option<TypeBrowser>,
+    /// Hex that `y` asked to be put on the clipboard, until the event loop does it.
+    clipboard: Option<String>,
     /// The schema that is being built, when the viewer was started with `--build`.
     pub builder: Option<Builder>,
     /// Whether `q` was pressed on a schema that is not saved, so that a second one leaves.
@@ -170,6 +175,7 @@ impl App {
             schemas: None,
             types: None,
             builder: None,
+            clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
             overlap: None,
@@ -225,6 +231,7 @@ impl App {
             schemas: None,
             types: None,
             builder: None,
+            clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
             overlap: None,
@@ -265,6 +272,7 @@ impl App {
             schemas: None,
             types: None,
             builder: None,
+            clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
             overlap: None,
@@ -376,6 +384,7 @@ impl App {
         self.bytes = fresh.bytes;
         self.schema_files = fresh.schema_files;
         self.search = None;
+        self.hex.clear_range();
         if was_broken {
             self.hex = fresh.hex;
         } else {
@@ -916,6 +925,9 @@ impl App {
             self.overlap = None;
         }
         match action {
+            Action::Quit if self.focus == Focus::Hex && self.hex.selected_range().is_some() => {
+                self.hex.clear_range();
+            }
             Action::Quit => {
                 if self.builder.as_ref().is_some_and(Builder::dirty) && !self.quit_was_armed {
                     self.quit_armed = true;
@@ -973,7 +985,9 @@ impl App {
             | Action::HexEnd
             | Action::HexBits
             | Action::HexNextField
-            | Action::HexPrevField => self.hex_action(action),
+            | Action::HexPrevField
+            | Action::HexSelect
+            | Action::HexCopy => self.hex_action(action),
             tree_action => {
                 let before = self.tree.selected_path().to_vec();
                 self.tree_action(tree_action);
@@ -1037,6 +1051,8 @@ impl App {
             Action::HexBits => return self.toggle_bits(),
             Action::HexNextField => return self.cycle_fields(1),
             Action::HexPrevField => return self.cycle_fields(-1),
+            Action::HexSelect => return self.toggle_range(),
+            Action::HexCopy => return self.copy_range(),
             _ => {}
         }
         let size = self.bytes.as_ref().map_or(0, FileBytes::size);
@@ -1094,6 +1110,46 @@ impl App {
                 ));
             }
         }
+    }
+
+    /// Start a selection of bytes at the cursor, or end the one there is.
+    fn toggle_range(&mut self) {
+        if self.hex.selected_range().is_some() {
+            self.hex.clear_range();
+        } else {
+            self.hex.start_range();
+            self.notice = Some("selecting: move to extend, v or q ends it, y copies it".to_owned());
+        }
+    }
+
+    /// The selected bytes (at most [`COPY_BYTES`] of them), as hex.
+    #[must_use]
+    pub fn selected_hex(&mut self) -> Option<String> {
+        let (first, last) = self.hex.selected_range()?;
+        let len = usize::try_from(last - first + 1).unwrap_or(usize::MAX);
+        let bytes = self.bytes.as_mut()?;
+        let data = bytes.window(first, len.min(COPY_BYTES));
+        Some(
+            data.iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<Vec<_>>()
+                .join(" "),
+        )
+    }
+
+    /// Say the selected bytes as hex, and ask for them to be put on the clipboard.
+    fn copy_range(&mut self) {
+        let Some(hex) = self.selected_hex() else {
+            self.notice = Some("nothing is selected: v starts a selection".to_owned());
+            return;
+        };
+        self.notice = Some(format!("copied: {}", crate::format::truncate(&hex, 80)));
+        self.clipboard = Some(hex);
+    }
+
+    /// The text to put on the clipboard, if `y` asked for it since the last call.
+    pub fn take_clipboard(&mut self) -> Option<String> {
+        self.clipboard.take()
     }
 
     /// Move by bits, or by bytes again. Going to bits starts on the first bit of the

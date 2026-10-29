@@ -14,6 +14,7 @@
 pub mod app;
 pub mod builder;
 pub mod bytes;
+pub mod clipboard;
 pub mod draft;
 pub mod format;
 pub mod hex_view;
@@ -227,7 +228,15 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
         if event::poll(wait).context("could not read the keyboard")? {
             match event::read().context("could not read the keyboard")? {
                 // Windows also reports the release of a key.
-                Event::Key(key) if key.kind != KeyEventKind::Release => app.on_key(key),
+                Event::Key(key) if key.kind != KeyEventKind::Release => {
+                    app.on_key(key);
+                    // `y` asked for hex to be put on the clipboard of the terminal
+                    if let Some(text) = app.take_clipboard() {
+                        let mut out = io::stdout().lock();
+                        let _ = io::Write::write_all(&mut out, clipboard::osc52(&text).as_bytes());
+                        let _ = io::Write::flush(&mut out);
+                    }
+                }
                 Event::Paste(text) => app.on_paste(&text),
                 _ => {}
             }

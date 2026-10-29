@@ -1228,6 +1228,16 @@ the instances of the types on the way to the field are looked at, so a key press
 never looks through the whole tree; an instance inside a type that is somewhere
 else in the file is found from the tree, not from its bytes.
 
+`v` starts a **selection** of bytes at the cursor, and moving the cursor extends
+it in either direction (the bytes are drawn reversed and in italics, and the
+title of the pane says `3 bytes selected (0x10..0x12)`); `v` again, or `q` or
+`Esc`, ends it. With the inspector (`i`) open, it shows the selected bytes in the
+forms it shows a field in: an integer in both byte orders if there are 1, 2, 4 or
+8 of them, a float for 4 or 8, text, binary. `y` puts the selected bytes (up to
+4096) as hex on the clipboard of the terminal with the OSC 52 escape sequence,
+which most terminals support, some only when it is turned on, and also says them
+in the status line. Reading the file again drops the selection.
+
 **Building a schema.** `doe --tui FILE --build OUT.yaml` opens the viewer on an
 empty schema (a file that is not there yet; the schema is named for it, so the
 name has lower case letters, digits and `_`) that grows as fields are added from
