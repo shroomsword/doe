@@ -41,6 +41,11 @@ impl Span {
     pub fn contains_byte(&self, offset: u64) -> bool {
         !self.is_empty() && self.start_byte() <= offset && offset < self.end_byte()
     }
+
+    /// Whether the bit at `bit` (counted from the start of the input) is in the range.
+    pub fn contains_bit(&self, bit: u64) -> bool {
+        !self.is_empty() && self.start <= bit && bit < self.end
+    }
 }
 
 /// One parsed value and where it was read from.
@@ -101,46 +106,116 @@ impl TraceNode {
     /// of indexes of children that leads to it. Nodes inside a transformed
     /// field are not looked in, as their offsets are of other bytes.
     pub fn find_byte(&self, offset: u64) -> Option<Vec<usize>> {
+        self.find_by(&|span| span.contains_byte(offset), &|span| {
+            span.end_byte() <= offset
+        })
+    }
+
+    /// The same for one bit, counted from the start of the input: the
+    /// innermost node whose range holds it. Two bit fields that share a byte
+    /// are told apart by this.
+    pub fn find_bit(&self, bit: u64) -> Option<Vec<usize>> {
+        self.find_by(&|span| span.contains_bit(bit), &|span| span.end <= bit)
+    }
+
+    /// Every node that holds the byte at `offset`, as paths, the one that
+    /// [`find_byte`](Self::find_byte) gives first. The others are the
+    /// instances of the nodes on the way to it (a `value:` over a window, a
+    /// field placed with `pos:`) that hold the byte, each with the innermost
+    /// field of it that does, the innermost of the nodes on the way first. An
+    /// instance of a node that is not on the way is not looked for: that would
+    /// be looking through every node of the tree for a key press.
+    pub fn find_all(&self, offset: u64) -> Vec<Vec<usize>> {
+        let Some(first) = self.find_byte(offset) else {
+            return Vec::new();
+        };
+        let mut found = vec![first.clone()];
+        for depth in (0..=first.len()).rev() {
+            let Some(node) = self.node_at(first.get(..depth).unwrap_or_default()) else {
+                continue;
+            };
+            for (index, child) in node.children.iter().enumerate() {
+                if !child.is_instance
+                    || child.processed
+                    || !child.span.is_some_and(|span| span.contains_byte(offset))
+                {
+                    continue;
+                }
+                let mut path = first.get(..depth).unwrap_or_default().to_vec();
+                path.push(index);
+                let mut inner = child;
+                while let Some((at, next)) = inner
+                    .child_holding_by(&|span| span.contains_byte(offset), &|span| {
+                        span.end_byte() <= offset
+                    })
+                {
+                    path.push(at);
+                    inner = next;
+                }
+                if !found.contains(&path) {
+                    found.push(path);
+                }
+            }
+        }
+        found
+    }
+
+    /// The node at a path of child indexes.
+    fn node_at(&self, path: &[usize]) -> Option<&TraceNode> {
+        let mut node = self;
+        for &index in path {
+            node = node.children.get(index)?;
+        }
+        Some(node)
+    }
+
+    fn find_by(
+        &self,
+        holds: &dyn Fn(&Span) -> bool,
+        before: &dyn Fn(&Span) -> bool,
+    ) -> Option<Vec<usize>> {
         let mut path = Vec::new();
         let mut node = self;
-        if !node.span.is_some_and(|span| span.contains_byte(offset)) {
+        if !node.span.as_ref().is_some_and(holds) {
             return None;
         }
-        while let Some((index, child)) = node.child_holding(offset) {
+        while let Some((index, child)) = node.child_holding_by(holds, before) {
             path.push(index);
             node = child;
         }
         Some(path)
     }
 
-    /// The first child that holds the byte at `offset` and is looked in (not an
-    /// instance, not inside a transformed field).
+    /// The first child that holds the point (`holds`) and is looked in (not an
+    /// instance, not inside a transformed field). `before` says that a range ends
+    /// before the point.
     ///
     /// The fields of a type are in the order of the input, so the child is found
     /// by a binary search, which makes finding the byte in a list of a million
     /// elements as quick as in a list of ten. Children that are not in order
     /// (a field placed with `pos:`) make the guess wrong; it is checked, and
     /// the children are then looked through one by one.
-    fn child_holding(&self, offset: u64) -> Option<(usize, &TraceNode)> {
-        let holds = |child: &TraceNode| {
-            !child.processed
-                && !child.is_instance
-                && child.span.is_some_and(|span| span.contains_byte(offset))
+    fn child_holding_by(
+        &self,
+        holds: &dyn Fn(&Span) -> bool,
+        before: &dyn Fn(&Span) -> bool,
+    ) -> Option<(usize, &TraceNode)> {
+        let holding = |child: &TraceNode| {
+            !child.processed && !child.is_instance && child.span.as_ref().is_some_and(holds)
         };
         // the fields come first, the instances after them
         let fields = self.children.partition_point(|c| !c.is_instance);
         let in_order = self.children.get(..fields).unwrap_or_default();
-        let guess =
-            in_order.partition_point(|c| c.span.is_some_and(|span| span.end_byte() <= offset));
+        let guess = in_order.partition_point(|c| c.span.as_ref().is_some_and(before));
         if let Some(child) = in_order.get(guess)
-            && holds(child)
+            && holding(child)
         {
             return Some((guess, child));
         }
         self.children
             .iter()
             .enumerate()
-            .find(|(_, child)| holds(child))
+            .find(|(_, child)| holding(child))
     }
 }
 
