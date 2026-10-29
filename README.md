@@ -1259,6 +1259,18 @@ is asked again, `Esc` gives up). `A` adds the field at the cursor instead, with 
 `bytes` field named `skip_1` before it for the bytes that are not described yet;
 the cursor must be after the end of the schema.
 
+The schema can be changed as well as grown, with a field selected in the tree (or
+the cursor on its bytes, which selects it): `u` takes the last change back (an
+addition, a removal, a rename, a change of kind, of byte order) and `Ctrl-R` does
+it again, as many times as there are changes; `d` removes the field (the last one
+at once, another after a second `d`, since the fields after it move up); `r`
+renames it, with the same checks as when it was added (in a viewer that builds a
+schema `r` renames, since the schema is read again after every change anyway);
+`c` changes its kind or length (the fields after it move, and a change that makes
+the schema longer than the file is refused and leaves everything as it was); `E`
+switches the whole schema between little and big endian. A new change after an
+undo forgets what could have been done again. The status line says what each did.
+
 **Large files.** The viewer is built not to be what makes a big file hard to
 look at. The first screen is drawn at once and says that the file is being
 parsed (the parse runs in another thread, and a file with millions of fields
