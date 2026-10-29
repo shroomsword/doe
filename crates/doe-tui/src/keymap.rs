@@ -83,6 +83,10 @@ pub enum Action {
     HexNextField,
     /// Bytes: the previous field that holds the byte under the cursor.
     HexPrevField,
+    /// Bytes: start a selection of bytes, or end it.
+    HexSelect,
+    /// Bytes: copy the selected bytes, as hex.
+    HexCopy,
 }
 
 /// Where a binding applies.
@@ -348,6 +352,18 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Bytes,
         action: Action::HexBits,
         help: "move by bits and not bytes (again: back)",
+    },
+    Binding {
+        keys: &[ch('v')],
+        scope: Scope::Bytes,
+        action: Action::HexSelect,
+        help: "select bytes: move to extend, v or q to end",
+    },
+    Binding {
+        keys: &[ch('y')],
+        scope: Scope::Bytes,
+        action: Action::HexCopy,
+        help: "copy the selected bytes as hex",
     },
     Binding {
         keys: &[ch('.')],
