@@ -1,0 +1,35 @@
+id: sevenzip
+doc: |
+  7-Zip archive (.7z): the signature header, and the header that it points to, as bytes
+# Covers: the signature header (the format version, the CRC of the start header, and the offset, size and CRC of
+#   the next header) and, from it, the packed streams and the next header as bytes at the place it says.
+# Limits: the next header is a tree of variable-length numbers and property ids (and is itself usually
+#   LZMA-compressed as an "encoded header"), so it is not read element by element; open the archive with `7z l`
+#   for the list of files. The sizes of the packed streams are inside it.
+# Specification: 7-Zip's `7zFormat.txt` (in the doc folder of the 7-Zip sources).
+# The name of the type is `sevenzip` because an identifier starts with a letter.
+meta:
+  id: sevenzip
+  endian: le
+seq:
+  - id: signature
+    contents: [0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c]
+  - id: version_major
+    type: u1
+  - id: version_minor
+    type: u1
+  - id: start_header_crc
+    type: u4
+  - id: ofs_next_header
+    type: u8
+    doc: From the end of the signature header (byte 32).
+  - id: len_next_header
+    type: u8
+  - id: next_header_crc
+    type: u4
+  - id: packed_streams
+    size: ofs_next_header
+  - id: next_header
+    size: len_next_header
+  - id: rest
+    size-eos: true

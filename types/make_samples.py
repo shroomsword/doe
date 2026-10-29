@@ -218,6 +218,69 @@ def lz4() -> bytes:
     return b"\x04\x22\x4d\x18" + descriptor + struct.pack("<I", 0x8000_0005) + b"hello" + struct.pack("<I", 0) + struct.pack("<I", 0x1234_5678)
 
 
+def coff() -> bytes:
+    """An x86-64 object file with one section (.text, four bytes), two symbols and a string table."""
+    ofs_raw = 20 + 40
+    ofs_symbols = ofs_raw + 4
+    header = struct.pack("<HHIIIHH", 0x8664, 1, 1_700_000_000, ofs_symbols, 2, 0, 0)
+    section = b".text".ljust(8, b"\0") + struct.pack("<IIIIIIHHI", 0, 0, 4, ofs_raw, 0, 0, 0, 0, 0x6000_0020)
+    code = b"\x90\x90\x90\xc3"
+    main = b"main".ljust(8, b"\0") + struct.pack("<IhHBB", 0, 1, 0x20, 2, 0)
+    # a name longer than eight bytes: zeros, then an offset into the string table
+    long_name = struct.pack("<II", 0, 4) + struct.pack("<IhHBB", 4, 1, 0x20, 3, 0)
+    strings = struct.pack("<I", 4 + len(b"a_longer_name\0")) + b"a_longer_name\0"
+    return header + section + code + main + long_name + strings
+
+
+def mpegts() -> bytes:
+    """Three packets: a PAT payload, a payload with an adaptation field, and a null packet."""
+
+    def packet(pid: int, control: int, counter: int, adaptation: bytes, payload: bytes, start: bool = False) -> bytes:
+        first = (int(start) << 6) | (pid >> 8)
+        head = bytes([0x47, first, pid & 0xFF, (control << 4) | counter])
+        body = adaptation + payload
+        return (head + body).ljust(188, b"\xff")
+
+    pat = packet(0, 1, 0, b"", bytes.fromhex("0000b00d0001c100000001e100") + b"\x00" * 4, start=True)
+    pes = packet(0x100, 3, 5, bytes([7]) + b"\x10" + bytes(6), b"\x00\x00\x01\xe0" + b"video")
+    null = packet(0x1FFF, 1, 0, b"", b"")
+    return pat + pes + null
+
+
+def mp3() -> bytes:
+    """Three MPEG-1 layer III frames, 128 kbit/s at 44.1 kHz, the second with a padding byte."""
+    header = 0xFFFB_9000 | 0  # sync, MPEG-1, layer III, no CRC; 128 kbit/s; 44.1 kHz; no padding; stereo
+    frames = b""
+    for padding in (0, 1, 0):
+        head = (header | (padding << 9)).to_bytes(4, "big")
+        frames += head + bytes(417 + padding - 4)
+    return frames
+
+
+def cab() -> bytes:
+    """A cabinet with one folder that stores two files in one uncompressed block."""
+    data = b"hello cabinet\ngoodbye\n"
+    block = struct.pack("<IHH", 0, len(data), len(data)) + data
+    files = b""
+    for size, offset, name in [(14, 0, b"hello.txt"), (8, 14, b"bye.txt")]:
+        files += struct.pack("<IIHHHH", size, offset, 0, 0x5A21, 0x6000, 0x20) + name + b"\0"
+    ofs_files = 36 + 8
+    ofs_data = ofs_files + len(files)
+    total = ofs_data + len(block)
+    header = b"MSCF" + struct.pack("<IIIIIBBHHHHH", 0, total, 0, ofs_files, 0, 3, 1, 1, 2, 0, 1234, 0)
+    folder = struct.pack("<IHH", ofs_data, 1, 0)
+    return header + folder + files + block
+
+
+def sevenzip() -> bytes:
+    """An archive with no files: a signature header, no packed streams, and a header of two bytes (kHeader, kEnd)."""
+    import zlib
+
+    next_header = b"\x01\x00"
+    start = struct.pack("<QQI", 0, len(next_header), zlib.crc32(next_header))
+    return b"7z\xbc\xaf\x27\x1c" + bytes([0, 4]) + struct.pack("<I", zlib.crc32(start)) + start + next_header
+
+
 if __name__ == "__main__":
     put("sample.tar", tar())
     put("sample.a", ar())
@@ -234,3 +297,8 @@ if __name__ == "__main__":
     put("sample.xz", xz())
     put("sample.zst", zstd())
     put("sample.lz4", lz4())
+    put("sample.obj", coff())
+    put("sample.ts", mpegts())
+    put("sample.mp3", mp3())
+    put("sample.cab", cab())
+    put("sample.7z", sevenzip())
