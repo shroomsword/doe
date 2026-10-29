@@ -1,0 +1,90 @@
+id: wasm
+doc: |
+  WebAssembly binary module: the header and the sections, each with its id and bytes
+# Covers: the magic and version, and every section's id (named), its size and the bytes of its contents. The
+#   custom section's name is read.
+# Limits: the contents of the other sections (types, imports, functions, code...) are bytes: they are LEB128
+#   encoded lists that the schema language cannot read element by element (a variable-length integer has no type
+#   here); sizes are read with the LEB128 of the section header by `vlq_u32`, which is limited to five bytes.
+# Specification: WebAssembly Core Specification 2.0, section 5, "Binary Format".
+meta:
+  id: wasm
+  endian: le
+seq:
+  - id: magic
+    contents: [0x00, 0x61, 0x73, 0x6d]
+  - id: version
+    type: u4
+  - id: sections
+    type: section
+    repeat: eos
+enums:
+  section_id:
+    0: custom
+    1: type
+    2: import
+    3: function
+    4: table
+    5: memory
+    6: global
+    7: export
+    8: start
+    9: element
+    10: code
+    11: data
+    12: data_count
+    13: tag
+types:
+  section:
+    seq:
+      - id: id
+        type: u1
+        enum: section_id
+      - id: len_body
+        type: vlq_u32
+      - id: body
+        size: len_body.value
+        type:
+          switch-on: id
+          cases:
+            'section_id::custom': custom_body
+            _: bytes_body
+  custom_body:
+    seq:
+      - id: len_name
+        type: vlq_u32
+      - id: name
+        type: str
+        size: len_name.value
+        encoding: UTF-8
+      - id: data
+        size-eos: true
+  bytes_body:
+    seq:
+      - id: data
+        size-eos: true
+  vlq_u32:
+    doc: An unsigned LEB128 integer of up to five bytes.
+    seq:
+      - id: b0
+        type: u1
+      - id: b1
+        type: u1
+        if: b0 >= 128
+      - id: b2
+        type: u1
+        if: b0 >= 128 and b1 >= 128
+      - id: b3
+        type: u1
+        if: b0 >= 128 and b1 >= 128 and b2 >= 128
+      - id: b4
+        type: u1
+        if: b0 >= 128 and b1 >= 128 and b2 >= 128 and b3 >= 128
+    instances:
+      value:
+        value: >-
+          b0 < 128 ? b0 :
+          b1 < 128 ? (b0 & 127) + (b1 << 7) :
+          b2 < 128 ? (b0 & 127) + ((b1 & 127) << 7) + (b2 << 14) :
+          b3 < 128 ? (b0 & 127) + ((b1 & 127) << 7) + ((b2 & 127) << 14) + (b3 << 21) :
+          (b0 & 127) + ((b1 & 127) << 7) + ((b2 & 127) << 14) + ((b3 & 127) << 21) + (b4 << 28)

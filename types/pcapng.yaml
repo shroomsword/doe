@@ -1,0 +1,102 @@
+id: pcapng
+doc: |
+  pcapng packet capture (Wireshark's default format): a section header, interface descriptions and packet blocks
+# Covers: the blocks of the first section in the byte order of the file (little-endian files; the magic of a
+#   big-endian one is refused): section header (version, section length), interface description (link type,
+#   snap length), enhanced packet (interface, 64-bit timestamp, captured and original lengths, the packet bytes)
+#   and simple packet blocks; any other block (name resolution, statistics, custom, decryption secrets) is read as
+#   its type and its bytes. The options of the blocks are bytes.
+# Limits: only little-endian files; the packet bytes are not decoded (the `ethernet_frame` of the gallery reads
+#   them); options are not decoded.
+# Specification: IETF draft-ietf-opsawg-pcapng, "PCAP Next Generation (pcapng) Capture File Format".
+meta:
+  id: pcapng
+  endian: le
+seq:
+  - id: blocks
+    type: block
+    repeat: eos
+enums:
+  link_type:
+    0: null_loopback
+    1: ethernet
+    9: ppp
+    101: raw_ip
+    105: ieee802_11
+    113: linux_sll
+    127: ieee802_11_radiotap
+    147: user0
+types:
+  block:
+    seq:
+      - id: block_type
+        type: u4
+      - id: block_length
+        type: u4
+      - id: body
+        type:
+          switch-on: block_type
+          cases:
+            0x0a0d0d0a: section_header
+            1: interface_description
+            6: enhanced_packet
+            3: simple_packet
+            _: other
+        size: block_length - 12
+      - id: block_length_again
+        type: u4
+        valid: block_length
+  section_header:
+    seq:
+      - id: byte_order_magic
+        contents: [0x4d, 0x3c, 0x2b, 0x1a]
+      - id: major_version
+        type: u2
+      - id: minor_version
+        type: u2
+      - id: section_length
+        type: s8
+      - id: options
+        size-eos: true
+  interface_description:
+    seq:
+      - id: link_type
+        type: u2
+        enum: link_type
+      - id: reserved
+        type: u2
+      - id: snap_len
+        type: u4
+      - id: options
+        size-eos: true
+  enhanced_packet:
+    seq:
+      - id: interface_id
+        type: u4
+      - id: timestamp_high
+        type: u4
+      - id: timestamp_low
+        type: u4
+      - id: captured_len
+        type: u4
+      - id: original_len
+        type: u4
+      - id: packet
+        size: captured_len
+      - id: rest
+        doc: The padding to a multiple of four bytes, and the options.
+        size-eos: true
+    instances:
+      timestamp:
+        value: (timestamp_high << 32) | timestamp_low
+        doc: In units of the interface's time resolution (microseconds unless it says otherwise).
+  simple_packet:
+    seq:
+      - id: original_len
+        type: u4
+      - id: packet
+        size-eos: true
+  other:
+    seq:
+      - id: body
+        size-eos: true
