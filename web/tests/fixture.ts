@@ -1,6 +1,7 @@
 // A small schema and a file that fits it, for the tests to work on: the page
 // starts with nothing in the editor.
 
+import { deflateRawSync } from 'node:zlib';
 import { type Page, expect } from '@playwright/test';
 
 export const EXAMPLE_SCHEMA = `meta:
@@ -58,4 +59,10 @@ export async function useType(page: Page, filter: string, path: string): Promise
   const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const item = page.locator('#browse-dialog li', { has: page.locator('.browse-path', { hasText: new RegExp(`^${escaped}$`) }) });
   await item.getByRole('button', { name: 'Use' }).click();
+}
+
+/** The address of a link that an earlier version made for this work: `#s=` and the work, compressed, in base64url. */
+export function linkOf(work: Record<string, unknown>): string {
+  const code = deflateRawSync(Buffer.from(JSON.stringify(work))).toString('base64url');
+  return `/#s=${code}`;
 }

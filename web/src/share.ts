@@ -1,5 +1,6 @@
-// The schema in a link, and in the browser's storage. Only text that the
-// person wrote or added as imports goes here: never the binary.
+// The schema in a link that was made before (it is read, not made any more),
+// and in the browser's storage. Only text that the person wrote or added as
+// imports goes here: never the binary.
 
 /** Where a schema came from: typed in the editor, opened from a file, added as an import, or taken from the gallery or the library. */
 export type Origin = 'typed' | 'file' | 'added' | 'gallery' | 'library' | 'bundled';
@@ -8,7 +9,7 @@ import { type Radix, isRadix } from './radix.js';
 
 const ORIGINS: readonly string[] = ['typed', 'file', 'added', 'gallery', 'library', 'bundled'];
 
-/** What is shared and remembered. */
+/** What is remembered (and what a link holds). */
 export interface Work {
   schema: string;
   files: Record<string, string>;
@@ -24,16 +25,8 @@ export interface Work {
   radixes?: Record<string, Radix>;
 }
 
-/** The longest link that is made, in characters. */
-export const MAX_LINK = 100_000;
 /** The most bytes that a link or the storage may expand to. */
 const MAX_WORK_BYTES = 4 * 1024 * 1024;
-
-const toBase64Url = (bytes: Uint8Array): string => {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-};
 
 const fromBase64Url = (text: string): Uint8Array => {
   const binary = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
@@ -61,12 +54,6 @@ async function pipe(bytes: Uint8Array, stream: CompressionStream | Decompression
     at += part.length;
   }
   return out;
-}
-
-/** The text of a link's hash for this work: compressed, in the characters of a URL. */
-export async function encodeWork(work: Work): Promise<string> {
-  const json = new TextEncoder().encode(JSON.stringify(work));
-  return toBase64Url(await pipe(json, new CompressionStream('deflate-raw'), MAX_WORK_BYTES));
 }
 
 function isWork(value: unknown): value is Work {

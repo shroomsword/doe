@@ -189,11 +189,3 @@ test('a theme file that is not usable changes nothing and says why', async ({ pa
   await expect(page.locator('#theme')).toHaveValue('dracula');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dracula');
 });
-
-test('a share link does not carry the theme', async ({ page }) => {
-  await ready(page);
-  await page.selectOption('#theme', 'gruvbox-dark');
-  await page.locator('#share').click();
-  await expect(page.locator('#status')).toContainText(/link (copied|is in the address bar)/);
-  expect(page.url()).not.toContain('gruvbox');
-});

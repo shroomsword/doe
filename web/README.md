@@ -84,7 +84,7 @@ the time limit.
 | Path | What |
 | --- | --- |
 | `src/doe.ts` | Typed wrapper over the module: `loadDoe(url)` gives `check`, `parse`, `version` |
-| `src/share.ts` | The schema in a link (`#s=`, deflate and base64url) and in `localStorage` |
+| `src/share.ts` | Reading a link that an earlier version made (`#s=`, deflate and base64url), and the schema in `localStorage` |
 | `src/local.ts` | The calls of `doe --ide`: its types and the input file that stays on the machine |
 | `src/worker.ts`, `src/client.ts` | The worker that holds the module, and the page's calls to it with time limit and cancel |
 | `src/main.ts`, `src/app.ts` | The page, and the app that keeps the panes in step |

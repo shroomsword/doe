@@ -11,7 +11,7 @@ import { type Entry, type Ranking, TypeBrowser, galleryEntries, libraryEntries, 
 import { type Path, byteRange, checkSize, describeRange, findByte, nodeAt, pathName } from './model.js';
 import { ProblemsView } from './problems.js';
 import { type Origin, SchemaList, editable, isKnownType, listing } from './schemas.js';
-import { MAX_LINK, type Work, codeOfHash, decodeWork, encodeWork, forget, recall, remember } from './share.js';
+import { type Work, codeOfHash, decodeWork, forget, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { Radixes, isRadix } from './radix.js';
 import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
@@ -156,7 +156,7 @@ export class App {
     return this.client;
   }
 
-  // ── share links, saved work, the gallery, export ───────────────────────────
+  // ── saved work, links, the gallery, export ─────────────────────────────────
 
   private work(): Work {
     const work: Work = { schema: this.mainText, files: Object.fromEntries(this.files), path: this.schemaPath };
@@ -193,7 +193,7 @@ export class App {
     this.showFiles();
   }
 
-  /** Open the work of a share link, or else the work this browser remembers. No file: the person opens it. */
+  /** Open the work of a link (`#s=…`, made by an earlier version), or else the work this browser remembers. No file: the person opens it. */
   private async restore(): Promise<boolean> {
     const code = codeOfHash(location.hash);
     const shared = code ? await decodeWork(code) : null;
@@ -214,23 +214,6 @@ export class App {
   /** Remember the schema and its imports in this browser. */
   private persist(): void {
     remember(this.work(), this.inputName ?? this.lastInputName);
-  }
-
-  private async share(): Promise<void> {
-    const code = await encodeWork(this.work());
-    const link = `${location.origin}${location.pathname}#s=${code}`;
-    const status = element('status');
-    if (link.length > MAX_LINK) {
-      status.textContent = `the link would be ${link.length} characters: too long for a link; export or save the schema instead`;
-      return;
-    }
-    history.replaceState(null, '', `#s=${code}`);
-    try {
-      await navigator.clipboard.writeText(link);
-      status.textContent = `link copied (${link.length} characters; it holds the schema and imports, not the file)`;
-    } catch {
-      status.textContent = `the link is in the address bar (${link.length} characters; it holds the schema and imports, not the file)`;
-    }
   }
 
   private gallery: { repo: string; commit: string; formats: GalleryFormat[] } | null = null;
@@ -548,7 +531,6 @@ export class App {
         // no storage: the choice is not remembered
       }
     });
-    element('share').addEventListener('click', () => void this.share());
     element('export').addEventListener('click', () => void this.exportOutput());
     element('forget').addEventListener('click', () => {
       forget();

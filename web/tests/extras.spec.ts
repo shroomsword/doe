@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { EXAMPLE_BYTES, EXAMPLE_SCHEMA, loadExample, useType } from './fixture.js';
+import { EXAMPLE_BYTES, EXAMPLE_SCHEMA, linkOf, loadExample, useType } from './fixture.js';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const doe = join(repo, 'target', 'debug', 'doe');
@@ -24,24 +24,20 @@ async function typeSchema(page: import('@playwright/test').Page, text: string): 
   await page.keyboard.insertText(text);
 }
 
-test('a share link opens the same schema, with its imports, in a fresh browser', async ({ page, browser }) => {
-  await ready(page);
-  await page.setInputFiles('#add-files', { name: 'extra.ksy', mimeType: 'text/plain', buffer: Buffer.from('meta:\n  id: extra\nseq:\n  - id: x\n    type: u1\n') });
-  await typeSchema(page, SCHEMA);
-  await expect(page.locator('#status')).toContainText('parsed as shared_thing', { timeout: 10_000 });
-  await page.locator('#share').click();
-  await expect(page.locator('#status')).toContainText(/link (copied|is in the address bar)/);
-  const link = page.url();
-  expect(link).toContain('#s=');
-  // the link holds the schema and imports, and no bytes
-  expect(link.length).toBeLessThan(2000);
-
+test('a link that an earlier version made still opens the same schema, with its imports, in a fresh browser', async ({ browser }) => {
+  const link = linkOf({
+    schema: SCHEMA,
+    files: { 'extra.ksy': 'meta:\n  id: extra\nseq:\n  - id: x\n    type: u1\n' },
+    path: 'main.ksy',
+  });
   const other = await (await browser.newContext()).newPage();
   await ready(other, link);
   await expect(other.locator('.cm-content')).toContainText('shared_thing');
   await expect(other.locator('#schemas li:not(.main) code')).toHaveText('extra.ksy');
   // no file comes with it
   await expect(other.locator('#status')).toContainText('no file opened');
+  // and the page has no button to make a link
+  await expect(other.locator('#share')).toHaveCount(0);
   await other.context().close();
 });
 

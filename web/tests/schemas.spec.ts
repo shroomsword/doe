@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type Page, expect, test } from '@playwright/test';
-import { useType } from './fixture.js';
+import { linkOf, useType } from './fixture.js';
 import { type InspectResponse } from '../src/doe.js';
 import { isKnownType, listing } from '../src/schemas.js';
 
@@ -213,14 +213,9 @@ test('the type that is chosen is saved with the work in the browser', async ({ p
   await expect(page.locator('#parse-type')).toHaveValue('extra::piece');
 });
 
-test('the type that is chosen is in a share link', async ({ page }) => {
-  await withImportedType(page);
-  await page.locator('#share').click();
-  await expect(page.locator('#status')).toContainText(/link (copied|is in the address bar)/);
-  const link = page.url();
+test('the type that is chosen is in a link that an earlier version made', async ({ page }) => {
   // nothing is remembered in the browser: only the link has the schema, its import and the type
-  await page.locator('#forget').click();
-  await page.goto('about:blank');
+  const link = linkOf({ schema: MAIN, files: { 'extra.ksy': EXTRA }, path: 'main.ksy', type: 'extra::piece' });
   await ready(page, link);
   await expect(page.locator('#parse-type')).toHaveValue('extra::piece');
   await page.setInputFiles('#open-input', { name: 'in.bin', mimeType: 'application/octet-stream', buffer: Buffer.from([7, 1, 0, 9]) });

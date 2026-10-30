@@ -1091,15 +1091,15 @@ negative numbers as a sign and magnitude (`-0x1f`), and enum members with their
 number in the radix next to the name (`text (0x01)`). Selecting an integer field
 shows *This field*, a radix of its own that holds for every element of a list and
 every parse of the same schema (it is kept by the type and the name of the field,
-saved with the work and carried by a share link). A 64-bit number is exact: it is
+saved with the work). A 64-bit number is exact: it is
 never turned into a JavaScript number. The choice of the header is remembered in
 the browser; export and the command line print decimal, as they did.
 
 Four things make the page pleasant to come back to:
 
-- **Share link:** *Share link* copies a link with the schema and its imports in
-  the part after `#` (compressed; it is never sent to any server, and never holds
-  the file). Opening the link shows the same schema.
+- **Links:** the page no longer makes share links, but a link that an earlier
+  version made (a schema and its imports in the part after `#s=`, compressed; it
+  never held the file) still opens the same schema.
 - **Saved work:** the schema, its imports and the name of the last file are kept
   in this browser (`localStorage`) and come back on reload; *Forget the saved
   schema* clears them. The file itself is not kept: open it again.
@@ -1686,7 +1686,7 @@ In the web IDE the theme picker in the header chooses a theme; "System" (the
 default) follows the light or dark setting of the system, with the doe Light
 and doe Dark themes. The choice is remembered in the browser. "Load a theme
 file" reads a file of the format above, which is kept in the browser too (it
-is not sent anywhere, and a share link does not carry the theme).
+is not sent anywhere).
 
 The themes, with the licence of each (all are MIT, and a theme whose licence
 does not allow redistribution is not included). A theme is the palette of the
