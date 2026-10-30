@@ -56,6 +56,15 @@ test('a file opened with no schema is shown as bytes, with nothing to say agains
   await expect(page.locator('#status')).toContainText('parsed as shown', { timeout: 10_000 });
 });
 
+test('a GitHub icon at the top links to the project and opens in a new tab', async ({ page }) => {
+  const link = page.locator('header a#github');
+  await expect(link).toHaveAttribute('href', 'https://github.com/shroomsword/doe');
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link).toHaveAttribute('rel', /noopener/);
+  await expect(page.getByRole('link', { name: 'doe on GitHub' })).toBeVisible();
+  await expect(link.locator('svg')).toBeVisible();
+});
+
 test('a hosted page has no types of a machine and no file to use', async ({ page }) => {
   await expect(page.locator('#types-box')).toBeHidden();
   await expect(page.locator('#use-input')).toBeHidden();
