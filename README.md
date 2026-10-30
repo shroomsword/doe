@@ -1042,21 +1042,23 @@ nothing is sent anywhere. Files are opened in the page, up to 256 MiB (but see b
 
 Under the editor is the list of the **schemas** that are open: the main one
 first, then each file it imports, with its id, where it came from (typed in the
-editor, opened from a file, added, fetched from the gallery, or from the type
-library of this machine) and a cross with the number of its problems; imports
+editor, opened from a file, added, fetched from the gallery, from the doe type
+library, or from the type library of this machine) and a cross with the number of its problems; imports
 that are not there are listed too, with the file that asked for them. Picking an
 entry shows its text in the editor, and what was added or typed can be edited;
-what was fetched from the gallery or the library is read-only until *Edit a copy*
+what was fetched from the gallery or a library is read-only until *Edit a copy*
 makes it the person's own. *Parse as* chooses the type to parse with from the types of all the
 open schemas (the main schema's own, by default); the choice is part of a share
 link and of the saved work, and the status line says which type was parsed.
 
 *Browse types* in the header opens one list of every type that can be used: the
-types of the open schemas, the type library of this machine (with `doe --ide`)
-and the formats of the Kaitai Struct gallery, grouped by where they come from,
-each with its id, its file and its doc or title, and for the gallery whether it
-has a signature (`doe` tries it first on a file that starts with it) and a ✓ or
-○ when it was tried on a file. The filter above the list keeps the entries that
+types of the open schemas, the type library of this machine (with `doe --ide`),
+the [doe type library](#type-library) (`tar`, `pcapng`, `wasm`...) and the formats
+of the Kaitai Struct gallery, grouped by where they come from,
+each with its id, its file and its doc or title, and for the gallery and the doe
+library whether it has a signature (`doe` tries it first on a file that starts
+with it) and a ✓ or ○ when it was tried on a file (the doe library's types all
+have ○: a sample built by hand). The filter above the list keeps the entries that
 have every word you type in the id, the path or the doc. *View* reads the text of
 one (read-only; `Esc` goes back to the list), and *Use* parses with it: an open
 schema's type is set as *Parse as*, and a format of the library or the gallery is
@@ -1097,6 +1099,13 @@ Four things make the page pleasant to come back to:
   formats is in the page; picking one downloads its definition (and what it
   imports) from GitHub at the commit that the page was built with. The
   definitions are not part of the page, since not all of them are CC0.
+  The picker starts with the **doe type library** (`types/`, see
+  [Type library](#type-library)): those definitions are small and ours, so they
+  are served with the page (`library/NAME.yaml`) and nothing is fetched from
+  GitHub for them. They are in the same list as the gallery's, so *Detect schema*
+  ranks and tries them together by signature and name, and the list is made from
+  `types/` when the page is built: a new type is there without a change to the
+  page. A shared link holds the schema's text, so it opens the same type.
 - **Export:** *Export* saves the whole parsed value as `doe` prints it on the
   command line: text, indented JSON (`--pretty`) or compact JSON (`--json`).
 

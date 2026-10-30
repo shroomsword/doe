@@ -15,7 +15,7 @@ import { type Origin, SchemaList, editable, isKnownType, listing } from './schem
 import { MAX_LINK, type Work, codeOfHash, decodeWork, encodeWork, forget, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { Radixes, isRadix } from './radix.js';
-import { type Attempt, type GalleryFormat, describe, detectGallery } from './detect.js';
+import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
 import { TreeView } from './tree.js';
 
 /** How long the schema is left alone before it is checked again. */
@@ -242,13 +242,13 @@ export class App {
       const response = await fetch('gallery.json');
       if (!response.ok) return;
       const gallery = (await response.json()) as NonNullable<App['gallery']>;
-      if (!Array.isArray(gallery.formats) || gallery.formats.length === 0 || !gallery.commit) return;
+      if (!Array.isArray(gallery.formats) || gallery.formats.length === 0) return;
       this.gallery = gallery;
       const select = element<HTMLSelectElement>('gallery');
       select.innerHTML = '<option value="">choose…</option>';
       const groups = new Map<string, HTMLOptGroupElement>();
       for (const [index, format] of gallery.formats.entries()) {
-        const category = format.path.split('/')[0] ?? '';
+        const category = format.bundled ? 'doe type library' : (format.path.split('/')[0] ?? '');
         let group = groups.get(category);
         if (!group) {
           group = document.createElement('optgroup');
@@ -276,11 +276,12 @@ export class App {
     }
   }
 
-  /** A file of the gallery, at the commit the page was built with. */
+  /** A file of the gallery, at the commit the page was built with; one of doe's own library is served with the page. */
   private async fetchGallery(path: string): Promise<string> {
     const gallery = this.gallery;
     if (!gallery) throw new Error('there is no gallery');
-    const response = await fetch(`https://raw.githubusercontent.com/${gallery.repo}/${gallery.commit}/${path}`);
+    const url = isBundled(path) ? path : `https://raw.githubusercontent.com/${gallery.repo}/${gallery.commit}/${path}`;
+    const response = await fetch(url);
     if (!response.ok) throw new Error(`${path}: ${response.status}`);
     return response.text();
   }
@@ -388,8 +389,8 @@ export class App {
           files,
           path: format.path,
           include_paths: [''],
-          origin: 'gallery',
-          origins: Object.fromEntries(Object.keys(files).map((path) => [path, 'gallery' as const])),
+          origin: galleryOrigin(format.path),
+          origins: Object.fromEntries(Object.keys(files).map((path) => [path, galleryOrigin(path)])),
         });
         this.refreshNow();
         status.textContent = `detected ${format.id} (${found.attempts.length} tried)`;
@@ -425,8 +426,8 @@ export class App {
         files,
         path: format.path,
         include_paths: [''],
-        origin: 'gallery',
-        origins: Object.fromEntries(Object.keys(files).map((path) => [path, 'gallery' as const])),
+        origin: galleryOrigin(format.path),
+        origins: Object.fromEntries(Object.keys(files).map((path) => [path, galleryOrigin(path)])),
       });
       this.refreshNow();
     } catch (error) {
@@ -653,10 +654,10 @@ export class App {
 
   // ── the browser of types ───────────────────────────────────────────────────
 
-  /** Open the list of every type that can be used: the open schemas, this machine's library and the gallery. */
+  /** Open the list of every type that can be used: the open schemas, this machine's library, doe's own library and the gallery. */
   private browseTypes(): void {
     const rows = listing(this.found, this.schemaPath, this.mainOrigin, this.files, this.origins, this.diagnostics.length).rows;
-    const current = this.mainOrigin === 'gallery' ? this.schemaPath : null;
+    const current = this.mainOrigin === 'gallery' || this.mainOrigin === 'bundled' ? this.schemaPath : null;
     const entries = [
       ...openEntries(rows, this.parseType),
       ...libraryEntries(this.localTypes).map((entry) => ({ ...entry, current: this.mainOrigin === 'library' && entry.path === this.schemaPath })),
@@ -714,7 +715,7 @@ export class App {
       this.chooseType(entry.id);
     } else if (entry.source === 'library' && this.local) {
       await this.openType(this.local, entry.path);
-    } else if (entry.source === 'gallery') {
+    } else if (entry.source === 'gallery' || entry.source === 'bundled') {
       const format = this.gallery?.formats.find((f) => f.path === entry.path);
       if (format) await this.openGallery(format);
     }

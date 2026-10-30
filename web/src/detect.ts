@@ -14,8 +14,23 @@ export interface GalleryFormat {
   imports: string[];
   magic?: { offset: number; bytes: number[] }[];
   names?: string[];
+  /** A type of doe's own library (`types/`), served with the page, not a format of the Kaitai Struct gallery. */
+  bundled?: boolean;
   /** Parsed in the tests with a file of the format: written by its own tool, or built by hand. */
   verified?: 'real' | 'crafted';
+}
+
+/** The folder of the types of doe's own library in the manifest and beside the page (`library/tar.yaml`). */
+export const BUNDLED_FOLDER = 'library/';
+
+/** Whether a path of the manifest is a type of doe's own library, which is served with the page. */
+export function isBundled(path: string): boolean {
+  return path.startsWith(BUNDLED_FOLDER);
+}
+
+/** Where a path of the manifest comes from, as the schema list says it. */
+export function galleryOrigin(path: string): 'bundled' | 'gallery' {
+  return isBundled(path) ? 'bundled' : 'gallery';
 }
 
 export interface Attempt {

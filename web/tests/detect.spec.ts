@@ -172,6 +172,32 @@ test('with the setting on, opening a file looks for the schema, and the setting 
   await expect(page.locator('#detect-report')).toContainText('gif parses the file', { timeout: 30_000 });
 });
 
+test("the type of a file that starts with a signature of doe's own library is found without the network, and opens read-only", async ({ page }) => {
+  // nothing may be asked of GitHub: the library is served with the page
+  const asked = await serveGallery(page);
+  await ready(page);
+  await page.setInputFiles('#open-input', { name: 'module', mimeType: 'application/octet-stream', buffer: readFileSync(join(repo, 'types', 'samples', 'sample.wasm')) });
+  await expect(page.locator('#detect')).toBeEnabled();
+  await page.click('#detect');
+  await expect(page.locator('#detect-report')).toContainText('wasm parses the file', { timeout: 30_000 });
+  await expect(page.locator('#editing')).toContainText('library/wasm.yaml');
+  await expect(page.locator('#schemas li.main')).toContainText('doe type library');
+  await expect(page.locator('.tree-row').first()).toBeVisible();
+  expect(asked).toEqual([]);
+});
+
+test("the picker has the types of doe's own library first, in their own group, marked as tried on a file built by hand", async ({ page }) => {
+  await ready(page);
+  const group = page.locator('#gallery optgroup').first();
+  await expect(group).toHaveAttribute('label', 'doe type library');
+  const tar = group.locator('option', { hasText: /^tar — / });
+  await expect(tar).toHaveText(/ ○$/);
+  await expect(tar).toHaveAttribute('title', /built by hand/);
+  await page.locator('#gallery').selectOption({ label: await tar.textContent().then((t) => t ?? '') });
+  await expect(page.locator('.cm-content')).toContainText('id: tar');
+  await expect(page.locator('#schemas li.main')).toContainText('main schema · doe type library');
+});
+
 test('the picker marks the formats that have been tried on a file, and says how', async ({ page }) => {
   test.skip(!hasGallery, 'the gallery is not checked out');
   await ready(page);

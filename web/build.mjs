@@ -46,12 +46,35 @@ cpSync(join(web, 'src', 'wasm', 'doe_wasm_bg.wasm'), join(dist, 'doe_wasm_bg.was
 cpSync(join(web, 'index.html'), join(dist, 'index.html'));
 cpSync(join(web, 'src', 'style.css'), join(dist, 'style.css'));
 
-// The gallery picker's list: the formats of the Kaitai Struct gallery (the
-// submodule), with the files that each one imports, and the commit they are at.
-// The definitions themselves are not copied: the page fetches them at that
-// commit when one is picked (some of them are not CC0).
+// The gallery picker's list: first the types of doe's own library (types/),
+// then the formats of the Kaitai Struct gallery (the submodule), with the files
+// that each one imports, and the commit the gallery is at.
+// The library's definitions are copied to dist/library/ (they are small and
+// ours): the page fetches them from its own origin. The gallery's are not
+// copied: the page fetches them at that commit when one is picked (some of them
+// are not CC0).
 const gallery = join(root, 'conformance', 'kaitai_struct_formats');
 const manifest = { repo: 'kaitai-io/kaitai_struct_formats', commit: '', formats: [] };
+const libraryText = new Map();
+{
+  const types = join(root, 'types');
+  mkdirSync(join(dist, 'library'), { recursive: true });
+  for (const name of readdirSync(types).filter((n) => n.endsWith('.yaml')).sort()) {
+    const source = readFileSync(join(types, name), 'utf8');
+    const id = /^id:\s*([A-Za-z0-9_]+)/m.exec(source)?.[1];
+    if (!id) continue;
+    // the first line of `doc:`, whether it is a block (`doc: |`) or a line
+    const title = /^doc:\s*[|>]?[-+]?\s*(\S[^\n]*)/m.exec(source)?.[1]?.trim() ?? null;
+    const path = `library/${name}`;
+    libraryText.set(path, source);
+    writeFileSync(join(dist, path), source);
+    // every type has a sample file, made by types/make_samples.py, that the tests parse
+    manifest.formats.push({ path, id, title, imports: [], bundled: true, verified: 'crafted' });
+  }
+  console.log(`gallery.json: ${libraryText.size} types of the doe library`);
+}
+// a file of the library, or of the gallery
+const text = (path) => libraryText.get(path) ?? readFileSync(join(gallery, path), 'utf8');
 if (existsSync(join(gallery, 'README.md'))) {
   manifest.commit = execFileSync('git', ['-C', gallery, 'rev-parse', 'HEAD']).toString().trim();
   const files = new Set();
@@ -64,7 +87,6 @@ if (existsSync(join(gallery, 'README.md'))) {
     }
   };
   walk('.');
-  const text = (path) => readFileSync(join(gallery, path), 'utf8');
   // `imports:` is a list of names: relative to the file, or to the gallery with a leading slash.
   const importsOf = (path) => {
     const lines = text(path).split(/\r?\n/);
@@ -96,21 +118,6 @@ if (existsSync(join(gallery, 'README.md'))) {
     if (!id || !source.includes('meta:')) continue;
     manifest.formats.push({ path, id, title: title ?? null, imports: [...closure(path)] });
   }
-  // What each format's files start with, and what it is called, to find the
-  // schema of a file without fetching every definition: asked of the module
-  // that was just built, so the page and the library agree.
-  const wasm = await import(pathToFileURL(join(web, 'src', 'wasm', 'doe_wasm.js')).href);
-  wasm.initSync({ module: readFileSync(join(web, 'src', 'wasm', 'doe_wasm_bg.wasm')) });
-  let withSignature = 0;
-  for (const format of manifest.formats) {
-    const files = Object.fromEntries(format.imports.map((path) => [path, text(path)]));
-    const answer = JSON.parse(wasm.signature(JSON.stringify({ schema: text(format.path), files, path: format.path, include_paths: [''] })));
-    format.names = answer.ok ? [...new Set(answer.names)] : [format.id.toLowerCase()];
-    if (answer.ok && answer.magic.length > 0) {
-      format.magic = answer.magic;
-      withSignature += 1;
-    }
-  }
   // Which formats have been tried on a file (conformance/gallery_samples.tsv),
   // so that the picker can say so.
   const table = join(root, 'conformance', 'gallery_samples.tsv');
@@ -125,9 +132,24 @@ if (existsSync(join(gallery, 'README.md'))) {
       if (status) format.verified = status;
     }
   }
-  console.log(`gallery.json: ${withSignature} of ${manifest.formats.length} formats have a signature`);
 } else {
   console.warn('gallery.json: the submodule conformance/kaitai_struct_formats is not checked out; the picker will be empty');
 }
+// What each format's files start with, and what it is called, to find the
+// schema of a file without fetching every definition: asked of the module
+// that was just built, so the page and the library agree.
+const wasm = await import(pathToFileURL(join(web, 'src', 'wasm', 'doe_wasm.js')).href);
+wasm.initSync({ module: readFileSync(join(web, 'src', 'wasm', 'doe_wasm_bg.wasm')) });
+let withSignature = 0;
+for (const format of manifest.formats) {
+  const files = Object.fromEntries(format.imports.map((path) => [path, text(path)]));
+  const answer = JSON.parse(wasm.signature(JSON.stringify({ schema: text(format.path), files, path: format.path, include_paths: [''] })));
+  format.names = answer.ok ? [...new Set(answer.names)] : [format.id.toLowerCase()];
+  if (answer.ok && answer.magic.length > 0) {
+    format.magic = answer.magic;
+    withSignature += 1;
+  }
+}
+console.log(`gallery.json: ${withSignature} of ${manifest.formats.length} formats have a signature`);
 writeFileSync(join(dist, 'gallery.json'), JSON.stringify(manifest));
 console.log(`gallery.json: ${manifest.formats.length} formats at ${manifest.commit.slice(0, 12) || '(none)'}`);

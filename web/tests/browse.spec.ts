@@ -57,6 +57,25 @@ test('the list is grouped by where the types come from, the open schemas first',
   expect(grouped(entries).map((g) => g.source)).toEqual(['open', 'library', 'gallery']);
 });
 
+test("the types of doe's own library are their own group, between the library of the machine and the gallery", () => {
+  const bundled = (id: string): GalleryFormat => ({ path: `library/${id}.yaml`, id, title: `The ${id} type`, imports: [], bundled: true, verified: 'crafted' });
+  const entries = [
+    ...galleryEntries([format('gif'), bundled('tar'), bundled('wasm')], 'library/tar.yaml'),
+    ...libraryEntries([{ id: 'elf', doc: null, path: 'elf.yaml' }]),
+  ];
+  expect(entries.map((e) => [e.id, e.source])).toEqual([
+    ['gif', 'gallery'],
+    ['tar', 'bundled'],
+    ['wasm', 'bundled'],
+    ['elf', 'library'],
+  ]);
+  expect(grouped(entries).map((g) => g.source)).toEqual(['library', 'bundled', 'gallery']);
+  // the type in use is marked, and the entries are found by the filter like any
+  expect(entries.filter((e) => e.current).map((e) => e.id)).toEqual(['tar']);
+  expect(filterEntries(entries, 'library wasm').map((e) => e.id)).toEqual(['wasm']);
+  expect(entries.find((e) => e.id === 'tar')?.verified).toBe('crafted');
+});
+
 test('the dialog lists the open schemas, filters, reads one and parses with a type of them', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.doe?.ready === true);
@@ -81,6 +100,26 @@ test('the dialog lists the open schemas, filters, reads one and parses with a ty
   await expect(dialog).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
+});
+
+test("the dialog lists the types of doe's own library under their own heading, before the Kaitai Struct gallery", async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.doe?.ready === true);
+  await page.click('#browse');
+  const dialog = page.locator('#browse-dialog');
+  const headings = dialog.locator('h4');
+  await expect(headings.filter({ hasText: 'doe type library' })).toHaveCount(1);
+  if (hasGallery) {
+    const texts = await headings.allTextContents();
+    expect(texts.findIndex((t) => t.startsWith('doe type library'))).toBeLessThan(texts.findIndex((t) => t.startsWith('Kaitai Struct gallery')));
+  }
+  await page.fill('#browse-filter', 'tar');
+  const item = dialog.locator('li', { hasText: 'library/tar.yaml' });
+  await expect(item).toBeVisible();
+  await expect(item).toContainText('tar archive');
+  // it can be read without leaving the page: it is served with it
+  await item.locator('button', { hasText: 'View' }).click();
+  await expect(page.locator('#browse-reader-text')).toContainText('id: tar');
 });
 
 test('a gallery format is listed with its path and signature, and the dialog fits a phone', async ({ page }) => {
