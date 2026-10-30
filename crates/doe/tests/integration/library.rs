@@ -460,3 +460,53 @@ fn the_samples_are_the_ones_the_script_makes() {
         );
     }
 }
+
+#[test]
+fn zip_archive_is_read_from_the_central_directory() {
+    let v = decode("zip_archive", "sample.zip");
+    let end = &v["end_of_central_directory"];
+    assert_eq!(end["num_entries"], 4);
+    assert_eq!(end["ofs_central_directory"], 320);
+    assert_eq!(end["len_comment"], 0);
+    let entries = v["entries"].as_array().unwrap();
+    let names: Vec<&str> = entries.iter().map(name_of).collect();
+    assert_eq!(names, ["docs/", "docs/hello.txt", "data.bin", "stream.txt"]);
+    assert_eq!(entries[0]["is_directory"], true);
+    assert_eq!(entries[1]["is_directory"], false);
+    assert_eq!(entries[0]["unix_mode"], 0o040_755);
+    assert_eq!(entries[1]["unix_mode"], 0o100_644);
+    // a stored entry: its data is found through the local header
+    assert_eq!(entries[1]["method"]["name"], "stored");
+    assert_eq!(entries[1]["crc32"], 0x363a_3020_u32);
+    assert_eq!(entries[1]["data"]["hex"], "68656c6c6f0a");
+    assert_eq!(entries[1]["local_header"]["name"], "docs/hello.txt");
+    // a deflated one
+    assert_eq!(entries[2]["method"]["name"], "deflated");
+    assert_eq!(entries[2]["len_uncompressed"], 200);
+    assert_eq!(entries[2]["data"]["len"], entries[2]["len_compressed"]);
+    // a streamed one has zeros in its local header and its sizes in the central directory
+    assert_eq!(entries[3]["has_data_descriptor"], true);
+    assert_eq!(entries[3]["local_header"]["len_compressed"], 0);
+    assert_eq!(entries[3]["local_header"]["crc32"], 0);
+    assert_ne!(entries[3]["len_compressed"], 0);
+    assert_eq!(entries[3]["data"]["len"], entries[3]["len_compressed"]);
+    // the extended timestamp has both times in the local header and only the modification time in the
+    // central directory, where its flags still say both: the extra fields are bytes, so both read
+    let central = &entries[1]["extra"]["fields"];
+    assert_eq!(central[0]["code"], 0x5455);
+    assert_eq!(central[0]["len_body"], 5);
+    assert_eq!(central[1]["code"], 0x7875);
+    let local = &entries[1]["local_header"]["extra"]["fields"];
+    assert_eq!(local[0]["len_body"], 9);
+}
+
+#[test]
+fn zip_archive_is_found_for_a_file_named_like_a_zip() {
+    let found = doe::detect::detect_file(
+        &types().join("samples").join("sample.zip"),
+        &[types()],
+        &doe::detect::Options::default(),
+    )
+    .unwrap();
+    assert_eq!(found.chosen().map(|c| c.name.as_str()), Some("zip_archive"));
+}

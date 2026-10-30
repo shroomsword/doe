@@ -32,6 +32,7 @@ here; the others are left out, with the reason (a format that is in scope and no
 | MPEG transport stream | none | **library** (`mpegts`) |
 | MP3 / MPEG audio | `id3v1_1`, `id3v2_3`, `id3v2_4` for the tags | **library** (`mp3`: layer III frames; the tags are the gallery's) |
 | CAB | none | **library** (`cab`) |
+| ZIP | `zip` | **library** (`zip_archive`: read from the central directory, so streamed archives and the central extended timestamp that Info-ZIP writes read; the gallery's `zip` cannot read those, see below) |
 | 7z | none | **library** (`sevenzip`: the signature header; the next header is bytes; an identifier cannot start with a digit) |
 | TIFF | `exif` reads the TIFF structure (header, IFDs) | not needed: use `exif` |
 | HEIF / AVIF / MP4 (ISO base media) | `quicktime_mov` reads the box structure | not needed: use `quicktime_mov` for the boxes |
@@ -43,3 +44,11 @@ here; the others are left out, with the reason (a format that is in scope and no
 
 A format that is a good fit for the gallery can be offered upstream; the project does not open pull requests on
 other repositories by itself.
+
+**The gallery's `zip`** reads a file from its start, section by section, and reads a time for each flag of the
+extended timestamp extra field (`0x5455`). Info-ZIP's `zip` sets the flags of the access time in the central
+directory's copy of the field while it stores only the modification time there (the specification says the central
+copy has only that), so the definition asks for 4 bytes where none are left and fails on archives that `zip` writes
+on Linux and macOS ("requested 4 bytes, 0 remaining"; the reference compiler's parser fails the same way). A streamed
+archive (flag bit 3, zeros in the local headers) cannot be read from the start either. `zip_archive` reads the
+central directory instead.

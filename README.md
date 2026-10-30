@@ -128,6 +128,7 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `mp3` | MPEG audio layer III: the frames with their headers, and bit rate, sample rate and length worked out |
 | `cab` | Microsoft Cabinet files: the folders, the file entries and the data blocks |
 | `sevenzip` | 7-Zip archives: the signature header, and the packed streams and the next header as bytes |
+| `zip_archive` | ZIP archives (and `.jar`, `.apk`, `.docx`...): the entries read from the central directory, with their local headers and data; an archive with a comment is not read |
 
 Each type begins with a comment that says what it covers, its limits and the specification it follows, and
 has a sample file in `types/samples/` that `types/make_samples.py` makes (nothing is copied from another
