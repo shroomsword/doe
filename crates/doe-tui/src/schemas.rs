@@ -79,6 +79,8 @@ pub struct Pager {
     pub path: PathBuf,
     /// Its lines, made safe to show.
     pub lines: Vec<String>,
+    /// The pieces of each line that are keys, strings and so on (see [`crate::highlight`]).
+    pub marks: Vec<crate::highlight::Marks>,
     /// The first line shown.
     pub top: usize,
     /// The line of the error, from 0, when there is one.
@@ -280,6 +282,7 @@ impl Pager {
         };
         Pager {
             path: path.to_owned(),
+            marks: crate::highlight::scan(&lines),
             lines,
             top: 0,
             error_line: None,
@@ -303,6 +306,7 @@ impl Pager {
         Pager {
             path: entry.path.clone(),
             top: error_line.map_or(0, |line| line.saturating_sub(3)),
+            marks: crate::highlight::scan(&lines),
             lines,
             error_line,
             message,
