@@ -1077,7 +1077,7 @@ A type that starts with a **signature** says so: the page asks `doe`
 for the signature of each open type, and of each type of the library of this
 machine, while the dialog is open (the title of the list says how far it has
 got), and a type whose schema does not compile has its error. *Rank by the opened
-file* puts the types in the order in which *Detect schema* would try them on the
+file* puts the types in the order in which *Detect* would try them on the
 file: first those whose signature the file starts with (and whose name fits),
 then those with no signature whose name fits the file's extension; the others
 are left out, and each line says why it is there. The ranking waits until every
@@ -1111,7 +1111,7 @@ Four things make the page pleasant to come back to:
   The list has the **doe type library** (`types/`, see
   [Type library](#type-library)): those definitions are small and part of this repository, so they
   are served with the page (`library/NAME.yaml`) and nothing is fetched from
-  GitHub for them. They are in the same list as the gallery's, so *Detect schema*
+  GitHub for them. They are in the same list as the gallery's, so *Detect*
   ranks and tries them together by signature and name, and the list is made from
   `types/` when the page is built: a new type is there without a change to the
   page. A shared link holds the schema's text, so it opens the same type.
@@ -1234,7 +1234,7 @@ in the tests, 106 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 
-In the web IDE, *Detect schema* in the header does the same for the opened file
+In the web IDE, *Detect* in the title bar of the Parsed pane does the same for the opened file
 among the formats of the gallery: the page has each format's signature and names
 (computed when it was built, by the same library), asks the library for the
 order, and fetches the definition of a format only when it is its turn, so a
@@ -1429,7 +1429,7 @@ signature the file starts with (and whose name fits), then those with no
 signature whose name fits the file's extension; a type whose signature the file
 does not have is left out, and each line says why it is there. The ranking waits
 until the schemas are read. `r` again puts the groups back. It is the order of
-trying, not the result of it: `doe FILE` without a type (or *Detect schema*) does
+trying, not the result of it: `doe FILE` without a type (or *Detect*) does
 the parsing that tells which one fits.
 
 `x` writes the integers in the next **radix**: decimal (the first one, with the hex

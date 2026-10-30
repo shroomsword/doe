@@ -151,7 +151,7 @@ header label { display: inline-flex; gap: 4px; align-items: center; max-width: 1
 .pane-tools[hidden], #field-radix-box[hidden] { display: none; }
 
 #detect-auto-box { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; }
-#detect-report { font-size: 12px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px; max-height: 12em; overflow: auto; }
+#detect-report { font-size: 12px; margin: 4px 8px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px; max-height: 12em; overflow: auto; }
 #detect-report[hidden] { display: none; }
 #detect-report ul { margin: 2px 0; padding-left: 1.2em; }
 #detect-report li.fit { color: var(--string); }
