@@ -1407,6 +1407,9 @@ error colour. With the terminal's own colours it uses the ANSI colours, and with
 YAML that schemas use, not a parser: what it does not understand is shown as it
 is.
 
+`T` browses the colour **themes** and chooses one for the session: the viewer
+shows each as you move through the list (see [Themes](#themes)).
+
 `t` browses the types that are **available**: those of the type paths (`-I`, and
 `include_paths` of the config file), found in their subdirectories too, grouped
 by the path they are in, each with its id, the file it is in, and the first line
@@ -1640,6 +1643,17 @@ they are on a terminal with 24-bit colour (`COLORTERM=truecolor`), and the
 nearest of the 256 colours of xterm (`TERM` with `256color`) or of the 16
 colours of every terminal are used on one with fewer. `NO_COLOR` and
 `--color never` give no colour and no theme, as before.
+
+In the viewer, **`T`** opens the list of the themes, at the right edge of the
+screen so that the viewer behind it can be seen: the terminal's own colours first,
+then the built-in themes (dark, then light), then your own files (`NAME.toml` of
+the `themes` directory; one that cannot be read is listed with its error). Moving
+through the list shows each theme on the whole viewer, the list included. `/`
+filters by name, `Enter` uses the selected theme until the viewer is closed and
+says what to put in the config file to keep it (`theme = "nord"`, or `--theme
+nord`; the viewer never writes the config file itself), and `Esc` puts back the
+theme that was in use. With `NO_COLOR` or `--color never` the list says there is
+no colour in this run and applies nothing.
 
 A theme file is TOML, with the colours of the table:
 

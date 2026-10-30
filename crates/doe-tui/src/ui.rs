@@ -18,6 +18,7 @@ use crate::report::Report;
 use crate::schemas::{self, Pager, Row as SchemaRow, SchemaList};
 use crate::status;
 use crate::theme::Palette;
+use crate::theme_browser::ThemeBrowser;
 use crate::tree::Shown;
 use crate::tree_view;
 use crate::types::{Row as TypeRow, TypeBrowser};
@@ -312,6 +313,8 @@ const INSPECTOR_MAX_LINES: u16 = 12;
 /// terminal) the bytes of the file with the selected field marked; below
 /// them the inspector, if it is on; and at the bottom the status bar.
 pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
+    // a theme chosen in the viewer, or being previewed, replaces the one it was started with
+    let theme = &app.styles.unwrap_or(*theme);
     let mut area = frame.area();
     if area.width < SMALLEST || area.height < 3 {
         return;
@@ -533,9 +536,154 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     if let Some(browser) = &app.types {
         types_overlay(frame, browser, &app.type_name, *theme);
     }
+    if let Some(browser) = &app.themes {
+        themes_overlay(frame, browser, *theme);
+    }
     if app.help {
         help(frame, *theme);
     }
+}
+
+/// The list of the colour themes, at the right edge so that the viewer behind
+/// it, drawn with the selected theme, can be seen.
+fn themes_overlay(frame: &mut Frame<'_>, browser: &ThemeBrowser, theme: Theme) {
+    let screen = frame.area();
+    if screen.width < 30 || screen.height < 6 {
+        return;
+    }
+    let width = (screen.width / 2).clamp(30, 44).min(screen.width);
+    let height = screen.height.saturating_sub(1).max(1);
+    let area = Rect {
+        x: screen.x + screen.width - width,
+        y: screen.y,
+        width,
+        height,
+    };
+    clear(frame, area, theme);
+    let visible = browser.visible();
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(theme.border(true))
+        .title(Span::styled(
+            format!(" themes · {} of {} ", visible.len(), browser.entries.len()),
+            theme.title(),
+        ))
+        .title_bottom(Line::from(Span::styled(
+            " ↑↓ move · / filters · Enter uses · Esc goes back ",
+            theme.dim(),
+        )));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    if inner.height < 3 {
+        return;
+    }
+    let text_width = usize::from(inner.width);
+    let cursor = if browser.editing { "▏" } else { "" };
+    let mut head = vec![Line::from(vec![
+        Span::styled("filter: ", theme.dim()),
+        Span::styled(
+            format!("{}{cursor}", format::safe(&browser.filter)),
+            theme.name(),
+        ),
+    ])];
+    if !browser.color {
+        head.push(Line::from(Span::styled(
+            format::truncate("no colour in this run: nothing is applied", text_width),
+            theme.dim(),
+        )));
+    }
+    let head_rows = u16::try_from(head.len()).unwrap_or(1);
+    frame.render_widget(
+        Paragraph::new(head),
+        Rect {
+            height: head_rows,
+            ..inner
+        },
+    );
+    let list = Rect {
+        y: inner.y + head_rows,
+        height: inner.height.saturating_sub(head_rows),
+        ..inner
+    };
+    if visible.is_empty() {
+        frame.render_widget(Paragraph::new("no theme matches the filter"), list);
+        return;
+    }
+    // the rows: a heading where the group changes, then the themes
+    let mut rows: Vec<(Option<usize>, Line<'static>)> = Vec::new();
+    let mut previous = None;
+    for (position, &index) in visible.iter().enumerate() {
+        let Some(entry) = browser.entries.get(index) else {
+            continue;
+        };
+        if previous != Some(entry.group) {
+            rows.push((
+                None,
+                Line::from(Span::styled(entry.group.heading(), theme.title())),
+            ));
+            previous = Some(entry.group);
+        }
+        rows.push((
+            Some(position),
+            theme_line(entry, browser, text_width, theme),
+        ));
+    }
+    let selected_row = rows
+        .iter()
+        .position(|(position, _)| *position == Some(browser.selected))
+        .unwrap_or(0);
+    let shown = usize::from(list.height);
+    let first = selected_row
+        .saturating_sub(shown / 2)
+        .min(rows.len().saturating_sub(shown));
+    let lines: Vec<Line<'static>> = rows
+        .into_iter()
+        .skip(first)
+        .take(shown)
+        .map(|(position, line)| {
+            if position == Some(browser.selected) {
+                line.patch_style(theme.selected())
+            } else {
+                line
+            }
+        })
+        .collect();
+    frame.render_widget(Paragraph::new(lines), list);
+}
+
+/// One theme: a mark where it is the one in use, its name and author, and why a
+/// file cannot be used.
+fn theme_line(
+    entry: &crate::theme_browser::Entry,
+    browser: &ThemeBrowser,
+    width: usize,
+    theme: Theme,
+) -> Line<'static> {
+    let in_use = browser.in_use.as_deref().unwrap_or("terminal") == entry.id;
+    let mark = if in_use { "● " } else { "  " };
+    let mut spans = vec![
+        Span::styled(mark, theme.dim()),
+        Span::styled(format::safe(&entry.name), theme.name()),
+    ];
+    if let Some(author) = &entry.author {
+        spans.push(Span::styled(
+            format!("  {}", format::safe(author)),
+            theme.dim(),
+        ));
+    }
+    if let Some(error) = &entry.error {
+        spans.push(Span::styled(
+            format!("  ✗ {}", format::safe(error)),
+            theme.bad(),
+        ));
+    }
+    let used: usize = spans.iter().map(|s| format::width(&s.content)).sum();
+    if used > width {
+        // cut the line to the width: keep the mark and the name, and one ellipsis
+        let text: String = spans.iter().map(|s| s.content.as_ref()).collect();
+        return Line::from(Span::raw(format::truncate(&text, width)));
+    }
+    Line::from(spans)
 }
 
 /// The types of the type paths, grouped by path, with the filter on the first

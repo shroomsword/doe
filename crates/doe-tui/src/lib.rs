@@ -31,6 +31,7 @@ pub mod search;
 pub mod status;
 pub mod terminal;
 pub mod theme;
+pub mod theme_browser;
 pub mod tree;
 pub mod tree_view;
 pub mod types;
@@ -198,6 +199,8 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
         app.focus = app::Focus::Hex;
     }
     app.radixes = radixes::Radixes::new(options.radix.unwrap_or_default());
+    app.depth = theme::Depth::detect();
+    app.theme_id = options.theme.as_deref().map(theme::simple);
     let loader = spawn_load(options.clone());
     let mut loader = Some(loader);
     let mut watch: Option<Watch> = None;

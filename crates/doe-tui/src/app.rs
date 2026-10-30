@@ -20,6 +20,7 @@ use crate::radixes::Radixes;
 use crate::report::Report;
 use crate::schemas::{Outcome as SchemasOutcome, SchemaList};
 use crate::search::{Needle, Outcome as SearchOutcome, Search};
+use crate::theme_browser::ThemeBrowser;
 use crate::tree::{Shown, TreeModel};
 use crate::tree_view::TreeView;
 use crate::types::{Outcome as TypesOutcome, TypeBrowser};
@@ -168,6 +169,15 @@ pub struct App {
     pub schemas: Option<SchemaList>,
     /// The browser of the types on the type paths, while it is open.
     pub types: Option<TypeBrowser>,
+    /// The list of the colour themes, while it is open.
+    pub themes: Option<ThemeBrowser>,
+    /// The theme chosen in the viewer (or being previewed), which the screen is
+    /// drawn with instead of the one it was started with; none: that one.
+    pub styles: Option<crate::ui::Theme>,
+    /// The id of the theme in use (`terminal` for the terminal's own), none: as started.
+    pub theme_id: Option<String>,
+    /// How many colours the terminal shows, for the themes.
+    pub depth: crate::theme::Depth,
     /// The field that `d` asked to be removed again for, until the next key.
     remove_armed: Option<usize>,
     /// The same, for the key that is being handled.
@@ -240,6 +250,10 @@ impl App {
             schema_files: loaded.schema_files,
             schemas: None,
             types: None,
+            themes: None,
+            styles: None,
+            theme_id: None,
+            depth: crate::theme::Depth::True,
             builder: None,
             remove_armed: None,
             remove_was_armed: None,
@@ -299,6 +313,10 @@ impl App {
             schema_files: failure.schema_files.clone(),
             schemas: None,
             types: None,
+            themes: None,
+            styles: None,
+            theme_id: None,
+            depth: crate::theme::Depth::True,
             builder: None,
             remove_armed: None,
             remove_was_armed: None,
@@ -343,6 +361,10 @@ impl App {
             schema_files: Vec::new(),
             schemas: None,
             types: None,
+            themes: None,
+            styles: None,
+            theme_id: None,
+            depth: crate::theme::Depth::True,
             builder: None,
             remove_armed: None,
             remove_was_armed: None,
@@ -563,6 +585,10 @@ impl App {
             self.types_key(&key);
             return;
         }
+        if self.themes.is_some() {
+            self.themes_key(&key);
+            return;
+        }
         if self.prompt.is_some() {
             self.prompt_key(&key);
             return;
@@ -607,6 +633,116 @@ impl App {
         let (schema, _) = doe::split_type_arg(&options.type_or_schema);
         browser.select_type(schema);
         self.types = Some(browser);
+    }
+
+    /// Open the list of the colour themes, with the selection on the one in use.
+    fn open_themes(&mut self) {
+        let (dir, color) = self
+            .options
+            .as_ref()
+            .map_or((None, true), |o| (o.theme_dir.clone(), o.color));
+        self.themes = Some(ThemeBrowser::read(
+            dir.as_deref(),
+            self.styles,
+            self.theme_id.clone(),
+            color,
+        ));
+    }
+
+    /// Show the theme of the selected entry on the viewer, when there is colour
+    /// and the entry can be used.
+    fn preview_theme(&mut self) {
+        let Some(browser) = self.themes.as_ref() else {
+            return;
+        };
+        if !browser.color {
+            return;
+        }
+        if let Some(styles) = browser.current().and_then(|e| e.styles(self.depth)) {
+            self.styles = Some(styles);
+        }
+    }
+
+    /// A key while the list of themes is open: move (the viewer shows each
+    /// theme), filter, use the selected one, or go back to the one that was in use.
+    fn themes_key(&mut self, key: &KeyEvent) {
+        let Some(browser) = self.themes.as_mut() else {
+            return;
+        };
+        let control_c =
+            key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL);
+        let mut close = control_c;
+        let mut choose = false;
+        if !control_c {
+            if browser.editing {
+                match key.code {
+                    KeyCode::Esc | KeyCode::Enter => browser.editing = false,
+                    KeyCode::Backspace => browser.backspace(),
+                    KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        browser.type_char(c);
+                    }
+                    KeyCode::Up => browser.move_by(-1),
+                    KeyCode::Down => browser.move_by(1),
+                    _ => {}
+                }
+            } else {
+                match key.code {
+                    KeyCode::Esc | KeyCode::Char('q') => close = true,
+                    KeyCode::Up | KeyCode::Char('k') => browser.move_by(-1),
+                    KeyCode::Down | KeyCode::Char('j') => browser.move_by(1),
+                    KeyCode::PageUp => browser.move_by(-10),
+                    KeyCode::PageDown => browser.move_by(10),
+                    KeyCode::Home => browser.jump(false),
+                    KeyCode::End | KeyCode::Char('G') => browser.jump(true),
+                    KeyCode::Char('/') => browser.editing = true,
+                    KeyCode::Enter => choose = true,
+                    _ => {}
+                }
+            }
+        }
+        if close {
+            // back to the theme that was in use
+            self.styles = browser.original;
+            self.themes = None;
+            return;
+        }
+        if choose {
+            self.choose_theme();
+        } else {
+            self.preview_theme();
+        }
+    }
+
+    /// `Enter` on a theme: use it until the viewer is closed, and say how to keep it.
+    fn choose_theme(&mut self) {
+        let Some(browser) = self.themes.as_ref() else {
+            return;
+        };
+        let Some(entry) = browser.current() else {
+            return;
+        };
+        if let Some(error) = &entry.error {
+            self.notice = Some(format!(
+                "{} cannot be used: {}",
+                crate::format::safe(&entry.id),
+                crate::format::safe(error)
+            ));
+            return;
+        }
+        if !browser.color {
+            self.notice = Some("there is no colour in this run (NO_COLOR or --color never), so no theme is applied".to_owned());
+            self.themes = None;
+            return;
+        }
+        let message = format!(
+            "theme {} for this session; {}",
+            crate::format::safe(&entry.name),
+            entry.how_to_keep()
+        );
+        self.theme_id = Some(entry.id.clone());
+        self.notice = Some(message);
+        self.preview_theme();
+        self.themes = None;
     }
 
     /// A key while the browser of types is open: move, filter, read a type,
@@ -1062,6 +1198,7 @@ impl App {
             Action::Goto => self.open_prompt(Kind::Goto),
             Action::Schemas => self.open_schemas(),
             Action::Types => self.open_types(),
+            Action::Themes => self.open_themes(),
             Action::Radix => {
                 self.radixes.cycle_global();
                 self.notice = Some(format!(
