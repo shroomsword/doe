@@ -150,7 +150,7 @@ export class App {
     element('version').textContent = this.client.version;
     this.local = await detectLocal();
     if (this.local) await this.showLocal(this.local);
-    await this.showGallery();
+    await this.loadGallery();
     await this.restore();
     this.refresh();
     return this.client;
@@ -235,43 +235,16 @@ export class App {
 
   private gallery: { repo: string; commit: string; formats: GalleryFormat[] } | null = null;
 
-  /** The formats of the Kaitai Struct gallery; their definitions are fetched when one is picked. */
-  private async showGallery(): Promise<void> {
+  /** The list of the formats of the Kaitai Struct gallery and of doe's own library; their definitions are fetched when one is used. */
+  private async loadGallery(): Promise<void> {
     try {
       const response = await fetch('gallery.json');
       if (!response.ok) return;
       const gallery = (await response.json()) as NonNullable<App['gallery']>;
       if (!Array.isArray(gallery.formats) || gallery.formats.length === 0) return;
       this.gallery = gallery;
-      const select = element<HTMLSelectElement>('gallery');
-      select.innerHTML = '<option value="">choose…</option>';
-      const groups = new Map<string, HTMLOptGroupElement>();
-      for (const [index, format] of gallery.formats.entries()) {
-        const category = format.bundled ? 'doe type library' : (format.path.split('/')[0] ?? '');
-        let group = groups.get(category);
-        if (!group) {
-          group = document.createElement('optgroup');
-          group.label = category;
-          groups.set(category, group);
-          select.append(group);
-        }
-        const option = document.createElement('option');
-        option.value = String(index);
-        const label = format.title ? `${format.id} — ${format.title}` : format.id;
-        // ✓ a file written by the format's own tool is parsed in the tests; ○ a file built by hand is
-        const mark = format.verified === 'real' ? ' ✓' : format.verified === 'crafted' ? ' ○' : '';
-        option.textContent = label + mark;
-        if (format.verified) option.title = format.verified === 'real' ? 'tried on a file written by the tool that makes the format' : 'tried on a valid file built by hand';
-        group.append(option);
-      }
-      element('gallery-box').hidden = false;
-      select.addEventListener('change', () => {
-        const format = gallery.formats[Number(select.value)];
-        if (select.value && format) void this.openGallery(format);
-        select.value = '';
-      });
     } catch {
-      // no gallery.json (a build without the submodule): no picker
+      // no gallery.json (a build without the submodule): the dialog has no gallery
     }
   }
 

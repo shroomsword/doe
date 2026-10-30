@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { EXAMPLE_BYTES, EXAMPLE_SCHEMA, loadExample } from './fixture.js';
+import { EXAMPLE_BYTES, EXAMPLE_SCHEMA, loadExample, useType } from './fixture.js';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const doe = join(repo, 'target', 'debug', 'doe');
@@ -81,7 +81,7 @@ test('a format of the gallery is fetched at the pinned commit, and parses a file
   await ready(page);
   const gallery = (await (await page.request.get('/gallery.json')).json()) as { commit: string; formats: { path: string; id: string }[] };
   expect(gallery.formats.length).toBeGreaterThan(100);
-  await page.locator('#gallery').selectOption(String(gallery.formats.findIndex((format) => format.path === 'image/jpeg.ksy')));
+  await useType(page, 'jpeg', 'image/jpeg.ksy');
   await expect(page.locator('.cm-content')).toContainText('jpeg');
   // the definition came from the commit of the submodule, with what it imports
   await expect(page.locator('#schemas li:not(.main) code')).toHaveText('image/exif.ksy');

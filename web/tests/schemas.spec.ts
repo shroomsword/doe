@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type Page, expect, test } from '@playwright/test';
+import { useType } from './fixture.js';
 import { type InspectResponse } from '../src/doe.js';
 import { isKnownType, listing } from '../src/schemas.js';
 
@@ -149,7 +150,7 @@ test('a format of the gallery is shown with its imports read-only, until a copy 
   });
   await ready(page);
   const gallery = (await (await page.request.get('/gallery.json')).json()) as { formats: { path: string }[] };
-  await page.locator('#gallery').selectOption(String(gallery.formats.findIndex((format) => format.path === 'image/jpeg.ksy')));
+  await useType(page, 'jpeg', 'image/jpeg.ksy');
   await expect(page.locator('#schemas li:not(.main) code').first()).toHaveText('image/exif.ksy');
   const exif = entry(page, 'image/exif.ksy');
   await expect(exif).toContainText('Kaitai Struct gallery');

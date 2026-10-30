@@ -48,7 +48,7 @@ of the host skipped with `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1`.
 
 ## Using it
 
-The editor and the file are empty at first (open a file, open or type a schema, or pick a type from the gallery). Four panes stay in step:
+The editor and the file are empty at first (open a file, open or type a schema, or use a type from *Browse types*). Four panes stay in step:
 
 - **Schema**: an editor (CodeMirror 6, YAML) for a doe schema or a Kaitai Struct
   `.ksy`. What is wrong with it is underlined where it is, and the schema is
