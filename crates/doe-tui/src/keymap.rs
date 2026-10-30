@@ -31,6 +31,8 @@ pub enum Action {
     Schemas,
     /// Browse the types that are available on the type paths.
     Types,
+    /// Browse the colour themes and choose one.
+    Themes,
     /// Write all integers in the next radix.
     Radix,
     /// Choose a radix for the selected integer field.
@@ -212,6 +214,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::Schemas,
         help: "list the schemas and types (Enter reads a schema, or chooses the type to parse)",
+    },
+    Binding {
+        keys: &[ch('T')],
+        scope: Scope::Anywhere,
+        action: Action::Themes,
+        help: "browse the colour themes (each is shown as you move; Enter uses it)",
     },
     Binding {
         keys: &[ch('t')],

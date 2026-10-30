@@ -260,7 +260,7 @@ pub fn builtin_ids() -> Vec<&'static str> {
 }
 
 /// What a name is compared as: case, spaces and underscores do not matter.
-fn simple(name: &str) -> String {
+pub fn simple(name: &str) -> String {
     name.trim()
         .chars()
         .map(|c| match c {

@@ -540,3 +540,193 @@ fn without_colour_a_theme_is_not_used() {
     options.theme = None;
     assert_eq!(options.theme(Depth::True).unwrap(), Theme::new(true));
 }
+
+// ── the list of themes (T) ───────────────────────────────────────────────────
+
+/// A viewer started with the theme `id`, its styles, and a directory with a theme file of the person's.
+fn started_with(id: Option<&str>) -> (App, Theme, tempfile::TempDir, Options) {
+    let dir = tempfile::tempdir().unwrap();
+    let schema = dir.path().join("t.yaml");
+    std::fs::write(
+        &schema,
+        "id: t\nmeta:\n  endian: le\nseq:\n  - id: magic\n    contents: [0x44, 0x4f]\n  - id: n\n    type: u2\n  - id: name\n    type: strz\n    encoding: ASCII\n",
+    )
+    .unwrap();
+    let file = dir.path().join("t.bin");
+    std::fs::write(&file, b"DO\x07\x00hi\x00").unwrap();
+    let themes = dir.path().join("themes");
+    std::fs::create_dir(&themes).unwrap();
+    std::fs::write(
+        themes.join("mine.toml"),
+        format!(
+            "name = \"Mine\"\n[colors]\n{}",
+            theme::builtin()
+                .iter()
+                .find(|t| t.id == "nord")
+                .map(|t| t
+                    .colors
+                    .named()
+                    .iter()
+                    .fold(String::new(), |mut text, (n, c)| {
+                        writeln!(text, "{n} = \"{}\"", c.hex()).unwrap();
+                        text
+                    }))
+                .unwrap()
+        ),
+    )
+    .unwrap();
+    let options = Options {
+        file: file.clone(),
+        type_or_schema: schema.to_string_lossy().into_owned(),
+        include_paths: vec![],
+        color: true,
+        watch: false,
+        theme: id.map(str::to_owned),
+        theme_dir: Some(themes),
+        radix: None,
+    };
+    let loaded = load(&options).unwrap();
+    let styles = options.theme(Depth::True).unwrap();
+    let mut app = App::new(file, loaded);
+    app.options = Some(options.clone());
+    app.theme_id = id.map(theme::simple);
+    (app, styles, dir, options)
+}
+
+fn type_text(app: &mut App, text: &str) {
+    for c in text.chars() {
+        press(app, KeyCode::Char(c));
+    }
+}
+
+fn cell_colours(terminal: &Terminal<TestBackend>) -> HashSet<Color> {
+    colours(terminal).into_iter().map(|(_, c)| c).collect()
+}
+
+fn palette_of(id: &str) -> HashSet<Color> {
+    let p = Palette::new(&find(id).colors, Depth::True);
+    [
+        p.background,
+        p.foreground,
+        p.muted,
+        p.line,
+        p.panel,
+        p.accent,
+        p.selection,
+        p.selection_part,
+        p.error,
+        p.warning,
+        p.number,
+        p.string,
+        p.bytes,
+        p.enum_,
+        p.boolean,
+        p.offset,
+        p.type_,
+        p.instance,
+        Color::Reset,
+    ]
+    .into_iter()
+    .collect()
+}
+
+#[test]
+fn moving_in_the_list_shows_each_theme_on_the_whole_screen_and_escape_puts_the_old_one_back() {
+    let (mut app, styles, _dir, _) = started_with(Some("nord"));
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    terminal.draw(|f| draw(f, &mut app, &styles)).unwrap();
+    assert!(cell_colours(&terminal).is_subset(&palette_of("nord")));
+
+    press(&mut app, KeyCode::Char('T'));
+    assert!(app.themes.is_some());
+    // filter to dracula: the selection moves to it and the screen, list included, is dracula's
+    press(&mut app, KeyCode::Char('/'));
+    type_text(&mut app, "dracula");
+    press(&mut app, KeyCode::Enter);
+    terminal.draw(|f| draw(f, &mut app, &styles)).unwrap();
+    let text = terminal.backend().to_string();
+    assert!(text.contains("Built-in dark"), "{text}");
+    assert!(text.contains("themes · 1 of "), "{text}");
+    let seen = cell_colours(&terminal);
+    assert!(seen.is_subset(&palette_of("dracula")), "{seen:?}");
+    assert!(!seen.is_subset(&palette_of("nord")));
+
+    // Esc: nord again, and the list is closed
+    press(&mut app, KeyCode::Esc);
+    assert!(app.themes.is_none());
+    terminal.draw(|f| draw(f, &mut app, &styles)).unwrap();
+    assert!(cell_colours(&terminal).is_subset(&palette_of("nord")));
+}
+
+#[test]
+fn enter_uses_the_theme_for_the_session_and_says_how_to_keep_it() {
+    let (mut app, styles, _dir, _) = started_with(None);
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    press(&mut app, KeyCode::Char('T'));
+    press(&mut app, KeyCode::Char('/'));
+    type_text(&mut app, "solarized light");
+    press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Enter);
+    assert!(app.themes.is_none());
+    let notice = app.notice.clone().unwrap();
+    assert!(notice.contains("for this session"), "{notice}");
+    assert!(notice.contains("theme = \"solarized-light\""), "{notice}");
+    assert!(notice.contains("--theme solarized-light"), "{notice}");
+    terminal.draw(|f| draw(f, &mut app, &styles)).unwrap();
+    assert!(cell_colours(&terminal).is_subset(&palette_of("solarized-light")));
+    // and it stays: the list opens with it marked and Esc keeps it
+    press(&mut app, KeyCode::Char('T'));
+    assert_eq!(
+        app.themes.as_ref().unwrap().current().unwrap().id,
+        "solarized-light"
+    );
+    press(&mut app, KeyCode::Esc);
+    terminal.draw(|f| draw(f, &mut app, &styles)).unwrap();
+    assert!(cell_colours(&terminal).is_subset(&palette_of("solarized-light")));
+}
+
+#[test]
+fn the_terminals_colours_are_the_first_entry_and_a_file_of_the_person_is_listed() {
+    let (mut app, styles, _dir, _) = started_with(Some("nord"));
+    press(&mut app, KeyCode::Char('T'));
+    press(&mut app, KeyCode::Home);
+    assert_eq!(
+        app.themes.as_ref().unwrap().current().unwrap().id,
+        "terminal"
+    );
+    // the terminal's own colours: the theme's palette is gone
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    terminal.draw(|f| draw(f, &mut app, &styles)).unwrap();
+    assert!(
+        !cell_colours(&terminal)
+            .contains(&Palette::new(&find("nord").colors, Depth::True).background)
+    );
+    press(&mut app, KeyCode::Char('/'));
+    type_text(&mut app, "mine");
+    press(&mut app, KeyCode::Enter);
+    assert_eq!(app.themes.as_ref().unwrap().current().unwrap().id, "mine");
+    terminal.draw(|f| draw(f, &mut app, &styles)).unwrap();
+    assert!(terminal.backend().to_string().contains("Yours"));
+}
+
+#[test]
+fn with_no_colour_the_list_says_so_and_nothing_is_applied() {
+    let (mut app, styles, _dir, mut options) = started_with(None);
+    options.color = false;
+    app.options = Some(options);
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    press(&mut app, KeyCode::Char('T'));
+    press(&mut app, KeyCode::Down);
+    press(&mut app, KeyCode::Down);
+    assert!(app.styles.is_none(), "moving applies nothing");
+    terminal.draw(|f| draw(f, &mut app, &styles)).unwrap();
+    assert!(
+        terminal
+            .backend()
+            .to_string()
+            .contains("no colour in this run")
+    );
+    press(&mut app, KeyCode::Enter);
+    assert!(app.themes.is_none() && app.styles.is_none());
+    assert!(app.notice.clone().unwrap().contains("no colour"));
+}
