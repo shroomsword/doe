@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { loadExample } from './fixture.js';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -14,6 +15,7 @@ const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.doe?.ready === true);
+  await loadExample(page);
 });
 
 const row = (page: Page, name: string): Locator => page.locator('.tree-row', { has: page.locator('.name', { hasText: new RegExp(`^${name.replace(/[[\]]/g, '\\$&')}$`) }) });

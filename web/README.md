@@ -48,7 +48,7 @@ of the host skipped with `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1`.
 
 ## Using it
 
-The page shows an example at first. Four panes stay in step:
+The editor and the file are empty at first (open a file, open or type a schema, or pick a type from the gallery). Four panes stay in step:
 
 - **Schema**: an editor (CodeMirror 6, YAML) for a doe schema or a Kaitai Struct
   `.ksy`. What is wrong with it is underlined where it is, and the schema is
@@ -90,10 +90,10 @@ the time limit.
 | `src/main.ts`, `src/app.ts` | The page, and the app that keeps the panes in step |
 | `src/editor.ts`, `src/tree.ts`, `src/hex.ts`, `src/problems.ts` | The four panes |
 | `src/model.ts` | The logic that needs no DOM: nodes and bytes, the size limit, positions |
-| `src/example.ts`, `src/style.css` | The example shown at first; the styles |
+| `src/style.css` | The styles |
 | `src/wasm/` | The module and its glue, made by the build (not committed) |
 | `build.mjs`, `serve.mjs` | The build, and a static server for `dist/` |
-| `tests/` | Playwright tests: `model.spec.ts` (no browser), `smoke.spec.ts` (the module), `ide.spec.ts` (the page) |
+| `tests/` | Playwright tests: `model.spec.ts` (no browser), `smoke.spec.ts` (the module), `ide.spec.ts` (the page); `fixture.ts` is the small schema and file that the page tests load, since the page starts empty |
 
 ## Publishing
 

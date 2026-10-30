@@ -1,6 +1,7 @@
 // Themes: the built-in ones, the picker, a theme file, what is remembered, and
 // that the tree, the bytes and the editor use the colours of the theme.
 
+import { loadExample } from './fixture.js';
 import { type Page, expect, test } from '@playwright/test';
 import { valueKind } from '../src/model.js';
 import { COLOR_NAMES, THEMES, parseThemeFile, systemTheme } from '../src/theme.js';
@@ -128,6 +129,7 @@ test('the picker lists the built-in themes and a choice shows in the page, the e
 
 test('the tree and the bytes use the colours of the theme, and nothing else', async ({ page }) => {
   await ready(page);
+  await loadExample(page);
   await expect(page.locator('#status')).toContainText('parsed', { timeout: 10_000 });
   for (const id of ['solarized-light', 'dracula', 'high-contrast']) {
     await page.selectOption('#theme', id);

@@ -1233,7 +1233,7 @@ PNG costs a few requests, not the gallery. The formats tried are listed with why
 each was tried and what came of it, a format that takes longer than the limit of
 the page's worker is reported and the next is tried, and *Try them all* adds the
 formats with no signature. *Auto* (remembered in the
-browser) does it on opening a file, when the editor still has the example or the
+browser) does it on opening a file, when the editor is empty or the
 schema does not parse the file. With `doe --ide FILE` the types of the include
 paths are searched as well, natively, for the file named on the command line
 (`Use FILE`); a file opened in the page is searched among the gallery only.

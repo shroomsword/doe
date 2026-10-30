@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { EXAMPLE_BYTES, EXAMPLE_SCHEMA } from '../src/example.js';
+import { EXAMPLE_BYTES, EXAMPLE_SCHEMA, loadExample } from './fixture.js';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const doe = join(repo, 'target', 'debug', 'doe');
@@ -48,7 +48,8 @@ test('a share link opens the same schema, with its imports, in a fresh browser',
 test('a link that holds no schema is said to be wrong, and the page still works', async ({ page }) => {
   await ready(page, '/#s=AAAA');
   await expect(page.locator('.problems')).toContainText('does not hold a schema');
-  await expect(page.locator('.cm-content')).toContainText('example');
+  // the page starts as it does with no link: nothing in the editor
+  await expect(page.locator('.cm-content')).toHaveText('');
 });
 
 test('reloading the page brings back the schema, and says which file it was used with', async ({ page }) => {
@@ -60,11 +61,11 @@ test('reloading the page brings back the schema, and says which file it was used
   await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
   await expect(page.locator('.cm-content')).toContainText('shared_thing');
   await expect(page.locator('#status')).toContainText('open last.bin again');
-  // forgetting means the next reload shows the example
+  // forgetting means the next reload starts with nothing in the editor
   await page.locator('#forget').click();
   await page.reload();
   await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
-  await expect(page.locator('.cm-content')).toContainText('A small example');
+  await expect(page.locator('.cm-content')).toHaveText('');
 });
 
 test('a format of the gallery is fetched at the pinned commit, and parses a file that is added', async ({ page }) => {
@@ -96,6 +97,7 @@ test('export gives what the command line prints', async ({ page }) => {
   writeFileSync(join(dir, 'example.yaml'), EXAMPLE_SCHEMA);
   writeFileSync(join(dir, 'example.bin'), EXAMPLE_BYTES);
   await ready(page);
+  await loadExample(page);
   await expect(page.locator('#export')).toBeEnabled();
   for (const [format, flags] of [['text', []], ['pretty', ['--pretty']], ['json', ['--json']]] as const) {
     await page.locator('#export-format').selectOption(format);

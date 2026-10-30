@@ -8,6 +8,7 @@ import { expect, test } from '@playwright/test';
 import { type Entry, filterEntries, firstLine, galleryEntries, grouped, hasSignature, libraryEntries, openEntries } from '../src/browse.js';
 import type { GalleryFormat } from '../src/detect.js';
 import type { Row } from '../src/schemas.js';
+import { loadExample } from './fixture.js';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const hasGallery = existsSync(join(repo, 'conformance', 'kaitai_struct_formats', 'image', 'gif.ksy'));
@@ -79,6 +80,7 @@ test("the types of doe's own library are their own group, between the library of
 test('the dialog lists the open schemas, filters, reads one and parses with a type of them', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.doe?.ready === true);
+  await loadExample(page);
   // the list of the open schemas is there once the schema has been inspected
   await expect(page.locator('#schemas li.schema')).toHaveCount(1);
   await page.click('#browse');
@@ -141,6 +143,7 @@ test('a gallery format is listed with its path and signature, and the dialog fit
 test('the types that start with a signature say so, and "Rank by the opened file" puts the ones that fit first', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.doe?.ready === true);
+  await loadExample(page);
   await expect(page.locator('#schemas li.schema')).toHaveCount(1);
   await page.click('#browse');
   const dialog = page.locator('#browse-dialog');

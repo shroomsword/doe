@@ -27,10 +27,26 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => window.doe?.ready === true);
 });
 
-test('the module is loaded and the page shows the example', async ({ page }) => {
+test('the module is loaded, and a first visit has nothing in the editor and no error', async ({ page }) => {
   await expect(page.locator('#version')).not.toBeEmpty();
-  await expect(page.locator('#status')).toContainText('parsed as example');
   await expect(page.locator('.cm-editor')).toBeVisible();
+  await expect(page.locator('.cm-content')).toHaveText('');
+  await expect(page.locator('#status')).toContainText('no file opened');
+  await expect(page.locator('#status')).toContainText('type a schema');
+  await expect(page.locator('.problems')).toContainText('No problems.');
+  await expect(page.locator('#export')).toBeDisabled();
+  await expect(page.locator('#example')).toHaveCount(0);
+});
+
+test('a file opened with no schema is shown as bytes, with nothing to say against it', async ({ page }) => {
+  await page.setInputFiles('#open-input', { name: 'x.bin', mimeType: 'application/octet-stream', buffer: Buffer.from('DOE-bytes') });
+  await expect(page.locator('#status')).toContainText('x.bin, 9 bytes');
+  await expect(page.locator('.hex-row').first()).toContainText('444f45');
+  await expect(page.locator('.problems')).toContainText('No problems.');
+  // and a schema typed afterwards is run on it
+  await page.locator('.cm-content').click();
+  await page.keyboard.insertText('meta:\n  id: shown\nseq:\n  - id: magic\n    contents: "DOE"\n');
+  await expect(page.locator('#status')).toContainText('parsed as shown', { timeout: 10_000 });
 });
 
 test('a hosted page has no types of a machine and no file to use', async ({ page }) => {

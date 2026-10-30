@@ -5,7 +5,6 @@
 import { CallEnded, DoeClient } from './client.js';
 import type { Diagnostic, ExportFormat, ExportResponse, InspectResponse, ParseResponse, Request, TraceNode } from './doe.js';
 import { SchemaEditor } from './editor.js';
-import { EXAMPLE_BYTES, EXAMPLE_SCHEMA } from './example.js';
 import { HexView, RemoteBytes } from './hex.js';
 import { type LocalApi, type LocalType, detectLocal } from './local.js';
 import { type Entry, type Ranking, TypeBrowser, galleryEntries, libraryEntries, openEntries } from './browse.js';
@@ -46,7 +45,7 @@ export class App {
   private readonly origins = new Map<string, Origin>();
   private schemaPath = 'main.ksy';
   /** The text of the main schema; the editor shows it, or an imported file. */
-  private mainText = EXAMPLE_SCHEMA;
+  private mainText = '';
   private mainOrigin: Origin = 'typed';
   /** The imported file the editor shows; null: the main schema. */
   private active: string | null = null;
@@ -77,7 +76,7 @@ export class App {
 
   constructor(workerUrl: URL, wasmUrl: URL) {
     this.client = new DoeClient(workerUrl, wasmUrl);
-    this.editor = new SchemaEditor(element('editor'), EXAMPLE_SCHEMA, () => this.edited());
+    this.editor = new SchemaEditor(element('editor'), '', () => this.edited());
     this.schemas = new SchemaList(element('schemas'), element<HTMLSelectElement>('parse-type'), element('edit-note'), {
       select: (path) => this.showFile(path),
       remove: (path) => this.removeFile(path),
@@ -145,14 +144,14 @@ export class App {
     }
   }
 
-  /** Load the module and show the example. */
+  /** Load the module, and bring back the saved work or the work of a link; a first visit has nothing in the editor. */
   async start(): Promise<DoeClient> {
     await this.client.start();
     element('version').textContent = this.client.version;
     this.local = await detectLocal();
     if (this.local) await this.showLocal(this.local);
     await this.showGallery();
-    if (!(await this.restore())) this.setInput(EXAMPLE_BYTES, 'example.bin');
+    await this.restore();
     this.refresh();
     return this.client;
   }
@@ -582,7 +581,6 @@ export class App {
       forget();
       element('status').textContent = 'the saved schema is forgotten';
     });
-    element('example').addEventListener('click', () => this.loadExample());
 
     window.addEventListener('dragover', (event) => event.preventDefault());
     window.addEventListener('drop', (event) => {
@@ -629,8 +627,8 @@ export class App {
     this.notice = null;
     this.selection = null;
     this.setInput(new Uint8Array(await file.arrayBuffer()), file.name);
-    if (this.autoDetect() && this.mainText === EXAMPLE_SCHEMA) {
-      // nothing of the person's own is in the editor: no use trying the example
+    if (this.autoDetect() && this.noSchema()) {
+      // nothing is in the editor: no use trying it
       void this.detect(false);
       return;
     }
@@ -638,18 +636,9 @@ export class App {
     this.refreshNow();
   }
 
-  loadExample(): void {
-    this.files.clear();
-    this.origins.clear();
-    this.schemaPath = 'main.ksy';
-    this.mainOrigin = 'typed';
-    this.parseType = null;
-    this.found = null;
-    this.notice = null;
-    this.selection = null;
-    this.setInput(EXAMPLE_BYTES, 'example.bin');
-    this.setMain(EXAMPLE_SCHEMA);
-    this.refreshNow();
+  /** Whether there is no schema yet: the editor is empty and nothing is imported. */
+  private noSchema(): boolean {
+    return this.mainText.trim() === '' && this.files.size === 0;
   }
 
   // ── the browser of types ───────────────────────────────────────────────────
@@ -841,6 +830,10 @@ export class App {
   /** Run the schema on the input. Only the newest run shows its result. */
   private refresh(): void {
     const mine = ++this.generation;
+    if (this.noSchema()) {
+      this.refreshEmpty();
+      return;
+    }
     const cancel = element('cancel');
     cancel.hidden = false;
     element('status').textContent = 'parsing…';
@@ -880,6 +873,21 @@ export class App {
         this.ended(error);
       },
     );
+  }
+
+  /** Nothing to run: there is no schema. That is not a mistake, so there is no problem to show. */
+  private refreshEmpty(): void {
+    element('cancel').hidden = true;
+    this.persist();
+    element<HTMLButtonElement>('export').disabled = true;
+    this.abort?.abort();
+    this.abort = null;
+    this.client.cancel();
+    this.found = null;
+    this.show({ ok: true, id: '', diagnostics: [], value: null, trace: null, error: null });
+    const size = this.serverInput?.size ?? this.bytes?.length;
+    const file = this.inputName && size !== undefined ? `${this.inputName}, ${size} bytes` : 'no file opened';
+    element('status').textContent = `${file} · type a schema, open one, or pick a type`;
   }
 
   /** A run that gave no answer: the page keeps what it showed, and says why. */
