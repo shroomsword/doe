@@ -50,7 +50,11 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 syste
 header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px var(--gutter); padding: 8px var(--gutter); border-bottom: 1px solid var(--line); }
 h1 { font-size: 1.1rem; margin: 0; }
 h1 small, h2 small { color: var(--muted); font-weight: normal; font-family: var(--mono); font-size: .85em; }
-h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin: 0; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--panel); color: var(--muted); display: flex; gap: 10px; align-items: baseline; }
+h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin: 0; padding: 2px 0; color: var(--muted); display: flex; gap: 10px; align-items: baseline; flex: 1 1 auto; min-width: 0; }
+/* the title bar of a pane: the heading on the left, the pane's tools at the right end, wrapping on a narrow screen */
+.pane-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 4px 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.pane-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-left: auto; font-size: 12px; }
+.pane-actions .button, .pane-actions button { padding: 1px 8px; }
 .actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .button, button { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
 .button:hover, button:hover { border-color: var(--accent); }

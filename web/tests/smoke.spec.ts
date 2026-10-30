@@ -95,12 +95,40 @@ test('a parse that fails keeps what was read and marks where', async ({ page }) 
   expect(answer.value).toMatchObject({ count: 3 });
 });
 
-test('the three file buttons say what they open, and each explains what it does to the rest', async ({ page }) => {
+test('the buttons of the schema are in the title bar of the Schema pane, and say what they do', async ({ page }) => {
   const button = (id: string) => page.locator(`label.button:has(#${id})`);
-  await expect(button('open-schema')).toContainText('Open main schema');
+  await expect(button('open-schema')).toContainText('Open');
   await expect(button('open-schema')).toHaveAttribute('title', /replacing its text.*Imports that were added stay/);
-  await expect(button('add-files')).toContainText('Add imported schemas');
+  await expect(button('add-files')).toContainText('Add imports');
   await expect(button('add-files')).toHaveAttribute('title', /main schema is not changed/);
   await expect(button('open-input')).toContainText('Open file to parse');
   await expect(button('open-input')).toHaveAttribute('title', /never uploaded/);
+});
+
+test('Open, Add imports and Browse... are at the right end of the Schema pane\'s title bar, not in the header', async ({ page }) => {
+  const bar = page.locator('#pane-editor .pane-title');
+  const heading = bar.locator('h2');
+  const actions = bar.locator('.pane-actions');
+  await expect(actions.locator('#open-schema')).toHaveCount(1);
+  await expect(actions.locator('#add-files')).toHaveCount(1);
+  await expect(actions.locator('#browse')).toHaveText('Browse...');
+  await expect(page.locator('header #open-schema, header #add-files, header #browse')).toHaveCount(0);
+  // in that order, to the right of the heading, ending at the right edge of the bar
+  const boxes = await Promise.all(['label.button:has(#open-schema)', 'label.button:has(#add-files)', '#browse'].map((s) => actions.locator(s).boundingBox()));
+  const xs = boxes.map((b) => b?.x ?? -1);
+  const [open, add, browse] = [xs[0] ?? -1, xs[1] ?? -1, xs[2] ?? -1];
+  expect(open).toBeLessThan(add);
+  expect(add).toBeLessThan(browse);
+  const head = await heading.boundingBox();
+  expect(open).toBeGreaterThan((head?.x ?? 0) + (head?.width ?? 0) - 1);
+  const barBox = await bar.boundingBox();
+  const last = boxes[2];
+  expect((last?.x ?? 0) + (last?.width ?? 0)).toBeGreaterThan((barBox?.x ?? 0) + (barBox?.width ?? 0) - 16);
+});
+
+test('the title bars wrap on a narrow screen and the page does not scroll sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 340, height: 700 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  await expect(page.locator('#browse')).toBeVisible();
 });

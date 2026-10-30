@@ -10,12 +10,9 @@
     <header>
       <h1>doe <small id="version"></small></h1>
       <div class="actions">
-        <label class="button" title="Load a schema file into the editor as the main schema, replacing its text. Imports that were added stay.">Open main schema<input id="open-schema" type="file" accept=".ksy,.yaml,.yml" /></label>
-        <label class="button" title="Add the schema files that the main schema imports (imports:). They are found by name; the main schema is not changed. A dropped .ksy or .yaml file does the same.">Add imported schemas<input id="add-files" type="file" accept=".ksy,.yaml,.yml" multiple /></label>
         <label class="button" title="Open the binary file to parse. It is read in this browser and never uploaded.">Open file to parse<input id="open-input" type="file" /></label>
         <label id="types-box" hidden>Types <select id="types"></select></label>
         <button id="use-input" type="button" hidden></button>
-        <button id="browse" type="button" title="List the types that can be used, filter them, read one and parse with it">Browse types</button>
       </div>
       <div class="actions">
         <select id="export-format" aria-label="export format">
@@ -39,7 +36,14 @@
     </header>
     <main>
       <section id="pane-editor" aria-labelledby="h-schema">
-        <h2 id="h-schema">Schema <small id="editing"></small></h2>
+        <div class="pane-title">
+          <h2 id="h-schema">Schema <small id="editing"></small></h2>
+          <div class="pane-actions">
+            <label class="button" title="Load a schema file into the editor as the main schema, replacing its text. Imports that were added stay.">Open<input id="open-schema" type="file" accept=".ksy,.yaml,.yml" /></label>
+            <label class="button" title="Add the schema files that the main schema imports (imports:). They are found by name; the main schema is not changed. A dropped .ksy or .yaml file does the same.">Add imports<input id="add-files" type="file" accept=".ksy,.yaml,.yml" multiple /></label>
+            <button id="browse" type="button" title="List the types that can be used, filter them, read one and parse with it">Browse...</button>
+          </div>
+        </div>
         <div id="editor"></div>
         <p id="edit-note" hidden></p>
         <div id="schemas-box">
@@ -51,7 +55,7 @@
         </div>
       </section>
       <section id="pane-tree" aria-labelledby="h-parsed">
-        <h2 id="h-parsed">Parsed</h2>
+        <div class="pane-title"><h2 id="h-parsed">Parsed</h2></div>
         <div class="pane-tools">
           <label id="radix-box" title="How integers are written; the choice is kept in this browser">Integers
             <select id="radix">
@@ -74,11 +78,11 @@
         <div id="tree-box"><div id="tree"></div></div>
       </section>
       <section id="pane-hex" aria-labelledby="h-bytes">
-        <h2 id="h-bytes">Bytes <small id="selection"></small></h2>
+        <div class="pane-title"><h2 id="h-bytes">Bytes <small id="selection"></small></h2></div>
         <div id="hex"></div>
       </section>
       <section id="pane-problems" aria-labelledby="h-problems">
-        <h2 id="h-problems">Problems</h2>
+        <div class="pane-title"><h2 id="h-problems">Problems</h2></div>
         <div id="problems"></div>
       </section>
     </main>
