@@ -6,7 +6,7 @@
 //! | what | budget |
 //! |---|---|
 //! | the first screen, from a parsed tree of a million fields | [`FIRST_SCREEN`] |
-//! | any key, worst of some hundreds (held keys, page keys, goto, `End`) | [`KEY`] |
+//! | any key: held keys, page keys, goto, `End` (99 in 100; a stall of one is bounded by five times it) | [`KEY`] |
 //! | any redraw of a 120×40 screen (99 in 100; a stall of one is bounded by five times it) | [`FRAME`] |
 //! | a step of a search through the million fields | [`SEARCH_STEP`] |
 //! | memory the viewer adds to the parsed tree (Linux; peak resident) | [`MEMORY_KIB`] |
@@ -106,22 +106,33 @@ fn frame(terminal: &mut Terminal<TestBackend>, app: &mut App, theme: Theme) -> D
 /// The time of every frame drawn since the last test began (the tests run one at a time).
 static FRAMES: Mutex<Vec<Duration>> = Mutex::new(Vec::new());
 
-/// Run `f` and keep the longest time of a call.
-struct Worst(Duration, String);
+/// Run `f` and keep the longest time of a call, and the time of every call.
+struct Worst(Duration, String, Vec<Duration>);
 
 impl Worst {
     fn new() -> Self {
-        Worst(Duration::ZERO, String::new())
+        Worst(Duration::ZERO, String::new(), Vec::new())
     }
 
     fn time(&mut self, what: &str, f: impl FnOnce()) {
         let start = Instant::now();
         f();
         let took = start.elapsed();
+        self.2.push(took);
         if took > self.0 {
             self.0 = took;
             what.clone_into(&mut self.1);
         }
+    }
+
+    /// The time that 99 calls of 100 took less than.
+    fn p99(&self) -> Duration {
+        let mut times = self.2.clone();
+        times.sort();
+        times
+            .get(times.len() * 99 / 100)
+            .copied()
+            .unwrap_or_default()
     }
 }
 
@@ -291,7 +302,18 @@ fn a_million_fields_open_scroll_search_and_jump_within_the_budget() {
         "slowest key {:?} ({}), slowest frame {:?} ({})",
         keys.0, keys.1, frames.0, frames.1
     );
-    assert!(keys.0 < KEY, "a key took {:?}", keys.0);
+    // A shared runner can stall a single key (157 ms was seen on macOS, where 10-60 ms is
+    // usual), so the budget is for 99 keys of 100, and a stall has a larger bound; the
+    // slowest key is named, since it says which case is slow.
+    let key_p99 = keys.p99();
+    eprintln!("{} keys, the 99th percentile {key_p99:?}", keys.2.len());
+    assert!(
+        key_p99 < KEY,
+        "a key at the 99th percentile took {key_p99:?} (the slowest, {:?}: {})",
+        keys.0,
+        keys.1
+    );
+    assert!(keys.0 < KEY * 5, "a key took {:?} ({})", keys.0, keys.1);
     // A shared runner can stall a single frame (273 ms was seen on macOS, where
     // 10-44 ms is usual), so the budget is for 99 frames of 100 and a stall has a
     // larger bound.
