@@ -37,6 +37,7 @@ async function typeSchema(page: Page, text: string): Promise<void> {
 test('the example is parsed: a tree, the bytes and no problems', async ({ page }) => {
   await expect(page.locator('#status')).toContainText('example.bin, 16 bytes');
   await expect(row(page, 'example')).toBeVisible();
+  await expect(page.locator('#parsed-as')).toHaveText('example');
   await expect(row(page, 'count')).toContainText('2');
   await expect(page.locator('.hex-row').first()).toContainText('44 4f 45'.replace(/ /g, ''));
   await expect(page.locator('.problems')).toContainText('No problems.');
@@ -119,6 +120,8 @@ test('a parse that fails shows what was read and where it stopped', async ({ pag
   await expect(page.locator('.tree-row.failed .flag')).toHaveText('failed here');
   await expect(row(page, 'count')).toContainText('3');
   await expect(page.locator('#status')).toContainText('the parse failed');
+  // the schema is still the one being tried
+  await expect(page.locator('#parsed-as')).toHaveText('example');
   // a click on the error selects the node where it failed
   await page.locator('.problem').click();
   await expect(page.locator('.tree-row.selected.failed')).toHaveCount(1);

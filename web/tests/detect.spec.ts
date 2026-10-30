@@ -140,6 +140,7 @@ test('the button finds the format of a file by its signature and fetches only th
   await expect(page.locator('#detect-report li.fit')).toContainText('the file starts with its signature');
   // the format is open and parsed
   await expect(page.locator('#editing')).toContainText('png.ksy');
+  await expect(page.locator('#parsed-as')).toHaveText('png');
   await expect(page.locator('.tree-row').first()).toBeVisible();
   // a few definitions were fetched, not the gallery
   expect(asked.length).toBeGreaterThan(0);

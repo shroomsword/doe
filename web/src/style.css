@@ -51,6 +51,7 @@ header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px var(--gut
 h1 { font-size: 1.1rem; margin: 0; }
 h1 small, h2 small { color: var(--muted); font-weight: normal; font-family: var(--mono); font-size: .85em; }
 h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin: 0; padding: 2px 0; color: var(--muted); display: flex; gap: 10px; align-items: baseline; flex: 0 1 auto; min-width: 0; }
+#parsed-as { max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* the title bar of a pane: the heading on the left, the pane's tools at the right end, wrapping on a narrow screen */
 .pane-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 4px 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
 .pane-actions { display: flex; flex: 1 1 14rem; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 6px; margin-left: auto; font-size: 12px; }
