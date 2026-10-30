@@ -153,7 +153,7 @@ test('integers are decimal at first, and every radix of the header shows them wi
   await expect(summary(page, 'a')).toHaveText('31');
 });
 
-test('the choice of the header is remembered', async ({ page }) => {
+test('the choice of Integers is remembered', async ({ page }) => {
   await ready(page);
   await page.selectOption('#radix', 'hex');
   await page.reload();
@@ -172,6 +172,11 @@ test('a field can have a radix of its own, for every element, and it is remember
   await summary(page, '\\[0\\]').click();
   await expect(page.locator('#field-radix-box')).toBeVisible();
   await expect(page.locator('#field-radix')).toHaveValue('');
+  // it is in the title bar, just left of Integers
+  const [field, global] = await Promise.all([page.locator('#field-radix-box').boundingBox(), page.locator('#radix-box').boundingBox()]);
+  const above = (field?.y ?? 0) + (field?.height ?? 0) <= (global?.y ?? 0) + 1;
+  const left = (field?.x ?? 0) + (field?.width ?? 0) <= (global?.x ?? 0) + 1;
+  expect(above || left).toBe(true);
   await page.selectOption('#field-radix', 'bin');
   for (const [index, text] of ['0b00000001', '0b00000010', '0b00000011'].entries()) {
     await expect(summary(page, `\\[${index}\\]`)).toHaveText(text);

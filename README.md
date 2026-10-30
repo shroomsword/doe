@@ -1084,7 +1084,7 @@ are left out, and each line says why it is there. The ranking waits until every
 signature is known. It is the order of trying, not the result of it: *Detect
 schema* does the parsing that tells which one fits.
 
-**Integers** are decimal at first. *Integers* in the header writes all of them in
+**Integers** are decimal at first. *Integers*, at the right end of the Parsed pane's title bar, writes all of them in
 hexadecimal (`0x001f`), binary (`0b00011111`) or octal (`0o37`), with the digits
 padded to the width of the type (a bit field has as many binary digits as bits),
 negative numbers as a sign and magnitude (`-0x1f`), and enum members with their
@@ -1092,7 +1092,7 @@ number in the radix next to the name (`text (0x01)`). Selecting an integer field
 shows *This field*, a radix of its own that holds for every element of a list and
 every parse of the same schema (it is kept by the type and the name of the field,
 saved with the work). A 64-bit number is exact: it is
-never turned into a JavaScript number. The choice of the header is remembered in
+never turned into a JavaScript number. The choice of *Integers* is remembered in
 the browser; export and the command line print decimal, as they did.
 
 Four things make the page pleasant to come back to:

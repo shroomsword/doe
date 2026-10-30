@@ -50,11 +50,12 @@ body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 syste
 header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px var(--gutter); padding: 8px var(--gutter); border-bottom: 1px solid var(--line); }
 h1 { font-size: 1.1rem; margin: 0; }
 h1 small, h2 small { color: var(--muted); font-weight: normal; font-family: var(--mono); font-size: .85em; }
-h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin: 0; padding: 2px 0; color: var(--muted); display: flex; gap: 10px; align-items: baseline; flex: 1 1 auto; min-width: 0; }
+h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin: 0; padding: 2px 0; color: var(--muted); display: flex; gap: 10px; align-items: baseline; flex: 0 1 auto; min-width: 0; }
 /* the title bar of a pane: the heading on the left, the pane's tools at the right end, wrapping on a narrow screen */
 .pane-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 4px 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
-.pane-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-left: auto; font-size: 12px; }
+.pane-actions { display: flex; flex: 1 1 14rem; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px 6px; margin-left: auto; font-size: 12px; }
 .pane-actions .button, .pane-actions button { padding: 1px 8px; }
+.pane-actions select { font-size: 12px; padding: 0 2px; max-width: 9rem; }
 .actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .button, button { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
 .button:hover, button:hover { border-color: var(--accent); }
@@ -147,8 +148,7 @@ select { font: inherit; color: inherit; background: var(--panel); border: 1px so
 header select { max-width: 14rem; text-overflow: ellipsis; }
 header label { display: inline-flex; gap: 4px; align-items: center; max-width: 100%; }
 
-.pane-tools { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 0 8px 4px; font-size: 12px; }
-.pane-tools[hidden], #field-radix-box[hidden] { display: none; }
+#field-radix-box[hidden] { display: none; }
 
 #detect-auto-box { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; }
 #detect-report { font-size: 12px; margin: 4px 8px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px; max-height: 12em; overflow: auto; }
