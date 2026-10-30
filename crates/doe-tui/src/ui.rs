@@ -1,5 +1,7 @@
 //! Drawing the state of the viewer.
 
+use std::ops::Range;
+
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -9,6 +11,7 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use crate::app::{App, Focus, Prompt};
 use crate::format;
 use crate::hex_view;
+use crate::highlight::Kind;
 use crate::inspect;
 use crate::keymap;
 use crate::report::Report;
@@ -164,6 +167,31 @@ impl Theme {
             Shown::Bool(_) => self.pick(|p| p.boolean, Color::Cyan),
             Shown::Str { .. } => self.pick(|p| p.string, Color::Green),
             Shown::Bytes { .. } => self.pick(|p| p.bytes, Color::Red),
+        }
+    }
+
+    /// A piece of a schema that is read in the pager, by what it is. With the
+    /// terminal's own colours it is the terminal's ANSI colours, and with none
+    /// it is plain.
+    #[must_use]
+    pub fn syntax(self, kind: Kind) -> Style {
+        match kind {
+            Kind::Key => self.pick(|p| p.accent, Color::Cyan),
+            Kind::Section => self
+                .pick(|p| p.accent, Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+            Kind::Type => self.pick(|p| p.type_, Color::Blue),
+            Kind::Enum => self.pick(|p| p.enum_, Color::Magenta),
+            Kind::String => self.pick(|p| p.string, Color::Green),
+            Kind::Number => self.pick(|p| p.number, Color::Yellow),
+            Kind::Literal => self.pick(|p| p.boolean, Color::Cyan),
+            Kind::Comment | Kind::Punct => {
+                if self.color {
+                    self.dim()
+                } else {
+                    Style::default()
+                }
+            }
         }
     }
 
@@ -864,13 +892,18 @@ fn schema_text(frame: &mut Frame<'_>, area: Rect, pager: &Pager, theme: Theme) {
             let bad = pager.error_line == Some(index);
             let number = format!("{:>digits$} ", index + 1);
             let mark = if bad { "✗ " } else { "│ " };
-            let body = format::truncate(text, width);
-            let style = if bad { theme.bad() } else { Style::default() };
-            Line::from(vec![
+            let mut spans = vec![
                 Span::styled(number, theme.dim()),
                 Span::styled(mark, if bad { theme.bad() } else { theme.dim() }),
-                Span::styled(body, style),
-            ])
+            ];
+            if bad {
+                // the line of the error keeps its own style over the colours
+                spans.push(Span::styled(format::truncate(text, width), theme.bad()));
+            } else {
+                let marks = pager.marks.get(index).map_or(&[][..], Vec::as_slice);
+                spans.extend(highlighted(text, marks, width, theme));
+            }
+            Line::from(spans)
         })
         .collect();
     if let Some(message) = &pager.message {
@@ -883,6 +916,47 @@ fn schema_text(frame: &mut Frame<'_>, area: Rect, pager: &Pager, theme: Theme) {
         )));
     }
     frame.render_widget(Paragraph::new(lines), inner);
+}
+
+/// A line of a schema cut to `width` and coloured by its `marks`: the marks are
+/// byte ranges of the whole line, so they are cut where the text is, and the
+/// `…` that marks the cut is dim.
+fn highlighted(
+    text: &str,
+    marks: &[(Range<usize>, Kind)],
+    width: usize,
+    theme: Theme,
+) -> Vec<Span<'static>> {
+    let shown = format::truncate(text, width);
+    let cut = if shown == text {
+        text.len()
+    } else {
+        shown.len().saturating_sub('…'.len_utf8())
+    };
+    let mut spans = Vec::new();
+    let mut at = 0;
+    for (range, kind) in marks {
+        if range.start >= cut {
+            break;
+        }
+        let end = range.end.min(cut);
+        if range.start > at {
+            spans.push(Span::raw(
+                text.get(at..range.start).unwrap_or_default().to_owned(),
+            ));
+        }
+        if let Some(piece) = text.get(range.start.max(at)..end) {
+            spans.push(Span::styled(piece.to_owned(), theme.syntax(*kind)));
+        }
+        at = end;
+    }
+    if at < cut {
+        spans.push(Span::raw(text.get(at..cut).unwrap_or_default().to_owned()));
+    }
+    if cut < text.len() || shown != text {
+        spans.push(Span::styled("…", theme.dim()));
+    }
+    spans
 }
 
 /// Whether the screen is too short for the status bar.
@@ -1849,5 +1923,161 @@ instances:
                 .iter()
                 .any(|cell| cell.fg != Color::Reset)
         );
+    }
+
+    // ── the pager that reads a schema ───────────────────────────────────────
+
+    fn distinct_palette() -> Palette {
+        let rgb = |n: u8| Color::Rgb(n, n, n);
+        Palette {
+            background: rgb(1),
+            foreground: rgb(2),
+            muted: rgb(3),
+            line: rgb(4),
+            panel: rgb(5),
+            accent: rgb(6),
+            selection: rgb(7),
+            selection_part: rgb(8),
+            error: rgb(9),
+            warning: rgb(10),
+            number: rgb(11),
+            string: rgb(12),
+            bytes: rgb(13),
+            enum_: rgb(14),
+            boolean: rgb(15),
+            offset: rgb(16),
+            type_: rgb(17),
+            instance: rgb(18),
+        }
+    }
+
+    fn pager(lines: &[&str], error_line: Option<usize>) -> Pager {
+        let lines: Vec<String> = lines.iter().map(|l| (*l).to_owned()).collect();
+        Pager {
+            path: std::path::PathBuf::from("s.yaml"),
+            marks: crate::highlight::scan(&lines),
+            lines,
+            top: 0,
+            error_line,
+            message: None,
+        }
+    }
+
+    /// The foreground of the cell at (`x`, `y`) of a pager drawn on a screen.
+    fn drawn(pager: &Pager, theme: Theme, width: u16) -> Terminal<TestBackend> {
+        let mut terminal = Terminal::new(TestBackend::new(width, 8)).unwrap();
+        terminal
+            .draw(|f| schema_text(f, f.area(), pager, theme))
+            .unwrap();
+        terminal
+    }
+
+    /// The first column of the text of the pager: the border, the number and the mark come before.
+    const BODY: u16 = 5;
+
+    fn fg(terminal: &Terminal<TestBackend>, x: u16, y: u16) -> Color {
+        terminal.backend().buffer().cell((x, y)).unwrap().fg
+    }
+
+    fn symbol(terminal: &Terminal<TestBackend>, x: u16, y: u16) -> String {
+        terminal
+            .backend()
+            .buffer()
+            .cell((x, y))
+            .unwrap()
+            .symbol()
+            .to_owned()
+    }
+
+    const SCHEMA: [&str; 4] = [
+        "seq:",
+        "  - id: size",
+        "    type: u2le  # the size",
+        "    size: 0x10",
+    ];
+
+    #[test]
+    fn the_pager_colours_a_schema_with_the_colours_of_the_theme() {
+        let p = distinct_palette();
+        let terminal = drawn(&pager(&SCHEMA, None), Theme::themed(p), 60);
+        // `seq` at the left edge, a section
+        assert_eq!(symbol(&terminal, BODY, 1), "s");
+        assert_eq!(fg(&terminal, BODY, 1), p.accent);
+        // the `:` after it is secondary
+        assert_eq!(fg(&terminal, BODY + 3, 1), p.muted);
+        // `id` is a key, and the dash before it secondary
+        assert_eq!(fg(&terminal, BODY + 2, 2), p.muted);
+        assert_eq!(fg(&terminal, BODY + 4, 2), p.accent);
+        // the value of `type` is a type, the comment dim, a number a number
+        let line = "    type: u2le  # the size";
+        let at = |needle: &str| BODY + u16::try_from(line.find(needle).unwrap()).unwrap();
+        assert_eq!(fg(&terminal, at("u2le"), 3), p.type_);
+        assert_eq!(fg(&terminal, at("# the"), 3), p.muted);
+        assert_eq!(fg(&terminal, BODY + 10, 4), p.number);
+        // every colour on a row of the text is one of the palette's
+        let allowed = [
+            p.accent,
+            p.muted,
+            p.type_,
+            p.number,
+            p.string,
+            p.enum_,
+            p.boolean,
+            p.foreground,
+            p.background,
+            Color::Reset,
+            p.line,
+        ];
+        for y in 1..5 {
+            for x in 0..60 {
+                let color = fg(&terminal, x, y);
+                assert!(allowed.contains(&color), "({x}, {y}): {color:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn with_the_terminals_colours_the_pager_uses_its_ansi_colours() {
+        let terminal = drawn(&pager(&SCHEMA, None), Theme::new(true), 60);
+        assert_eq!(fg(&terminal, BODY, 1), Color::Cyan);
+        assert_eq!(fg(&terminal, BODY + 10, 4), Color::Yellow);
+        let line = "    type: u2le  # the size";
+        let at = BODY + u16::try_from(line.find("u2le").unwrap()).unwrap();
+        assert_eq!(fg(&terminal, at, 3), Color::Blue);
+    }
+
+    #[test]
+    fn with_no_colour_the_pager_reads_as_plain_text() {
+        let terminal = drawn(&pager(&SCHEMA, None), Theme::new(false), 60);
+        for y in 1..5 {
+            for x in 0..60 {
+                assert_eq!(fg(&terminal, x, y), Color::Reset, "({x}, {y})");
+            }
+        }
+    }
+
+    #[test]
+    fn a_line_cut_to_the_width_is_coloured_up_to_the_cut_and_ends_in_a_dim_ellipsis() {
+        let p = distinct_palette();
+        // inner width 12, a number and a mark take 4: eight columns of text
+        let terminal = drawn(&pager(&SCHEMA, None), Theme::themed(p), 14);
+        // "    type: u2le  # the size" is cut after seven characters
+        assert_eq!(symbol(&terminal, BODY + 7, 3), "…");
+        assert_eq!(fg(&terminal, BODY + 7, 3), p.muted);
+        assert_eq!(symbol(&terminal, BODY + 4, 3), "t");
+        assert_eq!(fg(&terminal, BODY + 4, 3), p.accent);
+        // a cut in the middle of a coloured piece does not colour what comes after
+        assert_eq!(symbol(&terminal, BODY + 8, 3), "│");
+    }
+
+    #[test]
+    fn the_line_of_an_error_keeps_its_own_style() {
+        let p = distinct_palette();
+        let terminal = drawn(&pager(&SCHEMA, Some(1)), Theme::themed(p), 60);
+        for x in BODY..BODY + 12 {
+            assert_eq!(fg(&terminal, x, 2), p.error, "{x}");
+        }
+        // and the lines around it are coloured
+        assert_eq!(fg(&terminal, BODY, 1), p.accent);
     }
 }

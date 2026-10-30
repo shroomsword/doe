@@ -1397,6 +1397,16 @@ as `doe --tui FILE SCHEMA::TYPE` does; the type that is parsed has a `●`. `r`
 reads everything again, and `Esc` closes the list. If the new type cannot be used,
 the old tree stays and the error is shown.
 
+The pager that reads a schema (from the list of schemas, and `v` in the types
+browser) **colours** it with the colours of the [theme](#themes): keys and the
+sections at the left edge in the accent colour, the names of types and of enums
+in theirs, strings and the text of `doc:` blocks, numbers (`0x…` and `0b…` too),
+`true`, `false` and `null`, and comments dim. The line of an error keeps the
+error colour. With the terminal's own colours it uses the ANSI colours, and with
+`NO_COLOR` or `--color never` the text is plain. The colouring is a scanner of the
+YAML that schemas use, not a parser: what it does not understand is shown as it
+is.
+
 `t` browses the types that are **available**: those of the type paths (`-I`, and
 `include_paths` of the config file), found in their subdirectories too, grouped
 by the path they are in, each with its id, the file it is in, and the first line

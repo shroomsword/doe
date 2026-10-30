@@ -19,6 +19,7 @@ pub mod draft;
 pub mod field_dialog;
 pub mod format;
 pub mod hex_view;
+pub mod highlight;
 pub mod inspect;
 pub mod keymap;
 pub mod load;
