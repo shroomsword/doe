@@ -2782,3 +2782,82 @@ mod recursive_lookup {
         ));
     }
 }
+
+#[test]
+fn a_leading_slash_may_be_relative_to_a_folder_of_the_include_path() {
+    // the gallery installed below an include path: include/kaitai is its root
+    let include = tempfile::TempDir::new().unwrap();
+    let root = include.path().join("kaitai");
+    std::fs::create_dir_all(root.join("common")).unwrap();
+    std::fs::create_dir_all(root.join("macos").join("deep")).unwrap();
+    write(
+        &root.join("common"),
+        "riff.ksy",
+        "meta:\n  id: riff\nseq: []\n",
+    );
+    let main = write(
+        &root.join("macos").join("deep"),
+        "main.yaml",
+        "id: main\nimports:\n  - /common/riff\nseq: []\n",
+    );
+    let mut compiler = Compiler::new(vec![include.path().to_owned()]);
+    compiler.process_schema(&load_yaml(&main).unwrap()).unwrap();
+    assert!(compiler.registry.contains("riff"));
+}
+
+#[test]
+fn the_include_path_is_tried_before_the_folders_below_it_and_the_nearest_folder_first() {
+    let include = tempfile::TempDir::new().unwrap();
+    let root = include.path().join("kaitai");
+    for (dir, id) in [
+        (include.path().join("common"), "at_include_path"),
+        (root.join("common"), "at_root"),
+        (root.join("sub").join("common"), "at_sub"),
+    ] {
+        std::fs::create_dir_all(&dir).unwrap();
+        write(&dir, "x.ksy", &format!("meta:\n  id: {id}\nseq: []\n"));
+    }
+    let main = write(
+        &root.join("sub"),
+        "main.yaml",
+        "id: main\nimports:\n  - /common/x\nseq: []\n",
+    );
+    // the include path itself has it: that is the one
+    let mut compiler = Compiler::new(vec![include.path().to_owned()]);
+    compiler.process_schema(&load_yaml(&main).unwrap()).unwrap();
+    assert!(compiler.registry.contains("at_include_path"));
+    assert!(!compiler.registry.contains("at_root") && !compiler.registry.contains("at_sub"));
+
+    // without it, the nearest folder
+    std::fs::remove_file(include.path().join("common").join("x.ksy")).unwrap();
+    let mut compiler = Compiler::new(vec![include.path().to_owned()]);
+    compiler.process_schema(&load_yaml(&main).unwrap()).unwrap();
+    assert!(compiler.registry.contains("at_sub"));
+    assert!(!compiler.registry.contains("at_root"));
+}
+
+#[test]
+fn a_leading_slash_that_is_nowhere_says_where_it_looked() {
+    let include = tempfile::TempDir::new().unwrap();
+    let root = include.path().join("kaitai");
+    std::fs::create_dir_all(&root).unwrap();
+    let main = write(
+        &root,
+        "main.yaml",
+        "id: main\nimports:\n  - /common/nope\nseq: []\n",
+    );
+    let err = Compiler::new(vec![include.path().to_owned()])
+        .process_schema(&load_yaml(&main).unwrap())
+        .unwrap_err();
+    match err {
+        DoeError::SchemaNotFound { searched, .. } => {
+            assert!(
+                searched
+                    .iter()
+                    .any(|p| p.starts_with(include.path().join("common")))
+            );
+            assert!(searched.iter().any(|p| p.starts_with(root.join("common"))));
+        }
+        other => panic!("{other:?}"),
+    }
+}

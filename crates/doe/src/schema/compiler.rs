@@ -1031,12 +1031,32 @@ impl Compiler {
 
     /// Where an import is. A name that starts with `./` or `../` is relative
     /// to the importing file. As in Kaitai Struct, one that starts with a slash
-    /// is looked for in the include paths only, and any other is looked for
-    /// next to the importing file first and then in the include paths.
+    /// is relative to the root of the library, which is an include path, or a
+    /// folder of one (the gallery installed by `doe --install-types` is
+    /// `~/.doe/types/kaitai`): it is looked for in the include paths, and then
+    /// in the folders from the importing file's up to the include path, nearest
+    /// first. Any other is looked for next to the importing file first and then
+    /// in the include paths.
     fn resolve_import(&self, import: &str, importing_dir: Option<&Path>) -> Result<PathBuf> {
         if let Some(rest) = import.strip_prefix('/') {
             let dirs: Vec<&Path> = self.include_paths.iter().map(PathBuf::as_path).collect();
-            return find_schema(self.source.as_ref(), import, rest, &dirs);
+            return match find_schema(self.source.as_ref(), import, rest, &dirs) {
+                Err(DoeError::SchemaNotFound { name, mut searched }) => {
+                    let roots = importing_dir
+                        .map(|dir| folders_below_include_path(dir, &self.include_paths))
+                        .unwrap_or_default();
+                    let roots: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
+                    match find_schema(self.source.as_ref(), import, rest, &roots) {
+                        Ok(found) => Ok(found),
+                        Err(DoeError::SchemaNotFound { searched: more, .. }) => {
+                            searched.extend(more);
+                            Err(DoeError::SchemaNotFound { name, searched })
+                        }
+                        Err(other) => Err(other),
+                    }
+                }
+                other => other,
+            };
         }
         if import.starts_with("./") || import.starts_with("../") {
             return self.resolve_path(import, importing_dir);
@@ -1059,6 +1079,22 @@ impl Compiler {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper structs and functions
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// The folders from `dir` up to, but not including, the first include path that
+/// holds it, nearest first: where the root of a library can be when it is a
+/// folder of an include path.
+fn folders_below_include_path(dir: &Path, include_paths: &[PathBuf]) -> Vec<PathBuf> {
+    let Some(include) = include_paths
+        .iter()
+        .find(|include| dir.starts_with(include) && dir != include.as_path())
+    else {
+        return Vec::new();
+    };
+    dir.ancestors()
+        .take_while(|ancestor| *ancestor != include.as_path())
+        .map(Path::to_path_buf)
+        .collect()
+}
 
 /// Find the schema file `name` in `dirs`, trying the extensions of schemas
 /// when it has none. `shown` is the name in the error.
