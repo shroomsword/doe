@@ -214,6 +214,11 @@ pub struct CompiledInstance {
     /// The stream a read instance is read from, if not the one of its type
     /// (`io:`).
     pub io: Option<CompiledIo>,
+    /// Whether the value depends on where a stream is (`_io.pos`, `_io.eof`),
+    /// directly or through other instances of the type. Such a value is
+    /// worked out when it is first used and, if nothing uses it, when the
+    /// whole input has been read, as the reference compiler's parsers do.
+    pub reads_position: bool,
 }
 
 /// The stream an instance is read from.

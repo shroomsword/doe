@@ -238,6 +238,7 @@ formats!(
     encodings,
     float_types,
     gallery_syntax,
+    io_position_instances,
     gif_like,
     import_cycle_a,
     import_cycle_b,

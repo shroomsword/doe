@@ -51,6 +51,7 @@ definitions use:
 | `expressions` | arithmetic, bit operations, strings, arrays, floats, conversions |
 | `float_types` | floats of both sizes and byte orders |
 | `repeat_until_eof` | `_io.eof` |
+| `io_position_instances` | `_io.pos` and `_io.eof` in instances: worked out when first used, or at the end of the parse when nothing uses them (#170) |
 | `terminated` | `terminator` with `include`, `consume`, `eos-error`, `size` and `pad-right` |
 | `value_instance_enum` | a value instance with an enum |
 | `import_main`, `import_dep` | `meta.imports` and a type of an imported definition |

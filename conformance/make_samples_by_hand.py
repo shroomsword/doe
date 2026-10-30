@@ -1893,7 +1893,7 @@ def more():
     pud += pud_section(b"UNIT", b"".join(struct.pack("<HHBBH", *unit) for unit in units))
     put("game/warcraft_2_pud", "small_map", pud)
 
-    # Windows resource file (.res): the empty first resource, one named "DOE" of type RCDATA, one of a type that has a name
+    # Windows resource file (.res): the empty first resource, one named "DOE" of type RCDATA, one with numbers for type and name, one of a type that has a name
     def utf16z(text):
         return text.encode("utf-16-le") + b"\0\0"
 
@@ -1906,9 +1906,12 @@ def more():
         head = struct.pack("<II", len(value), len(head)) + head[8:]
         return head + value + bytes(-len(value) % 4)
 
-    # (every type and name is a string: the definition keeps the position of the end of a name in an instance that is
-    # worked out when it is first used, which for a number is at the end of the file, where doe has it at the name)
-    res = resource("RCDATA", "DOE", b"hello")
+    # (the first, empty resource is what `rc` always writes; the third has a number as its type and as its name: the
+    # definition keeps the position of the end of a name in an instance, which the reference works out when it is used,
+    # or at the end of the file when nothing used it)
+    res = resource(0, 0, b"", 0)
+    res += resource("RCDATA", "DOE", b"hello")
+    res += resource(10, 1, b"numbers")
     res += resource("MYTYPE", "ONE", b"\x01\x02\x03\x04")
     res += resource("VERSION", "VS", b"version data goes here", 0x407)
     put("windows/windows_resource_file", "three_resources", res)

@@ -568,6 +568,7 @@ impl Compiler {
             };
             compiled_instances.push(self.compile_instance(id, raw_instance, &ctx)?);
         }
+        mark_position_readers(&mut compiled_instances);
 
         let ct = CompiledType {
             name: fqn.to_owned(),
@@ -643,6 +644,7 @@ impl Compiler {
                 id: id.to_owned(),
                 kind: InstanceKind::Read(Box::new(field)),
                 io,
+                reads_position: false,
             });
         };
         if raw.reads() {
@@ -669,8 +671,12 @@ impl Compiler {
         let mut exprs = vec![&expr];
         exprs.extend(if_expr.as_ref());
         let uses_instances = instance_refs(&exprs, ctx.instances);
+        let reads_position = field_paths(exprs.clone())
+            .into_iter()
+            .any(|path| reads_stream_position(path));
         Ok(CompiledInstance {
             io: None,
+            reads_position,
             id: id.to_owned(),
             kind: InstanceKind::Value {
                 doc: raw.doc.clone(),
@@ -1290,6 +1296,40 @@ fn type_exprs(ty: &CompiledType) -> Vec<&expr::Expr> {
 }
 
 /// The paths of the fields the expressions refer to (`_parent.x.y`).
+/// Whether a path of an expression asks where a stream is: `_io.pos`, `_io.eof`,
+/// also through `_parent` and `_root`, or `_io` taken whole.
+fn reads_stream_position(path: &[String]) -> bool {
+    path.last().is_some_and(|last| last == "_io")
+        || path.windows(2).any(
+            |pair| matches!(pair, [io, what] if io == "_io" && (what == "pos" || what == "eof")),
+        )
+}
+
+/// Mark the value instances that depend on where a stream is, also through
+/// other instances of the same type that they use.
+fn mark_position_readers(instances: &mut [CompiledInstance]) {
+    loop {
+        let readers: HashSet<String> = instances
+            .iter()
+            .filter(|instance| instance.reads_position)
+            .map(|instance| instance.id.clone())
+            .collect();
+        let mut changed = false;
+        for instance in instances.iter_mut() {
+            if !instance.reads_position
+                && let InstanceKind::Value { uses_instances, .. } = &instance.kind
+                && uses_instances.iter().any(|used| readers.contains(used))
+            {
+                instance.reads_position = true;
+                changed = true;
+            }
+        }
+        if !changed {
+            return;
+        }
+    }
+}
+
 fn field_paths(exprs: Vec<&expr::Expr>) -> Vec<&Vec<String>> {
     use expr::Expr;
     let mut paths = Vec::new();
