@@ -101,7 +101,7 @@ test('the buttons of the schema are in the title bar of the Schema pane, and say
   await expect(button('open-schema')).toHaveAttribute('title', /replacing its text.*Imports that were added stay/);
   await expect(button('add-files')).toContainText('Add imports');
   await expect(button('add-files')).toHaveAttribute('title', /main schema is not changed/);
-  await expect(button('open-input')).toContainText('Open file to parse');
+  await expect(button('open-input')).toContainText('Open');
   await expect(button('open-input')).toHaveAttribute('title', /never uploaded/);
 });
 
@@ -131,4 +131,21 @@ test('the title bars wrap on a narrow screen and the page does not scroll sidewa
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await expect(page.locator('#browse')).toBeVisible();
+});
+
+test('Open, Detect and auto are in the title bar of the Parsed pane, and the detection report is under it', async ({ page }) => {
+  const bar = page.locator('#pane-tree .pane-title');
+  const actions = bar.locator('.pane-actions');
+  await expect(actions.locator('#open-input')).toHaveCount(1);
+  await expect(actions.locator('#detect')).toHaveText('Detect');
+  await expect(actions.locator('#detect-auto')).toHaveCount(1);
+  await expect(page.locator('header #open-input, header #detect, header #detect-auto, header #detect-report')).toHaveCount(0);
+  // in that order, to the right of the heading
+  const xs = await Promise.all(['label.button:has(#open-input)', '#detect', '#detect-auto-box'].map(async (s) => (await actions.locator(s).boundingBox())?.x ?? -1));
+  expect(xs[0]).toBeLessThan(xs[1] ?? 0);
+  expect(xs[1]).toBeLessThan(xs[2] ?? 0);
+  const head = await bar.locator('h2').boundingBox();
+  expect(xs[0]).toBeGreaterThan((head?.x ?? 0) + (head?.width ?? 0) - 1);
+  // the report is in the pane, under the bar (it is shown by the tests of detection)
+  await expect(page.locator('#pane-tree #detect-report')).toHaveCount(1);
 });

@@ -10,7 +10,6 @@
     <header>
       <h1>doe <small id="version"></small></h1>
       <div class="actions">
-        <label class="button" title="Open the binary file to parse. It is read in this browser and never uploaded.">Open file to parse<input id="open-input" type="file" /></label>
         <label id="types-box" hidden>Types <select id="types"></select></label>
         <button id="use-input" type="button" hidden></button>
       </div>
@@ -22,11 +21,6 @@
         </select>
         <button id="export" type="button" disabled title="Save the whole parsed value, as doe prints it">Export</button>
       </div>
-      <div class="actions">
-        <button id="detect" type="button" title="Find the schema of the opened file among the gallery (and the types of this machine, with doe --ide)">Detect schema</button>
-        <label id="detect-auto-box" title="Detect the schema when a file is opened and the current one does not parse it"><input id="detect-auto" type="checkbox" /> auto</label>
-      </div>
-      <div id="detect-report" hidden></div>
       <div class="actions">
         <label id="theme-box">Theme <select id="theme"></select></label>
         <label class="button" title="Load a theme file (TOML, as doe --tui reads it); it is kept in this browser">Load theme<input id="open-theme" type="file" accept=".toml" /></label>
@@ -55,7 +49,15 @@
         </div>
       </section>
       <section id="pane-tree" aria-labelledby="h-parsed">
-        <div class="pane-title"><h2 id="h-parsed">Parsed</h2></div>
+        <div class="pane-title">
+          <h2 id="h-parsed">Parsed</h2>
+          <div class="pane-actions">
+            <label class="button" title="Open the binary file to parse. It is read in this browser and never uploaded.">Open<input id="open-input" type="file" /></label>
+            <button id="detect" type="button" title="Find the schema of the opened file among the gallery (and the types of this machine, with doe --ide)">Detect</button>
+            <label id="detect-auto-box" title="Detect the schema when a file is opened and the current one does not parse it"><input id="detect-auto" type="checkbox" /> auto</label>
+          </div>
+        </div>
+        <div id="detect-report" hidden></div>
         <div class="pane-tools">
           <label id="radix-box" title="How integers are written; the choice is kept in this browser">Integers
             <select id="radix">

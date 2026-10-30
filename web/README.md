@@ -68,7 +68,7 @@ The editor and the file are empty at first (open a file, open or type a schema, 
 
 A click on a field of the tree marks its bytes, and a click on a byte selects the
 innermost field that holds it and opens the way to it; the arrow keys move in the
-tree. *Open file to parse* (or a dropped file that is not a schema) is the input. A file of
+tree. *Open* in the title bar of the Parsed pane (or a dropped file that is not a schema) is the input. A file of
 more than 256 MiB is refused, as WebAssembly has 4 GiB of memory at most; the
 local version (`doe --ide FILE`) has no such limit: it reads the file itself. Its tests (`tests/local.spec.ts`) run against `target/debug/doe`, so build the page first and then `cargo build -p doe-cli`.
 
