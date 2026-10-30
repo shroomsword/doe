@@ -11,7 +11,7 @@ import { type Entry, type Ranking, TypeBrowser, galleryEntries, libraryEntries, 
 import { type Path, byteRange, checkSize, describeRange, findByte, nodeAt, pathName } from './model.js';
 import { ProblemsView } from './problems.js';
 import { type Origin, SchemaList, editable, isKnownType, listing } from './schemas.js';
-import { type Work, codeOfHash, decodeWork, forget, recall, remember } from './share.js';
+import { type Work, codeOfHash, decodeWork, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { Radixes, isRadix } from './radix.js';
 import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
@@ -532,10 +532,6 @@ export class App {
       }
     });
     element('export').addEventListener('click', () => void this.exportOutput());
-    element('forget').addEventListener('click', () => {
-      forget();
-      element('status').textContent = 'the saved schema is forgotten';
-    });
 
     window.addEventListener('dragover', (event) => event.preventDefault());
     window.addEventListener('drop', (event) => {

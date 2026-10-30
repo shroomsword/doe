@@ -57,8 +57,10 @@ test('reloading the page brings back the schema, and says which file it was used
   await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
   await expect(page.locator('.cm-content')).toContainText('shared_thing');
   await expect(page.locator('#status')).toContainText('open last.bin again');
-  // forgetting means the next reload starts with nothing in the editor
-  await page.locator('#forget').click();
+  // the page has no button to forget the schema; clearing the site's data (here, its storage) starts it empty
+  await expect(page.locator('#forget')).toHaveCount(0);
+  await expect(page.locator('#privacy')).toHaveCount(0);
+  await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
   await expect(page.locator('.cm-content')).toHaveText('');

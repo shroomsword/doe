@@ -1101,8 +1101,9 @@ Four things make the page pleasant to come back to:
   version made (a schema and its imports in the part after `#s=`, compressed; it
   never held the file) still opens the same schema.
 - **Saved work:** the schema, its imports and the name of the last file are kept
-  in this browser (`localStorage`) and come back on reload; *Forget the saved
-  schema* clears them. The file itself is not kept: open it again.
+  in this browser (`localStorage`) and come back on reload; they are never sent
+  anywhere, and clearing the site's data in the browser (or emptying the editor)
+  starts the page empty. The file itself is not kept: open it again.
 - **Gallery:** the list of the [Kaitai Struct gallery](https://github.com/kaitai-io/kaitai_struct_formats)
   formats is in the page, in *Browse types*; using one downloads its definition (and what it
   imports) from GitHub at the commit that the page was built with. The
