@@ -20,6 +20,15 @@ import { TreeView } from './tree.js';
 /** How long the schema is left alone before it is checked again. */
 const PAUSE_MS = 250;
 
+/** The part of a file handle that saving uses (File System Access API, in the browsers that have it). */
+interface SaveHandle {
+  name: string;
+  createWritable(): Promise<{ write(data: string): Promise<void>; close(): Promise<void> }>;
+}
+type WindowWithPicker = Window & {
+  showSaveFilePicker?: (options: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<SaveHandle>;
+};
+
 const SCHEMA_EXTENSIONS = ['.ksy', '.yaml', '.yml'];
 
 function element<T extends HTMLElement>(id: string): T {
@@ -393,31 +402,120 @@ export class App {
     }
   }
 
-  /** Save the whole value, rendered as the command line prints it. */
-  private async exportOutput(): Promise<void> {
-    const format = element<HTMLSelectElement>('export-format').value as ExportFormat;
+  // ── saving the parsed value ────────────────────────────────────────────────
+
+  /** The handle of the file that *Browse...* chose, where the browser lets a page choose one. */
+  private saveHandle: SaveHandle | null = null;
+  /** The name the dialog offered for the format, to tell whether the person changed it. */
+  private saveDefault = '';
+
+  /** The format of the dialog: `text`, or `json` (indented, as `--pretty`). */
+  private saveFormat(): 'text' | 'json' {
+    const chosen = document.querySelector<HTMLInputElement>('input[name="save-format"]:checked');
+    return chosen?.value === 'json' ? 'json' : 'text';
+  }
+
+  private defaultName(format: 'text' | 'json'): string {
+    return `${this.inputName ?? 'output'}.${format === 'text' ? 'txt' : 'json'}`;
+  }
+
+  private saveNote(text: string, bad = false): void {
+    const note = element('save-note');
+    note.textContent = text;
+    note.classList.toggle('bad', bad);
+  }
+
+  private openSave(): void {
+    if (element<HTMLButtonElement>('save').disabled) return;
+    this.saveHandle = null;
+    this.saveDefault = this.defaultName(this.saveFormat());
+    element<HTMLInputElement>('save-name').value = this.saveDefault;
+    element('save-place').textContent = '';
+    const picker = typeof (window as WindowWithPicker).showSaveFilePicker === 'function';
+    element('save-browse').hidden = !picker;
+    this.saveNote(picker ? '' : 'This browser cannot choose where to save: the file goes where its download setting says, or it asks.');
+    element<HTMLDialogElement>('save-dialog').showModal();
+  }
+
+  /** The format changed: the name follows it unless the person wrote their own, and a place chosen for the other format is dropped. */
+  private saveFormatChanged(): void {
+    const name = element<HTMLInputElement>('save-name');
+    if (name.value === this.saveDefault) {
+      this.saveDefault = this.defaultName(this.saveFormat());
+      name.value = this.saveDefault;
+    }
+    this.saveHandle = null;
+    element('save-place').textContent = '';
+  }
+
+  /** *Browse...*: the system's save dialog, in the browsers that let a page open one. */
+  private async browseSave(): Promise<void> {
+    const pick = (window as WindowWithPicker).showSaveFilePicker;
+    if (typeof pick !== 'function') return;
+    const format = this.saveFormat();
+    try {
+      const handle = await pick.call(window, {
+        suggestedName: element<HTMLInputElement>('save-name').value || this.defaultName(format),
+        types: [format === 'text' ? { description: 'Text', accept: { 'text/plain': ['.txt'] } } : { description: 'JSON', accept: { 'application/json': ['.json'] } }],
+      });
+      this.saveHandle = handle;
+      element<HTMLInputElement>('save-name').value = handle.name;
+      element('save-place').textContent = `will be written to ${handle.name}, where you chose`;
+      this.saveNote('');
+    } catch (error) {
+      // the person closed the dialog: nothing changes
+      if (!(error instanceof DOMException && error.name === 'AbortError')) this.saveNote(`could not choose the file: ${String(error)}`, true);
+    }
+  }
+
+  /** The whole value, rendered as the command line prints it; null (with the reason shown) when it cannot be made. */
+  private async makeOutput(format: ExportFormat): Promise<string | null> {
     const request = this.request();
     let answer: ExportResponse;
     try {
       if (this.serverInput && this.local) answer = await this.local.export(request, format, new AbortController().signal);
       else if (this.bytes) answer = await this.client.export(request, format);
-      else return;
+      else return null;
     } catch (error) {
       this.ended(error);
-      return;
+      this.saveNote('the value could not be made', true);
+      return null;
     }
     if (!answer.ok || answer.output === null) {
       const problems = [...answer.diagnostics];
       if (answer.error) problems.push(answer.error);
       this.problems.show(problems);
+      this.saveNote('there is nothing to save: the parse did not work', true);
+      return null;
+    }
+    return answer.output;
+  }
+
+  /** *Save*: write to the chosen file, or download under the name in the dialog. */
+  private async save(): Promise<void> {
+    const format = this.saveFormat();
+    const output = await this.makeOutput(format === 'text' ? 'text' : 'pretty');
+    if (output === null) return;
+    const typed = element<HTMLInputElement>('save-name').value.trim().replace(/[\\/]/g, '_');
+    const name = typed === '' ? this.defaultName(format) : typed;
+    try {
+      if (this.saveHandle) {
+        const writable = await this.saveHandle.createWritable();
+        await writable.write(output);
+        await writable.close();
+      } else {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([output], { type: format === 'text' ? 'text/plain;charset=utf-8' : 'application/json;charset=utf-8' }));
+        link.download = name;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+      }
+    } catch (error) {
+      this.saveNote(`could not save: ${String(error)}`, true);
       return;
     }
-    const extension = format === 'text' ? 'txt' : 'json';
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob([answer.output], { type: 'text/plain;charset=utf-8' }));
-    link.download = `${this.inputName ?? 'output'}.${extension}`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+    element<HTMLDialogElement>('save-dialog').close();
+    element('status').textContent = `saved ${this.saveHandle?.name ?? name}`;
   }
 
   /** The page is served by `doe --ide`: offer its types and the file named on the command line. */
@@ -533,7 +631,11 @@ export class App {
         // no storage: the choice is not remembered
       }
     });
-    element('export').addEventListener('click', () => void this.exportOutput());
+    element('save').addEventListener('click', () => this.openSave());
+    element('save-go').addEventListener('click', () => void this.save());
+    element('save-cancel').addEventListener('click', () => element<HTMLDialogElement>('save-dialog').close());
+    element('save-browse').addEventListener('click', () => void this.browseSave());
+    for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="save-format"]')) radio.addEventListener('change', () => this.saveFormatChanged());
 
     window.addEventListener('dragover', (event) => event.preventDefault());
     window.addEventListener('drop', (event) => {
@@ -796,7 +898,7 @@ export class App {
     element('status').textContent = 'parsing…';
     const request = this.request();
     this.persist();
-    element<HTMLButtonElement>('export').disabled = true;
+    element<HTMLButtonElement>('save').disabled = true;
     this.abort?.abort();
     this.abort = null;
     let run: Promise<ParseResponse>;
@@ -814,7 +916,7 @@ export class App {
       (response) => {
         if (mine !== this.generation) return;
         cancel.hidden = true;
-        element<HTMLButtonElement>('export').disabled = !(response.ok && (this.bytes || this.serverInput));
+        element<HTMLButtonElement>('save').disabled = !(response.ok && (this.bytes || this.serverInput));
         this.show(response);
         this.inspect(request, mine);
       },
@@ -836,7 +938,7 @@ export class App {
   private refreshEmpty(): void {
     element('cancel').hidden = true;
     this.persist();
-    element<HTMLButtonElement>('export').disabled = true;
+    element<HTMLButtonElement>('save').disabled = true;
     this.abort?.abort();
     this.abort = null;
     this.client.cancel();

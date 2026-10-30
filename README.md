@@ -1093,7 +1093,7 @@ shows *This field*, a radix of its own that holds for every element of a list an
 every parse of the same schema (it is kept by the type and the name of the field,
 saved with the work). A 64-bit number is exact: it is
 never turned into a JavaScript number. The choice of *Integers* is remembered in
-the browser; export and the command line print decimal, as they did.
+the browser; a saved file and the command line print decimal, as they did.
 
 Four things make the page pleasant to come back to:
 
@@ -1115,8 +1115,13 @@ Four things make the page pleasant to come back to:
   ranks and tries them together by signature and name, and the list is made from
   `types/` when the page is built: a new type is there without a change to the
   page. A shared link holds the schema's text, so it opens the same type.
-- **Export:** *Export* saves the whole parsed value as `doe` prints it on the
-  command line: text, indented JSON (`--pretty`) or compact JSON (`--json`).
+- **Save:** the save button (a disk icon) in the Parsed pane's title bar opens a
+  dialog to save the whole parsed value as `doe` prints it on the command line:
+  as text, or as indented JSON (`--pretty`), under the name in the dialog. In the
+  browsers that let a page open the system's save dialog (Chromium-based ones),
+  *Browse...* chooses the folder and the file; in the others (Firefox, Safari) the
+  browser decides where a download goes, and the dialog says so. The file is made
+  and written in the browser.
 
 `doe --ide` also offers what a page in a browser cannot see on this machine:
 

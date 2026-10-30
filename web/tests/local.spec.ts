@@ -1,7 +1,7 @@
 // The page served by `doe --ide`: the types of the machine, and a file too
 // large for the browser that stays where it is. (local-server.mjs starts it.)
 
-import { useType } from './fixture.js';
+import { saveAs, useType, withSavePicker } from './fixture.js';
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
@@ -39,7 +39,8 @@ test('a file larger than the browser limit is read and parsed by the server', as
   await expect(page.locator('.hex-row').last().locator('.hex-bytes')).toContainText('deadbeef');
 });
 
-test('the gallery is allowed by the page policy, and export works on the file that stays on the machine', async ({ page }) => {
+test('the gallery is allowed by the page policy, and saving works on the file that stays on the machine', async ({ page }) => {
+  await withSavePicker(page, null);
   // The request is answered here; what is tested is that the policy of the server lets the page make it.
   await page.route('https://raw.githubusercontent.com/**', (route) =>
     route.fulfill({ body: 'meta:\n  id: from_gallery\nseq:\n  - id: a\n    type: u2be\n', contentType: 'text/plain' }),
@@ -60,9 +61,8 @@ test('the gallery is allowed by the page policy, and export works on the file th
   await page.locator('#types').selectOption({ label: 'pair' });
   await page.locator('#use-input').click();
   await expect(page.locator('#status')).toContainText('parsed as pair', { timeout: 20_000 });
-  await page.locator('#export-format').selectOption('json');
-  await expect(page.locator('#export')).toBeEnabled();
-  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#export').click()]);
+  await expect(page.locator('#save')).toBeEnabled();
+  const download = await saveAs(page, 'json');
   const text = readFileSync((await download.path()) ?? '', 'utf8');
   expect(JSON.parse(text)).toMatchObject({ a: 1 });
 });

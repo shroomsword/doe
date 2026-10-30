@@ -144,7 +144,8 @@ h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin
 
 select { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; }
 #types-box, #theme-box, #radix-box, #field-radix-box { display: inline-flex; gap: 4px; align-items: center; }
-#export:disabled { opacity: .5; cursor: default; }
+#save:disabled { opacity: .5; cursor: default; }
+.pane-actions button.icon { display: inline-flex; align-items: center; padding: 2px 6px; }
 [hidden] { display: none !important; }
 header select { max-width: 14rem; text-overflow: ellipsis; }
 header label { display: inline-flex; gap: 4px; align-items: center; max-width: 100%; }
@@ -156,6 +157,19 @@ header label { display: inline-flex; gap: 4px; align-items: center; max-width: 1
 #detect-report[hidden] { display: none; }
 #detect-report ul { margin: 2px 0; padding-left: 1.2em; }
 #detect-report li.fit { color: var(--string); }
+
+/* the dialog that saves the parsed value */
+#save-dialog { width: min(30rem, calc(100vw - 32px)); padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
+#save-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+.save-body { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px; }
+.save-body h3 { margin: 0; font-size: 1em; }
+.save-format { display: flex; flex-wrap: wrap; gap: 4px 16px; border: 1px solid var(--line); border-radius: 4px; margin: 0; }
+.save-format label small, .save-place, #save-note { color: var(--muted); font-size: .85em; }
+.save-name { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#save-name { flex: 1 1 12rem; font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; font-family: var(--mono); }
+#save-note { margin: 0; min-height: 1.4em; }
+#save-note.bad { color: var(--bad); }
+.save-buttons { display: flex; gap: 8px; justify-content: flex-end; }
 
 /* the browser of types */
 #browse-dialog { width: min(52rem, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }

@@ -41,7 +41,7 @@ test('the module is loaded, and a first visit has nothing in the editor and no e
   await expect(page.locator('#status')).toContainText('type a schema');
   await expect(page.locator('#parsed-as')).toHaveText('');
   await expect(page.locator('.problems')).toContainText('No problems.');
-  await expect(page.locator('#export')).toBeDisabled();
+  await expect(page.locator('#save')).toBeDisabled();
   await expect(page.locator('#example')).toHaveCount(0);
 });
 
