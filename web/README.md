@@ -1,6 +1,7 @@
 # The web IDE
 
-The hosted web IDE is at <https://shroomsword.github.io/doe/>.
+The hosted web IDE is at <https://shroomsword.github.io/doe/>. The GitHub icon at the top
+links to the project.
 
 A static site that runs doe in the browser: the library, built for
 WebAssembly (`crates/doe-wasm`), and a page that calls it. It is the front end

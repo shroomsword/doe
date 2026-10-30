@@ -49,6 +49,8 @@
 body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif; }
 header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px var(--gutter); padding: 8px var(--gutter); border-bottom: 1px solid var(--line); }
 h1 { font-size: 1.1rem; margin: 0; }
+.icon-link { display: inline-flex; color: var(--muted); }
+.icon-link:hover, .icon-link:focus-visible { color: var(--fg, currentColor); }
 h1 small, h2 small { color: var(--muted); font-weight: normal; font-family: var(--mono); font-size: .85em; }
 h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin: 0; padding: 2px 0; color: var(--muted); display: flex; gap: 10px; align-items: baseline; flex: 0 1 auto; min-width: 0; }
 #parsed-as { max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
