@@ -17,8 +17,6 @@
         <label id="theme-box">Theme <select id="theme"></select></label>
         <label class="button" title="Load a theme file (TOML, as doe --tui reads it); it is kept in this browser">Load theme<input id="open-theme" type="file" accept=".toml" /></label>
       </div>
-      <p id="status" role="status">loading…</p>
-      <button type="button" id="cancel" hidden>Cancel parse</button>
     </header>
     <main>
       <section id="pane-editor" aria-labelledby="h-schema">
@@ -74,8 +72,12 @@
         <div class="pane-title"><h2 id="h-bytes">Bytes <small id="selection"></small></h2></div>
         <div id="hex"></div>
       </section>
-      <section id="pane-problems" aria-labelledby="h-problems">
-        <div class="pane-title"><h2 id="h-problems">Problems</h2></div>
+      <section id="pane-status" aria-labelledby="h-status">
+        <div class="pane-title">
+          <h2 id="h-status">Status</h2>
+          <div class="pane-actions"><button type="button" id="cancel" hidden>Cancel parse</button></div>
+        </div>
+        <p id="status" role="status">loading…</p>
         <div id="problems"></div>
       </section>
     </main>

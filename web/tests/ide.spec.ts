@@ -40,7 +40,7 @@ test('the example is parsed: a tree, the bytes and no problems', async ({ page }
   await expect(page.locator('#parsed-as')).toHaveText('example');
   await expect(row(page, 'count')).toContainText('2');
   await expect(page.locator('.hex-row').first()).toContainText('44 4f 45'.replace(/ /g, ''));
-  await expect(page.locator('.problems')).toContainText('No problems.');
+  await expect(page.locator('.problems .problem')).toHaveCount(0);
 });
 
 test('a click on a field marks its bytes; arrays and nested types work', async ({ page }) => {
@@ -98,7 +98,7 @@ test('editing the schema checks it again, underlines the mistake and lists it', 
 
   // fixed, it is parsed again
   await typeSchema(page, 'meta:\n  id: t\nseq:\n  - id: a\n    type: u1\n');
-  await expect(page.locator('.problems')).toContainText('No problems.');
+  await expect(page.locator('.problems .problem')).toHaveCount(0);
   await expect(row(page, 'a')).toBeVisible();
 });
 
@@ -141,7 +141,7 @@ test('imports are files the user adds, next to the schema', async ({ page }) => 
     buffer: Buffer.from('meta:\n  id: extra\nseq:\n  - id: x\n    type: u1\n'),
   });
   await expect(page.locator('#schemas')).toContainText('extra.ksy');
-  await expect(page.locator('.problems')).toContainText('No problems.');
+  await expect(page.locator('.problems .problem')).toHaveCount(0);
   await expect(row(page, 'e')).toBeVisible();
 
   await page.locator('#schemas [data-remove="extra.ksy"]').click();
@@ -163,7 +163,7 @@ test('a gallery format and its sample are parsed', async ({ page }) => {
   await page.setInputFiles('#open-schema', { name: 'gif.ksy', mimeType: 'text/plain', buffer: schema });
   await page.setInputFiles('#open-input', { name: 'small.gif', mimeType: 'image/gif', buffer: sample });
   await expect(page.locator('#status')).toContainText('parsed as gif');
-  await expect(page.locator('.problems')).toContainText('No problems.');
+  await expect(page.locator('.problems .problem')).toHaveCount(0);
   await expect(row(page, 'hdr')).toBeVisible();
   await expand(page, 'hdr');
   await expect(row(page, 'magic')).toContainText('3 bytes');
@@ -185,7 +185,7 @@ test('the panes sit side by side when there is room and stack when there is not'
   expect(tree.x).toBeLessThan(hex.x);
 
   await page.setViewportSize({ width: 420, height: 900 });
-  const [editorN, treeN, hexN, problemsN] = [await box('#pane-editor'), await box('#pane-tree'), await box('#pane-hex'), await box('#pane-problems')];
+  const [editorN, treeN, hexN, problemsN] = [await box('#pane-editor'), await box('#pane-tree'), await box('#pane-hex'), await box('#pane-status')];
   expect(editorN.y).toBeLessThan(treeN.y);
   expect(treeN.y).toBeLessThan(hexN.y);
   expect(hexN.y).toBeLessThan(problemsN.y);
