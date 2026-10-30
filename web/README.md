@@ -1,7 +1,10 @@
 # The web IDE
 
 The hosted web IDE is at <https://shroomsword.github.io/doe/>. The GitHub icon at the top
-links to the project.
+links to the project, and the `?` button opens the help: the *Web IDE*, *Schema format* and
+*Kaitai Struct compatibility* sections of the top-level README, with a table of contents.
+`build.mjs` makes it (`help.mjs`, with `marked`) into `dist/help.html` from the README of the same
+commit, so it works offline; the build fails if one of the sections has been renamed.
 
 A static site that runs doe in the browser: the library, built for
 WebAssembly (`crates/doe-wasm`), and a page that calls it. It is the front end

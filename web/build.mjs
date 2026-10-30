@@ -11,6 +11,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, write
 import { dirname, join, posix } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
+import { buildHelp } from './help.mjs';
 
 const web = dirname(fileURLToPath(import.meta.url));
 const root = dirname(web);
@@ -45,6 +46,10 @@ await build({
 cpSync(join(web, 'src', 'wasm', 'doe_wasm_bg.wasm'), join(dist, 'doe_wasm_bg.wasm'));
 cpSync(join(web, 'index.html'), join(dist, 'index.html'));
 cpSync(join(web, 'src', 'style.css'), join(dist, 'style.css'));
+// The help: the web IDE and the schema sections of the README, made here so that
+// the page and the README of the same commit cannot get out of step (the build
+// fails when a section is missing, see help.mjs).
+writeFileSync(join(dist, 'help.html'), buildHelp(readFileSync(join(root, 'README.md'), 'utf8')).html);
 
 // The gallery picker's list: first the types of doe's own library (types/),
 // then the formats of the Kaitai Struct gallery (the submodule), with the files

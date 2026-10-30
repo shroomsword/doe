@@ -5,6 +5,7 @@
 import { CallEnded, DoeClient } from './client.js';
 import type { Diagnostic, ExportFormat, ExportResponse, InspectResponse, ParseResponse, Request, TraceNode } from './doe.js';
 import { SchemaEditor } from './editor.js';
+import { Help } from './help.js';
 import { HexView, RemoteBytes } from './hex.js';
 import { type LocalApi, type LocalType, detectLocal } from './local.js';
 import { type Entry, type Ranking, TypeBrowser, galleryEntries, libraryEntries, openEntries } from './browse.js';
@@ -100,6 +101,7 @@ export class App {
       pick: (entry) => void this.pickEntry(entry),
       text: (entry) => this.entryText(entry),
     });
+    new Help(element<HTMLDialogElement>('help-dialog'), element('help-body'), element('help'), element('help-close'));
     this.themes = new Themes((theme) => this.editor.setTheme(theme));
     this.radixes = new Radixes(() => {
       this.tree.refresh();
