@@ -125,11 +125,3 @@ export function remember(work: Work, inputName: string | null): void {
     // no storage: the page works without it
   }
 }
-
-export function forget(): void {
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    // no storage
-  }
-}
