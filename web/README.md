@@ -63,8 +63,10 @@ The editor and the file are empty at first (open a file, open or type a schema, 
 - **Bytes**: the input, 16 to a row. Only the rows in view are made, so a file of
   hundreds of megabytes scrolls (for a very long file one pixel of the scroll bar
   is many rows).
-- **Problems**: what is wrong with the schema (with its line and column; a click
-  goes there) and why a parse failed (a click selects the node).
+- **Status**: how the parse went (the file, its size, the type it was parsed as, or
+  "parsing…" with *Cancel parse*), and under it what is wrong with the schema
+  (with its line and column; a click goes there) and why a parse failed (a click
+  selects the node). With nothing wrong there is only the status.
 
 A click on a field of the tree marks its bytes, and a click on a byte selects the
 innermost field that holds it and opens the way to it; the arrow keys move in the
@@ -75,7 +77,7 @@ local version (`doe --ide FILE`) has no such limit: it reads the file itself. It
 Everything runs in the page; nothing is sent anywhere. The checks run in a Web
 Worker, so the editor stays responsive. Each edit starts a new run and drops the
 one before; a run that takes longer than 5 s, or that **Cancel parse** ends, is
-stopped by replacing the worker, and the problems pane says so. A worker that
+stopped by replacing the worker, and the status pane says so. A worker that
 runs out of memory is reported the same way. For the tests, `?limit=<ms>` sets
 the time limit.
 

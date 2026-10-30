@@ -62,19 +62,22 @@ h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin
 .button:hover, button:hover { border-color: var(--accent); }
 .button input { display: none; }
 .button:focus-within, button:focus-visible { outline: 2px solid var(--accent); }
-#status { margin: 0; color: var(--muted); font-family: var(--mono); font-size: .9em; flex: 1 1 14rem; }
+#status { margin: 0; padding: 6px 10px; color: var(--muted); font-family: var(--mono); font-size: .9em; overflow-wrap: anywhere; }
+#status:empty { display: none; }
 
 main { display: grid; gap: var(--gutter); padding: var(--gutter); grid-template-columns: 1fr; }
 section { border: 1px solid var(--line); border-radius: 4px; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
 #pane-editor, #pane-tree, #pane-hex { height: 60vh; min-height: 16rem; }
-#pane-problems { max-height: 14rem; }
-#editor, #tree-box, #hex, #problems { flex: 1; min-height: 0; overflow: auto; }
+#pane-status { max-height: 14rem; }
+#editor, #tree-box, #hex { flex: 1; min-height: 0; overflow: auto; }
+#problems { flex: 1 1 auto; min-height: 0; overflow: auto; }
+#problems:empty, .problems:empty { display: none; }
 #editor .cm-editor { height: 100%; }
 #editor .cm-scroller { font-family: var(--mono); }
 
 @media (min-width: 760px) {
   main { grid-template-columns: 1fr 1fr; grid-template-areas: 'editor tree' 'hex hex' 'problems problems'; }
-  #pane-editor { grid-area: editor; } #pane-tree { grid-area: tree; } #pane-hex { grid-area: hex; height: 40vh; } #pane-problems { grid-area: problems; }
+  #pane-editor { grid-area: editor; } #pane-tree { grid-area: tree; } #pane-hex { grid-area: hex; height: 40vh; } #pane-status { grid-area: problems; }
 }
 @media (min-width: 1200px) {
   body { height: 100dvh; display: flex; flex-direction: column; }
@@ -135,7 +138,6 @@ h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin
 
 /* the problems */
 .problems { padding: 4px 0; }
-.problems .none { margin: 0; padding: 6px 10px; color: var(--muted); }
 .problem { display: flex; gap: 10px; width: 100%; text-align: left; border: 0; border-radius: 0; background: none; padding: 3px 10px; align-items: baseline; }
 .problem:hover { background: var(--panel); }
 .problem .kind { color: var(--bad); font-family: var(--mono); font-size: .85em; min-width: 5em; }

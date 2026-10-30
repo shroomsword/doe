@@ -1,5 +1,6 @@
-// The list of what is wrong: the problems of the schema, with where they are,
-// and the error of the parse.
+// The list of what is wrong, in the Status pane under the status line: the
+// problems of the schema, with where they are, and the error of the parse. When
+// nothing is wrong the list is empty and says nothing.
 
 import type { Diagnostic } from './doe.js';
 
@@ -30,7 +31,8 @@ export class ProblemsView {
   show(diagnostics: readonly Diagnostic[]): void {
     this.items = [...diagnostics];
     if (this.items.length === 0) {
-      this.element.innerHTML = '<p class="none">No problems.</p>';
+      // nothing is wrong: the pane has the status only
+      this.element.innerHTML = '';
       return;
     }
     this.element.innerHTML = this.items

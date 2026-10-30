@@ -40,7 +40,7 @@ test('the module is loaded, and a first visit has nothing in the editor and no e
   await expect(page.locator('#status')).toContainText('no file opened');
   await expect(page.locator('#status')).toContainText('type a schema');
   await expect(page.locator('#parsed-as')).toHaveText('');
-  await expect(page.locator('.problems')).toContainText('No problems.');
+  await expect(page.locator('.problems .problem')).toHaveCount(0);
   await expect(page.locator('#save')).toBeDisabled();
   await expect(page.locator('#example')).toHaveCount(0);
 });
@@ -49,7 +49,7 @@ test('a file opened with no schema is shown as bytes, with nothing to say agains
   await page.setInputFiles('#open-input', { name: 'x.bin', mimeType: 'application/octet-stream', buffer: Buffer.from('DOE-bytes') });
   await expect(page.locator('#status')).toContainText('x.bin, 9 bytes');
   await expect(page.locator('.hex-row').first()).toContainText('444f45');
-  await expect(page.locator('.problems')).toContainText('No problems.');
+  await expect(page.locator('.problems .problem')).toHaveCount(0);
   // and a schema typed afterwards is run on it
   await page.locator('.cm-content').click();
   await page.keyboard.insertText('meta:\n  id: shown\nseq:\n  - id: magic\n    contents: "DOE"\n');
@@ -166,4 +166,28 @@ test('Integers is the last tool at the right end of the Parsed pane\'s title bar
   const barBox = await bar.boundingBox();
   expect((radix?.x ?? 0) + (radix?.width ?? 0)).toBeGreaterThan((barBox?.x ?? 0) + (barBox?.width ?? 0) - 16);
   expect(before(await bar.locator('#detect-auto-box').boundingBox(), radix)).toBe(true);
+});
+
+test('the Status pane has the status line and the problems, and says nothing about there being none', async ({ page }) => {
+  const pane = page.locator('#pane-status');
+  await expect(pane.locator('h2')).toHaveText('Status');
+  await expect(page.locator('#pane-problems, #h-problems')).toHaveCount(0);
+  // the status line is in the pane, and not in the header
+  await expect(pane.locator('#status')).toHaveCount(1);
+  await expect(page.locator('header #status, header #cancel')).toHaveCount(0);
+  await expect(pane.locator('#cancel')).toHaveCount(1);
+  // with nothing wrong the pane has the status only
+  await expect(page.locator('body')).not.toContainText('No problems');
+  await expect(page.locator('#problems .problem')).toHaveCount(0);
+  await expect(page.locator('#problems')).toBeHidden();
+  // a mistake is listed under the status
+  await page.locator('.cm-content').click();
+  await page.keyboard.insertText('meta:\n  id: broken\nseq:\n  - id: a\n    type: nope\n');
+  await expect(pane.locator('.problem')).toContainText('nope', { timeout: 10_000 });
+  await expect(pane.locator('#status')).not.toBeEmpty();
+  // and fixing it takes the list away again
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.insertText('meta:\n  id: ok\nseq:\n  - id: a\n    type: u1\n');
+  await expect(page.locator('#problems .problem')).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.locator('body')).not.toContainText('No problems');
 });
