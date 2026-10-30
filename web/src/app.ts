@@ -10,7 +10,7 @@ import { type LocalApi, type LocalType, detectLocal } from './local.js';
 import { type Entry, type Ranking, TypeBrowser, galleryEntries, libraryEntries, openEntries } from './browse.js';
 import { type Path, byteRange, checkSize, describeRange, findByte, nodeAt, pathName } from './model.js';
 import { ProblemsView } from './problems.js';
-import { type Origin, SchemaList, editable, isKnownType, listing } from './schemas.js';
+import { type Origin, SchemaList, editable, isKnownType, listing, parsedAs } from './schemas.js';
 import { type Work, codeOfHash, decodeWork, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { Radixes, isRadix } from './radix.js';
@@ -54,6 +54,8 @@ export class App {
   /** The schemas the last request is made of. */
   private found: InspectResponse | null = null;
   private diagnostics: Diagnostic[] = [];
+  /** The id of the type that the last parse said it was parsing as. */
+  private lastId: string | null = null;
   /** The editor is being given another text: that is not an edit. */
   private switching = false;
   private bytes: Uint8Array | null = null;
@@ -680,6 +682,10 @@ export class App {
     const found = listing(this.found, this.schemaPath, this.mainOrigin, this.files, this.origins, this.diagnostics.length);
     this.schemas.show(found, this.active ?? this.schemaPath, this.parseType);
     element('editing').textContent = this.active === null ? this.schemaPath : `${this.active} (an import)`;
+    const id = parsedAs(this.parseType, found.rows, this.lastId, !this.noSchema());
+    const parsed = element('parsed-as');
+    parsed.textContent = id;
+    parsed.title = id ? `the file is parsed as ${id}` : '';
   }
 
   /** The editor changed: the text belongs to the file that is shown. */
@@ -854,6 +860,7 @@ export class App {
     if (response.error) problems.push(response.error);
     if (this.notice) problems.push(this.notice);
     this.diagnostics = response.diagnostics;
+    this.lastId = response.id;
     this.problems.show(problems);
     this.trace = response.trace;
     this.tree.setTrace(response.trace);

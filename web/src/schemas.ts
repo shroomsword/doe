@@ -86,6 +86,17 @@ export function listing(
   return { rows, missing: found?.missing ?? [] };
 }
 
+/**
+ * The id of the schema that the file is being parsed as, for the title of the
+ * Parsed pane: the type chosen in *Parse as*, else the id of the main schema
+ * (as the schemas were read, or as the last parse said), and nothing while
+ * there is no schema.
+ */
+export function parsedAs(parseType: string | null, rows: readonly Row[], responseId: string | null, hasSchema: boolean): string {
+  if (!hasSchema) return '';
+  return parseType ?? rows.find((row) => row.main)?.id ?? responseId ?? '';
+}
+
 /** The types of all the open schemas, by the file that defines them. */
 export function typeChoices(rows: readonly Row[]): { path: string; id: string | null; types: string[] }[] {
   return rows.filter((row) => row.types.length > 0).map((row) => ({ path: row.path, id: row.id, types: row.types }));

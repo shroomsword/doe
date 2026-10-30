@@ -1054,7 +1054,7 @@ library, or from the type library of this machine) and a cross with the number o
 that are not there are listed too, with the file that asked for them. Picking an
 entry shows its text in the editor, and what was added or typed can be edited;
 what was fetched from the gallery or a library is read-only until *Edit a copy*
-makes it the person's own. *Parse as* chooses the type to parse with from the types of all the
+makes it the person's own. The title of the Parsed pane says which type the file is parsed as (the one chosen in *Parse as*, else the id of the main schema, also while the parse fails). *Parse as* chooses the type to parse with from the types of all the
 open schemas (the main schema's own, by default); the choice is part of a share
 link and of the saved work, and the status line says which type was parsed.
 

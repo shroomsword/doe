@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { type Page, expect, test } from '@playwright/test';
 import { linkOf, useType } from './fixture.js';
 import { type InspectResponse } from '../src/doe.js';
-import { isKnownType, listing } from '../src/schemas.js';
+import { isKnownType, listing, parsedAs } from '../src/schemas.js';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -231,4 +231,26 @@ test('a type that is no longer there is dropped', async ({ page }) => {
   await expect(page.locator('#status')).toContainText('parsed as extra::piece', { timeout: 10_000 });
   await page.locator('#schemas [data-remove="extra.ksy"]').click();
   await expect(page.locator('#parse-type')).toHaveValue('', { timeout: 10_000 });
+});
+
+test('the id in the title of the Parsed pane is the chosen type, else the main schema\'s, else the last parse\'s, and nothing without a schema', () => {
+  const rows = listing(null, 'main.ksy', 'typed', new Map(), new Map(), 0).rows;
+  expect(parsedAs(null, rows, 'from_parse', true)).toBe('from_parse');
+  const read = [{ ...rows[0]!, id: 'zip' }];
+  expect(parsedAs(null, read, 'from_parse', true)).toBe('zip');
+  expect(parsedAs('extra::piece', read, 'zip', true)).toBe('extra::piece');
+  expect(parsedAs('extra::piece', read, 'zip', false)).toBe('');
+  expect(parsedAs(null, [], null, true)).toBe('');
+});
+
+test('the title of the Parsed pane says which type the file is parsed as, and follows Parse as', async ({ page }) => {
+  await ready(page);
+  await expect(page.locator('#parsed-as')).toHaveText('');
+  await withImportedType(page);
+  // withImportedType chose extra::piece
+  await expect(page.locator('#parsed-as')).toHaveText('extra::piece');
+  await expect(page.locator('#h-parsed')).toContainText('Parsed');
+  await page.selectOption('#parse-type', '');
+  await expect(page.locator('#parsed-as')).toHaveText('top');
+  await expect(page.locator('#parsed-as')).toHaveAttribute('title', 'the file is parsed as top');
 });
