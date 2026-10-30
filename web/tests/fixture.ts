@@ -1,4 +1,7 @@
-// What the page shows at first, so that there is something to click.
+// A small schema and a file that fits it, for the tests to work on: the page
+// starts with nothing in the editor.
+
+import { type Page, expect } from '@playwright/test';
 
 export const EXAMPLE_SCHEMA = `meta:
   id: example
@@ -38,3 +41,12 @@ const text = (value: string): number[] => [...value].map((char) => char.charCode
 
 /** "DOE", two entries: a greeting "hello" and a farewell "bye". */
 export const EXAMPLE_BYTES = new Uint8Array([...text('DOE'), 2, 1, 5, ...text('hello'), 2, 3, ...text('bye')]);
+
+/** Put the schema in the editor, as typing would, and open the file: what the tests start from. */
+export async function loadExample(page: Page): Promise<void> {
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.insertText(EXAMPLE_SCHEMA);
+  await page.setInputFiles('#open-input', { name: 'example.bin', mimeType: 'application/octet-stream', buffer: Buffer.from(EXAMPLE_BYTES) });
+  await expect(page.locator('#status')).toContainText('example.bin, 16 bytes');
+}

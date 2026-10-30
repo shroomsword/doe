@@ -168,7 +168,7 @@ test('with the setting on, opening a file looks for the schema, and the setting 
   await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
   await expect(page.locator('#detect-auto')).toBeChecked();
   await page.setInputFiles('#open-input', { name: 'x', mimeType: 'application/octet-stream', buffer: readFileSync(join(samples, 'image', 'gif', 'small.bin')) });
-  // the editor still has the example, so the schema is looked for at once
+  // the editor is empty, so the schema is looked for at once
   await expect(page.locator('#detect-report')).toContainText('gif parses the file', { timeout: 30_000 });
 });
 
