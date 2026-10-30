@@ -139,7 +139,7 @@ test('the tree and the bytes use the colours of the theme, and nothing else', as
     await page.locator('.tree-row').nth(1).click();
     const used = await page.evaluate(() => {
       const seen: { where: string; property: string; value: string }[] = [];
-      const parts = document.querySelectorAll('#tree-box *, #hex *, #pane-tree h2, #pane-hex h2, #pane-editor h2, .cm-line span');
+      const parts = document.querySelectorAll('#tree-box *, #hex *, #pane-tree .pane-title, #pane-hex .pane-title, #pane-editor .pane-title, #pane-editor .pane-actions *, #pane-tree h2, #pane-hex h2, #pane-editor h2, .cm-line span');
       for (const part of parts) {
         const style = getComputedStyle(part);
         for (const property of ['color', 'backgroundColor', 'borderTopColor'] as const) {

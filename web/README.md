@@ -48,12 +48,12 @@ of the host skipped with `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1`.
 
 ## Using it
 
-The editor and the file are empty at first (open a file, open or type a schema, or use a type from *Browse types*). Four panes stay in step:
+The editor and the file are empty at first (open a file, open or type a schema, or use a type from *Browse...*). Four panes stay in step:
 
 - **Schema**: an editor (CodeMirror 6, YAML) for a doe schema or a Kaitai Struct
   `.ksy`. What is wrong with it is underlined where it is, and the schema is
-  checked again a moment after the last change. *Open main schema* loads a file into
-  it; *Add imported schemas* adds files that it imports (they are found next to the schema,
+  checked again a moment after the last change. *Open* (in the title bar of this pane) loads a file into
+  it; *Add imports* adds files that it imports (they are found next to the schema,
   and in the include paths as Kaitai Struct does); a dropped `.ksy` or `.yaml` is
   an import.
 - **Parsed**: the value as a tree, each field with its type, its value, its enum

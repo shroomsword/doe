@@ -930,7 +930,7 @@ without any says so in the table. A real file of such a format, from a tool or
 from the world, is always welcome in place of a built one.
 
 The others compile, but no file has been compared to the reference yet, so one
-of them may still fail on a file, or read it differently (the web IDE's *Browse types* marks
+of them may still fail on a file, or read it differently (the web IDE's *Browse...* marks
 the formats that have a file: ✓ for one written by its own tool, ○ for one built by hand). Give the gallery as an
 include path, so that the imports between its definitions resolve:
 
@@ -1058,7 +1058,7 @@ makes it the person's own. *Parse as* chooses the type to parse with from the ty
 open schemas (the main schema's own, by default); the choice is part of a share
 link and of the saved work, and the status line says which type was parsed.
 
-*Browse types* in the header opens one list of every type that can be used: the
+*Browse...* in the title bar of the Schema pane opens one list of every type that can be used: the
 types of the open schemas, the type library of this machine (with `doe --ide`),
 the [doe type library](#type-library) (`tar`, `pcapng`, `wasm`...) and the formats
 of the Kaitai Struct gallery, grouped by where they come from,
@@ -1105,7 +1105,7 @@ Four things make the page pleasant to come back to:
   anywhere, and clearing the site's data in the browser (or emptying the editor)
   starts the page empty. The file itself is not kept: open it again.
 - **Gallery:** the list of the [Kaitai Struct gallery](https://github.com/kaitai-io/kaitai_struct_formats)
-  formats is in the page, in *Browse types*; using one downloads its definition (and what it
+  formats is in the page, in *Browse...*; using one downloads its definition (and what it
   imports) from GitHub at the commit that the page was built with. The
   definitions are not part of the page, since not all of them are CC0.
   The list has the **doe type library** (`types/`, see
