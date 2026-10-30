@@ -10,9 +10,9 @@
     <header>
       <h1>doe <small id="version"></small></h1>
       <div class="actions">
-        <label class="button">Open schema<input id="open-schema" type="file" accept=".ksy,.yaml,.yml" /></label>
-        <label class="button">Add imports<input id="add-files" type="file" accept=".ksy,.yaml,.yml" multiple /></label>
-        <label class="button">Open file<input id="open-input" type="file" /></label>
+        <label class="button" title="Load a schema file into the editor as the main schema, replacing its text. Imports that were added stay.">Open main schema<input id="open-schema" type="file" accept=".ksy,.yaml,.yml" /></label>
+        <label class="button" title="Add the schema files that the main schema imports (imports:). They are found by name; the main schema is not changed. A dropped .ksy or .yaml file does the same.">Add imported schemas<input id="add-files" type="file" accept=".ksy,.yaml,.yml" multiple /></label>
+        <label class="button" title="Open the binary file to parse. It is read in this browser and never uploaded.">Open file to parse<input id="open-input" type="file" /></label>
         <label id="types-box" hidden>Types <select id="types"></select></label>
         <button id="use-input" type="button" hidden></button>
         <button id="browse" type="button" title="List the types that can be used, filter them, read one and parse with it">Browse types</button>
