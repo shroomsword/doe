@@ -1040,7 +1040,7 @@ impl RawTypeDecl {
 
 /// An enum definition: a map from integer discriminant to variant.
 /// The key may be decimal (`0`, `1`) or hex (`0x00`, `0x4d`).
-/// We store it as a raw string-keyed map and parse keys during compilation.
+/// It is stored as a raw string-keyed map, and the keys are parsed during compilation.
 pub type RawEnum = HashMap<String, RawEnumEntry>;
 
 /// A member of an enum: its name, or a mapping with the name as `id`.

@@ -87,7 +87,7 @@ The release archives contain both in `doc/`.
 Write a schema, point `doe` at a binary file:
 
 ```sh
-doe firmware.bin ./my_format.yaml
+doe firmware.bin ./custom_format.yaml
 doe dump.bin --json > dump.json
 doe packet.bin --pretty -I ~/.doe/types
 doe mystery.bin -I ~/.doe/types   # which schema? see Detecting the schema
@@ -830,7 +830,7 @@ A schema may import other schemas by bare name (resolved through include paths)
 or by relative path:
 
 ```yaml
-id: my_format
+id: custom_format
 imports:
   - zlib_block          # resolved from include paths as zlib_block.yaml
   - ./shared_header     # relative to this schema file
@@ -1100,7 +1100,7 @@ Four things make the page pleasant to come back to:
   imports) from GitHub at the commit that the page was built with. The
   definitions are not part of the page, since not all of them are CC0.
   The picker starts with the **doe type library** (`types/`, see
-  [Type library](#type-library)): those definitions are small and ours, so they
+  [Type library](#type-library)): those definitions are small and part of this repository, so they
   are served with the page (`library/NAME.yaml`) and nothing is fetched from
   GitHub for them. They are in the same list as the gallery's, so *Detect schema*
   ranks and tries them together by signature and name, and the list is made from
@@ -1177,10 +1177,10 @@ it starts with `.`, `/` or `~`, or ends with `.yaml`/`.yml`. Otherwise it is a
 bare type name resolved through the configured include paths.
 
 `TYPE_OR_SCHEMA::TYPE` parses with a type inside the schema instead of the
-schema's own: `doe file.bin my_format.yaml::chunk` (or `png::chunk` for a type of
+schema's own: `doe file.bin custom_format.yaml::chunk` (or `png::chunk` for a type of
 the library), where `chunk` is a type in the `types:` of the schema (`a::b` for
 one inside another), or a type of a schema that it imports, named in full
-(`my_format.yaml::common::header`). A type that is not there is an error that
+(`custom_format.yaml::common::header`). A type that is not there is an error that
 lists the ones that are.
 
 Results go to stdout; everything else (errors, warnings, progress) goes to
@@ -1351,7 +1351,7 @@ why (`e` hides it or shows it again). When nothing can be parsed (a schema that
 does not compile, a type that does not exist, a file that cannot be read) the
 viewer opens all the same and the first pane has the error instead of the tree:
 what was wrong, what caused it, and for a schema that is a file, the place in it
-(`my_format.yaml:12:5`, the line, and a caret under the place). The bytes of the
+(`custom_format.yaml:12:5`, the line, and a caret under the place). The bytes of the
 file are shown if it can be read. After `q` the message is printed again on the
 normal screen, and the exit status of `doe --tui` is 1 if the last parse failed
 (or nothing could be parsed), 0 if it worked.
@@ -1626,9 +1626,9 @@ colours of every terminal are used on one with fewer. `NO_COLOR` and
 A theme file is TOML, with the colours of the table:
 
 ```toml
-name = "My theme"
+name = "Example theme"
 variant = "dark"          # or "light"; "dark" if left out
-author = "me"             # author, license, source and note are optional
+author = "A. Person"      # author, license, source and note are optional
 [colors]
 background = "#1e1e2e"
 foreground = "#cdd6f4"
@@ -1832,7 +1832,7 @@ use doe::{parse_file, OutputFormat};
 
 let output = parse_file(
     Path::new("firmware.bin"),
-    "./my_format.yaml",
+    "./custom_format.yaml",
     &[],   // extra include paths
     None,  // use default config location
     OutputFormat::Text { indent: "  ".into() },
@@ -1852,13 +1852,13 @@ use doe::render::json;
 
 // Compile a schema
 let mut compiler = Compiler::new(vec![include_dir]);
-compiler.load("my_format", None)?;
+compiler.load("custom_format", None)?;
 
 // Parse a buffer
 let data = std::fs::read("file.bin")?;
 let engine = Engine::new(&compiler.registry);
 let mut cursor = Cursor::new(&data);
-let value = engine.parse_type("my_format", &mut cursor)?;
+let value = engine.parse_type("custom_format", &mut cursor)?;
 
 // Render
 println!("{}", json::render_pretty(&value));
@@ -1910,10 +1910,10 @@ of a repeated field and instance:
 # use doe::schema::compiler::Compiler;
 # use doe::parser::{cursor::Cursor, engine::Engine};
 # let mut compiler = Compiler::new(vec![]);
-# compiler.load("my_format", None)?;
+# compiler.load("custom_format", None)?;
 # let data = std::fs::read("file.bin")?;
 # let engine = Engine::new(&compiler.registry);
-let (value, root) = engine.parse_type_traced("my_format", &mut Cursor::new(&data))?;
+let (value, root) = engine.parse_type_traced("custom_format", &mut Cursor::new(&data))?;
 for field in &root.children {
     if let Some(span) = field.span {
         println!("{}: bytes {}..{}", field.name, span.start_byte(), span.end_byte());
@@ -1936,10 +1936,10 @@ so far, the trace and the error:
 # use doe::schema::compiler::Compiler;
 # use doe::parser::{cursor::Cursor, engine::Engine};
 # let mut compiler = Compiler::new(vec![]);
-# compiler.load("my_format", None)?;
+# compiler.load("custom_format", None)?;
 # let data = std::fs::read("file.bin")?;
 # let engine = Engine::new(&compiler.registry);
-let outcome = engine.parse_type_partial("my_format", &mut Cursor::new(&data))?;
+let outcome = engine.parse_type_partial("custom_format", &mut Cursor::new(&data))?;
 if let Some(error) = &outcome.error {
     eprintln!("failed: {error}");
 }

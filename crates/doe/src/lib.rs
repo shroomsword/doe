@@ -233,7 +233,7 @@ pub fn parse_file_with(
 /// The heuristic checks for a leading `.`, `/`, `\`, or `~` (relative,
 /// absolute, or home-relative paths), a platform-absolute path such as
 /// `C:\types\elf` on Windows, or a `.yaml`/`.yml` extension.  Bare names such
-/// as `"png"` or `"my_format"` return `false` and are resolved through the
+/// as `"png"` or `"custom_format"` return `false` and are resolved through the
 /// configured include paths instead.
 ///
 /// # Examples
@@ -241,26 +241,26 @@ pub fn parse_file_with(
 /// ```
 /// use doe::is_schema_path;
 ///
-/// assert!(is_schema_path("./my_format.yaml"));
+/// assert!(is_schema_path("./custom_format.yaml"));
 /// assert!(is_schema_path("/usr/share/doe/types/elf.yaml"));
 /// assert!(is_schema_path("~/types/png.yaml"));
 /// assert!(is_schema_path("custom.yml"));
 ///
 /// assert!(!is_schema_path("png"));
-/// assert!(!is_schema_path("my_format"));
+/// assert!(!is_schema_path("custom_format"));
 /// ```
 pub fn is_schema_path(s: &str) -> bool {
     s.starts_with(['.', '/', '\\', '~']) || Path::new(s).is_absolute() || has_schema_extension(s)
 }
 
 /// Split `SCHEMA::TYPE`, the way to name a type inside a schema on the command
-/// line (`my_format.yaml::chunk`, or `png::chunk` for a type of the library):
+/// line (`custom_format.yaml::chunk`, or `png::chunk` for a type of the library):
 /// the schema (a path or a name) and the type, if there is one.
 ///
 /// ```
 /// use doe::split_type_arg;
 ///
-/// assert_eq!(split_type_arg("my_format.yaml::chunk"), ("my_format.yaml", Some("chunk")));
+/// assert_eq!(split_type_arg("custom_format.yaml::chunk"), ("custom_format.yaml", Some("chunk")));
 /// assert_eq!(split_type_arg("png::chunk::data"), ("png", Some("chunk::data")));
 /// assert_eq!(split_type_arg("png"), ("png", None));
 /// assert_eq!(split_type_arg("C:\\types\\elf.yaml"), ("C:\\types\\elf.yaml", None));
