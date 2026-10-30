@@ -354,6 +354,13 @@ impl<'reg> Engine<'reg> {
             trace.resume(item.id);
         }
         let (start, size, end) = item.stream;
+        // A stream that is the whole input is where the parse left it, the
+        // way the reference's output finds it; another one is where its type ended.
+        let end = if start == cursor.window_start() && size == cursor.len() {
+            cursor.pos()
+        } else {
+            end
+        };
         let outcome = cursor.stream(start, size).and_then(|mut own| {
             own.seek(end)?;
             self.ensure_instance(ty, instance, &mut own, ctx)?;
@@ -577,6 +584,20 @@ impl<'reg> Engine<'reg> {
     ) -> Result<()> {
         let mut waiting: HashMap<usize, u64> = HashMap::new();
         for (index, instance) in ty.instances.iter().enumerate() {
+            // One that asks where the stream is, and that nothing used while
+            // the type was read, is worked out when the whole input has been
+            // read, with the stream where it ended: the reference compiler's
+            // parsers work an instance out when it is first used, and the
+            // output uses the rest at the end.
+            if instance.reads_position && !ctx.instance_done(&instance.id) && ctx.is_input(cursor) {
+                let stream = (cursor.window_start(), cursor.len(), cursor.pos());
+                let id = ctx.defer(&ty.name, index, stream);
+                waiting.insert(index, id);
+                if let Some(trace) = ctx.trace() {
+                    trace.keep_for(id, &instance.id);
+                }
+                continue;
+            }
             let mark = ctx.deferred_len();
             if let Err(e) = self.ensure_instance(ty, instance, cursor, ctx) {
                 // One that uses what is read later is computed once everything
@@ -620,8 +641,12 @@ impl<'reg> Engine<'reg> {
         if !field.uses_instances.is_empty() {
             self.force_instances(field, parent_ty, cursor, ctx)?;
         }
-        if field.if_expr.is_some() && !Self::guard_holds(field, parent_ty, cursor, ctx)? {
+        if field.if_expr.is_some() && !self.guard_holds(field, parent_ty, cursor, ctx)? {
             return Ok(Value::Absent);
+        }
+        if !field.uses_instances.is_empty() {
+            // the guard held: the rest of the field's expressions use them
+            self.force_position_instances(field, parent_ty, cursor, ctx)?;
         }
         if field.pos.is_some() {
             return self.parse_at_pos(field, parent_ty, cursor, ctx);
@@ -638,24 +663,83 @@ impl<'reg> Engine<'reg> {
         ctx: &mut ParseContext,
     ) -> Result<()> {
         for name in &field.uses_instances {
+            // one that asks where the stream is waits for the `if:` of the field
+            // to need it (see `guard_holds`), as the reference works an instance
+            // out when it is first used
+            if field.if_expr.is_some() && Self::reads_position(parent_ty, name) {
+                continue;
+            }
             self.ensure_named_instance(parent_ty, name, cursor, ctx)?;
         }
         Ok(())
     }
 
-    /// Whether the field's `if:` guard is true.
-    fn guard_holds(
+    /// Compute the instances of the field that ask where the stream is, which
+    /// `force_instances` left for the guard, and that the guard did not need.
+    fn force_position_instances(
+        &self,
         field: &CompiledField,
         parent_ty: &CompiledType,
-        cursor: &Cursor<'_>,
+        cursor: &mut Cursor<'_>,
+        ctx: &mut ParseContext,
+    ) -> Result<()> {
+        if field.if_expr.is_none() {
+            return Ok(());
+        }
+        for name in &field.uses_instances {
+            if Self::reads_position(parent_ty, name) {
+                self.ensure_named_instance(parent_ty, name, cursor, ctx)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether the instance `name` of `ty` depends on where a stream is.
+    fn reads_position(ty: &CompiledType, name: &str) -> bool {
+        ty.instances
+            .iter()
+            .any(|instance| instance.id == name && instance.reads_position)
+    }
+
+    /// Whether the field's `if:` guard is true. An instance that asks where
+    /// the stream is is computed when the guard gets as far as using it.
+    fn guard_holds(
+        &self,
+        field: &CompiledField,
+        parent_ty: &CompiledType,
+        cursor: &mut Cursor<'_>,
         ctx: &mut ParseContext,
     ) -> Result<bool> {
         let Some(if_expr) = &field.if_expr else {
             return Ok(true);
         };
-        ctx.set_io(cursor);
-        expr::eval_bool(if_expr, &ctx.eval_ctx, "<if>")
-            .map_err(|e| annotate(&e, &field.id, &parent_ty.name))
+        let lazy: Vec<String> = field
+            .uses_instances
+            .iter()
+            .filter(|name| Self::reads_position(parent_ty, name))
+            .cloned()
+            .collect();
+        loop {
+            ctx.set_io(cursor);
+            let pending: Vec<String> = lazy
+                .iter()
+                .filter(|name| !ctx.instance_done(name))
+                .cloned()
+                .collect();
+            ctx.eval_ctx.set_lazy(pending);
+            let held = expr::eval_bool(if_expr, &ctx.eval_ctx, "<if>");
+            ctx.eval_ctx.set_lazy(Vec::new());
+            match held {
+                Err(e) => match expr::wanted_instance(&e) {
+                    Some(name) => {
+                        let name = name.to_owned();
+                        self.ensure_named_instance(parent_ty, &name, cursor, ctx)?;
+                    }
+                    None => return Err(annotate(&e, &field.id, &parent_ty.name)),
+                },
+                Ok(held) => return Ok(held),
+            }
+        }
     }
 
     /// `pos:` reads the whole field (every repeat) somewhere else, then puts

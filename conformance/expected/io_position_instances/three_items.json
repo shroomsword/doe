@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "extra": 9,
+      "indirect": 7,
+      "kind": 1,
+      "unusedeof": true,
+      "unusedpos": 6,
+      "usedbyfield": 6
+    },
+    {
+      "forced": 7,
+      "indirect": 7,
+      "kind": 2,
+      "unusedeof": true,
+      "unusedpos": 6,
+      "usedbyfield": 3
+    },
+    {
+      "indirect": 7,
+      "kind": 3,
+      "unusedeof": true,
+      "unusedpos": 6,
+      "usedbyfield": 6
+    }
+  ],
+  "tail": 238
+}

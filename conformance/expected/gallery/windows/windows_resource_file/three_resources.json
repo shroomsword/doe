@@ -4,6 +4,35 @@
       "characteristics": 0,
       "flags": 48,
       "formatversion": 0,
+      "headersize": 32,
+      "language": 0,
+      "name": {
+        "asnumeric": 0,
+        "asstring": null,
+        "first": 65535,
+        "isstring": false,
+        "savepos1": 12,
+        "savepos2": 252
+      },
+      "padding1": "",
+      "padding2": "",
+      "type": {
+        "asnumeric": 0,
+        "asstring": null,
+        "first": 65535,
+        "isstring": false,
+        "savepos1": 8,
+        "savepos2": 252
+      },
+      "typeaspredef": 0,
+      "value": "",
+      "valuesize": 0,
+      "valueversion": 0
+    },
+    {
+      "characteristics": 0,
+      "flags": 48,
+      "formatversion": 0,
       "headersize": 48,
       "language": 1033,
       "name": {
@@ -16,8 +45,8 @@
           69,
           0
         ],
-        "savepos1": 22,
-        "savepos2": 30
+        "savepos1": 54,
+        "savepos2": 62
       },
       "padding1": "0000",
       "padding2": "000000",
@@ -34,12 +63,41 @@
           65,
           0
         ],
-        "savepos1": 8,
-        "savepos2": 22
+        "savepos1": 40,
+        "savepos2": 54
       },
       "typeaspredef": null,
       "value": "68656c6c6f",
       "valuesize": 5,
+      "valueversion": 0
+    },
+    {
+      "characteristics": 0,
+      "flags": 48,
+      "formatversion": 0,
+      "headersize": 32,
+      "language": 1033,
+      "name": {
+        "asnumeric": 1,
+        "asstring": null,
+        "first": 65535,
+        "isstring": false,
+        "savepos1": 100,
+        "savepos2": 252
+      },
+      "padding1": "",
+      "padding2": "00",
+      "type": {
+        "asnumeric": 10,
+        "asstring": null,
+        "first": 65535,
+        "isstring": false,
+        "savepos1": 96,
+        "savepos2": 252
+      },
+      "typeaspredef": 10,
+      "value": "6e756d62657273",
+      "valuesize": 7,
       "valueversion": 0
     },
     {
@@ -58,8 +116,8 @@
           69,
           0
         ],
-        "savepos1": 78,
-        "savepos2": 86
+        "savepos1": 150,
+        "savepos2": 158
       },
       "padding1": "0000",
       "padding2": "",
@@ -76,8 +134,8 @@
           69,
           0
         ],
-        "savepos1": 64,
-        "savepos2": 78
+        "savepos1": 136,
+        "savepos2": 150
       },
       "typeaspredef": null,
       "value": "01020304",
@@ -99,8 +157,8 @@
           83,
           0
         ],
-        "savepos1": 132,
-        "savepos2": 138
+        "savepos1": 204,
+        "savepos2": 210
       },
       "padding1": "0000",
       "padding2": "0000",
@@ -118,8 +176,8 @@
           78,
           0
         ],
-        "savepos1": 116,
-        "savepos2": 132
+        "savepos1": 188,
+        "savepos2": 204
       },
       "typeaspredef": null,
       "value": "76657273696f6e206461746120676f65732068657265",

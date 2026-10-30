@@ -186,6 +186,6 @@ serialization/ruby_marshal	crafted	serialization/ruby_marshal	built by make_samp
 windows/regf	none	-	-	-	no sample: the definition lays out the nk (key) record differently from the format, so a registry hive that Windows wrote is read wrongly
 windows/windows_lnk_file	crafted	windows/windows_lnk_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_minidump	crafted	windows/windows_minidump	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-windows/windows_resource_file	crafted	windows/windows_resource_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the sample has no empty first resource and no number as a type or name: the position that the definition keeps for a number is read at the end of the file by the reference (#170)
+windows/windows_resource_file	crafted	windows/windows_resource_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the sample has the empty first resource and a number as a type and as a name
 windows/windows_shell_items	crafted	windows/windows_shell_items	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_systemtime	part-of	-	-	-	imported by network/microsoft_network_monitor_v2, whose sample has a start time

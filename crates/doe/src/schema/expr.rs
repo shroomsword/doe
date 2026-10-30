@@ -1076,6 +1076,22 @@ pub struct EvalContext {
     /// The values of the instances that were computed after the struct they
     /// belong to was bound, by their number (see [`EvalContext::deferred_marker`]).
     resolved: std::collections::HashMap<u64, ExprValue>,
+    /// Instances that are not computed yet and that an expression is allowed
+    /// to ask for: reading one is an error that names it (see
+    /// [`wanted_instance`]), so that it is computed only if the expression
+    /// gets as far as using it (`a and instance` does not, when `a` is false).
+    lazy: Vec<String>,
+}
+
+/// What an expression that asked for an instance that is not computed yet says.
+const WANTED_INSTANCE: &str = "the instance is not computed yet: ";
+
+/// The instance that evaluating failed on because it is not computed yet.
+pub fn wanted_instance(error: &DoeError) -> Option<&str> {
+    match error {
+        DoeError::ExprEval { message, .. } => message.strip_prefix(WANTED_INSTANCE),
+        _ => None,
+    }
 }
 
 /// The name of the only field of the struct that stands for an instance that
@@ -1125,6 +1141,7 @@ impl EvalContext {
             free: Vec::new(),
             io: None,
             resolved: std::collections::HashMap::new(),
+            lazy: Vec::new(),
         }
     }
 
@@ -1140,6 +1157,12 @@ impl EvalContext {
     /// Say what the instance number `id` turned out to be.
     pub fn resolve_deferred(&mut self, id: u64, value: ExprValue) {
         self.resolved.insert(id, value);
+    }
+
+    /// Allow expressions to ask for these instances, which are not computed
+    /// yet (see [`wanted_instance`]); an empty list ends it.
+    pub fn set_lazy(&mut self, names: Vec<String>) {
+        self.lazy = names;
     }
 
     /// `value`, or the instance it stands for if it is the marker of one.
@@ -1383,6 +1406,11 @@ impl EvalContext {
                     return apply_members(Cow::Borrowed(value), members, &self.resolved, src);
                 }
             }
+        }
+        if let Some(first) = parts.first()
+            && self.lazy.contains(first)
+        {
+            return Err(fail(src, &format!("{WANTED_INSTANCE}{first}")));
         }
         Err(fail(src, &format!("unknown field '{}'", parts.join("."))))
     }

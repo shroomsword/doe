@@ -779,6 +779,15 @@ is also computed after the sequence, in schema order, and appears in the output
 after the fields of `seq`: in text as `name @0x40` for one that was read (no
 offset for a computed value), and in JSON inline, with the offsets of the ones
 that were read in a `$offsets` object next to them. Any error aborts the parse.
+
+A `value:` instance that asks where a stream is (`_io.pos`, `_io.eof`, also
+through the instances that use it) is worked out, as in the reference
+compiler's parsers, when it is first used, with the stream where it is then:
+by the `if:` of a field only if the condition gets as far as using it (`a and
+instance` does not when `a` is false), and, when nothing uses it, once the
+whole input has been read, with the stream where the parse left it. So an
+instance `value: _io.pos` of a type that is read in the middle of the input is
+the size of what was read, not the place where its type ended.
 `--no-instances` leaves them out of the output (those that fields use are still
 computed), and so does `ParseOptions { instances: false }` with
 `parse_file_with`. An instance that cannot be computed where its type ends,
