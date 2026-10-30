@@ -1,0 +1,185 @@
+id: zip_archive
+doc: |
+  ZIP archive (.zip, .jar, .apk, .docx and the like), read from its central directory: the entries, their local headers and their data
+# Covers: the end of central directory record (read from the end of the file), every central directory entry (version,
+#   flags, method, DOS time and date, CRC-32, sizes, name, extra fields, comment, attributes) and, found through each
+#   entry, its local file header and its data (the stored or compressed bytes).
+# Why from the central directory: the sizes in a local header are zero when the entry has a data descriptor (flag bit 3,
+#   how streaming tools write), so a read from the start of the file cannot tell where an entry ends. The central
+#   directory always has them. It also gives the right answer for the extra fields: the extended timestamp (0x5455) has
+#   its flags byte set for the access time in the central directory while only the modification time is stored there
+#   (Info-ZIP `zip` writes it so), which a definition that reads a time for each flag cannot read. Extra fields are
+#   kept as bytes here.
+# Limits: the end of central directory record is found at 22 bytes from the end, so an archive with a comment is not
+#   read (the record is then earlier; `doe` cannot search backwards). ZIP64 (sizes and offsets of 0xFFFFFFFF, a ZIP64
+#   end of central directory) is not followed: the fields are shown as the 32-bit values. Archives that span several
+#   disks, encrypted entries' contents and the data descriptors after the data are not decoded. Names are read as
+#   UTF-8 (flag bit 11); older archives with names in code page 437 that are not ASCII do not read.
+# Detection: the type has no signature (the record it starts from is at the end), so it is tried for a file whose name
+#   ends in one of its extensions, or with `--detect all`.
+# Specification: PKWARE APPNOTE.TXT, sections 4.3.7 (local file header), 4.3.12 (central directory file header) and
+#   4.3.16 (end of central directory record); Info-ZIP's `proginfo/extrafld.txt` for the extra fields.
+meta:
+  id: zip_archive
+  file-extension: [zip, jar, war, apk, docx, xlsx, pptx, odt, epub]
+  endian: le
+instances:
+  end_of_central_directory:
+    pos: _io.size - 22
+    type: end_of_central_directory
+  entries:
+    pos: end_of_central_directory.ofs_central_directory
+    type: central_entry
+    repeat: expr
+    repeat-expr: end_of_central_directory.num_entries
+enums:
+  method:
+    0: stored
+    1: shrunk
+    6: imploded
+    8: deflated
+    9: deflate64
+    12: bzip2
+    14: lzma
+    93: zstandard
+    95: xz
+    98: ppmd
+    99: aes_encrypted
+types:
+  end_of_central_directory:
+    seq:
+      - id: signature
+        contents: [0x50, 0x4b, 0x05, 0x06]
+      - id: disk_number
+        type: u2
+      - id: disk_of_central_directory
+        type: u2
+      - id: num_entries_on_disk
+        type: u2
+      - id: num_entries
+        type: u2
+      - id: len_central_directory
+        type: u4
+      - id: ofs_central_directory
+        type: u4
+      - id: len_comment
+        type: u2
+      - id: comment
+        type: str
+        size: len_comment
+        encoding: UTF-8
+  central_entry:
+    seq:
+      - id: signature
+        contents: [0x50, 0x4b, 0x01, 0x02]
+      - id: version_made_by
+        type: u2
+        doc: The low byte is the version of the specification (45 is 4.5), the high byte the system that made it (3 is Unix).
+      - id: version_needed
+        type: u2
+      - id: flags
+        type: u2
+      - id: method
+        type: u2
+        enum: method
+      - id: last_mod_time
+        type: u2
+        doc: DOS time, two seconds in 5 bits, minutes in 6, hours in 5.
+      - id: last_mod_date
+        type: u2
+        doc: DOS date, the day in 5 bits, the month in 4, the year since 1980 in 7.
+      - id: crc32
+        type: u4
+      - id: len_compressed
+        type: u4
+      - id: len_uncompressed
+        type: u4
+      - id: len_name
+        type: u2
+      - id: len_extra
+        type: u2
+      - id: len_comment
+        type: u2
+      - id: disk_number_start
+        type: u2
+      - id: internal_attributes
+        type: u2
+      - id: external_attributes
+        type: u4
+        doc: The high 16 bits are the Unix mode when the archive was made on Unix (`version_made_by` high byte 3).
+      - id: ofs_local_header
+        type: u4
+      - id: name
+        type: str
+        size: len_name
+        encoding: UTF-8
+      - id: extra
+        type: extra_fields
+        size: len_extra
+      - id: comment
+        type: str
+        size: len_comment
+        encoding: UTF-8
+    instances:
+      is_directory:
+        value: name.length > 0 and name.substring(name.length - 1, name.length) == "/"
+      has_data_descriptor:
+        value: (flags & 8) != 0
+      is_encrypted:
+        value: (flags & 1) != 0
+      unix_mode:
+        value: (external_attributes >> 16) & 0xffff
+      local_header:
+        pos: ofs_local_header
+        type: local_header
+      data:
+        pos: ofs_local_header + 30 + local_header.len_name + local_header.len_extra
+        size: len_compressed
+  local_header:
+    seq:
+      - id: signature
+        contents: [0x50, 0x4b, 0x03, 0x04]
+      - id: version_needed
+        type: u2
+      - id: flags
+        type: u2
+      - id: method
+        type: u2
+        enum: method
+      - id: last_mod_time
+        type: u2
+      - id: last_mod_date
+        type: u2
+      - id: crc32
+        type: u4
+        doc: Zero when the entry has a data descriptor (flag bit 3); the central directory has the value.
+      - id: len_compressed
+        type: u4
+        doc: Zero when the entry has a data descriptor; the central directory has the value.
+      - id: len_uncompressed
+        type: u4
+      - id: len_name
+        type: u2
+      - id: len_extra
+        type: u2
+      - id: name
+        type: str
+        size: len_name
+        encoding: UTF-8
+      - id: extra
+        type: extra_fields
+        size: len_extra
+  extra_fields:
+    seq:
+      - id: fields
+        type: extra_field
+        repeat: eos
+  extra_field:
+    seq:
+      - id: code
+        type: u2
+        doc: 0x5455 extended timestamp, 0x7875 Info-ZIP Unix owner, 0x0001 ZIP64 sizes, 0xcafe Java class marker.
+      - id: len_body
+        type: u2
+      - id: body
+        size: len_body

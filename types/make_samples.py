@@ -281,6 +281,54 @@ def sevenzip() -> bytes:
     return b"7z\xbc\xaf\x27\x1c" + bytes([0, 4]) + struct.pack("<I", zlib.crc32(start)) + start + next_header
 
 
+def zip_archive() -> bytes:
+    """An archive written the way Info-ZIP's `zip` writes one: a directory and a file with an extended timestamp
+    (0x5455) that has the modification and access times in the local header but only the modification time in the
+    central directory, a deflated file, and a file with a data descriptor (flag bit 3, zeros in its local header)."""
+    import zlib
+
+    def dos(year, month, day, hour, minute, second):
+        return ((hour << 11) | (minute << 5) | (second // 2)), (((year - 1980) << 9) | (month << 5) | day)
+
+    time, date = dos(2026, 9, 19, 13, 18, 44)
+    modified = 1_789_000_000
+    local_extra = struct.pack("<HHBII", 0x5455, 9, 3, modified, modified) + struct.pack("<HHBBIBI", 0x7875, 11, 1, 4, 0, 4, 0)
+    central_extra = struct.pack("<HHBI", 0x5455, 5, 3, modified) + struct.pack("<HHBBIBI", 0x7875, 11, 1, 4, 0, 4, 0)
+
+    def raw_deflate(data):
+        compressor = zlib.compressobj(9, zlib.DEFLATED, -15)
+        return compressor.compress(data) + compressor.flush()
+
+    # name, method, flags, data as stored, uncompressed data, unix mode
+    files = [
+        ("docs/", 0, 0, b"", b"", 0o040755),
+        ("docs/hello.txt", 0, 0, b"hello\n", b"hello\n", 0o100644),
+        ("data.bin", 8, 0, raw_deflate(bytes(range(10)) * 20), bytes(range(10)) * 20, 0o100644),
+        ("stream.txt", 8, 8, raw_deflate(b"streamed " * 8), b"streamed " * 8, 0o100644),
+    ]
+    out = b""
+    central = b""
+    for name, method, flags, stored, plain, mode in files:
+        crc = zlib.crc32(plain)
+        offset = len(out)
+        encoded = name.encode()
+        descriptor = flags & 8
+        out += struct.pack(
+            "<4sHHHHHIIIHH", b"PK\x03\x04", 10 if method == 0 else 20, flags, method, time, date,
+            0 if descriptor else crc, 0 if descriptor else len(stored), 0 if descriptor else len(plain), len(encoded), len(local_extra),
+        )
+        out += encoded + local_extra + stored
+        if descriptor:
+            out += struct.pack("<4sIII", b"PK\x07\x08", crc, len(stored), len(plain))
+        central += struct.pack(
+            "<4sHHHHHHIIIHHHHHII", b"PK\x01\x02", (3 << 8) | 30, 10 if method == 0 else 20, flags, method, time, date,
+            crc, len(stored), len(plain), len(encoded), len(central_extra), 0, 0, 0, mode << 16, offset,
+        )
+        central += encoded + central_extra
+    end = struct.pack("<4sHHHHIIH", b"PK\x05\x06", 0, 0, len(files), len(files), len(central), len(out), 0)
+    return out + central + end
+
+
 if __name__ == "__main__":
     put("sample.tar", tar())
     put("sample.a", ar())
@@ -302,3 +350,4 @@ if __name__ == "__main__":
     put("sample.mp3", mp3())
     put("sample.cab", cab())
     put("sample.7z", sevenzip())
+    put("sample.zip", zip_archive())
