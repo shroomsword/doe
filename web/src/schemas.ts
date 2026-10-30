@@ -14,6 +14,7 @@ export const ORIGIN_LABEL: Record<Origin, string> = {
   added: 'added file',
   gallery: 'Kaitai Struct gallery',
   library: 'type library of this machine',
+  bundled: 'doe type library',
 };
 
 /** Whether the text can be changed here: the main schema, and what the person added, can; what was fetched cannot, until a copy is made. */

@@ -1,5 +1,6 @@
 // The types that are available: those of the schemas that are open, of the type
-// library of this machine (with `doe --ide`) and of the Kaitai Struct gallery,
+// library of this machine (with `doe --ide`), of doe's own library and of the
+// Kaitai Struct gallery,
 // in one list with a filter. The list is made here without the page, and
 // `TypeBrowser` shows it in a dialog.
 
@@ -8,16 +9,17 @@ import type { DetectWhy, Magic } from './doe.js';
 import type { LocalType } from './local.js';
 import type { Row } from './schemas.js';
 
-export type Source = 'open' | 'library' | 'gallery';
+export type Source = 'open' | 'library' | 'bundled' | 'gallery';
 
 /** The heading of each source, in the order they are listed. */
 export const SOURCE_LABEL: Record<Source, string> = {
   open: 'Open schemas',
   library: 'Type library of this machine',
+  bundled: 'doe type library',
   gallery: 'Kaitai Struct gallery',
 };
 
-const ORDER: Source[] = ['open', 'library', 'gallery'];
+const ORDER: Source[] = ['open', 'library', 'bundled', 'gallery'];
 
 /** One type that can be used. */
 export interface Entry {
@@ -81,10 +83,10 @@ export function libraryEntries(types: readonly LocalType[]): Entry[] {
   }));
 }
 
-/** The formats of the gallery. `currentPath` is the file of the main schema, to mark the format in use. */
+/** The formats of the gallery and of doe's own library, which the page serves. `currentPath` is the file of the main schema, to mark the format in use. */
 export function galleryEntries(formats: readonly GalleryFormat[], currentPath: string | null): Entry[] {
   return formats.map((format) => ({
-    source: 'gallery',
+    source: format.bundled ? 'bundled' : 'gallery',
     id: format.id,
     path: format.path,
     doc: format.title,

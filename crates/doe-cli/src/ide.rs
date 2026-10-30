@@ -58,6 +58,7 @@ fn content_type(name: &str) -> &'static str {
         "css" => "text/css; charset=utf-8",
         "wasm" => "application/wasm",
         "json" | "map" => "application/json",
+        "yaml" | "yml" => "text/plain; charset=utf-8",
         "svg" => "image/svg+xml",
         "png" => "image/png",
         "ico" => "image/x-icon",
@@ -299,6 +300,15 @@ mod tests {
     )]
 
     use super::*;
+
+    #[test]
+    fn a_type_of_the_library_is_served_as_text() {
+        assert_eq!(
+            content_type("library/tar.yaml"),
+            "text/plain; charset=utf-8"
+        );
+        assert_eq!(content_type("gallery.json"), "application/json");
+    }
 
     fn local() -> Local {
         Local::new(&[], None).unwrap()

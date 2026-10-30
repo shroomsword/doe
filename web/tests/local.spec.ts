@@ -43,11 +43,18 @@ test('the gallery is allowed by the page policy, and export works on the file th
   await page.route('https://raw.githubusercontent.com/**', (route) =>
     route.fulfill({ body: 'meta:\n  id: from_gallery\nseq:\n  - id: a\n    type: u2be\n', contentType: 'text/plain' }),
   );
-  const gallery = (await (await page.request.get('/gallery.json')).json()) as { formats: unknown[] };
-  if (gallery.formats.length > 0) {
-    await page.locator('#gallery').selectOption('0');
+  const gallery = (await (await page.request.get('/gallery.json')).json()) as { formats: { bundled?: boolean }[] };
+  // the first format of the Kaitai Struct gallery: the types of doe's own library come before and are served by the page
+  const first = gallery.formats.findIndex((format) => !format.bundled);
+  if (first >= 0) {
+    await page.locator('#gallery').selectOption(String(first));
     await expect(page.locator('.cm-content')).toContainText('from_gallery');
   }
+  // and the page may fetch a type of the library from the server that serves it
+  const bundled = gallery.formats.findIndex((format) => format.bundled);
+  expect(bundled).toBeGreaterThanOrEqual(0);
+  await page.locator('#gallery').selectOption(String(bundled));
+  await expect(page.locator('.cm-content')).toContainText('id: ar');
 
   await page.locator('#types').selectOption({ label: 'pair' });
   await page.locator('#use-input').click();

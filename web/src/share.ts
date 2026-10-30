@@ -2,11 +2,11 @@
 // person wrote or added as imports goes here: never the binary.
 
 /** Where a schema came from: typed in the editor, opened from a file, added as an import, or taken from the gallery or the library. */
-export type Origin = 'typed' | 'file' | 'added' | 'gallery' | 'library';
+export type Origin = 'typed' | 'file' | 'added' | 'gallery' | 'library' | 'bundled';
 
 import { type Radix, isRadix } from './radix.js';
 
-const ORIGINS: readonly string[] = ['typed', 'file', 'added', 'gallery', 'library'];
+const ORIGINS: readonly string[] = ['typed', 'file', 'added', 'gallery', 'library', 'bundled'];
 
 /** What is shared and remembered. */
 export interface Work {
