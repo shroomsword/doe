@@ -177,6 +177,22 @@ header label { display: inline-flex; gap: 4px; align-items: center; max-width: 1
 
 /* the browser of types */
 #browse-dialog { width: min(52rem, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
+#help-dialog { width: min(60rem, calc(100vw - 32px)); height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
+#help-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+#help-dialog[open] { display: flex; flex-direction: column; }
+#help-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-wrap: wrap; align-items: flex-start; }
+.help-toc { flex: 0 0 15rem; max-width: 100%; position: sticky; top: 0; max-height: 100%; overflow: auto; padding: 8px 12px; border-right: 1px solid var(--line); }
+.help-toc ul { list-style: none; margin: 0; padding: 0; }
+.help-toc li { padding: 1px 0; font-size: .9em; }
+.help-toc li.level-3 { padding-left: 14px; font-size: .85em; }
+.help-text { flex: 1 1 24rem; min-width: 0; padding: 0 16px 16px; overflow-wrap: anywhere; }
+.help-text pre { overflow: auto; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+.help-text code { font-family: var(--mono); font-size: .9em; }
+.help-table { overflow-x: auto; max-width: 100%; }
+.help-table table { border-collapse: collapse; }
+.help-table th, .help-table td { border: 1px solid var(--line); padding: 2px 8px; text-align: left; vertical-align: top; }
+.help-gone { color: inherit; }
+#help { font: inherit; font-weight: bold; }
 #browse-dialog::backdrop { background: rgba(0, 0, 0, .4); }
 #browse-dialog[open] { display: flex; flex-direction: column; }
 .browse-bar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
