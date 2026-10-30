@@ -55,28 +55,26 @@
             <label class="button" title="Open the binary file to parse. It is read in this browser and never uploaded.">Open<input id="open-input" type="file" /></label>
             <button id="detect" type="button" title="Find the schema of the opened file among the gallery (and the types of this machine, with doe --ide)">Detect</button>
             <label id="detect-auto-box" title="Detect the schema when a file is opened and the current one does not parse it"><input id="detect-auto" type="checkbox" /> auto</label>
+            <label id="field-radix-box" hidden title="Write this field, in every element and every parse of this schema, in a radix of its own">This field
+              <select id="field-radix">
+                <option value="">as above</option>
+                <option value="dec">decimal</option>
+                <option value="hex">hexadecimal</option>
+                <option value="bin">binary</option>
+                <option value="oct">octal</option>
+              </select>
+            </label>
+            <label id="radix-box" title="How integers are written; the choice is kept in this browser">Integers
+              <select id="radix">
+                <option value="dec">decimal</option>
+                <option value="hex">hexadecimal</option>
+                <option value="bin">binary</option>
+                <option value="oct">octal</option>
+              </select>
+            </label>
           </div>
         </div>
         <div id="detect-report" hidden></div>
-        <div class="pane-tools">
-          <label id="radix-box" title="How integers are written; the choice is kept in this browser">Integers
-            <select id="radix">
-              <option value="dec">decimal</option>
-              <option value="hex">hexadecimal</option>
-              <option value="bin">binary</option>
-              <option value="oct">octal</option>
-            </select>
-          </label>
-          <label id="field-radix-box" hidden title="Write this field, in every element and every parse of this schema, in a radix of its own">This field
-            <select id="field-radix">
-              <option value="">as above</option>
-              <option value="dec">decimal</option>
-              <option value="hex">hexadecimal</option>
-              <option value="bin">binary</option>
-              <option value="oct">octal</option>
-            </select>
-          </label>
-        </div>
         <div id="tree-box"><div id="tree"></div></div>
       </section>
       <section id="pane-hex" aria-labelledby="h-bytes">

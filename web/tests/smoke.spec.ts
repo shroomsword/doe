@@ -27,6 +27,12 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => window.doe?.ready === true);
 });
 
+/** Whether box `a` comes before box `b` in reading order: to its left, or on a row above (a title bar wraps). */
+function before(a: { x: number; y: number; width: number; height: number } | null, b: { x: number; y: number; width: number; height: number } | null): boolean {
+  if (!a || !b) return false;
+  return a.y + a.height <= b.y + 1 || a.x + a.width <= b.x + 1;
+}
+
 test('the module is loaded, and a first visit has nothing in the editor and no error', async ({ page }) => {
   await expect(page.locator('#version')).not.toBeEmpty();
   await expect(page.locator('.cm-editor')).toBeVisible();
@@ -115,12 +121,10 @@ test('Open, Add imports and Browse... are at the right end of the Schema pane\'s
   await expect(page.locator('header #open-schema, header #add-files, header #browse')).toHaveCount(0);
   // in that order, to the right of the heading, ending at the right edge of the bar
   const boxes = await Promise.all(['label.button:has(#open-schema)', 'label.button:has(#add-files)', '#browse'].map((s) => actions.locator(s).boundingBox()));
-  const xs = boxes.map((b) => b?.x ?? -1);
-  const [open, add, browse] = [xs[0] ?? -1, xs[1] ?? -1, xs[2] ?? -1];
-  expect(open).toBeLessThan(add);
-  expect(add).toBeLessThan(browse);
-  const head = await heading.boundingBox();
-  expect(open).toBeGreaterThan((head?.x ?? 0) + (head?.width ?? 0) - 1);
+  expect(before(boxes[0] ?? null, boxes[1] ?? null)).toBe(true);
+  expect(before(boxes[1] ?? null, boxes[2] ?? null)).toBe(true);
+  expect(before(await heading.boundingBox(), boxes[0] ?? null)).toBe(true);
+  // the last one ends at the right end of the bar
   const barBox = await bar.boundingBox();
   const last = boxes[2];
   expect((last?.x ?? 0) + (last?.width ?? 0)).toBeGreaterThan((barBox?.x ?? 0) + (barBox?.width ?? 0) - 16);
@@ -141,11 +145,24 @@ test('Open, Detect and auto are in the title bar of the Parsed pane, and the det
   await expect(actions.locator('#detect-auto')).toHaveCount(1);
   await expect(page.locator('header #open-input, header #detect, header #detect-auto, header #detect-report')).toHaveCount(0);
   // in that order, to the right of the heading
-  const xs = await Promise.all(['label.button:has(#open-input)', '#detect', '#detect-auto-box'].map(async (s) => (await actions.locator(s).boundingBox())?.x ?? -1));
-  expect(xs[0]).toBeLessThan(xs[1] ?? 0);
-  expect(xs[1]).toBeLessThan(xs[2] ?? 0);
-  const head = await bar.locator('h2').boundingBox();
-  expect(xs[0]).toBeGreaterThan((head?.x ?? 0) + (head?.width ?? 0) - 1);
+  const [open, detect, auto] = await Promise.all(['label.button:has(#open-input)', '#detect', '#detect-auto-box'].map((s) => actions.locator(s).boundingBox()));
+  expect(before(open ?? null, detect ?? null)).toBe(true);
+  expect(before(detect ?? null, auto ?? null)).toBe(true);
+  expect(before(await bar.locator('h2').boundingBox(), open ?? null)).toBe(true);
   // the report is in the pane, under the bar (it is shown by the tests of detection)
   await expect(page.locator('#pane-tree #detect-report')).toHaveCount(1);
+});
+
+test('Integers is the last tool at the right end of the Parsed pane\'s title bar, with This field just before it', async ({ page }) => {
+  const bar = page.locator('#pane-tree .pane-title');
+  await expect(bar.locator('#radix-box')).toHaveCount(1);
+  await expect(bar.locator('#field-radix-box')).toHaveCount(1);
+  await expect(page.locator('#pane-tree .pane-tools')).toHaveCount(0);
+  // This field is for an integer that is selected: before that it is not shown
+  await expect(bar.locator('#field-radix-box')).toBeHidden();
+  // Integers ends the bar, at its right end
+  const radix = await bar.locator('#radix-box').boundingBox();
+  const barBox = await bar.boundingBox();
+  expect((radix?.x ?? 0) + (radix?.width ?? 0)).toBeGreaterThan((barBox?.x ?? 0) + (barBox?.width ?? 0) - 16);
+  expect(before(await bar.locator('#detect-auto-box').boundingBox(), radix)).toBe(true);
 });
