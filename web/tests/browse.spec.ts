@@ -32,8 +32,8 @@ test('the types of the open schemas are listed with the one in use marked and a 
 });
 
 test('the library and the gallery have their docs, signatures and the format in use', () => {
-  const library = libraryEntries([{ id: 'elf', doc: '\n  ELF files\nmore', path: '/types/elf.yaml' }]);
-  expect(library[0]?.doc).toBe('ELF files');
+  const library = libraryEntries([{ id: 'sample', doc: '\n  Sample files\nmore', path: '/types/sample.yaml' }]);
+  expect(library[0]?.doc).toBe('Sample files');
   expect(firstLine(null)).toBeNull();
   const gallery = galleryEntries([format('gif', { magic: [{ offset: 0, bytes: [71] }], verified: 'real' }), format('png')], 'image/png.ksy');
   expect(gallery.map((e) => [e.id, hasSignature(e), e.verified, e.current])).toEqual([
@@ -45,16 +45,16 @@ test('the library and the gallery have their docs, signatures and the format in 
 });
 
 test('the filter needs every word in the id, the path or the doc, in any case', () => {
-  const entries: Entry[] = [...libraryEntries([{ id: 'elf', doc: 'Executable files', path: '/types/exe/elf.yaml' }]), ...galleryEntries([format('gif'), format('png')], null)];
+  const entries: Entry[] = [...libraryEntries([{ id: 'sample', doc: 'Executable files', path: '/types/exe/sample.yaml' }]), ...galleryEntries([format('gif'), format('png')], null)];
   expect(filterEntries(entries, '').length).toBe(3);
-  expect(filterEntries(entries, 'ELF').map((e) => e.id)).toEqual(['elf']);
-  expect(filterEntries(entries, 'exe files').map((e) => e.id)).toEqual(['elf']);
+  expect(filterEntries(entries, 'SAMPLE').map((e) => e.id)).toEqual(['sample']);
+  expect(filterEntries(entries, 'exe files').map((e) => e.id)).toEqual(['sample']);
   expect(filterEntries(entries, 'image the').map((e) => e.id)).toEqual(['gif', 'png']);
   expect(filterEntries(entries, 'zzz')).toEqual([]);
 });
 
 test('the list is grouped by where the types come from, the open schemas first', () => {
-  const entries = [...galleryEntries([format('gif')], null), ...openEntries([row('m.ksy', ['m'], { main: true, id: 'm' })], null), ...libraryEntries([{ id: 'elf', doc: null, path: 'elf.yaml' }])];
+  const entries = [...galleryEntries([format('gif')], null), ...openEntries([row('m.ksy', ['m'], { main: true, id: 'm' })], null), ...libraryEntries([{ id: 'sample', doc: null, path: 'sample.yaml' }])];
   expect(grouped(entries).map((g) => g.source)).toEqual(['open', 'library', 'gallery']);
 });
 
@@ -62,13 +62,13 @@ test("the types of doe's own library are their own group, between the library of
   const bundled = (id: string): GalleryFormat => ({ path: `library/${id}.yaml`, id, title: `The ${id} type`, imports: [], bundled: true, verified: 'crafted' });
   const entries = [
     ...galleryEntries([format('gif'), bundled('tar'), bundled('wasm')], 'library/tar.yaml'),
-    ...libraryEntries([{ id: 'elf', doc: null, path: 'elf.yaml' }]),
+    ...libraryEntries([{ id: 'sample', doc: null, path: 'sample.yaml' }]),
   ];
   expect(entries.map((e) => [e.id, e.source])).toEqual([
     ['gif', 'gallery'],
     ['tar', 'bundled'],
     ['wasm', 'bundled'],
-    ['elf', 'library'],
+    ['sample', 'library'],
   ]);
   expect(grouped(entries).map((g) => g.source)).toEqual(['library', 'bundled', 'gallery']);
   // the type in use is marked, and the entries are found by the filter like any

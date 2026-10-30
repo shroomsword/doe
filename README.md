@@ -135,17 +135,14 @@ has a sample file in `types/samples/` that `types/make_samples.py` makes (nothin
 project) and a test of its values. [`types/README.md`](https://github.com/shroomsword/doe/blob/main/types/README.md)
 lists the formats that the gallery lacks, which of them the library has, and why the others are not in it.
 
-**ELF files** are not in the library: the gallery's `elf.ksy` reads both byte orders and word sizes, notes
-and dynamic sections, and `doe` parses it (check the gallery out as the submodule
+**ELF files** are read by the gallery's `elf.ksy`, which handles both byte orders and word sizes, notes
+and dynamic sections (install the types with `doe --install-types`, or check the gallery out as the submodule
 `conformance/kaitai_struct_formats`, or clone it, and point `-I` at it):
 
 ```sh
 doe -I conformance/kaitai_struct_formats /bin/ls elf
 doe -I conformance/kaitai_struct_formats --json libc.so.6 elf | jq '.header.program_headers[].type.name'
 ```
-
-(The library had its own `elf` type before, for ELF64 little-endian only; `-I types elf` now finds nothing.
-The gallery's definition refuses a machine number that its enum does not list, where the old type kept it.)
 
 Running `doe --help` with `-I types` lists the available types, and
 `doe -I types --list-types` prints them for a script: one per line with the id,
