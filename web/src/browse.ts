@@ -301,7 +301,11 @@ export class TypeBrowser {
     head.append(make('strong', entry.id));
     if (entry.current) head.append(make('span', ' in use', 'browse-tag'));
     if (hasSignature(entry) === true) head.append(make('span', ' signature', 'browse-tag'));
-    if (entry.verified) head.append(make('span', entry.verified === 'real' ? ' ✓' : ' ○', 'browse-tag'));
+    if (entry.verified) {
+      const mark = make('span', entry.verified === 'real' ? ' ✓' : ' ○', 'browse-tag');
+      mark.title = entry.verified === 'real' ? 'tried on a file written by the tool that makes the format' : 'tried on a valid file built by hand';
+      head.append(mark);
+    }
     item.append(head);
     item.append(make('div', entry.path, 'browse-path'));
     if (why) item.append(make('div', why, 'browse-why'));

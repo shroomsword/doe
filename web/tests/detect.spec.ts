@@ -186,25 +186,32 @@ test("the type of a file that starts with a signature of doe's own library is fo
   expect(asked).toEqual([]);
 });
 
-test("the picker has the types of doe's own library first, in their own group, marked as tried on a file built by hand", async ({ page }) => {
+test("a type of doe's own library is marked as tried on a file built by hand, and is used from the dialog", async ({ page }) => {
   await ready(page);
-  const group = page.locator('#gallery optgroup').first();
-  await expect(group).toHaveAttribute('label', 'doe type library');
-  const tar = group.locator('option', { hasText: /^tar — / });
-  await expect(tar).toHaveText(/ ○$/);
-  await expect(tar).toHaveAttribute('title', /built by hand/);
-  await page.locator('#gallery').selectOption({ label: await tar.textContent().then((t) => t ?? '') });
+  await page.click('#browse');
+  await page.fill('#browse-filter', 'library/tar.yaml');
+  const tar = page.locator('#browse-dialog li', { hasText: 'library/tar.yaml' });
+  await expect(tar.locator('.browse-tag[title]')).toHaveText('○');
+  await expect(tar.locator('.browse-tag[title]')).toHaveAttribute('title', /built by hand/);
+  await tar.getByRole('button', { name: 'Use' }).click();
   await expect(page.locator('.cm-content')).toContainText('id: tar');
   await expect(page.locator('#schemas li.main')).toContainText('main schema · doe type library');
 });
 
-test('the picker marks the formats that have been tried on a file, and says how', async ({ page }) => {
+test('the dialog marks the formats that have been tried on a file, and says how', async ({ page }) => {
   test.skip(!hasGallery, 'the gallery is not checked out');
   await ready(page);
-  const option = (text: RegExp) => page.locator('#gallery option', { hasText: text });
-  await expect(option(/^elf — /)).toHaveText(/ ✓$/);
-  await expect(option(/^png — /)).toHaveText(/ ○$/);
-  await expect(option(/^png — /)).toHaveAttribute('title', /built by hand/);
+  await page.click('#browse');
+  const entry = async (filter: string, path: string) => {
+    await page.fill('#browse-filter', filter);
+    return page.locator('#browse-dialog li', { has: page.locator('.browse-path', { hasText: new RegExp(`^${path.replace('.', '\\.')}$`) }) });
+  };
+  const elf = await entry('elf', 'executable/elf.ksy');
+  await expect(elf.locator('.browse-tag', { hasText: '✓' })).toHaveAttribute('title', /written by the tool/);
+  const png = await entry('png', 'image/png.ksy');
+  await expect(png.locator('.browse-tag', { hasText: '○' })).toHaveAttribute('title', /built by hand/);
   // a format with no file is not marked
-  await expect(option(/^lvm2 — /)).not.toHaveText(/[✓○]$/);
+  const lvm2 = await entry('lvm2', 'filesystem/lvm2.ksy');
+  await expect(lvm2).toBeVisible();
+  await expect(lvm2.locator('.browse-tag', { hasText: /[✓○]/ })).toHaveCount(0);
 });

@@ -1,6 +1,7 @@
 // The page served by `doe --ide`: the types of the machine, and a file too
 // large for the browser that stays where it is. (local-server.mjs starts it.)
 
+import { useType } from './fixture.js';
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
@@ -43,17 +44,17 @@ test('the gallery is allowed by the page policy, and export works on the file th
   await page.route('https://raw.githubusercontent.com/**', (route) =>
     route.fulfill({ body: 'meta:\n  id: from_gallery\nseq:\n  - id: a\n    type: u2be\n', contentType: 'text/plain' }),
   );
-  const gallery = (await (await page.request.get('/gallery.json')).json()) as { formats: { bundled?: boolean }[] };
-  // the first format of the Kaitai Struct gallery: the types of doe's own library come before and are served by the page
-  const first = gallery.formats.findIndex((format) => !format.bundled);
-  if (first >= 0) {
-    await page.locator('#gallery').selectOption(String(first));
+  const gallery = (await (await page.request.get('/gallery.json')).json()) as { formats: { path: string; bundled?: boolean }[] };
+  // a format of the Kaitai Struct gallery (the types of doe's own library come before it and are served by the page)
+  const first = gallery.formats.find((format) => !format.bundled);
+  if (first) {
+    await useType(page, first.path, first.path);
     await expect(page.locator('.cm-content')).toContainText('from_gallery');
   }
   // and the page may fetch a type of the library from the server that serves it
-  const bundled = gallery.formats.findIndex((format) => format.bundled);
-  expect(bundled).toBeGreaterThanOrEqual(0);
-  await page.locator('#gallery').selectOption(String(bundled));
+  const bundled = gallery.formats.find((format) => format.bundled);
+  expect(bundled).toBeDefined();
+  await useType(page, 'library/ar', 'library/ar.yaml');
   await expect(page.locator('.cm-content')).toContainText('id: ar');
 
   await page.locator('#types').selectOption({ label: 'pair' });

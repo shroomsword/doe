@@ -933,7 +933,7 @@ without any says so in the table. A real file of such a format, from a tool or
 from the world, is always welcome in place of a built one.
 
 The others compile, but no file has been compared to the reference yet, so one
-of them may still fail on a file, or read it differently (the web IDE picker marks
+of them may still fail on a file, or read it differently (the web IDE's *Browse types* marks
 the formats that have a file: ✓ for one written by its own tool, ○ for one built by hand). Give the gallery as an
 include path, so that the imports between its definitions resolve:
 
@@ -1072,7 +1072,8 @@ have ○: a sample built by hand). The filter above the list keeps the entries t
 have every word you type in the id, the path or the doc. *View* reads the text of
 one (read-only; `Esc` goes back to the list), and *Use* parses with it: an open
 schema's type is set as *Parse as*, and a format of the library or the gallery is
-opened in the editor, as picking it from the *Types* or *Gallery* lists does. An
+opened in the editor, as picking it from the *Types* list does (the header's list
+of the types of this machine, with `doe --ide`). An
 open schema that does not read has its error and cannot be used. The dialog is a
 native one: it is reached with the keyboard, `Esc` closes it, and it fits a phone.
 A type that starts with a **signature** says so: the page asks `doe`
@@ -1106,10 +1107,10 @@ Four things make the page pleasant to come back to:
   in this browser (`localStorage`) and come back on reload; *Forget the saved
   schema* clears them. The file itself is not kept: open it again.
 - **Gallery:** the list of the [Kaitai Struct gallery](https://github.com/kaitai-io/kaitai_struct_formats)
-  formats is in the page; picking one downloads its definition (and what it
+  formats is in the page, in *Browse types*; using one downloads its definition (and what it
   imports) from GitHub at the commit that the page was built with. The
   definitions are not part of the page, since not all of them are CC0.
-  The picker starts with the **doe type library** (`types/`, see
+  The list has the **doe type library** (`types/`, see
   [Type library](#type-library)): those definitions are small and part of this repository, so they
   are served with the page (`library/NAME.yaml`) and nothing is fetched from
   GitHub for them. They are in the same list as the gallery's, so *Detect schema*

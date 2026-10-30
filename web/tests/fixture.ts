@@ -50,3 +50,12 @@ export async function loadExample(page: Page): Promise<void> {
   await page.setInputFiles('#open-input', { name: 'example.bin', mimeType: 'application/octet-stream', buffer: Buffer.from(EXAMPLE_BYTES) });
   await expect(page.locator('#status')).toContainText('example.bin, 16 bytes');
 }
+
+/** Choose a type in the dialog of *Browse types*: filter by `filter` and press *Use* on the entry whose file is `path`. */
+export async function useType(page: Page, filter: string, path: string): Promise<void> {
+  await page.click('#browse');
+  await page.fill('#browse-filter', filter);
+  const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const item = page.locator('#browse-dialog li', { has: page.locator('.browse-path', { hasText: new RegExp(`^${escaped}$`) }) });
+  await item.getByRole('button', { name: 'Use' }).click();
+}
