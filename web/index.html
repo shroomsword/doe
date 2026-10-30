@@ -14,14 +14,6 @@
         <button id="use-input" type="button" hidden></button>
       </div>
       <div class="actions">
-        <select id="export-format" aria-label="export format">
-          <option value="text">text</option>
-          <option value="pretty">JSON</option>
-          <option value="json">compact JSON</option>
-        </select>
-        <button id="export" type="button" disabled title="Save the whole parsed value, as doe prints it">Export</button>
-      </div>
-      <div class="actions">
         <label id="theme-box">Theme <select id="theme"></select></label>
         <label class="button" title="Load a theme file (TOML, as doe --tui reads it); it is kept in this browser">Load theme<input id="open-theme" type="file" accept=".toml" /></label>
       </div>
@@ -55,6 +47,7 @@
             <label class="button" title="Open the binary file to parse. It is read in this browser and never uploaded.">Open<input id="open-input" type="file" /></label>
             <button id="detect" type="button" title="Find the schema of the opened file among the gallery (and the types of this machine, with doe --ide)">Detect</button>
             <label id="detect-auto-box" title="Detect the schema when a file is opened and the current one does not parse it"><input id="detect-auto" type="checkbox" /> auto</label>
+            <button id="save" type="button" class="icon" disabled aria-label="Save" title="Save the parsed value as a file: choose the format and where"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2 1h9l3 3v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm1 1v4h8V2H3zm1 8v4h8v-4H4zm5-7h1.5v3H9V3z"/></svg></button>
             <label id="field-radix-box" hidden title="Write this field, in every element and every parse of this schema, in a radix of its own">This field
               <select id="field-radix">
                 <option value="">as above</option>
@@ -99,6 +92,20 @@
       <div id="browse-reader" hidden>
         <div class="browse-bar"><button id="browse-back" type="button">Back to the list</button><strong id="browse-reader-title"></strong></div>
         <pre id="browse-reader-text" tabindex="0"></pre>
+      </div>
+    </dialog>
+    <dialog id="save-dialog" aria-labelledby="save-title">
+      <div class="save-body">
+        <h3 id="save-title">Save the parsed value</h3>
+        <fieldset class="save-format">
+          <legend>Format</legend>
+          <label><input type="radio" name="save-format" value="text" checked /> Text <small>as doe prints it</small></label>
+          <label><input type="radio" name="save-format" value="json" /> JSON <small>indented</small></label>
+        </fieldset>
+        <label class="save-name">File name <input id="save-name" type="text" autocomplete="off" spellcheck="false" /></label>
+        <div class="save-place"><button id="save-browse" type="button" hidden>Browse...</button> <span id="save-place"></span></div>
+        <p id="save-note" role="status"></p>
+        <div class="save-buttons"><button id="save-go" type="button">Save</button><button id="save-cancel" type="button">Cancel</button></div>
       </div>
     </dialog>
     <script type="module" src="./main.js"></script>

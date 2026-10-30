@@ -1,4 +1,4 @@
-// Share links, the work that the browser remembers, the gallery picker and export.
+// Links that an earlier version made, the work that the browser remembers, the gallery, and saving the parsed value.
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { EXAMPLE_BYTES, EXAMPLE_SCHEMA, linkOf, loadExample, useType } from './fixture.js';
+import { EXAMPLE_BYTES, EXAMPLE_SCHEMA, linkOf, loadExample, saveAs, useType, withSavePicker } from './fixture.js';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const doe = join(repo, 'target', 'debug', 'doe');
@@ -89,27 +89,86 @@ test('a format of the gallery is fetched at the pinned commit, and parses a file
   await expect(page.locator('#status')).toContainText('parsed as jpeg', { timeout: 20_000 });
 });
 
-test('export gives what the command line prints', async ({ page }) => {
+test('what is saved is what the command line prints, as text and as indented JSON', async ({ page }) => {
   test.skip(!existsSync(doe), 'target/debug/doe is not built');
-  const dir = mkdtempSync(join(tmpdir(), 'doe-export-'));
+  const dir = mkdtempSync(join(tmpdir(), 'doe-save-'));
   writeFileSync(join(dir, 'example.yaml'), EXAMPLE_SCHEMA);
   writeFileSync(join(dir, 'example.bin'), EXAMPLE_BYTES);
+  await withSavePicker(page, null);
   await ready(page);
   await loadExample(page);
-  await expect(page.locator('#export')).toBeEnabled();
-  for (const [format, flags] of [['text', []], ['pretty', ['--pretty']], ['json', ['--json']]] as const) {
-    await page.locator('#export-format').selectOption(format);
-    const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#export').click()]);
-    expect(download.suggestedFilename()).toBe(format === 'text' ? 'example.bin.txt' : 'example.bin.json');
+  await expect(page.locator('#save')).toBeEnabled();
+  for (const [format, flags, name] of [['text', [], 'example.bin.txt'], ['json', ['--pretty'], 'example.bin.json']] as const) {
+    const download = await saveAs(page, format);
+    expect(download.suggestedFilename()).toBe(name);
     const saved = readFileSync((await download.path()) ?? '', 'utf8');
     const cli = execFileSync(doe, [join(dir, 'example.bin'), join(dir, 'example.yaml'), ...flags]).toString();
     expect(saved, format).toBe(cli);
   }
 });
 
-test('export is not offered when there is nothing parsed', async ({ page }) => {
+test('the save button is off until something is parsed, and the header has no export controls', async ({ page }) => {
   await ready(page);
+  await expect(page.locator('#save')).toBeDisabled();
+  await expect(page.locator('#export, #export-format')).toHaveCount(0);
   await typeSchema(page, 'meta:\n  id: broken\nseq:\n  - id: a\n    type: nope\n');
   await expect(page.locator('.problems')).toContainText('nope', { timeout: 10_000 });
-  await expect(page.locator('#export')).toBeDisabled();
+  await expect(page.locator('#save')).toBeDisabled();
+});
+
+test('the save dialog offers the two formats, a name that follows the format and can be changed, and cancels', async ({ page }) => {
+  await withSavePicker(page, null);
+  await ready(page);
+  await loadExample(page);
+  await page.locator('#save').click();
+  const dialog = page.locator('#save-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('input[name="save-format"]')).toHaveCount(2);
+  await expect(page.locator('#save-name')).toHaveValue('example.bin.txt');
+  await dialog.locator('input[value="json"]').check();
+  await expect(page.locator('#save-name')).toHaveValue('example.bin.json');
+  // a name of the person's own is kept when the format changes
+  await page.locator('#save-name').fill('mine.out');
+  await dialog.locator('input[value="text"]').check();
+  await expect(page.locator('#save-name')).toHaveValue('mine.out');
+  await page.locator('#save-cancel').click();
+  await expect(dialog).toBeHidden();
+  // the save button is in the title bar of the Parsed pane, between auto and This field
+  const bar = page.locator('#pane-tree .pane-title');
+  await expect(bar.locator('#save')).toHaveCount(1);
+  await expect(bar.locator('#save')).toHaveAccessibleName('Save');
+  // a name that was typed is the name of the download
+  const download = await saveAs(page, 'text', 'chosen.txt');
+  expect(download.suggestedFilename()).toBe('chosen.txt');
+});
+
+test('where the browser can choose a place, Browse... does, and the file is written there', async ({ page }) => {
+  await withSavePicker(page, { name: 'picked.json' });
+  await ready(page);
+  await loadExample(page);
+  await page.locator('#save').click();
+  await page.locator('input[name="save-format"][value="json"]').check();
+  await expect(page.locator('#save-browse')).toBeVisible();
+  await page.locator('#save-browse').click();
+  await expect(page.locator('#save-name')).toHaveValue('picked.json');
+  await expect(page.locator('#save-place')).toContainText('picked.json');
+  await page.locator('#save-go').click();
+  await expect(page.locator('#save-dialog')).toBeHidden();
+  const saved = await page.evaluate(() => (window as unknown as { __saved: Record<string, string> }).__saved['picked.json']);
+  expect(JSON.parse(saved ?? 'null')).toMatchObject({ count: 2 });
+  await expect(page.locator('#status')).toContainText('saved picked.json');
+  // changing the format drops the place that was chosen for the other one
+  await page.locator('#save').click();
+  await page.locator('#save-browse').click();
+  await page.locator('input[name="save-format"][value="text"]').check();
+  await expect(page.locator('#save-place')).toHaveText('');
+});
+
+test('where it cannot, the dialog has no Browse... and says that the browser decides', async ({ page }) => {
+  await withSavePicker(page, null);
+  await ready(page);
+  await loadExample(page);
+  await page.locator('#save').click();
+  await expect(page.locator('#save-browse')).toBeHidden();
+  await expect(page.locator('#save-note')).toContainText('where its download setting says');
 });

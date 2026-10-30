@@ -192,6 +192,8 @@ test('a type of any open schema can be chosen to parse with', async ({ page }) =
   await page.setInputFiles('#open-input', { name: 'in.bin', mimeType: 'application/octet-stream', buffer: Buffer.from([7, 1, 0, 9]) });
   await expect(page.locator('#status')).toContainText('parsed as top', { timeout: 10_000 });
 
+  // the list of the types comes with the inspection, which can end after the status says "parsed"
+  await expect(page.locator('#parse-type option')).toHaveCount(4);
   const options = await page.locator('#parse-type option').evaluateAll((items) => items.map((item) => (item as HTMLOptionElement).value));
   expect(options).toEqual(['', 'top', 'extra', 'extra::piece']);
   await expect(page.locator('#parse-type optgroup').nth(1)).toHaveAttribute('label', 'extra.ksy (extra)');

@@ -66,3 +66,42 @@ export function linkOf(work: Record<string, unknown>): string {
   const code = deflateRawSync(Buffer.from(JSON.stringify(work))).toString('base64url');
   return `/#s=${code}`;
 }
+
+/**
+ * Decide, before the page loads, whether the browser has `showSaveFilePicker`:
+ * with `stub`, a fake that records what is written in `window.__saved` (by the
+ * name it was given); without it, the function is not there, as in Firefox.
+ */
+export async function withSavePicker(page: Page, stub: { name: string } | null): Promise<void> {
+  await page.addInitScript((given) => {
+    const w = window as unknown as Record<string, unknown>;
+    w.__saved = {};
+    if (given === null) {
+      delete w.showSaveFilePicker;
+      return;
+    }
+    w.showSaveFilePicker = async () => ({
+      name: given.name,
+      async createWritable() {
+        let text = '';
+        return {
+          async write(data: string) {
+            text += data;
+          },
+          async close() {
+            (w.__saved as Record<string, string>)[given.name] = text;
+          },
+        };
+      },
+    });
+  }, stub);
+}
+
+/** Open the save dialog of the page, choose the format and press *Save*; the download that comes, if any. */
+export async function saveAs(page: Page, format: 'text' | 'json', name?: string) {
+  await page.locator('#save').click();
+  await page.locator(`input[name="save-format"][value="${format}"]`).check();
+  if (name !== undefined) await page.locator('#save-name').fill(name);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#save-go').click()]);
+  return download;
+}
