@@ -2092,6 +2092,40 @@ mod install_types {
     }
 
     #[test]
+    fn every_installed_type_compiles_and_the_ones_with_slash_imports_parse() {
+        let dir = TempDir::new().unwrap();
+        let types = dir.path().join("types");
+        install(&types);
+        let listed = doe_with_types(&types)
+            .args(["--list-types", "--json"])
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+        let listed: serde_json::Value = serde_json::from_slice(&listed).unwrap();
+        let broken: Vec<String> = listed
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|t| !t["error"].is_null())
+            .map(|t| format!("{}: {}", t["id"], t["error"]))
+            .collect();
+        assert!(broken.is_empty(), "{broken:#?}");
+        // `ethernet_frame` imports `/network/ipv4_packet`, which is in the gallery's folder of the directory
+        let sample = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../conformance/samples/gallery/network/ethernet_frame/udp.bin");
+        if sample.is_file() {
+            doe_with_types(&types)
+                .arg(sample)
+                .arg("ethernet_frame")
+                .assert()
+                .success()
+                .stdout(predicate::str::contains("ipv4_packet"));
+        }
+    }
+
+    #[test]
     fn the_directory_can_be_named() {
         let dir = TempDir::new().unwrap();
         let named = dir.path().join("named");
