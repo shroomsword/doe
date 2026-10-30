@@ -12,7 +12,7 @@
 //!    appear earlier in the same `seq`.
 //!
 //! Passes 2–4 are implemented here as a single traversal for simplicity; the
-//! separation is logical rather than structural.  We do two physical passes:
+//! separation is logical rather than structural.  There are two physical passes:
 //! first a name-collection pass (so forward references within a schema work),
 //! then a compilation pass.
 
@@ -387,7 +387,7 @@ impl Compiler {
 
     // ── Name collection (pass 1) ─────────────────────────────────────────────
 
-    /// Walk the schema tree and register every type name we'll produce, so
+    /// Walk the schema tree and register every type name it will produce, so
     /// that forward references within the same schema work during compilation.
     fn collect_type_names(&mut self, schema: &RawSchema) {
         // The root type

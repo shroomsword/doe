@@ -21,7 +21,7 @@ use crate::value::Value;
 /// Maintains two parallel stacks:
 /// - `eval_ctx`: bindings for the expression evaluator.
 /// - `value_stack`: the actual `Value` objects (needed to look up struct
-///   fields by name if we ever support more complex path expressions).
+///   fields by name, should more complex path expressions be supported).
 #[derive(Debug)]
 pub struct ParseContext {
     /// Numeric bindings visible to size, repeat, and `if` expressions.
