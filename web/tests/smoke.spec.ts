@@ -94,3 +94,13 @@ test('a parse that fails keeps what was read and marks where', async ({ page }) 
   expect(answer.error?.kind).toBe('parse');
   expect(answer.value).toMatchObject({ count: 3 });
 });
+
+test('the three file buttons say what they open, and each explains what it does to the rest', async ({ page }) => {
+  const button = (id: string) => page.locator(`label.button:has(#${id})`);
+  await expect(button('open-schema')).toContainText('Open main schema');
+  await expect(button('open-schema')).toHaveAttribute('title', /replacing its text.*Imports that were added stay/);
+  await expect(button('add-files')).toContainText('Add imported schemas');
+  await expect(button('add-files')).toHaveAttribute('title', /main schema is not changed/);
+  await expect(button('open-input')).toContainText('Open file to parse');
+  await expect(button('open-input')).toHaveAttribute('title', /never uploaded/);
+});
