@@ -21,7 +21,7 @@ here; the others are left out, with the reason (a format that is in scope and no
 | pcapng | `pcap` only | **library** (`pcapng`) |
 | WebAssembly | none | **library** (`wasm`) |
 | NumPy `.npy` | none | **library** (`npy`) |
-| ELF | `elf` | the gallery's: the library's own type was removed |
+| ELF | `elf` | not needed: use `elf` |
 | WOFF / WOFF2 | `ttf` for TrueType and OpenType | **library** (`woff`, `woff2`: the headers and, for WOFF, the table directory) |
 | FLAC | none | **library** (`flac`) |
 | FLV | none | **library** (`flv`) |

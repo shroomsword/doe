@@ -242,7 +242,7 @@ pub fn parse_file_with(
 /// use doe::is_schema_path;
 ///
 /// assert!(is_schema_path("./custom_format.yaml"));
-/// assert!(is_schema_path("/usr/share/doe/types/elf.yaml"));
+/// assert!(is_schema_path("/usr/share/doe/types/tar.yaml"));
 /// assert!(is_schema_path("~/types/png.yaml"));
 /// assert!(is_schema_path("custom.yml"));
 ///

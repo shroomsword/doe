@@ -1,6 +1,5 @@
-//! The Kaitai Struct gallery's `elf.ksy`, which is what to use for ELF files (the library has no type of its
-//! own), run against ELF files built in memory: the same files, and the same facts about them, that the
-//! hand-written type of the library was tested with.
+//! The Kaitai Struct gallery's `elf.ksy`, which is what to use for ELF files, run against ELF files built in
+//! memory.
 
 use std::path::{Path, PathBuf};
 
