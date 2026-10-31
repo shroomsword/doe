@@ -147,7 +147,7 @@ test('the title bars wrap on a narrow screen and the page does not scroll sidewa
   await expect(page.locator('#browse')).toBeVisible();
 });
 
-test('Open, Detect and auto are in the title bar of the Parsed pane, and the detection report is under it', async ({ page }) => {
+test('Open, Detect and auto are in the title bar of the Parsed pane, and the detection report is in the Status pane', async ({ page }) => {
   const bar = page.locator('#pane-tree .pane-title');
   const actions = bar.locator('.pane-actions');
   await expect(actions.locator('#open-input')).toHaveCount(1);
@@ -159,8 +159,9 @@ test('Open, Detect and auto are in the title bar of the Parsed pane, and the det
   expect(before(open ?? null, detect ?? null)).toBe(true);
   expect(before(detect ?? null, auto ?? null)).toBe(true);
   expect(before(await bar.locator('h2').boundingBox(), open ?? null)).toBe(true);
-  // the report is in the pane, under the bar (it is shown by the tests of detection)
-  await expect(page.locator('#pane-tree #detect-report')).toHaveCount(1);
+  // the report is in the Status pane, under the status line (it is shown by the tests of detection)
+  await expect(page.locator('#pane-status #detect-report')).toHaveCount(1);
+  await expect(page.locator('#pane-tree #detect-report')).toHaveCount(0);
 });
 
 test('Integers is the last tool at the right end of the Parsed pane\'s title bar, with This field just before it', async ({ page }) => {

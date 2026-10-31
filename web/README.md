@@ -68,7 +68,8 @@ The editor and the file are empty at first (open a file, open or type a schema, 
   hundreds of megabytes scrolls (for a very long file one pixel of the scroll bar
   is many rows).
 - **Status**: how the parse went (the file, its size, the type it was parsed as, or
-  "parsing…" with *Cancel parse*), and under it what is wrong with the schema
+  "parsing…" with *Cancel parse*), then the report of *Detect* (which types were tried and
+  which one fit), and under it what is wrong with the schema
   (with its line and column; a click goes there) and why a parse failed (a click
   selects the node). With nothing wrong there is only the status.
 
