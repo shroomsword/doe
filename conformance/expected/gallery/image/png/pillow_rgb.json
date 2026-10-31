@@ -1,0 +1,39 @@
+{
+  "chunks": [
+    {
+      "body": "789c636470f82fc8f09e78c4c44022a0bd0616aca29d072a208c550ea10434ac3e10c6c0c050eed001f162d881590c0c0c671c8cf13929cd61269c8d69038a863d075c431d56a1a9d8ede06272e02c3e1bf003ca34b838ec86781a19b81ed843c0d3b30ea4c3d9610756a3c9a2076ba8c32a4186f79d303dab1c420519de3330bcc7a90102e0f180ac14a793f003923500000a6238a1",
+      "crc": 3281915285,
+      "isancillary": false,
+      "isprivate": false,
+      "issafetocopy": false,
+      "len": 150,
+      "reservedbit": false,
+      "type": "IDAT",
+      "typeraw": "49444154"
+    },
+    {
+      "body": "",
+      "crc": 2923585666,
+      "isancillary": false,
+      "isprivate": false,
+      "issafetocopy": false,
+      "len": 0,
+      "reservedbit": false,
+      "type": "IEND",
+      "typeraw": "49454e44"
+    }
+  ],
+  "ihdr": {
+    "bitdepth": 8,
+    "colortype": 2,
+    "compressionmethod": 0,
+    "filtermethod": 0,
+    "height": 16,
+    "interlacemethod": 0,
+    "width": 16
+  },
+  "ihdrcrc": 2425448502,
+  "ihdrlen": 13,
+  "ihdrtype": "49484452",
+  "magic": "89504e470d0a1a0a"
+}

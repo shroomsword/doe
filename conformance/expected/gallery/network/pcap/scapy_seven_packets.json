@@ -1,0 +1,320 @@
+{
+  "hdr": {
+    "network": 1,
+    "sigfigs": 0,
+    "snaplen": 65535,
+    "thiszone": 0,
+    "versionmajor": 2,
+    "versionminor": 4
+  },
+  "magicnumber": 3569595041,
+  "packets": [
+    {
+      "body": {
+        "body": {
+          "b1": 69,
+          "b2": 0,
+          "b67": 16384,
+          "body": {
+            "body": {
+              "acknum": 0,
+              "body": "",
+              "checksum": 9629,
+              "dataoffset": 8,
+              "dstport": 80,
+              "flags": {
+                "ack": false,
+                "cwr": false,
+                "ece": false,
+                "fin": false,
+                "psh": false,
+                "rst": false,
+                "syn": true,
+                "urg": false
+              },
+              "options": "020405b40402030307000000",
+              "reserved": 0,
+              "seqnum": 1000,
+              "srcport": 40000,
+              "urgentpointer": 0,
+              "windowsize": 8192
+            },
+            "protocol": 6
+          },
+          "dstipaddr": "c0000202",
+          "headerchecksum": 46783,
+          "identification": 1,
+          "ihl": 5,
+          "ihlbytes": 20,
+          "options": {
+            "entries": []
+          },
+          "protocol": 6,
+          "srcipaddr": "c0000201",
+          "totallength": 52,
+          "ttl": 64,
+          "version": 4
+        },
+        "dstmac": "020000000002",
+        "ethertype": 2048,
+        "ethertype1": 2048,
+        "srcmac": "020000000001"
+      },
+      "incllen": 66,
+      "origlen": 66,
+      "tssec": 1700000000,
+      "tsusec": 0
+    },
+    {
+      "body": {
+        "body": {
+          "b1": 69,
+          "b2": 0,
+          "b67": 16384,
+          "body": {
+            "body": {
+              "acknum": 5001,
+              "body": "474554202f20485454502f312e310d0a486f73743a206578616d706c652e6f72670d0a0d0a",
+              "checksum": 2297,
+              "dataoffset": 5,
+              "dstport": 80,
+              "flags": {
+                "ack": true,
+                "cwr": false,
+                "ece": false,
+                "fin": false,
+                "psh": true,
+                "rst": false,
+                "syn": false,
+                "urg": false
+              },
+              "reserved": 0,
+              "seqnum": 1001,
+              "srcport": 40000,
+              "urgentpointer": 0,
+              "windowsize": 8192
+            },
+            "protocol": 6
+          },
+          "dstipaddr": "c0000202",
+          "headerchecksum": 46757,
+          "identification": 2,
+          "ihl": 5,
+          "ihlbytes": 20,
+          "options": {
+            "entries": []
+          },
+          "protocol": 6,
+          "srcipaddr": "c0000201",
+          "totallength": 77,
+          "ttl": 64,
+          "version": 4
+        },
+        "dstmac": "020000000002",
+        "ethertype": 2048,
+        "ethertype1": 2048,
+        "srcmac": "020000000001"
+      },
+      "incllen": 91,
+      "origlen": 91,
+      "tssec": 1700000001,
+      "tsusec": 0
+    },
+    {
+      "body": {
+        "body": {
+          "b1": 69,
+          "b2": 0,
+          "b67": 0,
+          "body": {
+            "body": {
+              "body": "123401000001000000000000076578616d706c65036f72670000010001",
+              "checksum": 51079,
+              "dstport": 53,
+              "length": 37,
+              "srcport": 53000
+            },
+            "protocol": 17
+          },
+          "dstipaddr": "c0000235",
+          "headerchecksum": 63098,
+          "identification": 3,
+          "ihl": 5,
+          "ihlbytes": 20,
+          "options": {
+            "entries": []
+          },
+          "protocol": 17,
+          "srcipaddr": "c0000201",
+          "totallength": 57,
+          "ttl": 64,
+          "version": 4
+        },
+        "dstmac": "020000000002",
+        "ethertype": 2048,
+        "ethertype1": 2048,
+        "srcmac": "020000000001"
+      },
+      "incllen": 71,
+      "origlen": 71,
+      "tssec": 1700000002,
+      "tsusec": 0
+    },
+    {
+      "body": {
+        "body": {
+          "b1": 69,
+          "b2": 0,
+          "b67": 0,
+          "body": {
+            "body": {
+              "body": "123481800001000100000000076578616d706c65036f72670000010001076578616d706c65036f726700000100010000012c0004c0000207",
+              "checksum": 4295,
+              "dstport": 53000,
+              "length": 64,
+              "srcport": 53
+            },
+            "protocol": 17
+          },
+          "dstipaddr": "c0000201",
+          "headerchecksum": 63070,
+          "identification": 4,
+          "ihl": 5,
+          "ihlbytes": 20,
+          "options": {
+            "entries": []
+          },
+          "protocol": 17,
+          "srcipaddr": "c0000235",
+          "totallength": 84,
+          "ttl": 64,
+          "version": 4
+        },
+        "dstmac": "020000000002",
+        "ethertype": 2048,
+        "ethertype1": 2048,
+        "srcmac": "020000000001"
+      },
+      "incllen": 98,
+      "origlen": 98,
+      "tssec": 1700000003,
+      "tsusec": 0
+    },
+    {
+      "body": {
+        "body": {
+          "b1": 69,
+          "b2": 0,
+          "b67": 0,
+          "body": {
+            "body": {
+              "echo": {
+                "checksum": 39784,
+                "code": "00",
+                "data": "646f6520646f6520646f65",
+                "identifier": 7,
+                "seqnum": 1
+              },
+              "icmptype": 8
+            },
+            "protocol": 1
+          },
+          "dstipaddr": "c0000202",
+          "headerchecksum": 63181,
+          "identification": 5,
+          "ihl": 5,
+          "ihlbytes": 20,
+          "options": {
+            "entries": []
+          },
+          "protocol": 1,
+          "srcipaddr": "c0000201",
+          "totallength": 39,
+          "ttl": 64,
+          "version": 4
+        },
+        "dstmac": "020000000002",
+        "ethertype": 2048,
+        "ethertype1": 2048,
+        "srcmac": "020000000001"
+      },
+      "incllen": 53,
+      "origlen": 53,
+      "tssec": 1700000004,
+      "tsusec": 0
+    },
+    {
+      "body": {
+        "body": {
+          "dstipv6addr": "20010db8000000000000000000000002",
+          "flowlabel": 0,
+          "hoplimit": 64,
+          "nextheader": {
+            "body": {
+              "body": "68656c6c6f",
+              "checksum": 14716,
+              "dstport": 5001,
+              "length": 13,
+              "srcport": 5000
+            },
+            "protocol": 17
+          },
+          "nextheadertype": 17,
+          "payloadlength": 13,
+          "rest": "",
+          "srcipv6addr": "20010db8000000000000000000000001",
+          "trafficclass": 0,
+          "version": 6
+        },
+        "dstmac": "020000000002",
+        "ethertype": 34525,
+        "ethertype1": 34525,
+        "srcmac": "020000000001"
+      },
+      "incllen": 67,
+      "origlen": 67,
+      "tssec": 1700000005,
+      "tsusec": 0
+    },
+    {
+      "body": {
+        "body": {
+          "b1": 69,
+          "b2": 0,
+          "b67": 0,
+          "body": {
+            "body": {
+              "body": "80000007000000a011223344000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627",
+              "checksum": 4539,
+              "dstport": 5004,
+              "length": 60,
+              "srcport": 5004
+            },
+            "protocol": 17
+          },
+          "dstipaddr": "c0000202",
+          "headerchecksum": 63123,
+          "identification": 6,
+          "ihl": 5,
+          "ihlbytes": 20,
+          "options": {
+            "entries": []
+          },
+          "protocol": 17,
+          "srcipaddr": "c0000201",
+          "totallength": 80,
+          "ttl": 64,
+          "version": 4
+        },
+        "dstmac": "020000000002",
+        "ethertype": 2048,
+        "ethertype1": 2048,
+        "srcmac": "020000000001"
+      },
+      "incllen": 94,
+      "origlen": 94,
+      "tssec": 1700000006,
+      "tsusec": 0
+    }
+  ]
+}

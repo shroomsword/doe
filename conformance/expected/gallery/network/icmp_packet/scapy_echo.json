@@ -1,0 +1,10 @@
+{
+  "echo": {
+    "checksum": 39784,
+    "code": "00",
+    "data": "646f6520646f6520646f65",
+    "identifier": 7,
+    "seqnum": 1
+  },
+  "icmptype": 8
+}

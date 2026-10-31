@@ -1,0 +1,166 @@
+{
+  "body": {
+    "ifd0": {
+      "fields": [
+        {
+          "bytespervalue": 1,
+          "data": {
+            "value": "646f65"
+          },
+          "fieldtype": 2,
+          "gpstag": null,
+          "hasimmediatedata": true,
+          "lendata": 4,
+          "numvalues": 4,
+          "subifd": null,
+          "tag": 271,
+          "tagraw": 271
+        },
+        {
+          "bytespervalue": 1,
+          "data": {
+            "value": "73616d706c652063616d657261"
+          },
+          "fieldtype": 2,
+          "gpstag": null,
+          "hasimmediatedata": false,
+          "lendata": 14,
+          "numvalues": 14,
+          "ofsdata": 86,
+          "subifd": null,
+          "tag": 272,
+          "tagraw": 272
+        },
+        {
+          "bytespervalue": 2,
+          "data": {
+            "values": [
+              1
+            ]
+          },
+          "fieldtype": 3,
+          "gpstag": null,
+          "hasimmediatedata": true,
+          "lendata": 2,
+          "numvalues": 1,
+          "subifd": null,
+          "tag": 274,
+          "tagraw": 274
+        },
+        {
+          "bytespervalue": 8,
+          "data": {
+            "values": [
+              {
+                "value": 72,
+                "valueden": 1,
+                "valuenum": 72
+              }
+            ]
+          },
+          "fieldtype": 5,
+          "gpstag": null,
+          "hasimmediatedata": false,
+          "lendata": 8,
+          "numvalues": 1,
+          "ofsdata": 100,
+          "subifd": null,
+          "tag": 282,
+          "tagraw": 282
+        },
+        {
+          "bytespervalue": 1,
+          "data": {
+            "value": "50696c6c6f77"
+          },
+          "fieldtype": 2,
+          "gpstag": null,
+          "hasimmediatedata": false,
+          "lendata": 7,
+          "numvalues": 7,
+          "ofsdata": 108,
+          "subifd": null,
+          "tag": 305,
+          "tagraw": 305
+        },
+        {
+          "bytespervalue": 4,
+          "data": {
+            "values": [
+              116
+            ]
+          },
+          "fieldtype": 4,
+          "gpstag": null,
+          "hasimmediatedata": true,
+          "lendata": 4,
+          "numvalues": 1,
+          "subifd": {
+            "fields": [
+              {
+                "bytespervalue": 2,
+                "data": {
+                  "values": [
+                    1,
+                    125
+                  ]
+                },
+                "fieldtype": 3,
+                "gpstag": null,
+                "hasimmediatedata": true,
+                "lendata": 4,
+                "numvalues": 2,
+                "subifd": null,
+                "tag": 33434,
+                "tagraw": 33434
+              },
+              {
+                "bytespervalue": 2,
+                "data": {
+                  "values": [
+                    28,
+                    10
+                  ]
+                },
+                "fieldtype": 3,
+                "gpstag": null,
+                "hasimmediatedata": true,
+                "lendata": 4,
+                "numvalues": 2,
+                "subifd": null,
+                "tag": 33437,
+                "tagraw": 33437
+              },
+              {
+                "bytespervalue": 1,
+                "data": {
+                  "value": "323032303a30353a31372031333a34353a3330"
+                },
+                "fieldtype": 2,
+                "gpstag": null,
+                "hasimmediatedata": false,
+                "lendata": 20,
+                "numvalues": 20,
+                "ofsdata": 158,
+                "subifd": null,
+                "tag": 36867,
+                "tagraw": 36867
+              }
+            ],
+            "nextifd": null,
+            "numfields": 3,
+            "ofsnextifd": 0
+          },
+          "tag": 34665,
+          "tagraw": 34665
+        }
+      ],
+      "nextifd": null,
+      "numfields": 6,
+      "ofsnextifd": 0
+    },
+    "magic": 42,
+    "ofsifd0": 8
+  },
+  "endianness": 19789
+}

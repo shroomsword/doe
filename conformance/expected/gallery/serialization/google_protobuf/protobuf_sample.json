@@ -1,0 +1,221 @@
+{
+  "pairs": [
+    {
+      "fieldtag": 1,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 8,
+            "value": 8
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 8,
+        "valuesigned": 8
+      },
+      "value": {
+        "groups": [
+          {
+            "hasnext": true,
+            "intermvalue": 22,
+            "value": 22
+          },
+          {
+            "hasnext": false,
+            "intermvalue": 150,
+            "value": 1
+          }
+        ],
+        "len": 2,
+        "signbit": 8192,
+        "value": 150,
+        "valuesigned": 150
+      },
+      "wiretype": 0
+    },
+    {
+      "fieldtag": 2,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 18,
+            "value": 18
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 18,
+        "valuesigned": 18
+      },
+      "value": {
+        "body": "646f65",
+        "len": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 3,
+              "value": 3
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 3,
+          "valuesigned": 3
+        }
+      },
+      "wiretype": 2
+    },
+    {
+      "fieldtag": 3,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 29,
+            "value": 29
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 29,
+        "valuesigned": 29
+      },
+      "value": 1048576000,
+      "wiretype": 5
+    },
+    {
+      "fieldtag": 4,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 34,
+            "value": 34
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 34,
+        "valuesigned": 34
+      },
+      "value": {
+        "body": "61",
+        "len": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 1,
+              "value": 1
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 1,
+          "valuesigned": 1
+        }
+      },
+      "wiretype": 2
+    },
+    {
+      "fieldtag": 4,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 34,
+            "value": 34
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 34,
+        "valuesigned": 34
+      },
+      "value": {
+        "body": "6263",
+        "len": {
+          "groups": [
+            {
+              "hasnext": false,
+              "intermvalue": 2,
+              "value": 2
+            }
+          ],
+          "len": 1,
+          "signbit": 64,
+          "value": 2,
+          "valuesigned": 2
+        }
+      },
+      "wiretype": 2
+    },
+    {
+      "fieldtag": 5,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 40,
+            "value": 40
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 40,
+        "valuesigned": 40
+      },
+      "value": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 1,
+            "value": 1
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 1,
+        "valuesigned": 1
+      },
+      "wiretype": 0
+    },
+    {
+      "fieldtag": 6,
+      "key": {
+        "groups": [
+          {
+            "hasnext": false,
+            "intermvalue": 48,
+            "value": 48
+          }
+        ],
+        "len": 1,
+        "signbit": 64,
+        "value": 48,
+        "valuesigned": 48
+      },
+      "value": {
+        "groups": [
+          {
+            "hasnext": true,
+            "intermvalue": 87,
+            "value": 87
+          },
+          {
+            "hasnext": false,
+            "intermvalue": 599,
+            "value": 4
+          }
+        ],
+        "len": 2,
+        "signbit": 8192,
+        "value": 599,
+        "valuesigned": 599
+      },
+      "wiretype": 0
+    }
+  ]
+}

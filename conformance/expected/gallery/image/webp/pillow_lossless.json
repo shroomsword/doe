@@ -1,0 +1,24 @@
+{
+  "lendata": 144,
+  "magic": "52494646",
+  "payload": {
+    "chunks": [
+      {
+        "data": {
+          "alphaisused": false,
+          "data": "b92e44f43f76510802495bbcedef7fdcc2369224271fda86beb93d9a04064bbeb0282c1eb30098a490cf14a63085585298420a29e4d26920920ca1d4f81abec68b410d3a89212640ff216f6c085bab7b41d6104fa2424a96d0a20f2980a7d1eba528620d8dd179d7fc42bd5b64f6d70376efd018f8a70ab2d200d85362a1",
+          "imageheight": 16,
+          "imageheightminus1": 15,
+          "imagewidth": 16,
+          "imagewidthminus1": 15,
+          "signature": 47,
+          "versionnumber": 0
+        },
+        "lendata": 131,
+        "name": 1278758998,
+        "padding": "00"
+      }
+    ]
+  },
+  "webp": "57454250"
+}

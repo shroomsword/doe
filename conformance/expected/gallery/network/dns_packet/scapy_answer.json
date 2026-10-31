@@ -1,0 +1,78 @@
+{
+  "additionals": [],
+  "ancount": 1,
+  "answers": [
+    {
+      "answerclass": 1,
+      "name": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "org"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "payload": {
+        "ip": "c0000207"
+      },
+      "rdlength": 4,
+      "ttl": 300,
+      "type": 1
+    }
+  ],
+  "arcount": 0,
+  "authorities": [],
+  "flags": {
+    "aa": 0,
+    "ad": 0,
+    "cd": 0,
+    "flag": 33152,
+    "isopcodevalid": true,
+    "opcode": 0,
+    "qr": 1,
+    "ra": 1,
+    "rcode": 0,
+    "rd": 1,
+    "tc": 0,
+    "z": 0
+  },
+  "nscount": 0,
+  "qdcount": 1,
+  "queries": [
+    {
+      "name": {
+        "name": [
+          {
+            "ispointer": false,
+            "length": 7,
+            "name": "example"
+          },
+          {
+            "ispointer": false,
+            "length": 3,
+            "name": "org"
+          },
+          {
+            "ispointer": false,
+            "length": 0,
+            "name": ""
+          }
+        ]
+      },
+      "queryclass": 1,
+      "type": 1
+    }
+  ],
+  "transactionid": 4660
+}

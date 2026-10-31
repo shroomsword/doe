@@ -1,0 +1,34 @@
+{
+  "body": {
+    "b1": 69,
+    "b2": 0,
+    "b67": 0,
+    "body": {
+      "body": {
+        "body": "80000007000000a011223344000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627",
+        "checksum": 4539,
+        "dstport": 5004,
+        "length": 60,
+        "srcport": 5004
+      },
+      "protocol": 17
+    },
+    "dstipaddr": "c0000202",
+    "headerchecksum": 63123,
+    "identification": 6,
+    "ihl": 5,
+    "ihlbytes": 20,
+    "options": {
+      "entries": []
+    },
+    "protocol": 17,
+    "srcipaddr": "c0000201",
+    "totallength": 80,
+    "ttl": 64,
+    "version": 4
+  },
+  "dstmac": "020000000002",
+  "ethertype": 2048,
+  "ethertype1": 2048,
+  "srcmac": "020000000001"
+}

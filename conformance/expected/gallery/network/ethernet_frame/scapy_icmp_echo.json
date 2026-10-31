@@ -1,0 +1,37 @@
+{
+  "body": {
+    "b1": 69,
+    "b2": 0,
+    "b67": 0,
+    "body": {
+      "body": {
+        "echo": {
+          "checksum": 39784,
+          "code": "00",
+          "data": "646f6520646f6520646f65",
+          "identifier": 7,
+          "seqnum": 1
+        },
+        "icmptype": 8
+      },
+      "protocol": 1
+    },
+    "dstipaddr": "c0000202",
+    "headerchecksum": 63181,
+    "identification": 5,
+    "ihl": 5,
+    "ihlbytes": 20,
+    "options": {
+      "entries": []
+    },
+    "protocol": 1,
+    "srcipaddr": "c0000201",
+    "totallength": 39,
+    "ttl": 64,
+    "version": 4
+  },
+  "dstmac": "020000000002",
+  "ethertype": 2048,
+  "ethertype1": 2048,
+  "srcmac": "020000000001"
+}

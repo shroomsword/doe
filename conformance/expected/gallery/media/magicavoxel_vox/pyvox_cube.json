@@ -1,0 +1,147 @@
+{
+  "magic": "564f5820",
+  "main": {
+    "childrenchunks": [
+      {
+        "chunkcontent": {
+          "nummodels": 1
+        },
+        "chunkid": 1346454347,
+        "numbytesofchildrenchunks": 0,
+        "numbytesofchunkcontent": 4
+      },
+      {
+        "chunkcontent": {
+          "sizex": 4,
+          "sizey": 4,
+          "sizez": 4
+        },
+        "chunkid": 1397316165,
+        "numbytesofchildrenchunks": 0,
+        "numbytesofchunkcontent": 12
+      },
+      {
+        "chunkcontent": {
+          "numvoxels": 18,
+          "voxels": [
+            {
+              "colorindex": 1,
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "colorindex": 2,
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            {
+              "colorindex": 2,
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            {
+              "colorindex": 3,
+              "x": 0,
+              "y": 1,
+              "z": 1
+            },
+            {
+              "colorindex": 3,
+              "x": 0,
+              "y": 2,
+              "z": 0
+            },
+            {
+              "colorindex": 4,
+              "x": 0,
+              "y": 2,
+              "z": 1
+            },
+            {
+              "colorindex": 2,
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "colorindex": 3,
+              "x": 1,
+              "y": 0,
+              "z": 1
+            },
+            {
+              "colorindex": 3,
+              "x": 1,
+              "y": 1,
+              "z": 0
+            },
+            {
+              "colorindex": 4,
+              "x": 1,
+              "y": 1,
+              "z": 1
+            },
+            {
+              "colorindex": 4,
+              "x": 1,
+              "y": 2,
+              "z": 0
+            },
+            {
+              "colorindex": 5,
+              "x": 1,
+              "y": 2,
+              "z": 1
+            },
+            {
+              "colorindex": 3,
+              "x": 2,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "colorindex": 4,
+              "x": 2,
+              "y": 0,
+              "z": 1
+            },
+            {
+              "colorindex": 4,
+              "x": 2,
+              "y": 1,
+              "z": 0
+            },
+            {
+              "colorindex": 5,
+              "x": 2,
+              "y": 1,
+              "z": 1
+            },
+            {
+              "colorindex": 5,
+              "x": 2,
+              "y": 2,
+              "z": 0
+            },
+            {
+              "colorindex": 6,
+              "x": 2,
+              "y": 2,
+              "z": 1
+            }
+          ]
+        },
+        "chunkid": 1482250825,
+        "numbytesofchildrenchunks": 0,
+        "numbytesofchunkcontent": 76
+      }
+    ],
+    "chunkid": 1296124238,
+    "numbytesofchildrenchunks": 128,
+    "numbytesofchunkcontent": 0
+  },
+  "version": 150
+}
