@@ -20,7 +20,7 @@ export interface Position {
 
 export interface Diagnostic {
   severity: 'error';
-  kind: 'request' | 'yaml' | 'schema' | 'input' | 'parse';
+  kind: 'request' | 'yaml' | 'schema' | 'input' | 'parse' | 'text';
   message: string;
   position: Position | null;
 }
@@ -40,6 +40,8 @@ export interface TraceNode {
   end: number | null;
   instance: boolean;
   failed: boolean;
+  /** What is wrong with a value that was read: a string with bytes that are not valid in its encoding. */
+  problem: string | null;
   processed: boolean;
   summary: string | null;
   /** For an integer or an enum: the number in decimal with all its digits, and the member's name. */
@@ -54,6 +56,8 @@ export interface ParseResponse {
   value: unknown;
   trace: TraceNode | null;
   error: Diagnostic | null;
+  /** Strings with bytes that are not valid in their encoding (kind `text`); the parse went on. */
+  problems: Diagnostic[];
 }
 
 export interface ExportResponse {

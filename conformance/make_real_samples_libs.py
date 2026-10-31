@@ -72,6 +72,8 @@ def make_images():
     put("image/png", "pillow_rgba", encode(rgb.convert("RGBA"), "PNG"))
     put("image/webp", "pillow_lossy", encode(rgb, "WEBP", quality=70))
     put("image/webp", "pillow_lossless", encode(rgb, "WEBP", lossless=True))
+    put("image/tga", "pillow_rgb_rle", encode(rgb, "TGA", compression="tga_rle"))
+    put("image/tga", "pillow_rgb_raw", encode(rgb, "TGA", compression=None))
     put("image/ico", "pillow_sizes", encode(picture((32, 32)), "ICO", sizes=[(16, 16), (32, 32)]))
     put("image/pcx", "pillow_rgb", encode(rgb, "PCX"))
     put("image/pcx", "pillow_indexed", encode(rgb.convert("P", palette=Image.ADAPTIVE, colors=16), "PCX"))

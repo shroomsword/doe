@@ -45,6 +45,7 @@ use std::path::PathBuf;
 #[cfg(feature = "fs")]
 pub use config::{AvailableType, DuplicateTypeError, discover_types};
 pub use error::{DoeError, Result};
+pub use parser::context::TextProblem;
 pub use value::Value;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -164,6 +165,44 @@ pub fn parse_file_with(
     format: OutputFormat,
     options: &ParseOptions,
 ) -> Result<String> {
+    parse_file_report(
+        binary_file,
+        type_or_schema,
+        include_paths,
+        config_path,
+        format,
+        options,
+    )
+    .map(|report| report.output)
+}
+
+/// What `parse_file_report` made: the output, and the strings in it that had bytes which are not valid in their
+/// encoding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct ParseReport {
+    /// The output, in the format asked for. A string that is not valid in its encoding has U+FFFD where it could not be
+    /// decoded.
+    pub output: String,
+    /// The strings that are not valid, in the order they were read; empty when all are.
+    pub text_problems: Vec<TextProblem>,
+}
+
+/// Like `parse_file_with`, and also says which strings were not valid in their encoding. The parse goes on past them,
+/// and the output has the text as far as it could be decoded, so it is for the caller to say that there was a problem.
+///
+/// # Errors
+///
+/// Returns the same errors as `parse_file`.
+#[cfg(feature = "fs")]
+pub fn parse_file_report(
+    binary_file: &Path,
+    type_or_schema: &str,
+    include_paths: &[PathBuf],
+    config_path: Option<&Path>,
+    format: OutputFormat,
+    options: &ParseOptions,
+) -> Result<ParseReport> {
     use config::{Config, resolve_include_paths, with_default_types};
     use parser::{cursor::Cursor, engine::Engine};
     use schema::compiler::Compiler;
@@ -198,11 +237,11 @@ pub fn parse_file_with(
     };
     let mut file = std::fs::File::open(binary_file).map_err(io_error)?;
     let engine = Engine::new(&compiler.registry).with_instances(options.instances);
-    let value = if file.metadata().map_err(io_error)?.is_file() {
+    let (value, text_problems) = if file.metadata().map_err(io_error)?.is_file() {
         // A regular file is read as the schema asks for it, so its size does
         // not decide how much memory the parse needs.
         let mut cursor = Cursor::from_file(file, binary_file)?;
-        engine.parse_type(&type_name, &mut cursor)?
+        engine.parse_type_reported(&type_name, &mut cursor)?
     } else {
         // A pipe or a device cannot seek back, so it is read in full.
         log::debug!(
@@ -211,15 +250,19 @@ pub fn parse_file_with(
         );
         let mut data = Vec::new();
         std::io::Read::read_to_end(&mut file, &mut data).map_err(io_error)?;
-        engine.parse_type(&type_name, &mut Cursor::new(&data))?
+        engine.parse_type_reported(&type_name, &mut Cursor::new(&data))?
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
 
-    Ok(match format {
+    let output = match format {
         OutputFormat::Text { indent } => render::text::render_with_indent(&value, &indent),
         OutputFormat::Json => render::json::render(&value),
         OutputFormat::JsonPretty => render::json::render_pretty(&value),
+    };
+    Ok(ParseReport {
+        output,
+        text_problems,
     })
 }
 

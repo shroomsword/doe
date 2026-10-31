@@ -72,6 +72,9 @@ pub struct TraceNode {
     /// value being read when it failed has it; the ones around it end where it
     /// started to fail.
     pub failed: bool,
+    /// What is wrong with the value although it was read: a string with bytes that are not valid in its encoding
+    /// (the text has replacement characters there). `None` when nothing is.
+    pub problem: Option<String>,
     /// Whether the offsets are in bytes that a transform produced
     /// (`process:`), not in the input. The field with the `process:` itself has
     /// the offsets of the input; what is read from its result does not.
@@ -97,6 +100,7 @@ impl TraceNode {
             span: None,
             is_instance: false,
             failed: false,
+            problem: None,
             processed: false,
             children: Vec::new(),
         }
@@ -268,6 +272,7 @@ impl TraceBuilder {
                 span: None,
                 is_instance,
                 failed: false,
+                problem: None,
                 processed: self.processed > 0,
                 children: Vec::new(),
             },
@@ -283,6 +288,15 @@ impl TraceBuilder {
             entry.children.push(index);
         }
         index
+    }
+
+    /// Say what is wrong with the value that is being read (the innermost node that is open).
+    pub(crate) fn mark_problem(&mut self, message: &str) {
+        if let Some(&index) = self.open.last()
+            && let Some(entry) = self.entries.get_mut(index)
+        {
+            entry.node.problem = Some(message.to_owned());
+        }
     }
 
     /// Start a field, an element or the root, as a child of the node that is

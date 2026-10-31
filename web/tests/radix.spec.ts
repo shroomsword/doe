@@ -22,7 +22,7 @@ interface Row {
 const table = JSON.parse(readFileSync(join(repo, 'crates', 'doe', 'tests', 'radix.json'), 'utf8')) as Row[];
 
 function node(name: string, extra: Partial<TraceNode> = {}): TraceNode {
-  return { name, type: null, start: null, end: null, instance: false, failed: false, processed: false, summary: null, integer: null, children: [], ...extra };
+  return { name, type: null, start: null, end: null, instance: false, failed: false, problem: null, processed: false, summary: null, integer: null, children: [], ...extra };
 }
 
 // ── no browser ───────────────────────────────────────────────────────────────

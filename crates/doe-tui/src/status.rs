@@ -109,7 +109,10 @@ pub fn bar(row: &Row, names: &[String], file_name: &str, size: u64) -> (String, 
             format!("{} · {}", format::safe(file_name), human_size(size)),
         );
     }
-    let left = format!("{} · {} · {}", field_path(names), type_of(row), place(row));
+    let mut left = format!("{} · {} · {}", field_path(names), type_of(row), place(row));
+    if row.problem.is_some() {
+        left.push_str(" · the text is not valid in its encoding");
+    }
     let right = format!("{} · {}", format::safe(file_name), human_size(size));
     (left, right)
 }

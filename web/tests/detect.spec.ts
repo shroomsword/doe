@@ -20,6 +20,7 @@ const answer = (ok: boolean, message = 'nope'): ParseResponse => ({
   value: null,
   trace: null,
   error: ok ? null : { severity: 'error', kind: 'parse', message, position: null },
+  problems: [],
 });
 
 function format(id: string, magic: number[] | null = null): GalleryFormat {

@@ -128,6 +128,8 @@ pub struct TraceOut {
     pub instance: bool,
     /// Whether the parse failed here.
     pub failed: bool,
+    /// What is wrong with the value although it was read: a string with bytes that are not valid in its encoding.
+    pub problem: Option<String>,
     /// Whether the offsets are in the bytes a `process:` produced.
     pub processed: bool,
     /// The value as text, for one that is not a type or a list; cut when long.
@@ -167,6 +169,9 @@ pub struct ParseResponse {
     pub trace: Option<TraceOut>,
     /// Why the parse failed.
     pub error: Option<Diagnostic>,
+    /// The strings that had bytes which are not valid in their encoding (kind `text`); the parse went on, and the value
+    /// has the text as far as it could be decoded, with U+FFFD where it could not.
+    pub problems: Vec<Diagnostic>,
 }
 
 /// A schema and the compiler that has it.
@@ -499,6 +504,7 @@ fn parse_with<'a>(
         value: None,
         trace: None,
         error: None,
+        problems: Vec::new(),
     };
     let request = match request_from(request) {
         Ok(request) => request,
@@ -544,6 +550,11 @@ fn parse_with<'a>(
         error: outcome
             .error
             .map(|error| Diagnostic::new("parse", error.to_string())),
+        problems: outcome
+            .problems
+            .iter()
+            .map(|problem| Diagnostic::new("text", problem.to_string()))
+            .collect(),
     }
 }
 
@@ -647,6 +658,7 @@ fn trace_out(node: &TraceNode) -> TraceOut {
         end: node.span.map(|span| span.end),
         instance: node.is_instance,
         failed: node.failed,
+        problem: node.problem.clone(),
         processed: node.processed,
         summary: None,
         integer: None,

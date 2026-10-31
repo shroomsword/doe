@@ -115,6 +115,8 @@ h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin
 .tree-row.instance .name { font-style: italic; color: var(--instance); }
 .tree-row.failed { background: var(--bad-bg); }
 .tree-row.failed .flag { color: var(--bad); font-weight: 600; }
+.tree-row.invalid .flag { color: var(--bad); font-weight: 600; }
+.tree-row.invalid .summary { text-decoration: underline wavy var(--bad); }
 .tree-row.more { color: var(--accent); }
 .toggle { display: inline-block; width: 1em; color: var(--muted); }
 .type { color: var(--type); }

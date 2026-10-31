@@ -206,6 +206,68 @@ fn pretty_flag_prints_multiline_json() {
         .stdout(predicate::str::contains("\n  \"a\": 7"));
 }
 
+/// A schema with two strings, and a binary in which both have bytes that are not valid in their encoding.
+fn bad_text_fixture(dir: &Path) -> (PathBuf, PathBuf) {
+    let schema = dir.join("bad_text.yaml");
+    std::fs::write(
+        &schema,
+        "id: bad_text\nseq:\n  - id: name\n    type: str\n    size: 4\n    encoding: utf-8\n  - id: tail\n    type: u1\n  - id: note\n    type: str\n    size: 3\n    encoding: ascii\n",
+    )
+    .unwrap();
+    let binary = dir.join("bad_text.bin");
+    std::fs::write(&binary, b"ab\xffd\x07x\xe9z").unwrap();
+    (schema, binary)
+}
+
+#[test]
+fn text_that_is_not_valid_is_printed_whole_and_reported_as_an_error_at_the_end() {
+    let dir = TempDir::new().unwrap();
+    let (schema, binary) = bad_text_fixture(dir.path());
+    doe()
+        .args(["-c", NO_CONFIG])
+        .arg(&binary)
+        .arg(&schema)
+        .assert()
+        .code(1)
+        // the whole value, with a replacement character where the bytes are not valid, and what comes after
+        .stdout(predicate::str::contains("name  \"ab\u{fffd}d\""))
+        .stdout(predicate::str::contains("tail  7"))
+        .stdout(predicate::str::contains("note  \"x\u{e9}z\""))
+        .stderr(predicate::str::starts_with("error: 2 strings in "))
+        .stderr(predicate::str::contains("are not valid in their encoding"))
+        .stderr(predicate::str::contains("bad_text.name: the text is not valid UTF-8 at byte 2 of the string"))
+        .stderr(predicate::str::contains("bad_text.note: the text is not valid ASCII at byte 1 of the string (byte 6 of the input)"));
+}
+
+#[test]
+fn json_output_of_text_that_is_not_valid_is_whole_too() {
+    let dir = TempDir::new().unwrap();
+    let (schema, binary) = bad_text_fixture(dir.path());
+    doe()
+        .args(["-c", NO_CONFIG, "--json"])
+        .arg(&binary)
+        .arg(&schema)
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("\"name\":\"ab\u{fffd}d\""))
+        .stderr(predicate::str::contains("2 strings"));
+}
+
+#[test]
+fn text_that_is_valid_is_not_an_error() {
+    let dir = TempDir::new().unwrap();
+    let (schema, _) = bad_text_fixture(dir.path());
+    let binary = dir.path().join("good.bin");
+    std::fs::write(&binary, b"abcd\x07xyz").unwrap();
+    doe()
+        .args(["-c", NO_CONFIG])
+        .arg(&binary)
+        .arg(&schema)
+        .assert()
+        .success()
+        .stderr(predicate::str::is_empty());
+}
+
 #[test]
 fn missing_binary_file_fails_with_exit_code_1() {
     let dir = TempDir::new().unwrap();

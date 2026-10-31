@@ -9,7 +9,9 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use crate::error::{DoeError, Result};
-use crate::parser::context::{DEFERRED_TYPE, Deferred, InstanceStart, PARAM_PREFIX, ParseContext};
+use crate::parser::context::{
+    DEFERRED_TYPE, Deferred, InstanceStart, PARAM_PREFIX, ParseContext, TextProblem,
+};
 use crate::parser::cursor::{BitOrder, Cursor, MAX_TERMINATED_LEN};
 use crate::parser::encoding;
 use crate::parser::process::{self, MAX_PROCESSED_LEN};
@@ -65,6 +67,9 @@ pub struct ParseOutcome {
     pub trace: TraceNode,
     /// Why the parse failed; `None` when it did not.
     pub error: Option<DoeError>,
+    /// The strings that had bytes which are not valid in their encoding, in the order they were read. The parse went
+    /// on with the text that could be decoded, and a replacement character where it could not.
+    pub problems: Vec<TextProblem>,
 }
 
 /// How much work a parse may do before it stops with an error. A parse that
@@ -138,6 +143,26 @@ impl<'reg> Engine<'reg> {
         match (outcome.error, outcome.value) {
             (Some(e), _) => Err(e),
             (None, Some(value)) => Ok(value),
+            (None, None) => Err(DoeError::Schema("the parse left no value".to_owned())),
+        }
+    }
+
+    /// Parse `type_name` as [`parse_type`](Self::parse_type) does, and also return the strings that had bytes which are
+    /// not valid in their encoding (the value has the text as far as it could be decoded, with U+FFFD where it could
+    /// not).
+    ///
+    /// # Errors
+    ///
+    /// The same as [`parse_type`](Self::parse_type).
+    pub fn parse_type_reported(
+        &self,
+        type_name: &str,
+        cursor: &mut Cursor<'_>,
+    ) -> Result<(Value, Vec<TextProblem>)> {
+        let outcome = self.parse_with(type_name, cursor, false, false)?;
+        match (outcome.error, outcome.value) {
+            (Some(e), _) => Err(e),
+            (None, Some(value)) => Ok((value, outcome.problems)),
             (None, None) => Err(DoeError::Schema("the parse left no value".to_owned())),
         }
     }
@@ -269,10 +294,12 @@ impl<'reg> Engine<'reg> {
             builder.into_tree()
         });
         let trace = tree.unwrap_or_else(|| TraceNode::untraced(type_name));
+        let problems = ctx.take_text_problems();
         Ok(ParseOutcome {
             value,
             trace,
             error,
+            problems,
         })
     }
 
@@ -1019,6 +1046,12 @@ impl<'reg> Engine<'reg> {
                     (_, e) => e,
                 })?,
         };
+        if let Some(message) = ctx.take_pending_text(&parent_ty.name, &field.id) {
+            // the text has replacement characters; the field says so, and the end of the parse
+            if let Some(trace) = ctx.trace() {
+                trace.mark_problem(&message);
+            }
+        }
         if let Some(valid) = &field.valid
             && !valid.expr_instances.is_empty()
             && let Some(read) = ParseContext::expr_value(&raw)
@@ -1798,6 +1831,7 @@ impl<'reg> Engine<'reg> {
         cursor: &mut Cursor<'_>,
         ctx: &mut ParseContext,
     ) -> Result<Value> {
+        let start = u64::try_from(cursor.absolute_pos()).unwrap_or(0);
         let bytes: Vec<u8> = match size {
             StrSize::Terminator(term) => cursor
                 .read_terminated(*term, false, true, true)?
@@ -1813,8 +1847,11 @@ impl<'reg> Engine<'reg> {
                 cursor.read_bytes(n)?.into_owned()
             }
         };
-        let s = encoding::decode(&bytes, encoding)?;
-        Ok(Value::Str(s))
+        let decoded = encoding::decode_lossy(&bytes, encoding)?;
+        if let Some(at) = decoded.invalid_at {
+            ctx.set_pending_text(encoding::name_of(encoding), at, start);
+        }
+        Ok(Value::Str(decoded.text))
     }
 }
 

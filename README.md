@@ -317,9 +317,25 @@ in any case and with `-` and `_` interchangeable:
 | ISO 8859 | `ISO-8859-2` to `ISO-8859-16` (not 12) |
 | East Asian and others | `Shift_JIS`, `GBK`, `GB18030`, `Big5`, `EUC-JP`, `EUC-KR`, `KOI8-R`, `KOI8-U` |
 
-Bytes that are not valid in the encoding are an error that names the field, the
-encoding and the offset in the string; nothing is replaced by `U+FFFD`. A byte
-order mark is not removed. The legacy encodings are decoded by
+Bytes that are not valid in the encoding do not stop the parse: the string has
+`U+FFFD` where UTF-8, UTF-16, UTF-32 or a legacy encoding could not decode them
+(and, for ASCII, the character of Latin-1 for a byte above `0x7f`), as the
+reference runtime reads them, and the field after it is read as usual. The
+problem is reported where the value is shown:
+
+- on the command line, the whole output is written first, and then the error
+  (exit status 1) lists each string: the type and field, the encoding, the byte
+  of the string and the byte of the input;
+- in the terminal viewer, the row has a `!` in its first cell and the bar says
+  that the text is not valid in its encoding;
+- in the web IDE, the row of the tree has the flag *not valid text* (the tooltip
+  has the message) and the Status pane lists each string as a problem of kind
+  `text`; a click selects the field;
+- in the library, `Engine::parse_type_reported` and `parse_file_report` return the
+  strings with the value, a traced parse has the message on the node
+  (`TraceNode::problem`), and `ParseOutcome::problems` has the list.
+
+A byte order mark is not removed. The legacy encodings are decoded by
 [`encoding_rs`](https://crates.io/crates/encoding_rs), so they follow the WHATWG
 tables, which is also what the JavaScript runtime of Kaitai Struct uses (one
 consequence: `ISO-8859-9`, `ISO-8859-11` and the ISO-8859 names that WHATWG maps
