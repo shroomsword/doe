@@ -204,7 +204,9 @@ fn the_plan_for_real_files_has_a_row_for_every_format_that_has_none() {
             cells[0]
         );
         assert!(
-            planned.insert(cells[0].to_owned(), cells[1].to_owned()).is_none(),
+            planned
+                .insert(cells[0].to_owned(), cells[1].to_owned())
+                .is_none(),
             "{}: twice in the plan",
             cells[0]
         );
