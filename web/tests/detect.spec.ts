@@ -209,8 +209,9 @@ test('the dialog marks the formats that have been tried on a file, and says how'
   };
   const elf = await entry('elf', 'executable/elf.ksy');
   await expect(elf.locator('.browse-tag', { hasText: '✓' })).toHaveAttribute('title', /written by the tool/);
-  const png = await entry('png', 'image/png.ksy');
-  await expect(png.locator('.browse-tag', { hasText: '○' })).toHaveAttribute('title', /built by hand/);
+  // a format that has only a file built by hand (one of the formats that no tool of the plan has written a file for yet)
+  const tim = await entry('psx_tim', 'image/psx_tim.ksy');
+  await expect(tim.locator('.browse-tag', { hasText: '○' })).toHaveAttribute('title', /built by hand/);
   // a format with no file is not marked
   const lvm2 = await entry('lvm2', 'filesystem/lvm2.ksy');
   await expect(lvm2).toBeVisible();
