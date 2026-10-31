@@ -200,6 +200,16 @@ export class TreeView {
     event.preventDefault();
   }
 
+  /** Give the tree the focus. */
+  focus(): void {
+    this.element.focus();
+  }
+
+  /** The node that is selected, or null. */
+  get current(): Path | null {
+    return this.selected;
+  }
+
   /** Draw the rows again (the radix of some integers changed). */
   refresh(): void {
     if (this.root) this.render();

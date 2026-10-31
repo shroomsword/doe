@@ -4,6 +4,7 @@
 import { yaml } from '@codemirror/lang-yaml';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
+import { openSearchPanel } from '@codemirror/search';
 import { Compartment, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, basicSetup } from 'codemirror';
 import { tags } from '@lezer/highlight';
@@ -104,6 +105,17 @@ export class SchemaEditor {
       return [{ from, to, severity: 'error' as const, message: diagnostic.message }];
     });
     this.view.dispatch(setDiagnostics(this.view.state, marks));
+  }
+
+  /** Give the editor the focus. */
+  focus(): void {
+    this.view.focus();
+  }
+
+  /** Open the search panel of the editor (with the focus in it). */
+  search(): void {
+    this.view.focus();
+    openSearchPanel(this.view);
   }
 
   /** Put the cursor where a position is, and show it. */

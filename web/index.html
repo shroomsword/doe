@@ -21,7 +21,7 @@
       </div>
     </header>
     <main>
-      <section id="pane-editor" aria-labelledby="h-schema">
+      <section id="pane-editor" tabindex="-1" aria-labelledby="h-schema">
         <div class="pane-title">
           <h2 id="h-schema">Schema <small id="editing"></small></h2>
           <div class="pane-actions">
@@ -40,7 +40,7 @@
           <ul id="schemas" aria-labelledby="h-schemas"></ul>
         </div>
       </section>
-      <section id="pane-tree" aria-labelledby="h-parsed">
+      <section id="pane-tree" tabindex="-1" aria-labelledby="h-parsed">
         <div class="pane-title">
           <h2 id="h-parsed">Parsed <small id="parsed-as"></small></h2>
           <div class="pane-actions">
@@ -69,11 +69,11 @@
         </div>
         <div id="tree-box"><div id="tree"></div></div>
       </section>
-      <section id="pane-hex" aria-labelledby="h-bytes">
+      <section id="pane-hex" tabindex="-1" aria-labelledby="h-bytes">
         <div class="pane-title"><h2 id="h-bytes">Bytes <small id="selection"></small></h2></div>
         <div id="hex"></div>
       </section>
-      <section id="pane-status" aria-labelledby="h-status">
+      <section id="pane-status" tabindex="-1" aria-labelledby="h-status">
         <div class="pane-title">
           <h2 id="h-status">Status</h2>
           <div class="pane-actions"><button type="button" id="cancel" hidden>Cancel parse</button></div>
@@ -104,6 +104,16 @@
         <button id="help-close" type="button">Close</button>
       </div>
       <div id="help-body"></div>
+    </dialog>
+    <dialog id="keys-dialog" aria-labelledby="keys-title">
+      <div class="browse-bar">
+        <h3 id="keys-title">Keys</h3>
+        <button id="keys-close" type="button">Close</button>
+      </div>
+      <div id="keys-body">
+        <p>The letters work when the focus is not in a text field (the schema editor, a box); <kbd>F6</kbd> works everywhere. <kbd>Esc</kbd> leaves the editor, closes a dialog or a search.</p>
+        <table id="keys-table"></table>
+      </div>
     </dialog>
     <dialog id="save-dialog" aria-labelledby="save-title">
       <div class="save-body">

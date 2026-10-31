@@ -136,6 +136,16 @@ export class HexView {
     this.render();
   }
 
+  /** Give the bytes the focus. */
+  focus(): void {
+    this.scroller.focus();
+  }
+
+  /** The bytes that are shown. */
+  get source(): ByteSource {
+    return this.bytes;
+  }
+
   /** Draw again, when bytes have arrived. */
   repaint(): void {
     this.render();
