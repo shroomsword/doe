@@ -1,0 +1,45 @@
+{
+  "header": {
+    "boundingbox": {
+      "m": {
+        "max": 0,
+        "min": 0
+      },
+      "x": {
+        "max": 2.245e-320,
+        "min": 3.03865e-319
+      },
+      "y": {
+        "max": 6.6086e-320,
+        "min": 4.585e-320
+      },
+      "z": {
+        "max": 0,
+        "min": 0
+      }
+    },
+    "filecode": "0000270a",
+    "filelength": 62,
+    "shapetype": 1,
+    "unusedfield1": "00000000",
+    "unusedfield2": "00000000",
+    "unusedfield3": "00000000",
+    "unusedfield4": "00000000",
+    "unusedfield5": "00000000",
+    "version": "e8030000"
+  },
+  "records": [
+    {
+      "contentlength": 10,
+      "offset": 50
+    },
+    {
+      "contentlength": 10,
+      "offset": 64
+    },
+    {
+      "contentlength": 10,
+      "offset": 78
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "chunks": [
+    "28b52ffd606418951000f41f6465636f646572206f662065766572797468696e672072656164732062696e6172792066696c65732064657363726962656420627920736368656d61732e2000254a6f94b9de04294e7398bde2082d52779cc1e60c31567ba0c5ea10355a7fa4c9ee14395e83a8cdf2183d6287acd1f61c41668bb0d5fa20456a8fb4d9fe24496e93b8dd02284d7297bce1062c51769bc0e50a30557a9fc4e90e34597ea3c8ed12385d82a7ccf1163c6186abd0f51a40658aafd4f91e44698eb3d8fd22486d92b7dc01264c7196bbe0052a50759abfe4092e54799ec3e80d32587da2c7ec11365c81a6cbf0153a6085aacff4193e6489aed3f81d42688db2d7fc21466c91b6db00254a7095badf04294e7499bee3082d52789dc2e70c31567ca1c6eb10355a80a5caef14395e84a9cef3183d6288add2f71c41668cb1d6fb20456a90b5daff24496e94b9de03284d7298bde2072c51769cc1e60b30557aa0c5ea0f34597ea4c9ee13385d82a8cdf2173c6186acd1f61b40658ab0d5fa1f44698eb4d9fe23486d92b8dd02274c7196bce1062b50759ac0e50a2f54799ec4e90e33587da2c8ed12375c81a6ccf1163b6085aad0f51a3f6489aed4f91e43688db2d8fd22476c91b6dc01264b7095bae0052a4f7499bee4092e53789dc2e80d32577ca1c6ec11365b80a5caf0153a5f84a9cef4193e6388add2f81d42678cb1d6fc21466b90b5da0300d931cdfd00707d86d79fefb8f00728"
+  ],
+  "dict": "",
+  "headerrest": {
+    "index": {
+      "chunkchecksumtype": {
+        "lenchecksum": 16,
+        "raw": {
+          "groups": [
+            {
+              "islast": true,
+              "value": 3
+            }
+          ],
+          "len": 1,
+          "value": 3
+        },
+        "value": 3
+      },
+      "chunksmetadata": [
+        {
+          "chunkchecksum": "d74a2afe1f35930b3c9ce2eb4fb9bec9",
+          "lenchunk": {
+            "groups": [
+              {
+                "islast": false,
+                "value": 28
+              },
+              {
+                "islast": true,
+                "value": 4
+              }
+            ],
+            "len": 2,
+            "value": 540
+          },
+          "lenuncompressedchunk": {
+            "groups": [
+              {
+                "islast": false,
+                "value": 100
+              },
+              {
+                "islast": true,
+                "value": 50
+              }
+            ],
+            "len": 2,
+            "value": 6500
+          }
+        }
+      ],
+      "dictchecksum": "00000000000000000000000000000000",
+      "lendict": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 0
+          }
+        ],
+        "len": 1,
+        "value": 0
+      },
+      "lenuncompresseddict": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 0
+          }
+        ],
+        "len": 1,
+        "value": 0
+      },
+      "numchunks": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 2
+          }
+        ],
+        "len": 1,
+        "value": 2
+      },
+      "numdatachunks": 1
+    },
+    "lenindex": {
+      "groups": [
+        {
+          "islast": true,
+          "value": 40
+        }
+      ],
+      "len": 1,
+      "value": 40
+    },
+    "numsignatures": {
+      "groups": [
+        {
+          "islast": true,
+          "value": 0
+        }
+      ],
+      "len": 1,
+      "value": 0
+    },
+    "preface": {
+      "compressiontype": 2,
+      "compressiontypeint": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 2
+          }
+        ],
+        "len": 1,
+        "value": 2
+      },
+      "datachecksum": "e4c0e93a77ac95b2ccf6a589ea647acc725e49884685ce1116d5ccec34d908f8",
+      "flags": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 0
+          }
+        ],
+        "len": 1,
+        "value": 0
+      },
+      "hasdatastreams": false,
+      "hasoptionalelements": false,
+      "hasuncompressedsource": false
+    }
+  },
+  "lead": {
+    "headerchecksum": "d02cf58210a58cc7497c747defa540c919d7597bf7896da35e0ec19c7ad2c8a7",
+    "isdetachedheader": false,
+    "lenheaderrest": {
+      "groups": [
+        {
+          "islast": true,
+          "value": 76
+        }
+      ],
+      "len": 1,
+      "value": 76
+    },
+    "magic": "005a434b31",
+    "overallchecksumtype": {
+      "lenchecksum": 32,
+      "raw": {
+        "groups": [
+          {
+            "islast": true,
+            "value": 1
+          }
+        ],
+        "len": 1,
+        "value": 1
+      },
+      "value": 1
+    }
+  }
+}

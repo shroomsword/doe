@@ -1,0 +1,120 @@
+{
+  "mo": {
+    "hashtableitems": [
+      {
+        "issystemdependent": false,
+        "mask": 2147483648,
+        "rawval": 1,
+        "val": 0,
+        "val1": 0
+      },
+      {
+        "issystemdependent": false,
+        "mask": 2147483648,
+        "rawval": 2,
+        "val": 1,
+        "val1": 1
+      },
+      {
+        "issystemdependent": false,
+        "mask": 2147483648,
+        "rawval": 4,
+        "val": 3,
+        "val1": 3
+      },
+      {
+        "issystemdependent": false,
+        "mask": 2147483648,
+        "rawval": 5,
+        "val": 4,
+        "val1": 4
+      },
+      {
+        "issystemdependent": null,
+        "mask": 2147483648,
+        "rawval": 0,
+        "val": null,
+        "val1": null
+      },
+      {
+        "issystemdependent": false,
+        "mask": 2147483648,
+        "rawval": 3,
+        "val": 2,
+        "val1": 2
+      },
+      {
+        "issystemdependent": null,
+        "mask": 2147483648,
+        "rawval": 0,
+        "val": null,
+        "val1": null
+      }
+    ],
+    "numhashtableitems": 7,
+    "numtranslations": 5,
+    "ofshashtableitems": 108,
+    "ofsoriginals": 28,
+    "ofstranslations": 68,
+    "originals": [
+      {
+        "lenstr": 0,
+        "ofsstr": 136,
+        "str": ""
+      },
+      {
+        "lenstr": 7,
+        "ofsstr": 137,
+        "str": "decoder"
+      },
+      {
+        "lenstr": 10,
+        "ofsstr": 145,
+        "str": "everything"
+      },
+      {
+        "lenstr": 9,
+        "ofsstr": 156,
+        "str": "menu\u0004open"
+      },
+      {
+        "lenstr": 17,
+        "ofsstr": 166,
+        "str": "one file"
+      }
+    ],
+    "translations": [
+      {
+        "lenstr": 122,
+        "ofsstr": 184,
+        "str": "Project-Id-Version: doe 1\nLanguage: sv\nContent-Type: text/plain; charset=UTF-8\nPlural-Forms: nplurals=2; plural=(n != 1);\n"
+      },
+      {
+        "lenstr": 8,
+        "ofsstr": 307,
+        "str": "avkodare"
+      },
+      {
+        "lenstr": 4,
+        "ofsstr": 316,
+        "str": "allt"
+      },
+      {
+        "lenstr": 6,
+        "ofsstr": 321,
+        "str": "öppna"
+      },
+      {
+        "lenstr": 15,
+        "ofsstr": 328,
+        "str": "en fil"
+      }
+    ],
+    "version": {
+      "major": 0,
+      "minor": 0,
+      "versionraw": 0
+    }
+  },
+  "signature": "de120495"
+}

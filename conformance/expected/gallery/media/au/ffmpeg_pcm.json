@@ -1,0 +1,12 @@
+{
+  "header": {
+    "comment": "",
+    "datasize": 3200,
+    "encoding": 3,
+    "numchannels": 1,
+    "samplerate": 8000
+  },
+  "lendata": 3200,
+  "magic": "2e736e64",
+  "ofsdata": 32
+}

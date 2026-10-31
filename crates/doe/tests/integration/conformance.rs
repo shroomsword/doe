@@ -41,6 +41,21 @@ fn canonical(value: &Json) -> Json {
                     .collect(),
             ),
         },
+        // The reference reads a 64-bit integer as a JavaScript number, which keeps 53 bits: both sides are compared as
+        // the number that the reference has.
+        Json::Number(n)
+            if n.as_u64().is_some_and(|u| u > 1 << 53)
+                || n.as_i64().is_some_and(|i| i.unsigned_abs() > 1 << 53) =>
+        {
+            #[expect(
+                clippy::cast_precision_loss,
+                reason = "the reference has the same rounding"
+            )]
+            Json::from(
+                n.as_u64()
+                    .map_or_else(|| n.as_i64().unwrap_or(0) as f64, |u| u as f64),
+            )
+        }
         Json::Number(n) => match n.as_f64() {
             // The reference prints 1.0 as 1.
             Some(x) if n.is_f64() && x.fract() == 0.0 && x.abs() < 9e15 =>

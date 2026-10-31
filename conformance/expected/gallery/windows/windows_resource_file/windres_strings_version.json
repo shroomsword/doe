@@ -1,0 +1,91 @@
+{
+  "resources": [
+    {
+      "characteristics": 0,
+      "flags": 0,
+      "formatversion": 0,
+      "headersize": 32,
+      "language": 0,
+      "name": {
+        "asnumeric": 0,
+        "asstring": null,
+        "first": 65535,
+        "isstring": false,
+        "savepos1": 12,
+        "savepos2": 432
+      },
+      "padding1": "",
+      "padding2": "",
+      "type": {
+        "asnumeric": 0,
+        "asstring": null,
+        "first": 65535,
+        "isstring": false,
+        "savepos1": 8,
+        "savepos2": 432
+      },
+      "typeaspredef": 0,
+      "value": "",
+      "valuesize": 0,
+      "valueversion": 0
+    },
+    {
+      "characteristics": 0,
+      "flags": 4144,
+      "formatversion": 0,
+      "headersize": 32,
+      "language": 1033,
+      "name": {
+        "asnumeric": 1,
+        "asstring": null,
+        "first": 65535,
+        "isstring": false,
+        "savepos1": 44,
+        "savepos2": 432
+      },
+      "padding1": "",
+      "padding2": "0000",
+      "type": {
+        "asnumeric": 6,
+        "asstring": null,
+        "first": 65535,
+        "isstring": false,
+        "savepos1": 40,
+        "savepos2": 432
+      },
+      "typeaspredef": 6,
+      "value": "0000030064006f0065000600730061006d0070006c0065000000000000000000000000000000000000000000000000000000",
+      "valuesize": 50,
+      "valueversion": 0
+    },
+    {
+      "characteristics": 0,
+      "flags": 0,
+      "formatversion": 0,
+      "headersize": 32,
+      "language": 1033,
+      "name": {
+        "asnumeric": 1,
+        "asstring": null,
+        "first": 65535,
+        "isstring": false,
+        "savepos1": 128,
+        "savepos2": 432
+      },
+      "padding1": "",
+      "padding2": "",
+      "type": {
+        "asnumeric": 16,
+        "asstring": null,
+        "first": 65535,
+        "isstring": false,
+        "savepos1": 124,
+        "savepos2": 432
+      },
+      "typeaspredef": 16,
+      "value": "1c0134000000560053005f00560045005200530049004f004e005f0049004e0046004f0000000000bd04effe0000010000000100000000000000000000000000000000000000000000000000000000000000000000000000000000007a000000010053007400720069006e006700460069006c00650049006e0066006f0000005600000001003000340030003900300034004200300000003e000b000100460069006c0065004400650073006300720069007000740069006f006e000000000064006f0065002000730061006d0070006c00650000000000440000000100560061007200460069006c00650049006e0066006f00000000002400040000005400720061006e0073006c006100740069006f006e00000000000904b004",
+      "valuesize": 284,
+      "valueversion": 0
+    }
+  ]
+}

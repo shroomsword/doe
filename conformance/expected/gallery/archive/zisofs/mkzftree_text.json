@@ -1,0 +1,21 @@
+{
+  "blockpointers": [
+    24,
+    105
+  ],
+  "blocks": [
+    {
+      "data": "78daedcbc10980301004c056b6027b4a721b73a011ee4448f75a868ffd0e8cb15dc6c0d5c187b1eee17347b058a2fa2cb1d0fd60c2982dbcd25017b20d9e25b74fd5d5d5d5d5d5d5d5d57fd15f830fa396",
+      "lendata": 81
+    }
+  ],
+  "header": {
+    "blocksize": 32768,
+    "blocksizelog2": 15,
+    "lenheader": 4,
+    "magic": "37e45396c9dbd607",
+    "numblocks": 1,
+    "reserved": "0000",
+    "uncompressedsize": 2520
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "checksumalgorithmother": 3,
+  "header": {
+    "checksumalgorithmint": 1,
+    "checksumalgorithmname": "sha1",
+    "haschecksumalgname": false,
+    "lenheader": 28,
+    "lentoccompressed": 611,
+    "toclengthuncompressed": 1950,
+    "version": 1
+  },
+  "headerprefix": {
+    "lenheader": 28,
+    "magic": "78617221"
+  },
+  "toc": {
+    "xmlstring": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<xar>\n <toc>\n  <creation-time>2026-10-31T15:19:56</creation-time>\n  <checksum style=\"sha1\">\n   <offset>0</offset>\n   <size>20</size>\n  </checksum>\n  <file id=\"2\">\n   <ctime>2026-10-31T15:19:56Z</ctime>\n   <mtime>2026-10-31T15:19:56Z</mtime>\n   <atime>2026-10-31T15:19:56Z</atime>\n   <group>shroomsword</group>\n   <gid>1001</gid>\n   <user>shroomsword</user>\n   <uid>1001</uid>\n   <mode>0775</mode>\n   <deviceno>33</deviceno>\n   <inode>224437</inode>\n   <type>directory</type>\n   <name>dir</name>\n   <file id=\"3\">\n    <data>\n     <length>414</length>\n     <offset>90</offset>\n     <size>500</size>\n     <encoding style=\"application/x-gzip\"/>\n     <extracted-checksum style=\"sha1\">96c283295ba3fc5f86a8b45d610f31a803f9e4e1</extracted-checksum>\n     <archived-checksum style=\"sha1\">cb64ebccfcc5bde662e7faae98f3b6d1692a957f</archived-checksum>\n    </data>\n    <ctime>2026-10-31T15:19:56Z</ctime>\n    <mtime>2026-10-31T15:19:56Z</mtime>\n    <atime>2026-10-31T15:19:56Z</atime>\n    <group>shroomsword</group>\n    <gid>1001</gid>\n    <user>shroomsword</user>\n    <uid>1001</uid>\n    <mode>0664</mode>\n    <deviceno>33</deviceno>\n    <inode>224439</inode>\n    <type>file</type>\n    <name>b.bin</name>\n   </file>\n  </file>\n  <file id=\"1\">\n   <data>\n    <length>70</length>\n    <offset>20</offset>\n    <size>300</size>\n    <encoding style=\"application/x-gzip\"/>\n    <extracted-checksum style=\"sha1\">b996f1879c61746ee8e797f04aa9f07a13b73168</extracted-checksum>\n    <archived-checksum style=\"sha1\">d972ec4184c1d4cc5d2478fb7fbd111dbdbb1f64</archived-checksum>\n   </data>\n   <ctime>2026-10-31T15:19:56Z</ctime>\n   <mtime>2026-10-31T15:19:56Z</mtime>\n   <atime>2026-10-31T15:19:56Z</atime>\n   <group>shroomsword</group>\n   <gid>1001</gid>\n   <user>shroomsword</user>\n   <uid>1001</uid>\n   <mode>0664</mode>\n   <deviceno>33</deviceno>\n   <inode>224438</inode>\n   <type>file</type>\n   <name>a.txt</name>\n  </file>\n </toc>\n</xar>\n"
+  }
+}

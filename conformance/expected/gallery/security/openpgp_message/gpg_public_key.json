@@ -1,0 +1,162 @@
+{
+  "packets": [
+    {
+      "body": {
+        "body": {
+          "lenalg": 2048,
+          "padding": 17,
+          "publickeyalgorithm": 1,
+          "rsae": "010001",
+          "rsan": "c6551496b1efbd1ebceb8f1bcf238876c2c41730e03b70711d73fb5f83223a9ac223ac5b6745a7245ee82d5ce4086919339ec3687b5bcc748a0780d7995dbfc6abd6675e111ab364cb9a3d3e2d400b33c1b6c89a6717ca3b10550e2fa9e995afe6abfa16529fdfd70bd4ae96ea4aeefc83729aececb92395263cfe1b3076de93bcce053bee565fc879d8cf31778c4836f31f5711d48394f5e137e913f016cbb4e66202c7b662b5ce732758027432848b759e710a11f84b53e60d30cc61052eec44a26115e620e856b5c248c9de818b6c978709a4bda0b5cb6c280cc1077697118b5212804fbe550d20d172141320aa878cea76987018b27a90982500b0c674a1",
+          "timestamp": 1793459996,
+          "version": 4
+        },
+        "len": 269
+      },
+      "lentype": 1,
+      "newpacketformat": false,
+      "one": true,
+      "packettypeold": 6
+    },
+    {
+      "body": {
+        "body": {
+          "userid": "Doe Sample <doe@example.org>"
+        },
+        "len": 28
+      },
+      "lentype": 0,
+      "newpacketformat": false,
+      "one": true,
+      "packettypeold": 13
+    },
+    {
+      "body": {
+        "body": {
+          "hashalgorithm": 10,
+          "hashedsubpackets": {
+            "subpacketss": [
+              {
+                "content": "04b3050905312ca4a361556cc8f810acf5a7a796b6",
+                "len": {
+                  "firstoctet": 22,
+                  "len": 22
+                },
+                "subpackettype": 33
+              },
+              {
+                "content": {
+                  "time": 1793459996
+                },
+                "len": {
+                  "firstoctet": 5,
+                  "len": 5
+                },
+                "subpackettype": 2
+              },
+              {
+                "content": {
+                  "flag": [
+                    3
+                  ]
+                },
+                "len": {
+                  "firstoctet": 2,
+                  "len": 2
+                },
+                "subpackettype": 27
+              },
+              {
+                "content": "09080702",
+                "len": {
+                  "firstoctet": 5,
+                  "len": 5
+                },
+                "subpackettype": 11
+              },
+              {
+                "content": {
+                  "algorithm": [
+                    10,
+                    9,
+                    8,
+                    11,
+                    2
+                  ]
+                },
+                "len": {
+                  "firstoctet": 6,
+                  "len": 6
+                },
+                "subpackettype": 21
+              },
+              {
+                "content": {
+                  "algorithm": [
+                    2,
+                    3,
+                    1
+                  ]
+                },
+                "len": {
+                  "firstoctet": 4,
+                  "len": 4
+                },
+                "subpackettype": 22
+              },
+              {
+                "content": {
+                  "flags": "01"
+                },
+                "len": {
+                  "firstoctet": 2,
+                  "len": 2
+                },
+                "subpackettype": 30
+              },
+              {
+                "content": {
+                  "flag": [
+                    128
+                  ]
+                },
+                "len": {
+                  "firstoctet": 2,
+                  "len": 2
+                },
+                "subpackettype": 23
+              }
+            ]
+          },
+          "leftsignedhash": 61657,
+          "lenhashedsubpacket": 56,
+          "lenunhashedsubpacket": 10,
+          "publickeyalgorithm": 1,
+          "rsan": 2048,
+          "signature": "88efd03d2208c5442273180eb08c710b2dde492bed59120f59b00c97613c306177136a3ccb57c9d02b0f8aa386fb54374380baf0aa52c2ca9ccd5a10d08fc00f39cd6530b5f146335f80f2948ff8908d94d90c29386b4c439af1276a65757e326893482eef071d389bf1cf8748b09c944897f0a8bf29ae69f21de0630a9cf86e52fd97f24100d0bea79e7c080a1e1a61ef8b9da8b255db586bc5cc1a3ced86616ab1f3894ee8bda7439f47d962e7aa6b9d8854ffe1fe38ba31b248cd29c9fa2116ceb85bb3d1f08698946b3496baad1243d098a3631c365d69afaaabaab30650e9959bb8efcfa77de631707c107bdaafaf69f0731d54c5b52896fdc9f93ff04d",
+          "signaturetype": 19,
+          "unhashedsubpackets": {
+            "subpacketss": [
+              {
+                "content": {
+                  "keyid": 17874977092113242000
+                },
+                "len": {
+                  "firstoctet": 9,
+                  "len": 9
+                },
+                "subpackettype": 16
+              }
+            ]
+          },
+          "version": 4
+        },
+        "len": 334
+      },
+      "lentype": 1,
+      "newpacketformat": false,
+      "one": true,
+      "packettypeold": 2
+    }
+  ]
+}

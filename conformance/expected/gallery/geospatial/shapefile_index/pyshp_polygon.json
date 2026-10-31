@@ -1,0 +1,37 @@
+{
+  "header": {
+    "boundingbox": {
+      "m": {
+        "max": 0,
+        "min": 0
+      },
+      "x": {
+        "max": 0,
+        "min": 0
+      },
+      "y": {
+        "max": 2.561e-320,
+        "min": 2.561e-320
+      },
+      "z": {
+        "max": 0,
+        "min": 0
+      }
+    },
+    "filecode": "0000270a",
+    "filelength": 54,
+    "shapetype": 5,
+    "unusedfield1": "00000000",
+    "unusedfield2": "00000000",
+    "unusedfield3": "00000000",
+    "unusedfield4": "00000000",
+    "unusedfield5": "00000000",
+    "version": "e8030000"
+  },
+  "records": [
+    {
+      "contentlength": 98,
+      "offset": 50
+    }
+  ]
+}

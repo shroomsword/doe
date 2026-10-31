@@ -1,0 +1,128 @@
+{
+  "contents": {
+    "classname": {
+      "closingquote": "22",
+      "data": "53616d706c65",
+      "lendata": 6,
+      "lendatadec": "6",
+      "openingquote": "22"
+    },
+    "colon1": "3a",
+    "colon2": "3a",
+    "properties": {
+      "closingbrace": "7d",
+      "entries": [
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "61",
+                "lendata": 1,
+                "lendatadec": "1",
+                "openingquote": "22"
+              },
+              "value": "61"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "value": 1,
+              "valuedec": "1"
+            },
+            "type": 105
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "002a0062",
+                "lendata": 4,
+                "lendatadec": "4",
+                "openingquote": "22"
+              },
+              "value": "002a0062"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "74776f",
+                "lendata": 3,
+                "lendatadec": "3",
+                "openingquote": "22"
+              },
+              "value": "74776f"
+            },
+            "type": 115
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "0053616d706c650063",
+                "lendata": 9,
+                "lendatadec": "9",
+                "openingquote": "22"
+              },
+              "value": "0053616d706c650063"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "elements": {
+                "closingbrace": "7d",
+                "entries": [
+                  {
+                    "key": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 0,
+                        "valuedec": "0"
+                      },
+                      "type": 105
+                    },
+                    "value": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 3,
+                        "valuedec": "3"
+                      },
+                      "type": 105
+                    }
+                  }
+                ],
+                "numentries": 1,
+                "numentriesdec": "1",
+                "openingbrace": "7b"
+              }
+            },
+            "type": 97
+          }
+        }
+      ],
+      "numentries": 3,
+      "numentriesdec": "3",
+      "openingbrace": "7b"
+    }
+  },
+  "type": 79
+}
