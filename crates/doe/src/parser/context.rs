@@ -16,6 +16,45 @@ use crate::value::Value;
 // ParseContext
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// A string that has bytes which are not valid in its encoding. The parse goes on with the text as far as it could be
+/// decoded, with a replacement character where it could not, and tells what it found here.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[non_exhaustive]
+pub struct TextProblem {
+    /// The type that has the field.
+    pub type_name: String,
+    /// The field (or `[index]`) that has the string.
+    pub field: String,
+    /// The byte of the input where the string starts.
+    pub offset: u64,
+    /// The encoding the string was read as (`UTF-8`, `ASCII`, ...).
+    pub encoding: String,
+    /// The byte of the string where the first data that is not valid starts.
+    pub at: usize,
+}
+
+impl std::fmt::Display for TextProblem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}.{}: the text is not valid {} at byte {} of the string (byte {} of the input); it is shown with replacement characters",
+            self.type_name,
+            self.field,
+            self.encoding,
+            self.at,
+            self.offset + u64::try_from(self.at).unwrap_or(0)
+        )
+    }
+}
+
+/// What `read_str` found, until the field that has the string takes it in.
+#[derive(Debug)]
+struct PendingText {
+    encoding: String,
+    at: usize,
+    offset: u64,
+}
+
 /// Runtime parse context.
 ///
 /// Maintains two parallel stacks:
@@ -55,6 +94,10 @@ pub struct ParseContext {
     /// The types being read by instances, with the stream and the position they are read at: an instance that
     /// would read the same again, inside itself, is not read.
     reading: Vec<(String, usize, usize, usize)>,
+    /// Strings that were not valid in their encoding, in the order they were read.
+    text_problems: Vec<TextProblem>,
+    /// The string that was just read, if it was not valid.
+    pending_text: Option<PendingText>,
 }
 
 /// What a limited parse has used so far.
@@ -152,7 +195,42 @@ impl ParseContext {
             partial: None,
             limits: None,
             reading: Vec::new(),
+            text_problems: Vec::new(),
+            pending_text: None,
         }
+    }
+
+    /// Note that the string that was just read has data that is not valid in `encoding`, `at` bytes into it, and that
+    /// it starts at byte `offset` of the input.
+    pub(crate) fn set_pending_text(&mut self, encoding: String, at: usize, offset: u64) {
+        self.pending_text = Some(PendingText {
+            encoding,
+            at,
+            offset,
+        });
+    }
+
+    /// The field that has the string that was just read says what it is: the problem is kept for the end of the parse.
+    /// Returns the message for the trace, if there was a problem.
+    pub(crate) fn take_pending_text(&mut self, type_name: &str, field: &str) -> Option<String> {
+        let pending = self.pending_text.take()?;
+        let problem = TextProblem {
+            type_name: type_name.to_owned(),
+            field: field.to_owned(),
+            offset: pending.offset,
+            encoding: pending.encoding,
+            at: pending.at,
+        };
+        let message = problem.to_string();
+        if !self.text_problems.contains(&problem) {
+            self.text_problems.push(problem);
+        }
+        Some(message)
+    }
+
+    /// The strings that were not valid, in the order they were read.
+    pub(crate) fn take_text_problems(&mut self) -> Vec<TextProblem> {
+        std::mem::take(&mut self.text_problems)
     }
 
     /// Limit the work of the parse to `max_fields` fields read and, when it is

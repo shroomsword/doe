@@ -18,6 +18,7 @@ const node = (name: string, summary: string | null, children: TraceNode[] = []):
   end: null,
   instance: false,
   failed: false,
+  problem: null,
   processed: false,
   summary,
   integer: null,

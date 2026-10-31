@@ -11,7 +11,7 @@ import { PaneSearch, type SearchHandler } from './search.js';
 import { HexView, RemoteBytes } from './hex.js';
 import { type LocalApi, type LocalType, detectLocal } from './local.js';
 import { type Entry, type Ranking, TypeBrowser, galleryEntries, libraryEntries, openEntries } from './browse.js';
-import { type Path, byteRange, checkSize, describeRange, findByte, findNode, nodeAt, pathName } from './model.js';
+import { type Path, byteRange, checkSize, describeRange, findByte, findNode, nodeAt, pathName, pathOfProblem } from './model.js';
 import { ProblemsView } from './problems.js';
 import { type Origin, SchemaList, editable, isKnownType, listing, parsedAs } from './schemas.js';
 import { type Work, codeOfHash, decodeWork, recall, remember } from './share.js';
@@ -1195,7 +1195,7 @@ export class App {
       this.client.cancel();
       run = this.local.parse(request, abort.signal);
     } else if (this.bytes) run = this.client.parse(request);
-    else run = this.client.check(request).then((checked) => ({ ...checked, value: null, trace: null, error: null }));
+    else run = this.client.check(request).then((checked) => ({ ...checked, value: null, trace: null, error: null, problems: [] }));
     run.then(
       (response) => {
         if (mine !== this.generation) return;
@@ -1227,7 +1227,7 @@ export class App {
     this.abort = null;
     this.client.cancel();
     this.found = null;
-    this.show({ ok: true, id: '', diagnostics: [], value: null, trace: null, error: null });
+    this.show({ ok: true, id: '', diagnostics: [], value: null, trace: null, error: null, problems: [] });
     const size = this.serverInput?.size ?? this.bytes?.length;
     const file = this.inputName && size !== undefined ? `${this.inputName}, ${size} bytes` : 'no file opened';
     element('status').textContent = `${file} · type a schema, open one, or pick a type`;
@@ -1244,6 +1244,7 @@ export class App {
   private show(response: ParseResponse): void {
     const problems: Diagnostic[] = [...response.diagnostics];
     if (response.error) problems.push(response.error);
+    problems.push(...response.problems);
     if (this.notice) problems.push(this.notice);
     this.diagnostics = response.diagnostics;
     this.lastId = response.id;
@@ -1303,7 +1304,10 @@ export class App {
       if (this.active !== null) this.showFile(this.schemaPath);
       this.editor.reveal(item.position);
     }
-    else if (item.kind === 'parse' && this.trace) {
+    else if (item.kind === 'text' && this.trace) {
+      const found = pathOfProblem(this.trace, item.message);
+      if (found) this.select(found, 'tree');
+    } else if (item.kind === 'parse' && this.trace) {
       const failed = this.pathToFailure(this.trace);
       if (failed) this.select(failed, 'tree');
     }

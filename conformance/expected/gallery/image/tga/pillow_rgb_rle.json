@@ -1,0 +1,43 @@
+{
+  "colormapdepth": 0,
+  "colormapofs": 0,
+  "colormaptype": 0,
+  "footer": {
+    "devdirofs": 0,
+    "extarea": {
+      "attributes": 64,
+      "authorname": "\n\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0010\u0000\u0010\u0000\u0018\u0000\u000fÿ@\u0000î@\u0011Ý@\"Ì@3»@Dª@U@f@w",
+      "colorcorrofs": 1079351616,
+      "comments": [
+        "w@f@U@ªD@»3@Ì\"@Ý\u0011@î\u0000@ÿ\u000fÿ@\u0000î@\u0011Ý@\"Ì@3»@Dª@U@f@ww@f@U@ªD@»3@Ì\"@Ý\u0011@î\u0000@ÿ\u000fÿ@\u0000î@\u0011Ý",
+        "@\"Ì@3»@Dª@U@f@ww@f@U@ªD@»3@Ì\"@Ý\u0011@î\u0000@ÿ\u0006ÿ@\u0000î@\u0011Ý@\"Ì@3»@Dª@U@f\u0000\u0000\u0000\u0005U@ªD@»3@Ì\"@Ý\u0011",
+        "@î\u0000@ÿ\u0004ÿ@\u0000î@\u0011Ý@\"Ì@3»@D\u0000\u0000\u0000\u0002@ww@f@\u0000\u0000\u0000\u00033@Ì\"@Ý\u0011@î\u0000@ÿ\u000fÿ@\u0000î@\u0011Ý@\"Ì@3»@D\u0000\u0000\u0000@f@ww@f",
+        "@U@ª\u0000\u0000\u00003@Ì\"@Ý\u0011@î\u0000@ÿ\u000fÿ@\u0000î@\u0011Ý@\"Ì@3\u0000\u0000\u0000ª@U@f@ww@f@U@ªD@»\u0000\u0000\u0000\"@Ý\u0011@î\u0000@ÿ\u000fÿ@\u0000î@\u0011Ý@\"Ì@"
+      ],
+      "extareasize": 0,
+      "gammavalue": 1720205431,
+      "jobid": "ww@f@U@ªD@»\u0000\u0000\u0000\"@Ý\u0011@î\u0000@ÿ\u000fÿ@\u0000î@\u0011Ý@\"Ì@3\u0000\u0000\u0000",
+      "jobtime": "ª@U@f",
+      "keycolor": 1083768832,
+      "pixelaspectratio": 2000717926,
+      "postagestampofs": 170,
+      "scanlineofs": 583811123,
+      "softwareid": "@ww@f@U@ªD@»\u0000\u0000\u0000\"@Ý\u0011@î\u0000@ÿ\u000fÿ@\u0000î@\u0011Ý@\"Ì@3»",
+      "softwareversion": "404400",
+      "timestamp": "33000000aa40559940668840"
+    },
+    "extareaofs": 0,
+    "isvalid": true,
+    "versionmagic": "54525545564953494f4e2d5846494c452e00"
+  },
+  "height": 16,
+  "imagedepth": 24,
+  "imageid": "",
+  "imageidlen": 0,
+  "imagetype": 10,
+  "imgdescriptor": 0,
+  "numcolormap": 0,
+  "width": 16,
+  "xoffset": 0,
+  "yoffset": 0
+}

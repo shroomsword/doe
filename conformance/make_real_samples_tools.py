@@ -458,7 +458,9 @@ def make_ffmpeg():
 def make_websocket():
     from websockets.frames import Frame, Opcode
 
-    put("network/websocket", "websockets_text", Frame(Opcode.TEXT, b"hello doe", True).serialize(mask=False))  # (a masked text frame, which every client sends, fails: the definition decodes the masked bytes, see the issue)
+    put("network/websocket", "websockets_text", Frame(Opcode.TEXT, b"hello doe", True).serialize(mask=False))
+    # a text frame that a client sends is masked, and the definition decodes the masked bytes: the text is not valid (#279)
+    put("network/websocket", "websockets_text_masked", Frame(Opcode.TEXT, b"hello doe", True).serialize(mask=True))
     put("network/websocket", "websockets_binary", Frame(Opcode.BINARY, bytes(range(200)), True).serialize(mask=False))
     put("network/websocket", "websockets_ping", Frame(Opcode.PING, b"ok", True).serialize(mask=True))
 

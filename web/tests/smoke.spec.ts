@@ -201,3 +201,24 @@ test('the Status pane has the status line and the problems, and says nothing abo
   await expect(page.locator('#problems .problem')).toHaveCount(0, { timeout: 10_000 });
   await expect(page.locator('body')).not.toContainText('No problems');
 });
+
+test('text that is not valid in its encoding is shown, marked in the tree and listed in the Status pane, and the parse goes on', async ({ page }) => {
+  await page.locator('.cm-content').click();
+  await page.keyboard.insertText('meta:\n  id: texty\nseq:\n  - id: name\n    type: str\n    size: 4\n    encoding: utf-8\n  - id: tail\n    type: u1\n  - id: note\n    type: str\n    size: 3\n    encoding: ascii\n');
+  await page.setInputFiles('#open-input', { name: 'bad.bin', mimeType: 'application/octet-stream', buffer: Buffer.from([0x61, 0x62, 0xff, 0x64, 7, 0x78, 0xe9, 0x7a]) });
+  await expect(page.locator('#status')).toContainText('parsed as texty', { timeout: 10_000 });
+  // the fields after the string were read, and the text has a replacement character
+  await expect(page.locator('.tree-row', { has: page.locator('.name', { hasText: /^tail$/ }) })).toContainText('7');
+  const name = page.locator('.tree-row.invalid', { has: page.locator('.name', { hasText: /^name$/ }) });
+  await expect(name).toContainText('ab�d');
+  await expect(name.locator('.flag')).toHaveText('not valid text');
+  await expect(name.locator('.flag')).toHaveAttribute('title', /not valid UTF-8 at byte 2/);
+  await expect(page.locator('.tree-row.invalid')).toHaveCount(2);
+  // both are in the Status pane, as problems of kind text, and a click selects the field
+  const problems = page.locator('#pane-status .problem');
+  await expect(problems).toHaveCount(2);
+  await expect(problems.first().locator('.kind')).toHaveText('text');
+  await expect(problems.nth(1)).toContainText('texty.note');
+  await problems.nth(1).click();
+  await expect(page.locator('.tree-row.selected')).toContainText('note');
+});

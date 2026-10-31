@@ -1032,9 +1032,28 @@ fn decode_ascii_valid() {
     assert_eq!(get_field(&v, "s"), &Value::Str("hello".into()));
 }
 
+/// The value and the strings that were not valid in their encoding.
+fn report(yaml: &str, type_name: &str, data: &[u8]) -> (Value, Vec<doe::TextProblem>) {
+    let (engine, _) = engine_from_yaml(yaml);
+    let mut cursor = Cursor::new(data);
+    engine.parse_type_reported(type_name, &mut cursor).unwrap()
+}
+
 #[test]
-fn decode_ascii_high_byte_is_error() {
-    parse_err(&str_schema("ascii", 1), "t", &[0x80]);
+fn decode_ascii_high_byte_goes_on_as_latin1_and_is_reported() {
+    // the reference runtime reads the byte as a character of Latin-1, and so does doe; it is also a problem
+    let (v, problems) = report(&str_schema("ascii", 3), "t", &[b'a', 0xff, b'b']);
+    assert_eq!(get_field(&v, "s"), &Value::Str("aÿb".into()));
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert_eq!((problems[0].at, problems[0].offset), (1, 0));
+    assert_eq!(problems[0].encoding, "ASCII");
+    assert!(
+        problems[0]
+            .to_string()
+            .contains("t.s: the text is not valid ASCII at byte 1"),
+        "{}",
+        problems[0]
+    );
 }
 
 #[test]
@@ -1045,8 +1064,66 @@ fn decode_utf8_valid() {
 }
 
 #[test]
-fn decode_utf8_invalid_is_error() {
-    parse_err(&str_schema("utf8", 2), "t", &[0xff, 0xfe]);
+fn decode_utf8_invalid_goes_on_with_replacement_characters_and_is_reported() {
+    let (v, problems) = report(&str_schema("utf8", 4), "t", &[b'o', b'k', 0xff, b'!']);
+    assert_eq!(get_field(&v, "s"), &Value::Str("ok\u{fffd}!".into()));
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert_eq!(
+        (problems[0].at, problems[0].encoding.as_str()),
+        (2, "UTF-8")
+    );
+    // the parse is not an error for the library: parse_type has the value
+    let v = parse(&str_schema("utf8", 2), "t", &[0xff, 0xfe]);
+    assert_eq!(get_field(&v, "s"), &Value::Str("\u{fffd}\u{fffd}".into()));
+}
+
+#[test]
+fn text_that_is_valid_has_no_problem() {
+    let (_, problems) = report(&str_schema("utf8", 5), "t", "héllo".as_bytes());
+    assert!(problems.is_empty(), "{problems:?}");
+}
+
+#[test]
+fn a_string_that_is_not_valid_is_marked_in_the_trace_and_listed_in_the_outcome() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: a
+            type: str
+            size: 2
+            encoding: utf-8
+          - id: items
+            type: str
+            size: 2
+            encoding: ascii
+            repeat: expr
+            repeat-expr: 2
+    "};
+    let (engine, _) = engine_from_yaml(yaml);
+    let data = [b'o', b'k', b'a', b'b', 0x80, b'c'];
+    let outcome = engine
+        .parse_type_partial("t", &mut Cursor::new(&data))
+        .unwrap();
+    assert!(outcome.error.is_none());
+    assert_eq!(outcome.problems.len(), 1, "{:?}", outcome.problems);
+    assert_eq!(outcome.problems[0].field, "items");
+    // an element of a repeated field is marked, and the ones around it are not
+    let items = outcome
+        .trace
+        .children
+        .iter()
+        .find(|n| n.name == "items")
+        .unwrap();
+    assert!(items.problem.is_none());
+    assert!(items.children[0].problem.is_none(), "{:?}", items.children);
+    assert!(
+        items.children[1]
+            .problem
+            .as_deref()
+            .is_some_and(|m| m.contains("not valid ASCII"))
+    );
+    assert!(outcome.trace.children[0].problem.is_none());
 }
 
 #[test]
@@ -4480,9 +4557,20 @@ fn strings_in_the_wider_encodings_are_read_and_bad_ones_name_the_field() {
     let v = parse(yaml, "t", &[b'h', 0, b'i', 0, 0x82, 0xa0, 0, 0, 0x41]);
     assert_eq!(*get_field(&v, "w"), Value::Str("hi".into()));
     assert_eq!(*get_field(&v, "j"), Value::Str("\u{3042}".into()));
-    let err = parse_err(yaml, "t", &[b'h', 0, b'i', 0, 0, 0xd8, 0x00]);
-    let text = err.to_string();
+    // an unpaired surrogate is not valid; the text has a replacement character, and the problem names the field
+    let (v, problems) = report(yaml, "t", &[b'h', 0, b'i', 0, 0, 0xd8, 0x00]);
+    assert_eq!(*get_field(&v, "bad"), Value::Str("\u{fffd}".into()));
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    let text = problems[0].to_string();
     assert!(text.contains("bad") && text.contains("UTF-16BE"), "{text}");
+    // so are bytes that Shift_JIS does not have
+    let (_, problems) = report(yaml, "t", &[b'h', 0, b'i', 0, 0x82, 0x00, 0x00, 0x41]);
+    assert!(
+        problems
+            .iter()
+            .any(|p| p.field == "j" && p.encoding == "Shift_JIS"),
+        "{problems:?}"
+    );
 }
 
 // ── enum mappings and endian switch ──────────────────────────────────────

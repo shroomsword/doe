@@ -168,3 +168,16 @@ export function findNode(root: TraceNode, query: string, from: Path | null, dire
       : matching[indexes.map((index) => index < position).lastIndexOf(true)] ?? matching[matching.length - 1];
   return next ? { path: next, count: matching.length } : null;
 }
+
+/** The path of the first node that has this problem (the text of a `text` problem of the response), or null. */
+export function pathOfProblem(root: TraceNode, message: string): Path | null {
+  const walk = (node: TraceNode, path: Path): Path | null => {
+    if (node.problem === message) return path;
+    for (const [index, child] of node.children.entries()) {
+      const found = walk(child, [...path, index]);
+      if (found) return found;
+    }
+    return null;
+  };
+  return walk(root, []);
+}

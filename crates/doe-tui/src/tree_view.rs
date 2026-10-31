@@ -67,6 +67,8 @@ fn pieces(row: &Row, theme: Theme, radix: Radix) -> Vec<Piece> {
     // the first cell says that the parse failed here
     out.push(if row.failed {
         ("✗".to_owned(), theme.failed())
+    } else if row.problem.is_some() {
+        ("!".to_owned(), theme.failed())
     } else {
         (" ".to_owned(), Style::default())
     });
@@ -316,6 +318,22 @@ instances:
             .map(|l| format!("{l}{}", " ".repeat(60 - crate::format::width(l))))
             .collect();
         assert_eq!(got, want);
+    }
+
+    #[test]
+    fn a_row_with_text_that_is_not_valid_has_a_mark_in_the_first_cell() {
+        let theme = Theme::new(false);
+        let schema =
+            "id: texty\nseq:\n  - id: name\n    type: str\n    size: 2\n    encoding: ascii\n";
+        let (mut tree, error) = model(schema, &[b'a', 0xe9]);
+        assert_eq!(error, None);
+        open_all(&mut tree);
+        let got = lines(&tree, 30, theme);
+        assert!(got[0].starts_with(' '), "{got:?}");
+        assert!(
+            got[1].starts_with('!'),
+            "the row of the string is marked: {got:?}"
+        );
     }
 
     #[test]

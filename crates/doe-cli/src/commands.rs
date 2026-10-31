@@ -216,7 +216,7 @@ fn run(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     };
 
     log::info!("parsing {} as {type_or_schema}", file.display());
-    let output = doe::parse_file_with(
+    let report = doe::parse_file_report(
         file,
         type_or_schema,
         &cli.include_paths,
@@ -228,7 +228,25 @@ fn run(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     )
     .with_context(|| format!("could not parse {} as {type_or_schema}", file.display()))?;
 
-    write_stdout(output.as_bytes())
+    write_stdout(report.output.as_bytes())?;
+    if report.text_problems.is_empty() {
+        return Ok(());
+    }
+    // The parse went on, and the output is whole: the strings that were not valid are the error, at the end.
+    let list: Vec<String> = report
+        .text_problems
+        .iter()
+        .map(|problem| format!("  {problem}"))
+        .collect();
+    let count = report.text_problems.len();
+    anyhow::bail!(
+        "{count} {} in {} {} not valid in {} encoding:\n{}",
+        if count == 1 { "string" } else { "strings" },
+        file.display(),
+        if count == 1 { "is" } else { "are" },
+        if count == 1 { "its" } else { "their" },
+        list.join("\n")
+    )
 }
 
 /// Resolve include paths from CLI flags and the config file, then call

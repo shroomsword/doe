@@ -150,6 +150,8 @@ pub struct Row {
     pub instance: bool,
     /// Whether the parse failed here.
     pub failed: bool,
+    /// What is wrong with the value although it was read: a string with bytes that are not valid in its encoding.
+    pub problem: Option<String>,
     /// Whether the offsets are in the bytes a `process:` produced.
     pub processed: bool,
     /// Whether it has children, so can be opened.
@@ -206,6 +208,7 @@ fn row_of(node: &TraceNode, value: Option<&Value>, path: &[usize], open: bool) -
         span: node.span,
         instance: node.is_instance,
         failed: node.failed,
+        problem: node.problem.clone(),
         processed: node.processed,
         openable: !node.children.is_empty(),
         open,
@@ -225,6 +228,7 @@ fn marker_row(kind: RowKind, parent: &[usize], name: String) -> Row {
         span: None,
         instance: false,
         failed: false,
+        problem: None,
         processed: false,
         openable: false,
         open: false,
@@ -1037,6 +1041,29 @@ instances:
         tree.page_up(10);
         assert_eq!(tree.selected_index(), 0);
         assert!(!tree.selected().openable);
+    }
+
+    #[test]
+    fn a_string_that_is_not_valid_is_read_and_its_row_has_the_problem() {
+        let schema = "id: texty\nseq:\n  - id: name\n    type: str\n    size: 3\n    encoding: utf-8\n  - id: after\n    type: u1\n";
+        let (mut tree, error) = model(schema, &[b'a', 0xff, b'b', 9]);
+        assert!(error.is_none(), "the parse goes on: {error:?}");
+        tree.select_path(&[0]);
+        let row = tree.selected();
+        assert_eq!(row.name, "name");
+        assert!(!row.failed);
+        assert!(
+            row.problem
+                .as_deref()
+                .is_some_and(|m| m.contains("not valid UTF-8 at byte 1")),
+            "{:?}",
+            row.problem
+        );
+        assert_eq!(row.summary.as_deref(), Some("\"a\u{fffd}b\""));
+        // the field after it was read, and has no problem
+        tree.select_path(&[1]);
+        assert_eq!(tree.selected().summary.as_deref(), Some("9"));
+        assert!(tree.selected().problem.is_none());
     }
 
     #[test]

@@ -129,6 +129,7 @@ export class TreeView {
         if (selected !== null && key(path) === selected) classes.push('selected');
         if (node.instance) classes.push('instance');
         if (node.failed) classes.push('failed');
+        if (node.problem) classes.push('invalid');
         const folded = node.children.length > 0;
         const isOpen = this.open.has(key(path));
         const toggle = folded ? `<span class="toggle">${isOpen ? '▾' : '▸'}</span>` : '<span class="toggle"></span>';
@@ -139,6 +140,7 @@ export class TreeView {
           text !== null ? `<span class="summary ${node.integer ? (node.integer.name === null ? 'number' : 'enum') : (valueKind(text) ?? '')}">${escape(text)}</span>` : '',
           range ? `<span class="range">${escape(range)}</span>` : node.instance ? '<span class="range">computed</span>' : '',
           node.failed ? '<span class="flag">failed here</span>' : '',
+          node.problem ? `<span class="flag" title="${escape(node.problem)}">not valid text</span>` : '',
         ];
         const aria = `aria-selected="${selected !== null && key(path) === selected}"${folded ? ` aria-expanded="${isOpen}"` : ''}`;
         return `<div class="${classes.join(' ')}" ${indent} data-row="${index}" role="treeitem" ${aria}>${toggle}${parts.join('')}</div>`;
