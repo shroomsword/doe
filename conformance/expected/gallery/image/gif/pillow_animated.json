@@ -1,0 +1,427 @@
+{
+  "blocks": [
+    {
+      "blocktype": 33,
+      "body": {
+        "body": {
+          "applicationid": {
+            "applicationauthcode": "322e30",
+            "applicationidentifier": "NETSCAPE",
+            "lenbytes": 11
+          },
+          "subblocks": [
+            {
+              "bytes": "010000",
+              "lenbytes": 3
+            },
+            {
+              "bytes": "",
+              "lenbytes": 0
+            }
+          ]
+        },
+        "label": 255
+      }
+    },
+    {
+      "blocktype": 33,
+      "body": {
+        "body": {
+          "blocksize": "04",
+          "delaytime": 10,
+          "flags": 0,
+          "terminator": "00",
+          "transparentcolorflag": false,
+          "transparentidx": 0,
+          "userinputflag": false
+        },
+        "label": 249
+      }
+    },
+    {
+      "blocktype": 44,
+      "body": {
+        "colortablesize": 2,
+        "flags": 0,
+        "hascolortable": false,
+        "hasinterlace": false,
+        "hassortedcolortable": false,
+        "height": 12,
+        "imagedata": {
+          "lzwmincodesize": 8,
+          "subblocks": {
+            "entries": [
+              {
+                "bytes": "0017284880e08081020406080800402041830815327458f060c2850d071664c0516246820c2c32c0e89001c4840c260e34697140ca8f2c23bea41812e148950f3932f048f1244f8d3e310604",
+                "lenbytes": 76
+              },
+              {
+                "bytes": "",
+                "lenbytes": 0
+              }
+            ]
+          }
+        },
+        "left": 0,
+        "top": 0,
+        "width": 12
+      }
+    },
+    {
+      "blocktype": 33,
+      "body": {
+        "body": {
+          "blocksize": "04",
+          "delaytime": 10,
+          "flags": 1,
+          "terminator": "00",
+          "transparentcolorflag": true,
+          "transparentidx": 13,
+          "userinputflag": false
+        },
+        "label": 249
+      }
+    },
+    {
+      "blocktype": 44,
+      "body": {
+        "colortablesize": 16,
+        "flags": 131,
+        "hascolortable": true,
+        "hasinterlace": false,
+        "hassortedcolortable": false,
+        "height": 12,
+        "imagedata": {
+          "lzwmincodesize": 8,
+          "subblocks": {
+            "entries": [
+              {
+                "bytes": "0001081c481040830008132a3c28a06143061005346838a0e2000616315624c0910147020d08782450a0640393280b1858d9c0404b962b0fc83cc060664d9908723640009141ce9c091234084ab4a882060a922a5dda6081d3a750170404",
+                "lenbytes": 94
+              },
+              {
+                "bytes": "",
+                "lenbytes": 0
+              }
+            ]
+          }
+        },
+        "left": 0,
+        "localcolortable": {
+          "entries": [
+            {
+              "blue": 0,
+              "green": 64,
+              "red": 255
+            },
+            {
+              "blue": 24,
+              "green": 64,
+              "red": 231
+            },
+            {
+              "blue": 47,
+              "green": 64,
+              "red": 208
+            },
+            {
+              "blue": 70,
+              "green": 64,
+              "red": 185
+            },
+            {
+              "blue": 93,
+              "green": 64,
+              "red": 162
+            },
+            {
+              "blue": 116,
+              "green": 64,
+              "red": 139
+            },
+            {
+              "blue": 140,
+              "green": 64,
+              "red": 115
+            },
+            {
+              "blue": 163,
+              "green": 64,
+              "red": 92
+            },
+            {
+              "blue": 186,
+              "green": 64,
+              "red": 69
+            },
+            {
+              "blue": 209,
+              "green": 64,
+              "red": 46
+            },
+            {
+              "blue": 232,
+              "green": 64,
+              "red": 23
+            },
+            {
+              "blue": 255,
+              "green": 64,
+              "red": 0
+            },
+            {
+              "blue": 0,
+              "green": 0,
+              "red": 0
+            },
+            {
+              "blue": 0,
+              "green": 0,
+              "red": 0
+            },
+            {
+              "blue": 0,
+              "green": 0,
+              "red": 0
+            },
+            {
+              "blue": 0,
+              "green": 0,
+              "red": 0
+            }
+          ]
+        },
+        "top": 0,
+        "width": 12
+      }
+    },
+    {
+      "blocktype": 33,
+      "body": {
+        "body": {
+          "blocksize": "04",
+          "delaytime": 10,
+          "flags": 1,
+          "terminator": "00",
+          "transparentcolorflag": true,
+          "transparentidx": 13,
+          "userinputflag": false
+        },
+        "label": 249
+      }
+    },
+    {
+      "blocktype": 44,
+      "body": {
+        "colortablesize": 16,
+        "flags": 131,
+        "hascolortable": true,
+        "hasinterlace": false,
+        "hassortedcolortable": false,
+        "height": 12,
+        "imagedata": {
+          "lzwmincodesize": 8,
+          "subblocks": {
+            "entries": [
+              {
+                "bytes": "001b0410308040010307102450b00040038206112a6408204083010c1a3448b8b0e1400611194cf4c860408383071874ac58924003842a2906685960634c8f02401e14b97220468d071af48488124103994425266880b360d1850d0202",
+                "lenbytes": 93
+              },
+              {
+                "bytes": "",
+                "lenbytes": 0
+              }
+            ]
+          }
+        },
+        "left": 0,
+        "localcolortable": {
+          "entries": [
+            {
+              "blue": 0,
+              "green": 64,
+              "red": 255
+            },
+            {
+              "blue": 24,
+              "green": 64,
+              "red": 231
+            },
+            {
+              "blue": 47,
+              "green": 64,
+              "red": 208
+            },
+            {
+              "blue": 70,
+              "green": 64,
+              "red": 185
+            },
+            {
+              "blue": 93,
+              "green": 64,
+              "red": 162
+            },
+            {
+              "blue": 116,
+              "green": 64,
+              "red": 139
+            },
+            {
+              "blue": 140,
+              "green": 64,
+              "red": 115
+            },
+            {
+              "blue": 163,
+              "green": 64,
+              "red": 92
+            },
+            {
+              "blue": 186,
+              "green": 64,
+              "red": 69
+            },
+            {
+              "blue": 209,
+              "green": 64,
+              "red": 46
+            },
+            {
+              "blue": 232,
+              "green": 64,
+              "red": 23
+            },
+            {
+              "blue": 255,
+              "green": 64,
+              "red": 0
+            },
+            {
+              "blue": 0,
+              "green": 0,
+              "red": 0
+            },
+            {
+              "blue": 0,
+              "green": 0,
+              "red": 0
+            },
+            {
+              "blue": 0,
+              "green": 0,
+              "red": 0
+            },
+            {
+              "blue": 0,
+              "green": 0,
+              "red": 0
+            }
+          ]
+        },
+        "top": 0,
+        "width": 12
+      }
+    },
+    {
+      "blocktype": 59
+    }
+  ],
+  "globalcolortable": {
+    "entries": [
+      {
+        "blue": 0,
+        "green": 64,
+        "red": 255
+      },
+      {
+        "blue": 24,
+        "green": 64,
+        "red": 231
+      },
+      {
+        "blue": 47,
+        "green": 64,
+        "red": 208
+      },
+      {
+        "blue": 70,
+        "green": 64,
+        "red": 185
+      },
+      {
+        "blue": 93,
+        "green": 64,
+        "red": 162
+      },
+      {
+        "blue": 116,
+        "green": 64,
+        "red": 139
+      },
+      {
+        "blue": 140,
+        "green": 64,
+        "red": 115
+      },
+      {
+        "blue": 163,
+        "green": 64,
+        "red": 92
+      },
+      {
+        "blue": 186,
+        "green": 64,
+        "red": 69
+      },
+      {
+        "blue": 209,
+        "green": 64,
+        "red": 46
+      },
+      {
+        "blue": 232,
+        "green": 64,
+        "red": 23
+      },
+      {
+        "blue": 255,
+        "green": 64,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      }
+    ]
+  },
+  "hdr": {
+    "magic": "474946",
+    "version": "89a"
+  },
+  "logicalscreendescriptor": {
+    "bgcolorindex": 0,
+    "colortablesize": 16,
+    "flags": 131,
+    "hascolortable": true,
+    "pixelaspectratio": 0,
+    "screenheight": 12,
+    "screenwidth": 12
+  }
+}

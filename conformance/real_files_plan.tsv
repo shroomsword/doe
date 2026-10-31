@@ -14,7 +14,6 @@ archive/android_bootldr_asus	crafted	vendor firmware	extract bootloader.img from
 archive/android_bootldr_huawei	crafted	vendor firmware	extract the packed bootloader from a Huawei firmware update	firmware update from the vendor	hard	no public packer; fetched by hash, not committed
 archive/android_bootldr_qcom	crafted	vendor firmware	extract bootloader-*.img from a Nexus factory image (older Qualcomm devices)	factory image from the vendor	hard	no public packer; fetched by hash, not committed
 archive/respack	crafted	game data	no packer is known; take a file from the game that uses it (see doc-ref of the definition)	the game	hard
-3d/gltf_binary	crafted	trimesh	trimesh.creation.box().export("x.glb") (or gltf-transform, or Blender --python export)	pip: trimesh	easy
 cad/monomakh_sapr_chg	crafted	Monomakh-SAPR	save a file from the program (Windows, proprietary)	the program, or a user's file	hard	nothing else writes it
 common/bcd	none	none	no definition of the gallery uses it; a real value would come from a format that does	none	blocked	stays none until a format uses it
 common/utf16_with_bom	crafted	iconv	printf text | iconv -f UTF-8 -t UTF-16 (writes the BOM)	libc	easy
@@ -53,7 +52,7 @@ firmware/ines	crafted	cc65	ca65 and ld65 with the nes config and a small program
 firmware/uf2	crafted	uf2conv	uf2conv.py -c -b 0x2000 -o x.uf2 in.bin	Microsoft uf2 repository	easy
 firmware/uimage	crafted	mkimage	mkimage -A arm -O linux -T kernel -C none -a 0x8000 -e 0x8000 -d in x.uimg	apt: u-boot-tools	easy
 font/pcf_font	crafted	bdftopcf	bdftopcf -o x.pcf in.bdf, or the .pcf.gz fonts of xfonts-base as they are	apt: xfonts-utils, xfonts-base	easy
-font/ttf	crafted	fonttools	pyftsubset DejaVuSansMono.ttf --text=ABC --output-file=x.ttf	pip: fonttools; apt: fonts-dejavu-core (free licence)	easy
+font/ttf	crafted	fonttools	pyftsubset DejaVuSansMono.ttf --text=ABC --output-file=x.ttf	pip: fonttools; apt: fonts-dejavu-core (free licence)	easy	a font of fontTools cannot be read by the reference compiler: #276
 game/allegro_dat	crafted	dat	dat -a x.dat files (the Allegro 4 utility)	apt: allegro4 tools	medium
 game/doom_wad	crafted	freedoom	freedoom1.wad from Freedoom (BSD licence), or deutex -build	apt: freedoom	easy	large: fetched by hash
 game/dune_2_pak	crafted	game data	no packer is known; a PAK of the game's data	the game (not free)	hard
@@ -64,7 +63,6 @@ game/gran_turismo_vol	crafted	game data	no packer is known; a VOL file of the ga
 game/heaps_pak	crafted	haxe	hxd.fmt.pak.Build of Heaps (a few lines of Haxe)	apt: haxe; haxelib heaps	medium
 game/heroes_of_might_and_magic_agg	crafted	fheroes2	the tools of fheroes2 (extractor); no maintained packer	fheroes2	hard
 game/heroes_of_might_and_magic_bmp	crafted	fheroes2	a BMP of the game's data, read by the tools of fheroes2	fheroes2	hard
-game/minecraft_nbt	crafted	nbtlib	nbtlib.File({...}).save("x.nbt") (or a level.dat of a Minecraft server)	pip: nbtlib	easy
 game/quake2_md2	crafted	Blender	export with an MD2 add-on (io_object_md2)	Blender	medium
 game/quake_mdl	crafted	Blender	export with an MDL add-on (Blender Quake MDL exporter)	Blender	medium
 game/quake_pak	crafted	qpakman	qpakman -o x.pak files	apt: qpakman	easy
@@ -76,27 +74,18 @@ geospatial/shapefile_main	crafted	ogr2ogr	same command	apt: gdal-bin	easy
 hardware/dtb	crafted	dtc	dtc -I dts -O dtb -o x.dtb in.dts	apt: device-tree-compiler	easy
 hardware/edid	crafted	edid-generator	build a .bin from the .S sources of edid-generator, or /sys/class/drm/*/edid of a machine	apt: edid-generator	easy
 hardware/mifare/mifare_classic	crafted	libnfc	nfc-mfclassic dump of a tag, or a dump from the libnfc test data	hardware, or libnfc test data	hard
-image/bmp	crafted	convert	convert -size 8x8 gradient: x.bmp	apt: imagemagick	easy
-image/dicom	crafted	dcmtk	img2dcm in.jpg x.dcm (or pydicom)	apt: dcmtk	easy
-image/exif	crafted	exiftool	exiftool -Make=A -Model=B -o x.jpg in.jpg	apt: libimage-exiftool-perl	easy
-image/gif	crafted	convert	convert -size 8x8 gradient: x.gif (and gifsicle for animations)	apt: imagemagick, gifsicle	easy
 image/gimp_brush	crafted	GIMP	gimp -i -b with file-gbr-save	apt: gimp	medium
 image/icc_4	crafted	lcms2	a short C program with cmsCreateRGBProfile and cmsSetProfileVersion(4.3), or sRGB_v4_ICC_preference.icc of the ICC (redistributable)	apt: liblcms2-dev	medium
-image/ico	crafted	icotool	icotool -c -o x.ico a.png b.png	apt: icoutils	easy
-image/jpeg	crafted	cjpeg	cjpeg -quality 75 in.ppm > x.jpg (or convert)	apt: libjpeg-turbo-progs	easy
 image/nitf	crafted	gdal_translate	gdal_translate -of NITF in.png x.ntf	apt: gdal-bin	easy
-image/pcx	crafted	convert	convert -size 8x8 gradient: x.pcx	apt: imagemagick	easy
 image/pcx_dcx	crafted	convert	convert a.pcx b.pcx x.dcx	apt: imagemagick	easy
 image/pif	crafted	none known	no writer is known; look for files from the software that defined it	unknown	hard
-image/png	crafted	pngcrush	convert in.ppm x.png (and pngcrush -brute for the other chunks)	apt: imagemagick, pngcrush	easy
 image/psx_tim	crafted	img2tim	img2tim (PSXSDK) or bmp2tim of the PSn00bSDK tools	PSn00bSDK	medium
-image/tga	crafted	convert	convert -size 8x8 gradient: x.tga	apt: imagemagick	easy
-image/webp	crafted	cwebp	cwebp in.png -o x.webp (and -lossless, and img2webp for animations)	apt: webp	easy
+image/tga	crafted	convert	convert -size 8x8 gradient: x.tga	apt: imagemagick	easy	the files that Pillow writes fail (the definition reads an extension area at offset 0): #275
 image/wmf	crafted	inkscape	inkscape in.svg --export-type=wmf	apt: inkscape	easy
 image/xwd	crafted	xwd	xvfb-run sh -c 'xwd -root -silent > x.xwd' (or convert)	apt: x11-apps, xvfb	easy
 log/aix_utmp	crafted	AIX	copy /etc/utmp of an AIX system	an AIX machine	hard
 log/hashcat_restore	crafted	hashcat	hashcat -m 0 --session s hash mask, interrupted with Ctrl-C: s.restore	apt: hashcat	easy
-log/mcap	crafted	mcap	the python mcap writer, or the mcap CLI of Foxglove	pip: mcap	easy
+log/mcap	crafted	mcap	the python mcap writer, or the mcap CLI of Foxglove	pip: mcap	easy	a file that the mcap writer made fails in doe: #274
 log/sudoers_ts	crafted	sudo	sudo -v on a machine with the tty timestamp type: /var/lib/sudo/ts/USER	apt: sudo	medium	needs root to read
 log/systemd_journal	crafted	systemd-journal-remote	printf export-format entries | systemd-journal-remote -o x.journal -	apt: systemd-journal-remote	easy
 log/windows_evt_log	crafted	Windows XP	copy a .evt of a Windows XP or 2003 system, or from the test data of libevt (LGPL)	a VM, or libevt test data	hard
@@ -115,39 +104,24 @@ media/avi	crafted	ffmpeg	ffmpeg -f lavfi -i testsrc=d=1 -f lavfi -i sine -c:v mj
 media/blender_blend	crafted	blender	blender -b --python-expr "bpy.ops.wm.save_as_mainfile(filepath='x.blend')"	apt: blender	easy	large: fetched by hash
 media/creative_voice_file	crafted	sox	sox -n -r 8000 -c 1 x.voc synth 0.1 sine 440	apt: sox	easy
 media/genmidi_op2	crafted	freedoom	the GENMIDI lump of freedoom1.wad	apt: freedoom	easy
-media/id3v1_1	crafted	id3v2	id3v2 -t T -a A -c C -T 1 x.mp3 (writes ID3v1.1 with a track number)	apt: id3v2	easy
-media/id3v2_3	crafted	mutagen	mutagen.id3 save(v2_version=3) on an mp3 made by ffmpeg	pip: mutagen	easy
-media/id3v2_4	crafted	mutagen	mutagen.id3 save(v2_version=4)	pip: mutagen	easy
-media/magicavoxel_vox	crafted	pyvox	pyvox writes .vox (or MagicaVoxel itself)	pip: py-vox-io	medium
+media/id3v2_4	crafted	mutagen	mutagen.id3 save(v2_version=4)	pip: mutagen	easy	a tag of mutagen cannot be read by the reference compiler: #276
 media/ogg	crafted	oggenc	oggenc in.wav -o x.ogg (or ffmpeg -c:a libvorbis, opusenc)	apt: vorbis-tools	easy
 media/quicktime_mov	crafted	ffmpeg	ffmpeg -f lavfi -i testsrc=d=1 -f mov x.mov	apt: ffmpeg	easy
-media/standard_midi_file	crafted	mido	mido.MidiFile().save("x.mid") (or abc2midi, lilypond)	pip: mido	easy
-media/stl	crafted	openscad	openscad -o x.stl cube.scad (binary), and an ASCII STL from numpy-stl	apt: openscad	easy
 media/tracker_modules/fasttracker_xm_module	crafted	modarchive	a module of the Mod Archive that is released as public domain or Creative Commons (fetched by hash); no command line writer is known	modarchive.org	medium
 media/tracker_modules/s3m	crafted	modarchive	same	modarchive.org	medium
 media/vp8_duck_ivf	crafted	ffmpeg	ffmpeg -f lavfi -i testsrc=d=1 -c:v libvpx -f ivf x.ivf	apt: ffmpeg	easy
-media/wav	crafted	sox	sox -n x.wav synth 0.1 sine 440 (or the wave module of Python)	apt: sox	easy
 network/bitcoin_transaction	crafted	bitcoin-cli	bitcoin-cli -regtest createrawtransaction ..., or the coinbase transaction of the genesis block	apt: bitcoind	medium
 network/dime_message	crafted	gSOAP	soapcpp2 with DIME attachments; the format is obsolete	apt: gsoap	hard
-network/dns_packet	crafted	dig	tcpdump -w x.pcap udp port 53 while dig example.org @resolver, then take the payload	apt: tcpdump, dnsutils	easy
-network/ethernet_frame	crafted	tcpdump	tcpdump -c 1 -w x.pcap on loopback or a veth, then take the frame	apt: tcpdump	easy
 network/hccap	crafted	cap2hccap	a WPA handshake capture of aircrack-ng's test data converted with hcxpcapngtool	apt: hcxtools	easy
 network/hccapx	crafted	cap2hccapx	cap2hccapx of the wpa.cap of aircrack-ng's test data (GPL)	apt: hashcat-utils or hcxtools	easy
-network/icmp_packet	crafted	ping	tcpdump -w x.pcap icmp while ping -c 1 127.0.0.1	apt: tcpdump	easy
-network/ipv4_packet	crafted	tcpdump	a packet of a capture of local traffic	apt: tcpdump	easy
-network/ipv6_packet	crafted	tcpdump	a packet of a capture of ping6 ::1	apt: tcpdump	easy
 network/microsoft_network_monitor_v2	crafted	editcap	editcap -F netmon2 in.pcap x.cap	apt: wireshark-common	easy
 network/packet_ppi	crafted	Wireshark samples	a PPI capture of the Wireshark sample captures (public), or scapy's PPI layer	wiki.wireshark.org/SampleCaptures	medium
-network/pcap	crafted	tcpdump	tcpdump -w x.pcap -c 5 (both byte orders: editcap -F pcap and a big-endian machine capture)	apt: tcpdump	easy
 network/rtcp_payload	crafted	ffmpeg	ffmpeg -re -f lavfi -i sine -f rtp rtp://127.0.0.1:5004 with a capture; RTCP is on port 5005	apt: ffmpeg, tcpdump	medium
-network/rtp_packet	crafted	ffmpeg	same capture, the payload of a UDP packet on port 5004	apt: ffmpeg, tcpdump	medium
 network/rtpdump	crafted	rtpdump	rtpdump -F dump -o x.rtpdump from the rtptools, or rtpplay and rtpdump	apt: rtptools	medium
 network/some_ip/some_ip	crafted	vsomeip	the examples of vsomeip (COVESA) on loopback with tcpdump, or the SOME/IP layer of scapy	apt: libvsomeip3; pip: scapy	medium
 network/some_ip/some_ip_container	crafted	vsomeip	same	apt: libvsomeip3	medium
 network/some_ip/some_ip_sd	crafted	vsomeip	service discovery messages of the vsomeip examples	apt: libvsomeip3	medium
-network/tcp_segment	crafted	tcpdump	a capture of curl to a local server	apt: tcpdump, curl	easy
 network/tls_client_hello	crafted	openssl	tcpdump while openssl s_client -connect localhost:4433 (the first record)	apt: openssl, tcpdump	easy
-network/udp_datagram	crafted	tcpdump	a capture of nc -u to localhost	apt: tcpdump, netcat	easy
 network/websocket	crafted	websockets	capture of a python websockets client and server on loopback, one frame of the stream	pip: websockets	easy
 scientific/nt_mdt/nt_mdt	crafted	Gwyddion test data	a file of the public sets of data that Gwyddion's tests use	gwyddion.net	hard	the software that writes it is Windows only
 scientific/nt_mdt/nt_mdt_pal	crafted	NT-MDT software	palette files that the software installs	the software	hard
@@ -155,15 +129,11 @@ scientific/spectroscopy/avantes_roh60	crafted	AvaSoft	save a spectrum in the ROH
 scientific/spectroscopy/specpr	crafted	specpr	the USGS specpr program (Fortran, open source) writes a file	USGS specpr	medium
 security/efivar_signature_list	crafted	efitools	openssl req -x509 ...; cert-to-efi-sig-list -g GUID cert.pem x.esl	apt: efitools	easy
 security/openpgp_message	crafted	gpg	gpg --batch --quick-gen-key ..., then gpg --sign, --encrypt, --export, --armor off	apt: gnupg	easy
-serialization/bson	crafted	pymongo	bson.encode({...}) (or mongodump)	pip: pymongo	easy
 serialization/chrome_pak	crafted	pak_util	grit or pak_util.py create of Chromium's tools	Chromium tools/grit	medium
-serialization/google_protobuf	crafted	protoc	protoc --encode=Msg x.proto < text > x.bin	apt: protobuf-compiler	easy
 serialization/microsoft_cfb	crafted	LibreOffice	soffice --headless --convert-to doc in.txt (a .doc is a compound file), or msitools msibuild	apt: libreoffice-writer, msitools	easy
-serialization/msgpack	crafted	msgpack	python msgpack.packb, or json2msgpack	pip: msgpack	easy
 serialization/php_serialized_value	crafted	php	php -r 'echo serialize([...]);' > x.txt	apt: php-cli	easy
 serialization/ruby_marshal	crafted	ruby	ruby -e 'File.binwrite("x", Marshal.dump(...))'	apt: ruby	easy
 windows/regf	none	hivex	hivexregedit --merge --prefix x x.hive in.reg, on a hive made by hivexsh	apt: libhivex-bin	blocked	the definition lays the nk record out differently from a real hive
-windows/windows_lnk_file	crafted	pylnk3	pylnk3 create target x.lnk (or lnk files made by Wine)	pip: pylnk3	easy
 windows/windows_minidump	crafted	minidump-writer	core2md of google-breakpad on a core file, or the minidump-writer crate of Rust	google-breakpad	medium
 windows/windows_resource_file	crafted	windres	x86_64-w64-mingw32-windres -O res in.rc -o x.res	apt: binutils-mingw-w64	easy
 windows/windows_shell_items	crafted	pylnk3	the item id list of a .lnk of pylnk3, or a shellbags key of a registry hive	pip: pylnk3	medium

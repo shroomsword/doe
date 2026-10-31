@@ -1,0 +1,21 @@
+{
+  "dstipv6addr": "20010db8000000000000000000000002",
+  "flowlabel": 0,
+  "hoplimit": 64,
+  "nextheader": {
+    "body": {
+      "body": "68656c6c6f",
+      "checksum": 14716,
+      "dstport": 5001,
+      "length": 13,
+      "srcport": 5000
+    },
+    "protocol": 17
+  },
+  "nextheadertype": 17,
+  "payloadlength": 13,
+  "rest": "",
+  "srcipv6addr": "20010db8000000000000000000000001",
+  "trafficclass": 0,
+  "version": 6
+}

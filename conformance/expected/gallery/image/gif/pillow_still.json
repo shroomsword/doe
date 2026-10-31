@@ -1,0 +1,213 @@
+{
+  "blocks": [
+    {
+      "blocktype": 44,
+      "body": {
+        "colortablesize": 2,
+        "flags": 64,
+        "hascolortable": false,
+        "hasinterlace": true,
+        "hassortedcolortable": false,
+        "height": 16,
+        "imagedata": {
+          "lzwmincodesize": 8,
+          "subblocks": {
+            "entries": [
+              {
+                "bytes": "001f3868c060818204080e18284060808000000412847030e14202101e461c58f020848f0c1d4294d831c1470821359234885061ca911c174068b91082c88d0465d22c605365cc8a2e1bfacc09f4e2cd95455fe22cf8d1e2c7a31c29eec4389481548b0c33c2ccd954e1d3aa2cb10add5a52eccd80",
+                "lenbytes": 117
+              },
+              {
+                "bytes": "",
+                "lenbytes": 0
+              }
+            ]
+          }
+        },
+        "left": 0,
+        "top": 0,
+        "width": 16
+      }
+    },
+    {
+      "blocktype": 59
+    }
+  ],
+  "globalcolortable": {
+    "entries": [
+      {
+        "blue": 0,
+        "green": 64,
+        "red": 255
+      },
+      {
+        "blue": 17,
+        "green": 64,
+        "red": 238
+      },
+      {
+        "blue": 34,
+        "green": 64,
+        "red": 221
+      },
+      {
+        "blue": 51,
+        "green": 64,
+        "red": 204
+      },
+      {
+        "blue": 68,
+        "green": 64,
+        "red": 187
+      },
+      {
+        "blue": 85,
+        "green": 64,
+        "red": 170
+      },
+      {
+        "blue": 102,
+        "green": 64,
+        "red": 153
+      },
+      {
+        "blue": 119,
+        "green": 64,
+        "red": 136
+      },
+      {
+        "blue": 136,
+        "green": 64,
+        "red": 119
+      },
+      {
+        "blue": 153,
+        "green": 64,
+        "red": 102
+      },
+      {
+        "blue": 170,
+        "green": 64,
+        "red": 85
+      },
+      {
+        "blue": 187,
+        "green": 64,
+        "red": 68
+      },
+      {
+        "blue": 204,
+        "green": 64,
+        "red": 51
+      },
+      {
+        "blue": 221,
+        "green": 64,
+        "red": 34
+      },
+      {
+        "blue": 238,
+        "green": 64,
+        "red": 17
+      },
+      {
+        "blue": 255,
+        "green": 64,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      },
+      {
+        "blue": 0,
+        "green": 0,
+        "red": 0
+      }
+    ]
+  },
+  "hdr": {
+    "magic": "474946",
+    "version": "87a"
+  },
+  "logicalscreendescriptor": {
+    "bgcolorindex": 0,
+    "colortablesize": 32,
+    "flags": 132,
+    "hascolortable": true,
+    "pixelaspectratio": 0,
+    "screenheight": 16,
+    "screenwidth": 16
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "bitmap": {},
+  "dibinfo": {
+    "colormaskalpha": 0,
+    "colormaskblue": 0,
+    "colormaskgiven": null,
+    "colormaskgreen": 0,
+    "colormaskred": 0,
+    "colortable": {
+      "colors": [
+        {
+          "blue": 0,
+          "green": 64,
+          "red": 255,
+          "reserved": 0
+        },
+        {
+          "blue": 17,
+          "green": 64,
+          "red": 238,
+          "reserved": 0
+        },
+        {
+          "blue": 34,
+          "green": 64,
+          "red": 221,
+          "reserved": 0
+        },
+        {
+          "blue": 59,
+          "green": 64,
+          "red": 196,
+          "reserved": 0
+        },
+        {
+          "blue": 85,
+          "green": 64,
+          "red": 170,
+          "reserved": 0
+        },
+        {
+          "blue": 102,
+          "green": 64,
+          "red": 153,
+          "reserved": 0
+        },
+        {
+          "blue": 119,
+          "green": 64,
+          "red": 136,
+          "reserved": 0
+        },
+        {
+          "blue": 136,
+          "green": 64,
+          "red": 119,
+          "reserved": 0
+        },
+        {
+          "blue": 153,
+          "green": 64,
+          "red": 102,
+          "reserved": 0
+        },
+        {
+          "blue": 170,
+          "green": 64,
+          "red": 85,
+          "reserved": 0
+        },
+        {
+          "blue": 187,
+          "green": 64,
+          "red": 68,
+          "reserved": 0
+        },
+        {
+          "blue": 204,
+          "green": 64,
+          "red": 51,
+          "reserved": 0
+        },
+        {
+          "blue": 221,
+          "green": 64,
+          "red": 34,
+          "reserved": 0
+        },
+        {
+          "blue": 238,
+          "green": 64,
+          "red": 17,
+          "reserved": 0
+        },
+        {
+          "blue": 255,
+          "green": 64,
+          "red": 0,
+          "reserved": 0
+        },
+        {
+          "blue": 0,
+          "green": 0,
+          "red": 0,
+          "reserved": 0
+        }
+      ],
+      "numcolorspresent": 16
+    },
+    "header": {
+      "bitmapinfoext": {
+        "compression": 0,
+        "lenimage": 256,
+        "numcolorsimportant": 16,
+        "numcolorsused": 16,
+        "xresolution": 3780,
+        "yresolution": 3780
+      },
+      "bitsperpixel": 8,
+      "bottomup": true,
+      "extendsbitmapinfo": true,
+      "extendsbitmapv4": false,
+      "extendsbitmapv5": false,
+      "extendsos22xbitmap": false,
+      "imageheight": 16,
+      "imageheightraw": 16,
+      "imagewidth": 16,
+      "iscolormaskhere": false,
+      "iscoreheader": false,
+      "numplanes": 1,
+      "usesfixedpalette": true
+    },
+    "iscolormaskgiven": false,
+    "iscolormaskhere": false,
+    "lenheader": 40
+  },
+  "filehdr": {
+    "filetype": "424d",
+    "lenfile": 374,
+    "ofsbitmap": 118,
+    "reserved1": 0,
+    "reserved2": 0
+  }
+}

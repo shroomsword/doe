@@ -1,0 +1,25 @@
+{
+  "lendata": 142,
+  "magic": "52494646",
+  "payload": {
+    "chunks": [
+      {
+        "data": {
+          "data": "02403825b0027473017d803915409bd956e4a9b60000fef48c3480cdd3206d09347bd62ebe8ab8d6c0d81d9fa8df440d24a5ea7709a9bf769f79fe3b43187837aeb6adf3cdfd88733a8835020edce72421646315ffd0d2180e5fa559fff100653b86748bc9ba1ffe8de577c523e45bedb783738ff7940000",
+          "frametype": false,
+          "height": 16,
+          "horizontalscale": 0,
+          "lenfirstpartition": 22,
+          "showframe": true,
+          "startcode": "9d012a",
+          "version": 0,
+          "verticalscale": 0,
+          "width": 16
+        },
+        "lendata": 130,
+        "name": 540561494
+      }
+    ]
+  },
+  "webp": "57454250"
+}

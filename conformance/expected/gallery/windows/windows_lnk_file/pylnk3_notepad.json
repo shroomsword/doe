@@ -1,0 +1,94 @@
+{
+  "arguments": {
+    "charsstr": 11,
+    "str": "/c echo doe"
+  },
+  "header": {
+    "fileattrs": 0,
+    "flags": {
+      "hasarguments": true,
+      "hasiconlocation": false,
+      "haslinkinfo": false,
+      "haslinktargetidlist": true,
+      "hasname": true,
+      "hasrelpath": false,
+      "hasworkdir": true,
+      "isunicode": true,
+      "keeplocalidlistforunctarget": false,
+      "reserved": 0
+    },
+    "hotkey": 0,
+    "iconindex": 0,
+    "lenheader": "4c000000",
+    "linkclsid": "0114020000000000c000000000000046",
+    "reserved": "00000000000000000000",
+    "showcommand": 1,
+    "targetfilesize": 0,
+    "timeaccess": 134379268660000000,
+    "timecreation": 134379268660000000,
+    "timewrite": 134379268660000000
+  },
+  "name": {
+    "charsstr": 15,
+    "str": "doe sample link"
+  },
+  "targetidlist": {
+    "idlist": {
+      "items": [
+        {
+          "data": {
+            "body1": {
+              "shellfolderid": "e04fd020ea3a6910a2d808002b30309d",
+              "sortindex": 80
+            },
+            "code": 31
+          },
+          "lendata": 20
+        },
+        {
+          "data": {
+            "body2": {
+              "flags": 67
+            },
+            "code": 47
+          },
+          "lendata": 25
+        },
+        {
+          "data": {
+            "body2": {
+              "fileattrs": 16,
+              "filesize": 0,
+              "isdir": false,
+              "isfile": true,
+              "lastmodtime": 1802394975
+            },
+            "code": 50
+          },
+          "lendata": 60
+        },
+        {
+          "data": {
+            "body2": {
+              "fileattrs": 16,
+              "filesize": 0,
+              "isdir": false,
+              "isfile": true,
+              "lastmodtime": 1802394975
+            },
+            "code": 50
+          },
+          "lendata": 72
+        },
+        {
+          "lendata": 0
+        }
+      ]
+    },
+    "lenidlist": 179
+  },
+  "workdir": {
+    "charsstr": 10,
+    "str": "C:\\Windows"
+  }
+}

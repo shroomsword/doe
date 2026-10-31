@@ -1,0 +1,60 @@
+{
+  "segments": [
+    {
+      "magic": "ff",
+      "marker": 216
+    },
+    {
+      "data": {
+        "densityunits": 0,
+        "densityx": 1,
+        "densityy": 1,
+        "magic": "JFIF\u0000",
+        "thumbnail": "",
+        "thumbnailx": 0,
+        "thumbnaily": 0,
+        "versionmajor": 1,
+        "versionminor": 1
+      },
+      "length": 16,
+      "magic": "ff",
+      "marker": 224
+    },
+    {
+      "data": "000503040404030504040405050506070c08070707070f0b0b090c110f1212110f111113161c1713141a1511111821181a1d1d1f1f1f13172224221e241c1e1f1e",
+      "length": 67,
+      "magic": "ff",
+      "marker": 219
+    },
+    {
+      "data": "080010001801011100",
+      "length": 11,
+      "magic": "ff",
+      "marker": 194
+    },
+    {
+      "data": "0001010100000000000000000000000000050306",
+      "length": 22,
+      "magic": "ff",
+      "marker": 196
+    },
+    {
+      "data": {
+        "apprbitpos": 1,
+        "components": [
+          {
+            "huffmantable": 0,
+            "id": 1
+          }
+        ],
+        "endspectral": 0,
+        "numcomponents": 1,
+        "startspectralselection": 0
+      },
+      "imagedata": "c95531ac8fffc400191000020301000000000000000000000000010200031213ffda0008010100010502042856b652c18674abde50999fffc4001f100002010207000000000000000000000001110002210313516162b1c1ffda0008010100063f02663ca0b7aaf3b1a4512c33c9f90ddd44b267ffc4001f1001010001030501000000000000000000011100213151416171b1c1a1ffda0008010100013f21a9e066ddda7a727ee5d144626eb8722da6c89d1351c6347941e9f7254f025593e19fffda00080101000000104fffc4001a100101010101010100000000000000000001112131415100ffda0008010100013f10498178aaac003556006ab3f360fdca47b02bf9cf2a6c7671df3b50fba3944445116a285e81002e5107699a3fa5794a8efbb59f3b9d2e79655a26c1e0001b8155abffd9",
+      "length": 8,
+      "magic": "ff",
+      "marker": 218
+    }
+  ]
+}

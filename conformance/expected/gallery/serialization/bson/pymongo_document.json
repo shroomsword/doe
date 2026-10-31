@@ -1,0 +1,113 @@
+{
+  "fields": {
+    "elements": [
+      {
+        "content": {
+          "len": 4,
+          "str": "doe",
+          "terminator": "00"
+        },
+        "name": {
+          "str": "name"
+        },
+        "typebyte": 2
+      },
+      {
+        "content": {
+          "fields": {
+            "elements": [
+              {
+                "content": 1,
+                "name": {
+                  "str": "0"
+                },
+                "typebyte": 16
+              },
+              {
+                "content": 2,
+                "name": {
+                  "str": "1"
+                },
+                "typebyte": 16
+              },
+              {
+                "content": 3,
+                "name": {
+                  "str": "2"
+                },
+                "typebyte": 16
+              },
+              {
+                "content": 70000,
+                "name": {
+                  "str": "3"
+                },
+                "typebyte": 16
+              },
+              {
+                "content": -5,
+                "name": {
+                  "str": "4"
+                },
+                "typebyte": 16
+              }
+            ]
+          },
+          "len": 40,
+          "terminator": "00"
+        },
+        "name": {
+          "str": "numbers"
+        },
+        "typebyte": 4
+      },
+      {
+        "content": {
+          "fields": {
+            "elements": [
+              {
+                "content": 1,
+                "name": {
+                  "str": "ok"
+                },
+                "typebyte": 8
+              },
+              {
+                "name": {
+                  "str": "none"
+                },
+                "typebyte": 10
+              }
+            ]
+          },
+          "len": 16,
+          "terminator": "00"
+        },
+        "name": {
+          "str": "nested"
+        },
+        "typebyte": 3
+      },
+      {
+        "content": {
+          "content": "000102",
+          "len": 3,
+          "subtype": 0
+        },
+        "name": {
+          "str": "blob"
+        },
+        "typebyte": 5
+      },
+      {
+        "content": 3.25,
+        "name": {
+          "str": "pi"
+        },
+        "typebyte": 1
+      }
+    ]
+  },
+  "len": 118,
+  "terminator": "00"
+}

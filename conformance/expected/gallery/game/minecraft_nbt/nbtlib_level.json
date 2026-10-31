@@ -1,0 +1,105 @@
+{
+  "root": {
+    "istagend": false,
+    "name": {
+      "data": "",
+      "lendata": 0
+    },
+    "payload": {
+      "dumpnumtags": 1,
+      "tags": [
+        {
+          "istagend": false,
+          "name": {
+            "data": "Data",
+            "lendata": 4
+          },
+          "payload": {
+            "dumpnumtags": 6,
+            "tags": [
+              {
+                "istagend": false,
+                "name": {
+                  "data": "LevelName",
+                  "lendata": 9
+                },
+                "payload": {
+                  "data": "doe",
+                  "lendata": 3
+                },
+                "type": 8
+              },
+              {
+                "istagend": false,
+                "name": {
+                  "data": "version",
+                  "lendata": 7
+                },
+                "payload": 19133,
+                "type": 3
+              },
+              {
+                "istagend": false,
+                "name": {
+                  "data": "spawn",
+                  "lendata": 5
+                },
+                "payload": {
+                  "numtags": 3,
+                  "tags": [
+                    0,
+                    64,
+                    0
+                  ],
+                  "tagstype": 3
+                },
+                "type": 9
+              },
+              {
+                "istagend": false,
+                "name": {
+                  "data": "flags",
+                  "lendata": 5
+                },
+                "payload": {
+                  "data": "010001",
+                  "lendata": 3
+                },
+                "type": 7
+              },
+              {
+                "istagend": false,
+                "name": {
+                  "data": "time",
+                  "lendata": 4
+                },
+                "payload": 123456789012,
+                "type": 4
+              },
+              {
+                "istagend": false,
+                "name": {
+                  "data": "ratio",
+                  "lendata": 5
+                },
+                "payload": 0.5,
+                "type": 5
+              },
+              {
+                "istagend": true,
+                "type": 0
+              }
+            ]
+          },
+          "type": 10
+        },
+        {
+          "istagend": true,
+          "type": 0
+        }
+      ]
+    },
+    "type": 10
+  },
+  "roottype": 10
+}

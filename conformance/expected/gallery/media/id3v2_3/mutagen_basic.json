@@ -1,0 +1,138 @@
+{
+  "tag": {
+    "frames": [
+      {
+        "data": "01fffe530061006d0070006c0065000000",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "TIT2",
+        "isinvalid": false,
+        "size": 17
+      },
+      {
+        "data": "01fffe64006f0065000000",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "TPE1",
+        "isinvalid": false,
+        "size": 11
+      },
+      {
+        "data": "01fffe33002f0039000000",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "TRCK",
+        "isinvalid": false,
+        "size": 11
+      },
+      {
+        "data": "01fffe530061006d0070006c00650073000000",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "TALB",
+        "isinvalid": false,
+        "size": 19
+      },
+      {
+        "data": "01656e67fffe0000fffe6100200063006f006d006d0065006e0074000000",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "COMM",
+        "isinvalid": false,
+        "size": 30
+      },
+      {
+        "data": "",
+        "flags": {
+          "flagcompressed": false,
+          "flagdiscardalterfile": false,
+          "flagdiscardaltertag": false,
+          "flagencrypted": false,
+          "flaggrouping": false,
+          "flagreadonly": false,
+          "reserved1": 0,
+          "reserved2": 0
+        },
+        "id": "\u0000\u0000\u0000\u0000",
+        "isinvalid": true,
+        "size": 0
+      }
+    ],
+    "header": {
+      "flags": {
+        "flagexperimental": false,
+        "flagheaderex": false,
+        "flagunsynchronization": false,
+        "reserved": 0
+      },
+      "magic": "494433",
+      "size": {
+        "short0": {
+          "byte0": {
+            "padding": false,
+            "value": 0
+          },
+          "byte1": {
+            "padding": false,
+            "value": 0
+          },
+          "value": 0
+        },
+        "short1": {
+          "byte0": {
+            "padding": false,
+            "value": 9
+          },
+          "byte1": {
+            "padding": false,
+            "value": 10
+          },
+          "value": 1162
+        },
+        "value": 1162
+      },
+      "versionmajor": 3,
+      "versionrevision": 0
+    }
+  }
+}
