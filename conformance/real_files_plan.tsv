@@ -2,13 +2,8 @@ format	now	tool	how	where	effort	note
 archive/lzh	crafted	lha	lha a x.lzh files	apt: lha	easy
 archive/rar	crafted	rar	rar a x.rar files	apt: rar (non-free tool; the file it writes is ours)	easy
 archive/rpm	crafted	rpmbuild	rpmbuild -bb on a spec with a few files, no dependencies	apt: rpm	easy
-archive/xar	crafted	xar	xar -c -f x.xar files	apt: xar	easy
-archive/zchunk	crafted	zck	zck file	apt: zchunk	easy
-archive/zisofs	crafted	mkzftree	mkzftree file x.zf (the file inside an ISO is the same layout)	apt: zisofs-tools	easy
 archive/phar_without_stub	crafted	php	php -d phar.readonly=0 with the Phar class, then the part after the stub	apt: php-cli	easy	a phar always has a stub: the definition reads what follows it
-archive/android_img	crafted	mkbootimg	mkbootimg --kernel k --ramdisk r --output boot.img (header versions 0 to 4)	apt: mkbootimg (or AOSP mkbootimg.py)	easy
 archive/android_dto	crafted	mkdtboimg	dtc to make the .dtbo files, then mkdtboimg.py create	AOSP libufdt (python script); apt: device-tree-compiler	medium
-archive/android_sparse	crafted	img2simg	img2simg raw.img x.simg of an ext4 image	apt: android-sdk-libsparse-utils	easy
 archive/mozilla_mar	crafted	mar	mar -c x.mar files (pip install mar, Mozilla's build-mar)	pip: mar	easy
 archive/android_bootldr_asus	crafted	vendor firmware	extract bootloader.img from an ASUS Fugu (Nexus Player) factory image	factory image from the vendor	hard	no public packer; the file is fetched by hash and not committed
 archive/android_bootldr_huawei	crafted	vendor firmware	extract the packed bootloader from a Huawei firmware update	firmware update from the vendor	hard	no public packer; fetched by hash, not committed
@@ -18,8 +13,6 @@ cad/monomakh_sapr_chg	crafted	Monomakh-SAPR	save a file from the program (Window
 common/bcd	none	none	no definition of the gallery uses it; a real value would come from a format that does	none	blocked	stays none until a format uses it
 common/utf16_with_bom	crafted	iconv	printf text | iconv -f UTF-8 -t UTF-16 (writes the BOM)	libc	easy
 common/utf8_string	crafted	iconv	printf text | iconv -f UTF-8 -t UTF-8	libc	easy
-database/dbf	crafted	ogr2ogr	ogr2ogr -f DBF x.dbf in.csv (or the python dbf library)	apt: gdal-bin	easy
-database/gettext_mo	crafted	msgfmt	msgfmt -o x.mo x.po	apt: gettext	easy
 database/tsm	crafted	influxd	run InfluxDB 1.x, write a few points, take a .tsm file of its data directory after a snapshot (influx_tsm or influxd inspect)	docker: influxdb:1.8	medium
 executable/android_nanoapp_header	crafted	CHRE SDK	build a nanoapp with the CHRE SDK and its nanoapp_postprocess step	AOSP CHRE	hard
 executable/dex	crafted	d8	javac Hello.java; d8 Hello.class --output out	Android SDK build-tools (or apt: d8)	easy
@@ -37,20 +30,15 @@ filesystem/apple_single_double	crafted	ditto	on macOS, ditto -c --rsrc (or tar) 
 filesystem/btrfs_stream	crafted	btrfs	mkfs.btrfs on a loop file, mount, make a subvolume with files, btrfs send -f x.stream	apt: btrfs-progs	medium	needs root (mount): the CI runner has sudo
 filesystem/cramfs	crafted	mkfs.cramfs	mkfs.cramfs dir x.cramfs	apt: util-linux (or cramfs)	easy
 filesystem/ext2	none	mke2fs	mke2fs -t ext2 -d dir x.img 1M, a real image, tested with hand-checked fields until the reference output is no longer endless	apt: e2fsprogs	blocked	the schema loops through dot entries: needs the definition to stop there, or a lazy instance
-filesystem/gpt_partition_table	crafted	sfdisk	truncate -s 8M x.img; sfdisk --label gpt x.img < script	apt: util-linux	easy
 filesystem/luks	crafted	cryptsetup	truncate -s 16M x.img; cryptsetup luksFormat --type luks1 (and luks2) x.img	apt: cryptsetup-bin	easy
 filesystem/lvm2	none	pvcreate	pvcreate on a loop device, vgcreate, lvcreate	apt: lvm2	blocked	needs root, and the definition reads the descriptors and the checksum wrongly (see the table)
-filesystem/mbr_partition_table	crafted	sfdisk	sfdisk --label dos x.img < script	apt: util-linux	easy
 filesystem/tr_dos_image	crafted	trdtool	trdtool new x.trd, then add files (or save a disk from the Fuse emulator)	zx tools; apt: fuse-emulator-utils	medium
 filesystem/ubifs	none	mkfs.ubifs	mkfs.ubifs -r dir -m 2048 -e 126976 -c 17 -o x.ubifs	apt: mtd-utils	blocked	the smallest image is larger than a committed sample may be: fetched by hash, not committed
 filesystem/vfat	crafted	mkfs.vfat	truncate -s 4M x.img; mkfs.vfat x.img; mcopy -i x.img files ::	apt: dosfstools, mtools	easy
 filesystem/vmware_vmdk	crafted	qemu-img	qemu-img create -f vmdk x.vmdk 1M (and subformats monolithicSparse, streamOptimized)	apt: qemu-utils	easy
-filesystem/zx_spectrum_tap	crafted	zmakebas	zmakebas -o x.tap prog.bas	apt: zmakebas	easy
 firmware/andes_firmware	crafted	linux-firmware	mediatek/mt7601u.bin from the linux-firmware package (redistributable)	apt: linux-firmware	easy
 firmware/broadcom_trx	crafted	trx	trx -o x.trx kernel rootfs (OpenWrt firmware-utils)	OpenWrt firmware-utils	medium
-firmware/ines	crafted	cc65	ca65 and ld65 with the nes config and a small program	apt: cc65	easy
 firmware/uf2	crafted	uf2conv	uf2conv.py -c -b 0x2000 -o x.uf2 in.bin	Microsoft uf2 repository	easy
-firmware/uimage	crafted	mkimage	mkimage -A arm -O linux -T kernel -C none -a 0x8000 -e 0x8000 -d in x.uimg	apt: u-boot-tools	easy
 font/pcf_font	crafted	bdftopcf	bdftopcf -o x.pcf in.bdf, or the .pcf.gz fonts of xfonts-base as they are	apt: xfonts-utils, xfonts-base	easy
 font/ttf	crafted	fonttools	pyftsubset DejaVuSansMono.ttf --text=ABC --output-file=x.ttf	pip: fonttools; apt: fonts-dejavu-core (free licence)	easy	a font of fontTools cannot be read by the reference compiler: #276
 game/allegro_dat	crafted	dat	dat -a x.dat files (the Allegro 4 utility)	apt: allegro4 tools	medium
@@ -69,9 +57,6 @@ game/quake_pak	crafted	qpakman	qpakman -o x.pak files	apt: qpakman	easy
 game/renderware_binary_stream	crafted	Blender	export a DFF with the DragonFF add-on	Blender	medium
 game/saints_row_2_vpp_pc	crafted	game data	community packer for VPP (vpp_tools)	community tool	hard
 game/warcraft_2_pud	crafted	Wargus	a map saved by the Warcraft II map editor, or the PUD tools of Wargus	Wargus	hard
-geospatial/shapefile_index	crafted	ogr2ogr	ogr2ogr -f "ESRI Shapefile" x.shp in.geojson writes .shp .shx and .dbf	apt: gdal-bin	easy
-geospatial/shapefile_main	crafted	ogr2ogr	same command	apt: gdal-bin	easy
-hardware/dtb	crafted	dtc	dtc -I dts -O dtb -o x.dtb in.dts	apt: device-tree-compiler	easy
 hardware/edid	crafted	edid-generator	build a .bin from the .S sources of edid-generator, or /sys/class/drm/*/edid of a machine	apt: edid-generator	easy
 hardware/mifare/mifare_classic	crafted	libnfc	nfc-mfclassic dump of a tag, or a dump from the libnfc test data	hardware, or libnfc test data	hard
 image/gimp_brush	crafted	GIMP	gimp -i -b with file-gbr-save	apt: gimp	medium
@@ -89,7 +74,6 @@ log/mcap	crafted	mcap	the python mcap writer, or the mcap CLI of Foxglove	pip: m
 log/sudoers_ts	crafted	sudo	sudo -v on a machine with the tty timestamp type: /var/lib/sudo/ts/USER	apt: sudo	medium	needs root to read
 log/systemd_journal	crafted	systemd-journal-remote	printf export-format entries | systemd-journal-remote -o x.journal -	apt: systemd-journal-remote	easy
 log/windows_evt_log	crafted	Windows XP	copy a .evt of a Windows XP or 2003 system, or from the test data of libevt (LGPL)	a VM, or libevt test data	hard
-machine_code/code_6502	crafted	cc65	ca65 and ld65 with a binary config and a small program	apt: cc65	easy
 macos/compressed_resource	crafted	classic Mac OS	a resource of a System file compressed with dcmp 0, 1 or 2, from a disk image of Mac OS 7	an emulator disk image	hard	not free: fetched by hash if at all
 macos/ds_store	crafted	ds_store	the python ds_store library writes a .DS_Store, or Finder on a macOS runner	pip: ds_store	medium
 macos/mac_os_resource_snd	crafted	Rez	Rez of a source with a 'snd ' resource (macOS command line tools)	macOS CI runner	medium
@@ -99,17 +83,12 @@ macos/resource_compression/dcmp_2	none	classic Mac OS	same as compressed_resourc
 macos/resource_compression/dcmp_variable_length_integer	crafted	classic Mac OS	part of dcmp 0 data	an emulator disk image	hard
 macos/resource_fork	crafted	Rez	Rez of a small .r source (macOS command line tools)	macOS CI runner	easy
 media/android_opengl_shaders_cache	crafted	Android emulator	adb pull the com.android.opengl.shaders_cache of an app after it drew with OpenGL	Android SDK emulator	hard
-media/au	crafted	sox	sox -n x.au synth 0.1 sine 440	apt: sox	easy
 media/avi	crafted	ffmpeg	ffmpeg -f lavfi -i testsrc=d=1 -f lavfi -i sine -c:v mjpeg x.avi	apt: ffmpeg	easy
 media/blender_blend	crafted	blender	blender -b --python-expr "bpy.ops.wm.save_as_mainfile(filepath='x.blend')"	apt: blender	easy	large: fetched by hash
-media/creative_voice_file	crafted	sox	sox -n -r 8000 -c 1 x.voc synth 0.1 sine 440	apt: sox	easy
 media/genmidi_op2	crafted	freedoom	the GENMIDI lump of freedoom1.wad	apt: freedoom	easy
 media/id3v2_4	crafted	mutagen	mutagen.id3 save(v2_version=4)	pip: mutagen	easy	a tag of mutagen cannot be read by the reference compiler: #276
-media/ogg	crafted	oggenc	oggenc in.wav -o x.ogg (or ffmpeg -c:a libvorbis, opusenc)	apt: vorbis-tools	easy
-media/quicktime_mov	crafted	ffmpeg	ffmpeg -f lavfi -i testsrc=d=1 -f mov x.mov	apt: ffmpeg	easy
 media/tracker_modules/fasttracker_xm_module	crafted	modarchive	a module of the Mod Archive that is released as public domain or Creative Commons (fetched by hash); no command line writer is known	modarchive.org	medium
 media/tracker_modules/s3m	crafted	modarchive	same	modarchive.org	medium
-media/vp8_duck_ivf	crafted	ffmpeg	ffmpeg -f lavfi -i testsrc=d=1 -c:v libvpx -f ivf x.ivf	apt: ffmpeg	easy
 network/bitcoin_transaction	crafted	bitcoin-cli	bitcoin-cli -regtest createrawtransaction ..., or the coinbase transaction of the genesis block	apt: bitcoind	medium
 network/dime_message	crafted	gSOAP	soapcpp2 with DIME attachments; the format is obsolete	apt: gsoap	hard
 network/hccap	crafted	cap2hccap	a WPA handshake capture of aircrack-ng's test data converted with hcxpcapngtool	apt: hcxtools	easy
@@ -122,18 +101,13 @@ network/some_ip/some_ip	crafted	vsomeip	the examples of vsomeip (COVESA) on loop
 network/some_ip/some_ip_container	crafted	vsomeip	same	apt: libvsomeip3	medium
 network/some_ip/some_ip_sd	crafted	vsomeip	service discovery messages of the vsomeip examples	apt: libvsomeip3	medium
 network/tls_client_hello	crafted	openssl	tcpdump while openssl s_client -connect localhost:4433 (the first record)	apt: openssl, tcpdump	easy
-network/websocket	crafted	websockets	capture of a python websockets client and server on loopback, one frame of the stream	pip: websockets	easy
 scientific/nt_mdt/nt_mdt	crafted	Gwyddion test data	a file of the public sets of data that Gwyddion's tests use	gwyddion.net	hard	the software that writes it is Windows only
 scientific/nt_mdt/nt_mdt_pal	crafted	NT-MDT software	palette files that the software installs	the software	hard
 scientific/spectroscopy/avantes_roh60	crafted	AvaSoft	save a spectrum in the ROH format with AvaSoft (Windows)	the software	hard
 scientific/spectroscopy/specpr	crafted	specpr	the USGS specpr program (Fortran, open source) writes a file	USGS specpr	medium
 security/efivar_signature_list	crafted	efitools	openssl req -x509 ...; cert-to-efi-sig-list -g GUID cert.pem x.esl	apt: efitools	easy
-security/openpgp_message	crafted	gpg	gpg --batch --quick-gen-key ..., then gpg --sign, --encrypt, --export, --armor off	apt: gnupg	easy
 serialization/chrome_pak	crafted	pak_util	grit or pak_util.py create of Chromium's tools	Chromium tools/grit	medium
-serialization/microsoft_cfb	crafted	LibreOffice	soffice --headless --convert-to doc in.txt (a .doc is a compound file), or msitools msibuild	apt: libreoffice-writer, msitools	easy
-serialization/php_serialized_value	crafted	php	php -r 'echo serialize([...]);' > x.txt	apt: php-cli	easy
 serialization/ruby_marshal	crafted	ruby	ruby -e 'File.binwrite("x", Marshal.dump(...))'	apt: ruby	easy
 windows/regf	none	hivex	hivexregedit --merge --prefix x x.hive in.reg, on a hive made by hivexsh	apt: libhivex-bin	blocked	the definition lays the nk record out differently from a real hive
 windows/windows_minidump	crafted	minidump-writer	core2md of google-breakpad on a core file, or the minidump-writer crate of Rust	google-breakpad	medium
-windows/windows_resource_file	crafted	windres	x86_64-w64-mingw32-windres -O res in.rc -o x.res	apt: binutils-mingw-w64	easy
 windows/windows_shell_items	crafted	pylnk3	the item id list of a .lnk of pylnk3, or a shellbags key of a registry hive	pip: pylnk3	medium

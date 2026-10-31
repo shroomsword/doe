@@ -1,0 +1,114 @@
+{
+  "header1": {
+    "dbaselevel": 3,
+    "lastupdated": 31,
+    "lastupdatem": 10,
+    "lastupdatey": 126,
+    "lenheader": 193,
+    "lenrecord": 35,
+    "numrecords": 3,
+    "version": 3
+  },
+  "header2": {
+    "fields": [
+      {
+        "dataaddress": 1,
+        "datatype": 67,
+        "decimalcount": 0,
+        "length": 12,
+        "name": "NAME",
+        "reserved1": "0000",
+        "reserved2": "0000",
+        "reserved3": "0000000000000000",
+        "setfieldsflag": 0,
+        "workareaid": 0
+      },
+      {
+        "dataaddress": 13,
+        "datatype": 78,
+        "decimalcount": 2,
+        "length": 8,
+        "name": "SIZE",
+        "reserved1": "0000",
+        "reserved2": "0000",
+        "reserved3": "0000000000000000",
+        "setfieldsflag": 0,
+        "workareaid": 0
+      },
+      {
+        "dataaddress": 21,
+        "datatype": 78,
+        "decimalcount": 0,
+        "length": 5,
+        "name": "COUNT",
+        "reserved1": "0000",
+        "reserved2": "0000",
+        "reserved3": "0000000000000000",
+        "setfieldsflag": 0,
+        "workareaid": 0
+      },
+      {
+        "dataaddress": 26,
+        "datatype": 68,
+        "decimalcount": 0,
+        "length": 8,
+        "name": "SEEN",
+        "reserved1": "0000",
+        "reserved2": "0000",
+        "reserved3": "0000000000000000",
+        "setfieldsflag": 0,
+        "workareaid": 0
+      },
+      {
+        "dataaddress": 34,
+        "datatype": 76,
+        "decimalcount": 0,
+        "length": 1,
+        "name": "OK",
+        "reserved1": "0000",
+        "reserved2": "0000",
+        "reserved3": "0000000000000000",
+        "setfieldsflag": 0,
+        "workareaid": 0
+      }
+    ],
+    "headerdbase3": {
+      "reserved1": "000000",
+      "reserved2": "00000000000000000000000000",
+      "reserved3": "00000000"
+    }
+  },
+  "headerterminator": "0d",
+  "records": [
+    {
+      "deleted": 32,
+      "recordfields": [
+        "616c70686120202020202020",
+        "20202020312e3530",
+        "2020202030",
+        "3230323030353137",
+        "54"
+      ]
+    },
+    {
+      "deleted": 32,
+      "recordfields": [
+        "626574612020202020202020",
+        "20202020332e3030",
+        "2020313030",
+        "3230323030353138",
+        "46"
+      ]
+    },
+    {
+      "deleted": 32,
+      "recordfields": [
+        "67616d6d6120202020202020",
+        "20202020342e3530",
+        "2020323030",
+        "3230323030353139",
+        "54"
+      ]
+    }
+  ]
+}

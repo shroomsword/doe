@@ -1,0 +1,376 @@
+{
+  "bootcpuidphys": 0,
+  "lenstringsblock": 126,
+  "lenstructureblock": 648,
+  "magic": "d00dfeed",
+  "memoryreservationblock": {
+    "entries": [
+      {
+        "address": 0,
+        "size": 0
+      }
+    ]
+  },
+  "mincompatibleversion": 16,
+  "ofsmemoryreservationblock": 40,
+  "ofsstringsblock": 704,
+  "ofsstructureblock": 56,
+  "stringsblock": {
+    "strings": [
+      "compatible",
+      "#address-cells",
+      "#size-cells",
+      "model",
+      "bootargs",
+      "device_type",
+      "reg",
+      "interrupts",
+      "status",
+      "phandle",
+      "enabled",
+      "table",
+      "bytes",
+      "names",
+      "link"
+    ]
+  },
+  "structureblock": {
+    "nodes": [
+      {
+        "body": {
+          "name": "",
+          "padding": "000000"
+        },
+        "type": 1
+      },
+      {
+        "body": {
+          "lenproperty": 11,
+          "name": "compatible",
+          "ofsname": 0,
+          "padding": "00",
+          "property": "646f652c73616d706c6500"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 4,
+          "name": "#address-cells",
+          "ofsname": 11,
+          "padding": "",
+          "property": "00000001"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 4,
+          "name": "#size-cells",
+          "ofsname": 26,
+          "padding": "",
+          "property": "00000001"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 17,
+          "name": "model",
+          "ofsname": 38,
+          "padding": "000000",
+          "property": "446f652073616d706c6520626f61726400"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "name": "chosen",
+          "padding": "00"
+        },
+        "type": 1
+      },
+      {
+        "body": {
+          "lenproperty": 21,
+          "name": "bootargs",
+          "ofsname": 44,
+          "padding": "000000",
+          "property": "636f6e736f6c653d74747953302c31313532303000"
+        },
+        "type": 3
+      },
+      {
+        "type": 2
+      },
+      {
+        "body": {
+          "name": "cpus",
+          "padding": "000000"
+        },
+        "type": 1
+      },
+      {
+        "body": {
+          "lenproperty": 4,
+          "name": "#address-cells",
+          "ofsname": 11,
+          "padding": "",
+          "property": "00000001"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 4,
+          "name": "#size-cells",
+          "ofsname": 26,
+          "padding": "",
+          "property": "00000000"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "name": "cpu@0",
+          "padding": "0000"
+        },
+        "type": 1
+      },
+      {
+        "body": {
+          "lenproperty": 4,
+          "name": "device_type",
+          "ofsname": 53,
+          "padding": "",
+          "property": "63707500"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 4,
+          "name": "reg",
+          "ofsname": 65,
+          "padding": "",
+          "property": "00000000"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 14,
+          "name": "compatible",
+          "ofsname": 0,
+          "padding": "0000",
+          "property": "61726d2c636f727465782d613900"
+        },
+        "type": 3
+      },
+      {
+        "type": 2
+      },
+      {
+        "body": {
+          "name": "cpu@1",
+          "padding": "0000"
+        },
+        "type": 1
+      },
+      {
+        "body": {
+          "lenproperty": 4,
+          "name": "device_type",
+          "ofsname": 53,
+          "padding": "",
+          "property": "63707500"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 4,
+          "name": "reg",
+          "ofsname": 65,
+          "padding": "",
+          "property": "00000001"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 14,
+          "name": "compatible",
+          "ofsname": 0,
+          "padding": "0000",
+          "property": "61726d2c636f727465782d613900"
+        },
+        "type": 3
+      },
+      {
+        "type": 2
+      },
+      {
+        "type": 2
+      },
+      {
+        "body": {
+          "name": "memory@80000000",
+          "padding": ""
+        },
+        "type": 1
+      },
+      {
+        "body": {
+          "lenproperty": 7,
+          "name": "device_type",
+          "ofsname": 53,
+          "padding": "00",
+          "property": "6d656d6f727900"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 8,
+          "name": "reg",
+          "ofsname": 65,
+          "padding": "",
+          "property": "8000000010000000"
+        },
+        "type": 3
+      },
+      {
+        "type": 2
+      },
+      {
+        "body": {
+          "name": "serial@1000",
+          "padding": ""
+        },
+        "type": 1
+      },
+      {
+        "body": {
+          "lenproperty": 9,
+          "name": "compatible",
+          "ofsname": 0,
+          "padding": "000000",
+          "property": "6e7331363535306100"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 8,
+          "name": "reg",
+          "ofsname": 65,
+          "padding": "",
+          "property": "0000100000000100"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 8,
+          "name": "interrupts",
+          "ofsname": 69,
+          "padding": "",
+          "property": "0000000500000001"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 5,
+          "name": "status",
+          "ofsname": 80,
+          "padding": "000000",
+          "property": "6f6b617900"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 4,
+          "name": "phandle",
+          "ofsname": 87,
+          "padding": "",
+          "property": "00000001"
+        },
+        "type": 3
+      },
+      {
+        "type": 2
+      },
+      {
+        "body": {
+          "name": "flags",
+          "padding": "0000"
+        },
+        "type": 1
+      },
+      {
+        "body": {
+          "lenproperty": 0,
+          "name": "enabled",
+          "ofsname": 95,
+          "padding": "",
+          "property": ""
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 16,
+          "name": "table",
+          "ofsname": 103,
+          "padding": "",
+          "property": "000000010000000200000003deadbeef"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 4,
+          "name": "bytes",
+          "ofsname": 109,
+          "padding": "",
+          "property": "00112233"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 6,
+          "name": "names",
+          "ofsname": 115,
+          "padding": "0000",
+          "property": "610062006300"
+        },
+        "type": 3
+      },
+      {
+        "body": {
+          "lenproperty": 4,
+          "name": "link",
+          "ofsname": 121,
+          "padding": "",
+          "property": "00000001"
+        },
+        "type": 3
+      },
+      {
+        "type": 2
+      },
+      {
+        "type": 2
+      },
+      {
+        "type": 9
+      }
+    ]
+  },
+  "totalsize": 830,
+  "version": 17
+}

@@ -1,0 +1,80 @@
+{
+  "packets": [
+    {
+      "body": {
+        "body": "03000a01f810acf5a7a796b601",
+        "len": 13
+      },
+      "lentype": 0,
+      "newpacketformat": false,
+      "one": true,
+      "packettypeold": 4
+    },
+    {
+      "body": {
+        "body": "62036d73676ae6071c7369676e656420627920646f650a",
+        "len": 23
+      },
+      "lentype": 0,
+      "newpacketformat": false,
+      "one": true,
+      "packettypeold": 11
+    },
+    {
+      "body": {
+        "body": {
+          "hashalgorithm": 10,
+          "hashedsubpackets": {
+            "subpacketss": [
+              {
+                "content": "04b3050905312ca4a361556cc8f810acf5a7a796b6",
+                "len": {
+                  "firstoctet": 22,
+                  "len": 22
+                },
+                "subpackettype": 33
+              },
+              {
+                "content": {
+                  "time": 1793459996
+                },
+                "len": {
+                  "firstoctet": 5,
+                  "len": 5
+                },
+                "subpackettype": 2
+              }
+            ]
+          },
+          "leftsignedhash": 40490,
+          "lenhashedsubpacket": 29,
+          "lenunhashedsubpacket": 10,
+          "publickeyalgorithm": 1,
+          "rsan": 2046,
+          "signature": "31aefa86b13fd0fc0b36a75dcddad75d341fa24fed528e3b5a6eacff46a0ce96d456656962a34a375d7c1c6adcd71f86096c33ec2ba00a0d9897b2979b9d371eeed0cb81226f9dc850024f2572b9fc7c5a5ee74618480f0edf4db18080af62c82af09ccaa1230b939b8a49674aec2327677215cc53213d2bbebb1b24d514520f66ca37b0e9ad85e7d4e4860d80c87e3ea52024fd2e81428fc14c3fbba45f0eb914d452f216aba493df19305a5ab2fa3fac6e02ce54687a0a8b3082b2daebde780e48abb35a7eb4146f441acc701db066558d026a9713affb254a01a2b96f1d2e50bc2d6dd265b26d2c050b19b29d62096e460b818b5bc0d7bc7261f0db0856a5",
+          "signaturetype": 0,
+          "unhashedsubpackets": {
+            "subpacketss": [
+              {
+                "content": {
+                  "keyid": 17874977092113242000
+                },
+                "len": {
+                  "firstoctet": 9,
+                  "len": 9
+                },
+                "subpackettype": 16
+              }
+            ]
+          },
+          "version": 4
+        },
+        "len": 307
+      },
+      "lentype": 1,
+      "newpacketformat": false,
+      "one": true,
+      "packettypeold": 2
+    }
+  ]
+}

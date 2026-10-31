@@ -1,0 +1,334 @@
+{
+  "contents": {
+    "colon": "3a",
+    "elements": {
+      "closingbrace": "7d",
+      "entries": [
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "6e616d65",
+                "lendata": 4,
+                "lendatadec": "4",
+                "openingquote": "22"
+              },
+              "value": "6e616d65"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "646f65",
+                "lendata": 3,
+                "lendatadec": "3",
+                "openingquote": "22"
+              },
+              "value": "646f65"
+            },
+            "type": 115
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "6e756d62657273",
+                "lendata": 7,
+                "lendatadec": "7",
+                "openingquote": "22"
+              },
+              "value": "6e756d62657273"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "elements": {
+                "closingbrace": "7d",
+                "entries": [
+                  {
+                    "key": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 0,
+                        "valuedec": "0"
+                      },
+                      "type": 105
+                    },
+                    "value": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 1,
+                        "valuedec": "1"
+                      },
+                      "type": 105
+                    }
+                  },
+                  {
+                    "key": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 1,
+                        "valuedec": "1"
+                      },
+                      "type": 105
+                    },
+                    "value": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 2,
+                        "valuedec": "2"
+                      },
+                      "type": 105
+                    }
+                  },
+                  {
+                    "key": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 2,
+                        "valuedec": "2"
+                      },
+                      "type": 105
+                    },
+                    "value": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 3,
+                        "valuedec": "3"
+                      },
+                      "type": 105
+                    }
+                  },
+                  {
+                    "key": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 3,
+                        "valuedec": "3"
+                      },
+                      "type": 105
+                    },
+                    "value": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 70000,
+                        "valuedec": "70000"
+                      },
+                      "type": 105
+                    }
+                  },
+                  {
+                    "key": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": 4,
+                        "valuedec": "4"
+                      },
+                      "type": 105
+                    },
+                    "value": {
+                      "contents": {
+                        "colon": "3a",
+                        "value": -5,
+                        "valuedec": "-5"
+                      },
+                      "type": 105
+                    }
+                  }
+                ],
+                "numentries": 5,
+                "numentriesdec": "5",
+                "openingbrace": "7b"
+              }
+            },
+            "type": 97
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "7069",
+                "lendata": 2,
+                "lendatadec": "2",
+                "openingquote": "22"
+              },
+              "value": "7069"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "valuedec": "3.25"
+            },
+            "type": 100
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "6f6b",
+                "lendata": 2,
+                "lendatadec": "2",
+                "openingquote": "22"
+              },
+              "value": "6f6b"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "value": true,
+              "valuedec": 49
+            },
+            "type": 98
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "6e6f6e65",
+                "lendata": 4,
+                "lendatadec": "4",
+                "openingquote": "22"
+              },
+              "value": "6e6f6e65"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "semicolon": "3b"
+            },
+            "type": 78
+          }
+        },
+        {
+          "key": {
+            "contents": {
+              "colon": "3a",
+              "semicolon": "3b",
+              "string": {
+                "closingquote": "22",
+                "data": "6e6573746564",
+                "lendata": 6,
+                "lendatadec": "6",
+                "openingquote": "22"
+              },
+              "value": "6e6573746564"
+            },
+            "type": 115
+          },
+          "value": {
+            "contents": {
+              "colon": "3a",
+              "elements": {
+                "closingbrace": "7d",
+                "entries": [
+                  {
+                    "key": {
+                      "contents": {
+                        "colon": "3a",
+                        "semicolon": "3b",
+                        "string": {
+                          "closingquote": "22",
+                          "data": "61",
+                          "lendata": 1,
+                          "lendatadec": "1",
+                          "openingquote": "22"
+                        },
+                        "value": "61"
+                      },
+                      "type": 115
+                    },
+                    "value": {
+                      "contents": {
+                        "colon": "3a",
+                        "elements": {
+                          "closingbrace": "7d",
+                          "entries": [
+                            {
+                              "key": {
+                                "contents": {
+                                  "colon": "3a",
+                                  "semicolon": "3b",
+                                  "string": {
+                                    "closingquote": "22",
+                                    "data": "62",
+                                    "lendata": 1,
+                                    "lendatadec": "1",
+                                    "openingquote": "22"
+                                  },
+                                  "value": "62"
+                                },
+                                "type": 115
+                              },
+                              "value": {
+                                "contents": {
+                                  "colon": "3a",
+                                  "semicolon": "3b",
+                                  "string": {
+                                    "closingquote": "22",
+                                    "data": "63",
+                                    "lendata": 1,
+                                    "lendatadec": "1",
+                                    "openingquote": "22"
+                                  },
+                                  "value": "63"
+                                },
+                                "type": 115
+                              }
+                            }
+                          ],
+                          "numentries": 1,
+                          "numentriesdec": "1",
+                          "openingbrace": "7b"
+                        }
+                      },
+                      "type": 97
+                    }
+                  }
+                ],
+                "numentries": 1,
+                "numentriesdec": "1",
+                "openingbrace": "7b"
+              }
+            },
+            "type": 97
+          }
+        }
+      ],
+      "numentries": 6,
+      "numentriesdec": "6",
+      "openingbrace": "7b"
+    }
+  },
+  "type": 97
+}

@@ -4,20 +4,20 @@ archive/android_bootldr_asus	crafted	archive/android_bootldr_asus	built by make_
 archive/android_bootldr_huawei	crafted	archive/android_bootldr_huawei	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/android_bootldr_qcom	crafted	archive/android_bootldr_qcom	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/android_dto	crafted	archive/android_dto	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-archive/android_img	crafted	archive/android_img	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-archive/android_sparse	crafted	archive/android_sparse	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+archive/android_img	real	archive/android_img	mkbootimg (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
+archive/android_sparse	real	archive/android_sparse	img2simg and mke2fs (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 archive/cpio_old_le	real	archive/cpio_old_le	cpio -H bin, run by make_real_samples.py	MIT (this repository)	a directory tree of three files and a directory
 archive/gzip	real	archive/gzip	gzip module of Python, run by make_gallery_samples.py	MIT (this repository)	
 archive/lzh	crafted	archive/lzh	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-archive/mozilla_mar	crafted	archive/mozilla_mar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+archive/mozilla_mar	crafted	archive/mozilla_mar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	a MAR of `mar` cannot be read by the definition: #278
 archive/phar_without_stub	crafted	archive/phar_without_stub	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/rar	crafted	archive/rar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	RAR 4 only: the definition reads a block of RAR 5 as nothing
 archive/respack	crafted	archive/respack	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 archive/rpm	crafted	archive/rpm	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-archive/xar	crafted	archive/xar	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-archive/zchunk	crafted	archive/zchunk	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	not compressed (compression type none): the chunks are raw
+archive/xar	real	archive/xar	xar (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
+archive/zchunk	real	archive/zchunk	zck (zchunk) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	not compressed (compression type none): the chunks are raw
 archive/zip	real	archive/zip	zipfile module of Python, run by make_gallery_samples.py	MIT (this repository)	
-archive/zisofs	crafted	archive/zisofs	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+archive/zisofs	real	archive/zisofs	mkzftree (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 cad/monomakh_sapr_chg	crafted	cad/monomakh_sapr_chg	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 common/bcd	none	-	-	-	made to be imported by other definitions; none of the gallery does
 common/bytes_with_io	part-of	-	-	-	imported by font/pcf_font, macos/compressed_resource, macos/resource_compression/dcmp_2, macos/resource_fork
@@ -27,8 +27,8 @@ common/utf16_with_bom	crafted	common/utf16_with_bom	built by make_samples_by_han
 common/utf8_string	crafted	common/utf8_string	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 common/vlq_base128_be	part-of	-	-	-	imported by database/sqlite3, media/standard_midi_file
 common/vlq_base128_le	part-of	-	-	-	imported by executable/dex, serialization/google_protobuf
-database/dbf	crafted	database/dbf	built by make_gallery_samples.py	MIT (this repository)	
-database/gettext_mo	crafted	database/gettext_mo	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+database/dbf	real	database/dbf	dbf library for Python (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
+database/gettext_mo	real	database/gettext_mo	msgfmt (gettext) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 database/sqlite3	real	database/sqlite3	sqlite3 module of Python (SQLite)	MIT (this repository)	
 database/tsm	crafted	database/tsm	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 executable/android_nanoapp_header	crafted	executable/android_nanoapp_header	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -44,29 +44,29 @@ executable/swf	crafted	executable/swf	built by make_samples_by_hand.py from the 
 executable/uefi_te	crafted	executable/uefi_te	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/amlogic_emmc_partitions	crafted	filesystem/amlogic_emmc_partitions	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/android_super	crafted	filesystem/android_super	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-filesystem/apm_partition_table	crafted	filesystem/apm_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+filesystem/apm_partition_table	crafted	filesystem/apm_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	a map of parted needs a sample as large as the disk: #278
 filesystem/apple_single_double	crafted	filesystem/apple_single_double	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/btrfs_stream	crafted	filesystem/btrfs_stream	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/cramfs	crafted	filesystem/cramfs	built by make_samples_by_hand.py from the format's documentation (directories only, what the definition reads)	MIT (this repository)	
 filesystem/ext2	none	-	-	-	no sample: every directory entry has an instance for its inode, and the dot entries lead back to their directory, so the reference output is endless
-filesystem/gpt_partition_table	crafted	filesystem/gpt_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+filesystem/gpt_partition_table	real	filesystem/gpt_partition_table	sfdisk (util-linux) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 filesystem/iso9660	real	filesystem/iso9660	genisoimage, run by make_real_samples.py	MIT (this repository)	no reference output: the reference compiler overflows its stack on the dot entries, which lead back to their directory (#150); a test of conformance.rs checks fields
-filesystem/luks	crafted	filesystem/luks	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+filesystem/luks	crafted	filesystem/luks	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	a LUKS1 header with its key material is over the sample limit: #278
 filesystem/lvm2	none	-	-	-	no sample: the definition reads the descriptors of a physical volume with loops that stop at the first one that is not empty, where the format ends them with an empty one, and the checksum of the metadata area header has the type of that header, so a real volume is read wrongly or endlessly
-filesystem/mbr_partition_table	crafted	filesystem/mbr_partition_table	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+filesystem/mbr_partition_table	real	filesystem/mbr_partition_table	sfdisk (util-linux) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 filesystem/tr_dos_image	crafted	filesystem/tr_dos_image	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 filesystem/ubifs	none	-	-	-	no sample: the smallest image UBIFS accepts (15 KiB logical erase blocks, at least 17 of them) is much larger than the 64 KiB a sample may have
 filesystem/vdi	real	filesystem/vdi	qemu-img create (QEMU)	MIT (this repository)	
-filesystem/vfat	crafted	filesystem/vfat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+filesystem/vfat	crafted	filesystem/vfat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	a FAT image of mkfs.fat cannot be read by the definition: #278
 filesystem/vmware_vmdk	crafted	filesystem/vmware_vmdk	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-filesystem/zx_spectrum_tap	crafted	filesystem/zx_spectrum_tap	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+filesystem/zx_spectrum_tap	real	filesystem/zx_spectrum_tap	zmakebas (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 firmware/andes_firmware	crafted	firmware/andes_firmware	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 firmware/broadcom_trx	crafted	firmware/broadcom_trx	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-firmware/ines	crafted	firmware/ines	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+firmware/ines	real	firmware/ines	cl65 (cc65) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 firmware/uf2	crafted	firmware/uf2	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-firmware/uimage	crafted	firmware/uimage	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+firmware/uimage	real	firmware/uimage	mkimage (U-Boot) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 font/grub2_font	real	font/grub2_font	grub-mkfont, run by make_real_samples.py (ten glyphs of DejaVu Sans Mono)	MIT (this repository) for the script; the glyphs are DejaVu Sans Mono, Bitstream Vera licence, shared under another name	
-font/pcf_font	crafted	font/pcf_font	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+font/pcf_font	crafted	font/pcf_font	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the X11 PCF fonts cannot be read by the definition: #278
 font/ttf	crafted	font/ttf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	a font of fontTools cannot be read by the reference compiler: #276
 game/allegro_dat	crafted	game/allegro_dat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/doom_wad	crafted	game/doom_wad	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -85,9 +85,9 @@ game/quake_pak	crafted	game/quake_pak	built by make_samples_by_hand.py from the 
 game/renderware_binary_stream	crafted	game/renderware_binary_stream	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/saints_row_2_vpp_pc	crafted	game/saints_row_2_vpp_pc	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/warcraft_2_pud	crafted	game/warcraft_2_pud	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-geospatial/shapefile_index	crafted	geospatial/shapefile_index	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-geospatial/shapefile_main	crafted	geospatial/shapefile_main	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-hardware/dtb	crafted	hardware/dtb	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+geospatial/shapefile_index	real	geospatial/shapefile_index	pyshp (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
+geospatial/shapefile_main	real	geospatial/shapefile_main	pyshp (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
+hardware/dtb	real	hardware/dtb	dtc (device-tree-compiler) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 hardware/edid	crafted	hardware/edid	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 hardware/mifare/mifare_classic	crafted	hardware/mifare/mifare_classic	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	sector 1 block 0 is a value block
 image/bmp	real	image/bmp	Pillow (the image library), run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
@@ -115,7 +115,7 @@ log/mcap	crafted	log/mcap	built by make_samples_by_hand.py from the format's doc
 log/sudoers_ts	crafted	log/sudoers_ts	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/systemd_journal	crafted	log/systemd_journal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 log/windows_evt_log	crafted	log/windows_evt_log	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-machine_code/code_6502	crafted	machine_code/code_6502	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+machine_code/code_6502	real	machine_code/code_6502	cl65 (cc65) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 macos/compressed_resource	crafted	macos/compressed_resource	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 macos/ds_store	crafted	macos/ds_store	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 macos/mac_os_resource_snd	crafted	macos/mac_os_resource_snd	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -125,22 +125,22 @@ macos/resource_compression/dcmp_2	none	-	-	-	no sample: the format takes the len
 macos/resource_compression/dcmp_variable_length_integer	crafted	macos/resource_compression/dcmp_variable_length_integer	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 macos/resource_fork	crafted	macos/resource_fork	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/android_opengl_shaders_cache	crafted	media/android_opengl_shaders_cache	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-media/au	crafted	media/au	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-media/avi	crafted	media/avi	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+media/au	real	media/au	ffmpeg (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
+media/avi	crafted	media/avi	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	an AVI of ffmpeg cannot be read by the definition: #278
 media/blender_blend	crafted	media/blender_blend	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-media/creative_voice_file	crafted	media/creative_voice_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+media/creative_voice_file	real	media/creative_voice_file	ffmpeg (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 media/genmidi_op2	crafted	media/genmidi_op2	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/id3v1_1	real	media/id3v1_1	mutagen (ID3 tags), run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
 media/id3v2_3	real	media/id3v2_3	mutagen (ID3 tags), run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
 media/id3v2_4	crafted	media/id3v2_4	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	a tag of mutagen cannot be read by the reference compiler: #276
 media/magicavoxel_vox	real	media/magicavoxel_vox	py-vox-io, run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
-media/ogg	crafted	media/ogg	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-media/quicktime_mov	crafted	media/quicktime_mov	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+media/ogg	real	media/ogg	ffmpeg (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
+media/quicktime_mov	real	media/quicktime_mov	ffmpeg (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 media/standard_midi_file	real	media/standard_midi_file	mido, run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
 media/stl	real	media/stl	numpy-stl, run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
 media/tracker_modules/fasttracker_xm_module	crafted	media/tracker_modules/fasttracker_xm_module	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/tracker_modules/s3m	crafted	media/tracker_modules/s3m	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-media/vp8_duck_ivf	crafted	media/vp8_duck_ivf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+media/vp8_duck_ivf	real	media/vp8_duck_ivf	ffmpeg (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 media/wav	real	media/wav	wave module of Python, run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
 network/bitcoin_transaction	crafted	network/bitcoin_transaction	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 network/dime_message	crafted	network/dime_message	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -164,28 +164,28 @@ network/some_ip/some_ip_sd	crafted	network/some_ip/some_ip_sd	built by make_samp
 network/some_ip/some_ip_sd_entries	part-of	-	-	-	imported by network/some_ip/some_ip_sd, whose sample has all four kinds of entry
 network/some_ip/some_ip_sd_options	part-of	-	-	-	imported by network/some_ip/some_ip_sd, whose sample has IPv4, IPv6, multicast, load balancing and configuration options
 network/tcp_segment	real	network/tcp_segment	Scapy (packet library; built, not captured), run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
-network/tls_client_hello	crafted	network/tls_client_hello	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
+network/tls_client_hello	crafted	network/tls_client_hello	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	a ClientHello of OpenSSL cannot be read by the definition: #278
 network/udp_datagram	real	network/udp_datagram	Scapy (packet library; built, not captured), run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
-network/websocket	crafted	network/websocket	built by make_samples_by_hand.py from the RFCs	MIT (this repository)	
+network/websocket	real	network/websocket	the websockets library (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	a masked text frame fails: doe is stricter than the reference about text that is not valid: #279
 scientific/nt_mdt/nt_mdt	crafted	scientific/nt_mdt/nt_mdt	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 scientific/nt_mdt/nt_mdt_pal	crafted	scientific/nt_mdt/nt_mdt_pal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 scientific/spectroscopy/avantes_roh60	crafted	scientific/spectroscopy/avantes_roh60	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 scientific/spectroscopy/specpr	crafted	scientific/spectroscopy/specpr	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-security/efivar_signature_list	crafted	security/efivar_signature_list	built by make_samples_by_hand.py from the format's documentation (the certificate is the openssl one of the asn1_der sample)	MIT (this repository)	
-security/openpgp_message	crafted	security/openpgp_message	built by make_real_samples.py: OpenPGP packets (RFC 4880) around an RSA key and a signature made by openssl	MIT (this repository)	
+security/efivar_signature_list	crafted	security/efivar_signature_list	built by make_samples_by_hand.py from the format's documentation (the certificate is the openssl one of the asn1_der sample)	MIT (this repository)	a list of efitools cannot be read by the definition: #278
+security/openpgp_message	real	security/openpgp_message	gpg (GnuPG) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 security/ssh_public_key	real	security/ssh_public_key	ssh-keygen, run by make_real_samples.py (the key as the base64 of the .pub file holds it)	MIT (this repository)	ed25519, rsa 2048 and ecdsa 256 keys made for the samples
 serialization/asn1/asn1_der	real	serialization/asn1/asn1_der	openssl, run by make_real_samples.py	MIT (this repository)	a self-signed certificate and a request, with a key made for the samples
 serialization/bson	real	serialization/bson	pymongo (bson), run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
 serialization/chrome_pak	crafted	serialization/chrome_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 serialization/google_protobuf	real	serialization/google_protobuf	protobuf for Python, run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
-serialization/microsoft_cfb	crafted	serialization/microsoft_cfb	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+serialization/microsoft_cfb	real	serialization/microsoft_cfb	msibuild (msitools) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 serialization/msgpack	real	serialization/msgpack	msgpack for Python, run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
-serialization/php_serialized_value	crafted	serialization/php_serialized_value	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
+serialization/php_serialized_value	real	serialization/php_serialized_value	php (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 serialization/python_pickle	real	serialization/python_pickle	pickle of Python, run by make_real_samples.py	MIT (this repository)	protocols 0, 2 and 4; the text in protocol 0 is ASCII, because Python writes it as Latin-1 and doe, by design, refuses a byte that is not ASCII in an ascii string (the reference does not)
 serialization/ruby_marshal	crafted	serialization/ruby_marshal	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/regf	none	-	-	-	no sample: the definition lays out the nk (key) record differently from the format, so a registry hive that Windows wrote is read wrongly
 windows/windows_lnk_file	real	windows/windows_lnk_file	pylnk3, run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
 windows/windows_minidump	crafted	windows/windows_minidump	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-windows/windows_resource_file	crafted	windows/windows_resource_file	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the sample has the empty first resource and a number as a type and as a name
+windows/windows_resource_file	real	windows/windows_resource_file	windres (binutils) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	the sample has the empty first resource and a number as a type and as a name
 windows/windows_shell_items	crafted	windows/windows_shell_items	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 windows/windows_systemtime	part-of	-	-	-	imported by network/microsoft_network_monitor_v2, whose sample has a start time

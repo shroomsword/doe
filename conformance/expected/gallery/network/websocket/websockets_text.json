@@ -1,0 +1,13 @@
+{
+  "initialframe": {
+    "header": {
+      "finished": true,
+      "ismasked": false,
+      "lenpayload": 9,
+      "lenpayloadprimary": 9,
+      "opcode": 1,
+      "reserved": 0
+    },
+    "payloadtext": "hello doe"
+  }
+}

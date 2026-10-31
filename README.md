@@ -882,7 +882,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 43 with a file written by its own tool, 132 with a file built by hand, 0 failing on a file, 9 part of another, 6 without a sample
+> 190 definitions: 69 with a file written by its own tool, 106 with a file built by hand, 0 failing on a file, 9 part of another, 6 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the
