@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type FileChooser, type Page } from '@playwright/test';
 import { KEYS, byteQuery, findPattern, keyName } from '../src/keys.js';
 import { findNode } from '../src/model.js';
 import type { TraceNode } from '../src/doe.js';
@@ -88,11 +88,18 @@ test.describe('in the page', () => {
   });
 
   test('the keys that open things ask for the file chooser or open the dialog', async ({ page }) => {
+    // a listener from the start, and a round trip, so that the page's choosers are intercepted before a key is pressed
+    const asking: FileChooser[] = [];
+    page.on('filechooser', (asked) => asking.push(asked));
+    await page.evaluate(() => 0);
     const chooser = async (key: string, selector: string): Promise<void> => {
-      const waiting = page.waitForEvent('filechooser');
+      asking.length = 0;
       await page.keyboard.press(key);
-      const asked = await waiting;
+      await expect.poll(() => asking.length).toBe(1);
+      const asked = asking[0] as FileChooser;
       expect(await asked.element().evaluate((element, wanted) => (element as Element).matches(wanted), selector)).toBe(true);
+      // answer it, so that the next one can open
+      await asked.setFiles([]);
     };
     await chooser('o', '#open-input');
     await chooser('Shift+O', '#open-schema');
