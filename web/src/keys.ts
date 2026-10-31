@@ -69,8 +69,8 @@ export function keyName(event: Pick<KeyboardEvent, 'key' | 'shiftKey'>): string 
 /** Whether the target of a key is somewhere that text is typed. */
 export function isField(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
-  if (target.closest('input, select, textarea, [contenteditable="true"], [contenteditable=""], .cm-editor')) return true;
-  return false;
+  // a file chooser, a check box or a radio button takes no text: after one is used the focus can stay on it
+  return target.closest('input:not([type="file"], [type="checkbox"], [type="radio"], [type="button"]), select, textarea, [contenteditable="true"], [contenteditable=""], .cm-editor') !== null;
 }
 
 /** The key (by its name) for a button's tooltip: "Open (o)". */
