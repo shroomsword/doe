@@ -159,11 +159,17 @@ export class App {
     if (!file) return;
     try {
       const theme = this.themes.load(await file.text());
-      element('status').textContent = `theme ${theme.name} loaded from ${file.name}`;
+      this.themeSaid(`theme ${theme.name} loaded from ${file.name}`);
       this.showThemes();
     } catch (error) {
-      element('status').textContent = `${file.name} is not a theme: ${error instanceof Error ? error.message : String(error)}`;
+      this.themeSaid(`${file.name} is not a theme: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  /** Say what happened to a theme file, in the status and in the theme dialog (which is over the status). */
+  private themeSaid(text: string): void {
+    element('status').textContent = text;
+    element('theme-note').textContent = text;
   }
 
   /** Load the module, and bring back the saved work or the work of a link; a first visit has nothing in the editor. */
@@ -626,6 +632,7 @@ export class App {
       detect: 'detect',
       save: 'save',
       help: 'help',
+      'theme-button': 'theme',
       cancel: 'cancel',
       'detect-auto': 'auto',
       radix: 'radix',
@@ -638,6 +645,8 @@ export class App {
       target.title = target.title ? `${target.title} (${key})` : `${target.textContent?.trim() || id} (${key})`;
       control.setAttribute('aria-keyshortcuts', key);
     }
+    element('theme-button').addEventListener('click', () => this.perform('theme'));
+    element('theme-close').addEventListener('click', () => element<HTMLDialogElement>('theme-dialog').close());
     element('keys-close').addEventListener('click', () => element<HTMLDialogElement>('keys-dialog').close());
     document.addEventListener('keydown', (event) => this.onKey(event));
   }
@@ -702,6 +711,10 @@ export class App {
         break;
       case 'keys':
         this.showKeys();
+        break;
+      case 'theme':
+        element('theme-note').textContent = '';
+        element<HTMLDialogElement>('theme-dialog').showModal();
         break;
       case 'open-file':
         click('open-input');

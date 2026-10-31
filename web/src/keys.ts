@@ -8,6 +8,7 @@ export type Needs = 'file' | 'parsed' | 'running';
 export type Action =
   | 'help'
   | 'keys'
+  | 'theme'
   | 'open-file'
   | 'open-schema'
   | 'browse'
@@ -40,6 +41,7 @@ export interface Key {
 export const KEYS: readonly Key[] = [
   { key: '?', action: 'help', label: 'Help' },
   { key: 'k', action: 'keys', label: 'Show these keys' },
+  { key: 'T', action: 'theme', label: 'Choose a theme' },
   { key: 'o', action: 'open-file', label: 'Open a file to parse' },
   { key: 'O', action: 'open-schema', label: 'Open a schema file' },
   { key: 't', action: 'browse', label: 'Browse the types and schemas, and load one' },
