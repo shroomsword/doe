@@ -128,3 +128,43 @@ export function editorRange(line: string, lineFrom: number, position: Pick<Posit
   const end = Math.max(start + length, Math.min(start + 1, line.length));
   return { from: lineFrom + start, to: lineFrom + Math.min(end, line.length) };
 }
+
+/** The paths of all the nodes under `root`, parents before their children, in the order of the tree. */
+function allPaths(root: TraceNode): Path[] {
+  const paths: Path[] = [];
+  const walk = (node: TraceNode, path: Path): void => {
+    paths.push(path);
+    node.children.forEach((child, index) => walk(child, [...path, index]));
+  };
+  walk(root, []);
+  return paths;
+}
+
+/** Whether a node has the text in its name, its type or its value (the case does not matter). */
+export function nodeMatches(node: TraceNode, query: string): boolean {
+  const wanted = query.trim().toLowerCase();
+  if (wanted === '') return false;
+  return [node.name, node.type ?? '', node.summary ?? '', node.integer?.value ?? '', node.integer?.name ?? ''].some((text) => text.toLowerCase().includes(wanted));
+}
+
+/**
+ * The next node, going `direction` from the one at `from` (or from the start), that has the text, wrapping
+ * around; null when none has it. `count` is how many nodes have it.
+ */
+export function findNode(root: TraceNode, query: string, from: Path | null, direction: 1 | -1): { path: Path; count: number } | null {
+  const paths = allPaths(root);
+  const matching = paths.filter((path) => {
+    const node = nodeAt(root, path);
+    return node !== null && nodeMatches(node, query);
+  });
+  if (matching.length === 0) return null;
+  const same = (a: Path, b: Path): boolean => a.length === b.length && a.every((value, i) => value === b[i]);
+  const position = from === null ? -1 : paths.findIndex((path) => same(path, from));
+  const order = new Map(paths.map((path, index) => [path, index]));
+  const indexes = matching.map((path) => order.get(path) ?? 0);
+  const next =
+    direction === 1
+      ? matching[indexes.findIndex((index) => index > position)] ?? matching[0]
+      : matching[indexes.map((index) => index < position).lastIndexOf(true)] ?? matching[matching.length - 1];
+  return next ? { path: next, count: matching.length } : null;
+}

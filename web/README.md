@@ -109,3 +109,7 @@ Every push to `main` builds `web/dist` in CI and publishes it to GitHub Pages
 "GitHub Actions"). The release workflow builds it too and puts it in each `doe`
 binary (`crates/doe-cli/build.rs` embeds `web/dist`). The steps that build it are
 in `.github/actions/build-web`.
+
+## Keys
+
+The keys of the page are in one table, `src/keys.ts`, which both acts on them and draws the list that `k` shows, so the two cannot differ; the top-level README documents them (a test checks that every key is there). The letters never act in a text field or with Ctrl, Alt or Meta held, nor while a dialog is open. `F6` moves between the panes from anywhere; `Tab` does it from a pane (the tree, the bytes, the pane itself), and stays the browser's `Tab` on a button, in a box and in the editor, so that the keyboard is never trapped. The search bars of Parsed, Bytes and Status are `src/search.ts`; the pure parts (the meaning of a query of the bytes, finding a node) are in `keys.ts` and `model.ts`.

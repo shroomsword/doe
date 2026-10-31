@@ -1145,6 +1145,45 @@ behind the `ide` cargo feature, which is on by default; build with
 built without the files of the page (`web/dist`, see `web/README.md`) serves a
 page that says that instead.
 
+### Keys
+
+The page can be driven from the keyboard; `k` lists the keys in the page. The
+letters work when the focus is not in a text field (the schema editor, a box),
+never with Ctrl, Alt or Meta held, and not while a dialog is open. `Esc` leaves
+the editor for its pane, closes a dialog and closes a search.
+
+| Key | Does |
+|---|---|
+| `?` | Help |
+| `k` | Show these keys |
+| `o` | Open a file to parse |
+| `O` | Open a schema file |
+| `t` | Browse the types and schemas, and load one |
+| `i` | Add imports |
+| `d` | Detect the schema of the open file |
+| `s` | Save the parsed value |
+| `Tab` | Next pane (from a pane, not from a button or a field) |
+| `Shift+Tab` | Previous pane |
+| `F6` | Next pane, from anywhere |
+| `Shift+F6` | Previous pane, from anywhere |
+| `/` | Search in the focused pane |
+| `g` | Go to an offset in the bytes |
+| `a` | Turn automatic detection on or off |
+| `r` | Change how integers are shown (decimal, hexadecimal, binary, octal) |
+| `c` | Cancel the parse that is running |
+| `1` | Focus the Schema pane |
+| `2` | Focus the Parsed pane |
+| `3` | Focus the Bytes pane |
+| `4` | Focus the Status pane |
+
+`/` searches the pane that has the focus: in **Schema**, with the search panel
+of the editor; in **Parsed**, the next node whose name, type or value has the
+text (`Enter` for the next match, `Shift+Enter` for the previous one); in
+**Bytes**, hexadecimal bytes (`de ad`), text, or an offset (`@1f4`, in
+hexadecimal; `@#500` in decimal), which is also what `g` asks for; in
+**Status**, the lines of the problems and of the detection report that have the
+text.
+
 ## CLI reference
 
 ```text

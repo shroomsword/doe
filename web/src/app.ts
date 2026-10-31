@@ -6,15 +6,17 @@ import { CallEnded, DoeClient } from './client.js';
 import type { Diagnostic, ExportFormat, ExportResponse, InspectResponse, ParseResponse, Request, TraceNode } from './doe.js';
 import { SchemaEditor } from './editor.js';
 import { Help } from './help.js';
+import { type Action, type Needs, KEYS, byteQuery, findPattern, isField, keyName, keyOf } from './keys.js';
+import { PaneSearch, type SearchHandler } from './search.js';
 import { HexView, RemoteBytes } from './hex.js';
 import { type LocalApi, type LocalType, detectLocal } from './local.js';
 import { type Entry, type Ranking, TypeBrowser, galleryEntries, libraryEntries, openEntries } from './browse.js';
-import { type Path, byteRange, checkSize, describeRange, findByte, nodeAt, pathName } from './model.js';
+import { type Path, byteRange, checkSize, describeRange, findByte, findNode, nodeAt, pathName } from './model.js';
 import { ProblemsView } from './problems.js';
 import { type Origin, SchemaList, editable, isKnownType, listing, parsedAs } from './schemas.js';
 import { type Work, codeOfHash, decodeWork, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
-import { Radixes, isRadix } from './radix.js';
+import { RADIXES, Radixes, isRadix } from './radix.js';
 import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
 import { TreeView } from './tree.js';
 
@@ -31,6 +33,11 @@ type WindowWithPicker = Window & {
 };
 
 const SCHEMA_EXTENSIONS = ['.ksy', '.yaml', '.yml'];
+
+/** The panes that the keys move between, in order. */
+type PaneName = 'schema' | 'parsed' | 'bytes' | 'status';
+const PANES: readonly PaneName[] = ['schema', 'parsed', 'bytes', 'status'];
+const PANE_IDS: Record<PaneName, string> = { schema: 'pane-editor', parsed: 'pane-tree', bytes: 'pane-hex', status: 'pane-status' };
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -83,6 +90,7 @@ export class App {
   private readonly radixes: Radixes;
   private readonly schemas: SchemaList;
   private readonly browser: TypeBrowser;
+  private readonly help: Help;
   /** The types of this machine, when the page is served by `doe --ide`. */
   private localTypes: LocalType[] = [];
 
@@ -101,7 +109,7 @@ export class App {
       pick: (entry) => void this.pickEntry(entry),
       text: (entry) => this.entryText(entry),
     });
-    new Help(element<HTMLDialogElement>('help-dialog'), element('help-body'), element('help'), element('help-close'));
+    this.help = new Help(element<HTMLDialogElement>('help-dialog'), element('help-body'), element('help'), element('help-close'));
     this.themes = new Themes((theme) => this.editor.setTheme(theme));
     this.radixes = new Radixes(() => {
       this.tree.refresh();
@@ -116,6 +124,7 @@ export class App {
     this.hex = new HexView(element('hex'), (byte) => this.pickByte(byte));
     this.problems = new ProblemsView(element('problems'), (item) => this.pickProblem(item));
     this.wire();
+    this.keys();
     this.showThemes();
     this.themes.apply();
   }
@@ -587,6 +596,266 @@ export class App {
     this.client.setInput(bytes);
     this.hex.setBytes(bytes);
     element<HTMLButtonElement>('detect').disabled = false;
+  }
+
+  // ── the keys ───────────────────────────────────────────────────────────────
+
+  private lastPane: PaneName = 'parsed';
+  /** Where the last search of the bytes found its match. */
+  private byteFound: number | null = null;
+  private searches: Record<'parsed' | 'bytes' | 'status', PaneSearch> | null = null;
+
+  /** Set up the search bars, the keys and what the buttons say about their keys. */
+  private keys(): void {
+    const bar = (id: string): HTMLElement => element(id).querySelector<HTMLElement>('.pane-title') ?? element(id);
+    this.searches = {
+      parsed: new PaneSearch(bar('pane-tree'), 'the parsed value', this.parsedSearch(), () => this.focusPane('parsed')),
+      bytes: new PaneSearch(bar('pane-hex'), 'the bytes', this.bytesSearch(), () => this.focusPane('bytes')),
+      status: new PaneSearch(bar('pane-status'), 'the status', this.statusSearch(), () => this.focusPane('status')),
+    };
+    for (const name of PANES) {
+      element(PANE_IDS[name]).addEventListener('focusin', () => {
+        this.lastPane = name;
+      });
+    }
+    const buttons: Record<string, Action> = {
+      'open-input': 'open-file',
+      'open-schema': 'open-schema',
+      'add-files': 'imports',
+      browse: 'browse',
+      detect: 'detect',
+      save: 'save',
+      help: 'help',
+      cancel: 'cancel',
+      'detect-auto': 'auto',
+      radix: 'radix',
+    };
+    for (const [id, action] of Object.entries(buttons)) {
+      const key = keyOf(action);
+      if (!key) continue;
+      const control = element(id);
+      const target = control.closest('label') ?? control;
+      target.title = target.title ? `${target.title} (${key})` : `${target.textContent?.trim() || id} (${key})`;
+      control.setAttribute('aria-keyshortcuts', key);
+    }
+    element('keys-close').addEventListener('click', () => element<HTMLDialogElement>('keys-dialog').close());
+    document.addEventListener('keydown', (event) => this.onKey(event));
+  }
+
+  private onKey(event: KeyboardEvent): void {
+    if (event.defaultPrevented || event.isComposing || event.repeat) return;
+    if (event.ctrlKey || event.altKey || event.metaKey) return;
+    if (document.querySelector('dialog[open]')) return;
+    if (event.key === 'Escape') {
+      // out of the editor, to its pane, so that the keys work again
+      if ((event.target as Element | null)?.closest('.cm-editor')) this.focusPane('schema', true);
+      return;
+    }
+    const name = keyName(event);
+    const entry = KEYS.find((candidate) => candidate.key === name);
+    if (!entry) return;
+    if (isField(event.target) && !entry.inFields) return;
+    if ((name === 'Tab' || name === 'Shift+Tab') && !this.onPane(event.target)) return;
+    if (entry.needs && !this.available(entry.needs)) return;
+    event.preventDefault();
+    this.perform(entry.action);
+  }
+
+  /** Whether the focus is on a pane or its main part (not on a button or a field of it), where Tab goes on to the next pane. */
+  private onPane(target: EventTarget | null): boolean {
+    return target === document.body || (target instanceof Element && target.matches('section, .tree, .hex'));
+  }
+
+  private available(needs: Needs): boolean {
+    if (needs === 'file') return this.canDetect();
+    if (needs === 'parsed') return !element<HTMLButtonElement>('save').disabled;
+    return !element('cancel').hidden;
+  }
+
+  private currentPane(): PaneName {
+    const active = document.activeElement;
+    for (const name of PANES) if (active && element(PANE_IDS[name]).contains(active)) return name;
+    return this.lastPane;
+  }
+
+  /** Put the focus in a pane. `plain`: on the pane itself, not on what is in it (out of the editor). */
+  private focusPane(name: PaneName, plain = false): void {
+    this.lastPane = name;
+    const section = element(PANE_IDS[name]);
+    if (plain) section.focus();
+    else if (name === 'schema') this.editor.focus();
+    else if (name === 'parsed') this.tree.focus();
+    else if (name === 'bytes') this.hex.focus();
+    else section.focus();
+  }
+
+  private cyclePane(step: 1 | -1): void {
+    const at = PANES.indexOf(this.currentPane());
+    this.focusPane(PANES[(at + step + PANES.length) % PANES.length] ?? 'parsed');
+  }
+
+  private perform(action: Action): void {
+    const click = (id: string): void => element(id).click();
+    switch (action) {
+      case 'help':
+        void this.help.show();
+        break;
+      case 'keys':
+        this.showKeys();
+        break;
+      case 'open-file':
+        click('open-input');
+        break;
+      case 'open-schema':
+        click('open-schema');
+        break;
+      case 'browse':
+        click('browse');
+        break;
+      case 'imports':
+        click('add-files');
+        break;
+      case 'detect':
+        if (!element<HTMLButtonElement>('detect').disabled) click('detect');
+        break;
+      case 'save':
+        this.openSave();
+        break;
+      case 'next-pane':
+        this.cyclePane(1);
+        break;
+      case 'previous-pane':
+        this.cyclePane(-1);
+        break;
+      case 'search':
+        this.searchPane();
+        break;
+      case 'goto':
+        this.searches?.bytes.open('@');
+        break;
+      case 'auto':
+        click('detect-auto');
+        break;
+      case 'radix': {
+        const at = RADIXES.findIndex((radix) => radix.id === this.radixes.global);
+        const next = RADIXES[(at + 1) % RADIXES.length]?.id;
+        if (next && isRadix(next)) {
+          this.radixes.setGlobal(next);
+          element<HTMLSelectElement>('radix').value = next;
+        }
+        break;
+      }
+      case 'cancel':
+        click('cancel');
+        break;
+      case 'pane-schema':
+        this.focusPane('schema');
+        break;
+      case 'pane-parsed':
+        this.focusPane('parsed');
+        break;
+      case 'pane-bytes':
+        this.focusPane('bytes');
+        break;
+      case 'pane-status':
+        this.focusPane('status');
+        break;
+    }
+  }
+
+  private searchPane(): void {
+    const pane = this.currentPane();
+    if (pane === 'schema') this.editor.search();
+    else this.searches?.[pane].open();
+  }
+
+  /** The list of the keys, with the ones that need something that is not there marked. */
+  private showKeys(): void {
+    const needs: Record<Needs, string> = { file: 'needs an open file', parsed: 'needs a parsed value', running: 'needs a parse that is running' };
+    const rows = KEYS.map((entry) => {
+      const missing = entry.needs && !this.available(entry.needs) ? needs[entry.needs] : '';
+      const row = document.createElement('tr');
+      if (missing) row.className = 'unavailable';
+      const head = document.createElement('th');
+      head.scope = 'row';
+      const kbd = document.createElement('kbd');
+      kbd.textContent = entry.key;
+      head.append(kbd);
+      const label = document.createElement('td');
+      label.textContent = entry.label;
+      const why = document.createElement('td');
+      why.className = 'why';
+      why.textContent = missing ? `not now: ${missing}` : '';
+      row.append(head, label, why);
+      return row;
+    });
+    element('keys-table').replaceChildren(...rows);
+    element<HTMLDialogElement>('keys-dialog').showModal();
+  }
+
+  private parsedSearch(): SearchHandler {
+    return {
+      placeholder: 'name, type or value',
+      find: (query, direction) => {
+        if (!this.trace) return 'nothing is parsed';
+        const found = findNode(this.trace, query, direction === 0 ? null : this.tree.current, direction === 0 ? 1 : direction);
+        if (!found) return 'no match';
+        this.select(found.path, 'tree');
+        this.tree.select(found.path, true);
+        return `${found.count} ${found.count === 1 ? 'match' : 'matches'}`;
+      },
+      closed: () => undefined,
+    };
+  }
+
+  private bytesSearch(): SearchHandler {
+    return {
+      placeholder: 'hex (de ad), text, or @offset (@#500 for decimal)',
+      find: (query, direction) => {
+        const source = this.hex.source;
+        if (source.length === 0) return 'no file is open';
+        const parsed = byteQuery(query);
+        if (!parsed) return 'not an offset, hexadecimal bytes or text';
+        const mark = (start: number, length: number): void => {
+          this.byteFound = start;
+          this.hex.setSelection({ first: start, end: start + length, startBit: start * 8, endBit: (start + length) * 8 });
+          this.hex.reveal(start);
+        };
+        if (parsed.kind === 'offset') {
+          if (parsed.offset >= source.length) return `past the end (${source.length.toString(16)} bytes)`;
+          mark(parsed.offset, 1);
+          return `offset ${parsed.offset.toString(16)}`;
+        }
+        const from = direction === 0 ? -1 : (this.byteFound ?? -1);
+        const at = findPattern(source, parsed.pattern, from, direction === 0 ? 1 : direction);
+        if (at === null) return 'not found';
+        mark(at, parsed.pattern.length);
+        return `at ${at.toString(16)}`;
+      },
+      closed: () => {
+        this.byteFound = null;
+      },
+    };
+  }
+
+  private statusSearch(): SearchHandler {
+    const lines = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('#pane-status .problem, #pane-status #detect-report li')];
+    return {
+      placeholder: 'in the problems and the report',
+      find: (query) => {
+        const wanted = query.trim().toLowerCase();
+        let shown = 0;
+        for (const line of lines()) {
+          const hit = line.textContent?.toLowerCase().includes(wanted) ?? false;
+          line.classList.toggle('search-miss', !hit);
+          if (hit) shown += 1;
+        }
+        return `${shown} of ${lines().length} shown`;
+      },
+      closed: () => {
+        for (const line of lines()) line.classList.remove('search-miss');
+      },
+    };
   }
 
   // ── the controls ───────────────────────────────────────────────────────────
