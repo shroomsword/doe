@@ -193,6 +193,13 @@ header label { display: inline-flex; gap: 4px; align-items: center; max-width: 1
 .help-table th, .help-table td { border: 1px solid var(--line); padding: 2px 8px; text-align: left; vertical-align: top; }
 .help-gone { color: inherit; }
 #help { font: inherit; font-weight: bold; }
+#theme-button { margin-left: auto; }
+#theme-dialog { width: min(26rem, calc(100vw - 32px)); padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
+#theme-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+#theme-body { padding: 4px 12px 12px; }
+#theme-body .note, #theme-note { color: var(--muted); font-size: .85em; }
+#theme-note:empty { display: none; }
+#theme-body select { max-width: 100%; }
 #browse-dialog::backdrop { background: rgba(0, 0, 0, .4); }
 #browse-dialog[open] { display: flex; flex-direction: column; }
 .browse-bar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }

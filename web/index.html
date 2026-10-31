@@ -15,10 +15,7 @@
         <label id="types-box" hidden>Types <select id="types"></select></label>
         <button id="use-input" type="button" hidden></button>
       </div>
-      <div class="actions">
-        <label id="theme-box">Theme <select id="theme"></select></label>
-        <label class="button" title="Load a theme file (TOML, as doe --tui reads it); it is kept in this browser">Load theme<input id="open-theme" type="file" accept=".toml" /></label>
-      </div>
+      <button id="theme-button" class="icon-link" type="button" aria-label="Theme" title="Choose the colours of the page"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.3-.5-.8-.5-1.2 0-1.1.9-2 2-2h2.4c2.2 0 4-1.8 4-4C21.4 6.6 17.2 3 12 3zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></button>
     </header>
     <main>
       <section id="pane-editor" tabindex="-1" aria-labelledby="h-schema">
@@ -104,6 +101,18 @@
         <button id="help-close" type="button">Close</button>
       </div>
       <div id="help-body"></div>
+    </dialog>
+    <dialog id="theme-dialog" aria-labelledby="theme-title">
+      <div class="browse-bar">
+        <h3 id="theme-title">Theme</h3>
+        <button id="theme-close" type="button">Close</button>
+      </div>
+      <div id="theme-body">
+        <label id="theme-box">Theme <select id="theme"></select></label>
+        <p><label class="button" title="Load a theme file (TOML, as doe --tui reads it); it is kept in this browser">Load theme<input id="open-theme" type="file" accept=".toml" /></label></p>
+        <p class="note">A theme file is TOML, as <code>doe --tui</code> reads it. The one that is loaded is kept in this browser, and the choice too. A choice shows at once.</p>
+        <p id="theme-note" role="status"></p>
+      </div>
     </dialog>
     <dialog id="keys-dialog" aria-labelledby="keys-title">
       <div class="browse-bar">

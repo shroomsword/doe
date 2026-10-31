@@ -11,6 +11,15 @@ async function ready(page: Page): Promise<void> {
   await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
 }
 
+/** Choose a theme through the dialog of the theme button, and close it (it covers the page). */
+async function choose(page: Page, id: string): Promise<void> {
+  await page.locator('#theme-button').click();
+  await expect(page.locator('#theme-dialog')).toBeVisible();
+  await page.selectOption('#theme', id);
+  await page.locator('#theme-close').click();
+  await expect(page.locator('#theme-dialog')).toBeHidden();
+}
+
 const find = (id: string) => {
   const theme = THEMES.find((t) => t.id === id);
   if (!theme) throw new Error(`no theme ${id}`);
@@ -107,7 +116,7 @@ test('the picker lists the built-in themes and a choice shows in the page, the e
   expect(options.length).toBeGreaterThanOrEqual(9); // system and at least eight themes
   for (const theme of THEMES) expect(options).toContain(theme.id);
 
-  await page.selectOption('#theme', 'nord');
+  await choose(page, 'nord');
   const nord = find('nord').colors;
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'nord');
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(rgb(nord.background));
@@ -121,7 +130,7 @@ test('the picker lists the built-in themes and a choice shows in the page, the e
   await expect(page.locator('#theme')).toHaveValue('nord');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'nord');
 
-  await page.selectOption('#theme', 'system');
+  await choose(page, 'system');
   await page.reload();
   await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
   await expect(page.locator('#theme')).toHaveValue('system');
@@ -132,7 +141,7 @@ test('the tree and the bytes use the colours of the theme, and nothing else', as
   await loadExample(page);
   await expect(page.locator('#status')).toContainText('parsed', { timeout: 10_000 });
   for (const id of ['solarized-light', 'dracula', 'high-contrast']) {
-    await page.selectOption('#theme', id);
+    await choose(page, id);
     const colors = find(id).colors;
     const allowed = new Set([...Object.values(colors).map(rgb), 'rgba(0, 0, 0, 0)']);
     // select a row, so that the selection is drawn in both panes
@@ -174,18 +183,67 @@ test('a theme file is loaded, kept in the browser, and offered in the picker', a
   await expect(page.locator('#theme')).toHaveValue('custom');
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(rgb('#102030'));
   // the built-in themes are still there
-  await page.selectOption('#theme', 'monokai');
+  await choose(page, 'monokai');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'monokai');
-  await page.selectOption('#theme', 'custom');
+  await choose(page, 'custom');
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(rgb('#102030'));
 });
 
 test('a theme file that is not usable changes nothing and says why', async ({ page }) => {
   await ready(page);
-  await page.selectOption('#theme', 'dracula');
+  await choose(page, 'dracula');
   await page.setInputFiles('#open-theme', fileOf('broken.toml', 'name = "Broken"\n[colors]\nbackground = "red"\n'));
   await expect(page.locator('#status')).toContainText('broken.toml is not a theme');
   await expect(page.locator('#status')).toContainText('background');
   await expect(page.locator('#theme')).toHaveValue('dracula');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dracula');
+});
+
+test('the theme controls are in a dialog that a palette icon in the header opens, and not in the header', async ({ page }) => {
+  await ready(page);
+  await expect(page.locator('header #theme, header #open-theme, header #theme-box')).toHaveCount(0);
+  const button = page.getByRole('button', { name: 'Theme' });
+  await expect(page.locator('header #theme-button')).toHaveCount(1);
+  await expect(button).toHaveAttribute('aria-keyshortcuts', 'T');
+  await expect(button).toHaveAttribute('title', /\(T\)$/);
+  // at the right end of the header, after the GitHub icon and the help button
+  const bar = await page.locator('header').boundingBox();
+  const box = await button.boundingBox();
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeGreaterThan((bar?.x ?? 0) + (bar?.width ?? 0) - 24);
+  await expect(page.locator('#theme-dialog')).toBeHidden();
+  await button.click();
+  await expect(page.locator('#theme-dialog')).toBeVisible();
+  await expect(page.locator('#theme-dialog #theme')).toBeVisible();
+  await expect(page.locator('#theme-dialog #open-theme')).toBeAttached();
+  // a choice shows at once, behind the dialog, which stays open
+  await page.selectOption('#theme', 'nord');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'nord');
+  await expect(page.locator('#theme-dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#theme-dialog')).toBeHidden();
+});
+
+test('T opens the theme dialog, but not when it is typed in a field', async ({ page }) => {
+  await ready(page);
+  await page.locator('.cm-content').click();
+  await page.keyboard.type('T');
+  await expect(page.locator('#theme-dialog')).toBeHidden();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('T');
+  await expect(page.locator('#theme-dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#theme-dialog')).toBeHidden();
+});
+
+test('what happens to a theme file is said in the dialog, and the header does not scroll sideways on a phone', async ({ page }) => {
+  await ready(page);
+  await page.locator('#theme-button').click();
+  await page.setInputFiles('#open-theme', fileOf('broken.toml', 'name = "Broken"\n[colors]\nbackground = "red"\n'));
+  await expect(page.locator('#theme-note')).toContainText('broken.toml is not a theme');
+  await page.setInputFiles('#open-theme', fileOf('mine.toml', themeFile('Mine', '#102030')));
+  await expect(page.locator('#theme-note')).toContainText('theme Mine loaded from mine.toml');
+  await page.locator('#theme-close').click();
+  await page.setViewportSize({ width: 340, height: 700 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  await expect(page.locator('#theme-button')).toBeVisible();
 });

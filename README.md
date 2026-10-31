@@ -1156,6 +1156,7 @@ the editor for its pane, closes a dialog and closes a search.
 |---|---|
 | `?` | Help |
 | `k` | Show these keys |
+| `T` | Choose a theme |
 | `o` | Open a file to parse |
 | `O` | Open a schema file |
 | `t` | Browse the types and schemas, and load one |
