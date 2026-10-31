@@ -138,6 +138,20 @@ checkout <commit>`), run `npm run generate`, and review the diff of `expected/`
 with the one of the gallery. The gallery has no release tags, so the submodule
 points at a commit.
 
+### A plan for files that a tool wrote
+
+`real_files_plan.tsv` has a row for every definition that is tested only with a
+file built by hand (or has no sample): the tool that normally writes such a
+file, the command that makes one, where to get the tool, and how hard it is
+(`easy`: a package of the usual distributions and one command; `medium`: a
+tool that has to be built or fetched, or a root or macOS runner; `hard`: the
+software is proprietary or from a game, or the file has to come from a device;
+`blocked`: something else has to be fixed first, said in the note). A test
+keeps the plan in step with `gallery_samples.tsv`: when a format gets a file
+that its own tool wrote, its row leaves the plan. Files that are large, or
+whose licence does not allow them here, are fetched by their hash and not
+committed, as the first criterion of issue #133 says.
+
 ## What it does not cover yet
 
 Kaitai Struct features that doe does not have are left out until they exist; the

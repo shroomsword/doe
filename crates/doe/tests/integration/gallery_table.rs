@@ -174,6 +174,62 @@ fn a_row_says_what_it_is_tested_with_and_where_the_files_come_from() {
     }
 }
 
+/// The plan for files that a tool wrote (`conformance/real_files_plan.tsv`):
+/// a row for every format that does not have one yet, and for no other.
+#[test]
+fn the_plan_for_real_files_has_a_row_for_every_format_that_has_none() {
+    let text = std::fs::read_to_string(conformance_dir().join("real_files_plan.tsv")).unwrap();
+    let mut lines = text.lines();
+    assert_eq!(
+        lines.next().unwrap(),
+        "format\tnow\ttool\thow\twhere\teffort\tnote"
+    );
+    let rows = table();
+    let mut planned = BTreeMap::new();
+    for line in lines.filter(|line| !line.trim().is_empty()) {
+        let mut cells: Vec<&str> = line.split('\t').collect();
+        // the note may be empty, and editors drop the tab before it
+        if cells.len() == 6 {
+            cells.push("");
+        }
+        assert_eq!(cells.len(), 7, "a row has seven cells: {line:?}");
+        assert!(
+            ["easy", "medium", "hard", "blocked"].contains(&cells[5]),
+            "{}: effort is easy, medium, hard or blocked",
+            cells[0]
+        );
+        assert!(
+            !cells[2].is_empty() && !cells[3].is_empty() && !cells[4].is_empty(),
+            "{}: a row names a tool, how to use it and where to get it",
+            cells[0]
+        );
+        assert!(
+            planned.insert(cells[0].to_owned(), cells[1].to_owned()).is_none(),
+            "{}: twice in the plan",
+            cells[0]
+        );
+    }
+    let wanted: BTreeSet<&String> = rows
+        .iter()
+        .filter(|(_, row)| matches!(row.status.as_str(), "crafted" | "none" | "failing"))
+        .map(|(name, _)| name)
+        .collect();
+    let named: BTreeSet<&String> = planned.keys().collect();
+    let missing: Vec<_> = wanted.difference(&named).collect();
+    let extra: Vec<_> = named.difference(&wanted).collect();
+    assert!(
+        missing.is_empty() && extra.is_empty(),
+        "real_files_plan.tsv: formats without a row {missing:?}, rows for formats that are done or part of another {extra:?}"
+    );
+    for (name, now) in &planned {
+        assert_eq!(
+            rows.get(name).map(|row| row.status.as_str()),
+            Some(now.as_str()),
+            "{name}: the plan says it is `{now}`"
+        );
+    }
+}
+
 /// The table of directories and the formats that are tested, as the README
 /// shows it (`gallery_table.py --readme` writes it).
 fn readme_block(rows: &BTreeMap<String, Row>) -> String {
