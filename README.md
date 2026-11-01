@@ -129,7 +129,7 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `cab` | Microsoft Cabinet files: the folders, the file entries and the data blocks |
 | `sevenzip` | 7-Zip archives: the signature header, and the packed streams and the next header as bytes |
 | `tga_image` | TGA images: the header, the colour map, the image data as bytes and, in a file of version 2, the footer, the extension area (only when there is one) and the developer directory |
-| `mar_archive` | Mozilla ARchives (`.mar`), with or without the size and signatures that the gallery's `mozilla_mar` always reads (the files of the Python package `mar` have none): the index and the files in it |
+| `mar_archive` | Mozilla update archives (`.mar`), with or without the size and signatures that the gallery's `mozilla_mar` always reads (the files of the Python package `mar` have none): the index and the files in it |
 | `efi_signature_list` | UEFI signature lists (`.esl`, as `cert-to-efi-sig-list` writes them) without the 4 bytes of attributes that the file of an EFI variable (the gallery's `efivar_signature_list`) starts with |
 | `zip_archive` | ZIP archives (and `.jar`, `.apk`, `.docx`...): the entries read from the central directory, with their local headers and data; an archive with a comment is not read |
 
