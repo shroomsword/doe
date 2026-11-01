@@ -1,0 +1,129 @@
+id: mar_archive
+doc: |
+  Mozilla ARchive (.mar, the update packages of Firefox and Thunderbird), with or without the signature section: the header, the signatures, the index and the files in it
+# Covers: the magic and the offset of the index, in the file of the newer form (signed or not, as `mar` of Mozilla's
+#   build tools writes it when it signs) the size of the file, the signatures and the additional sections
+#   (the product information block is read), and the index with its entries (offset, size, permissions, name) and,
+#   for each, the bytes of the file.
+# Why not the definition of the gallery (`mozilla_mar`): it always reads the size of the file, the number of
+#   signatures and the number of additional sections after the offset of the index. The MAR files that the Python
+#   package `mar` writes (and the first MAR files, before updates were signed) have only "MAR1" and the offset of the
+#   index; the first file starts at byte 8, and the gallery's definition reads the beginning of that file as the
+#   size and the number of signatures (a text file gives a buffer overrun). The two forms cannot be told apart by a
+#   field, so this type looks at where the size would be: in the newer form the 8 bytes at offset 8 are the size of
+#   the file, which is the size of the input; otherwise there is no such section.
+# Limits: the names are UTF-8 (as the gallery's); the files are bytes; a signature is bytes.
+# Detection: the type starts with "MAR1" like the gallery's `mozilla_mar`; both match, and the one that reads the file
+#   is the one to use (`doe FILE mar_archive` to choose this one).
+# Specification: https://wiki.mozilla.org/Software_Update:MAR
+meta:
+  id: mar_archive
+  file-extension: mar
+  endian: be
+seq:
+  - id: magic
+    contents: "MAR1"
+  - id: ofs_index
+    type: u4
+    doc: Where the index is (it follows the files).
+instances:
+  size_field:
+    pos: 8
+    type: u8
+    if: _io.size >= 16
+    doc: What would be the size of the file in the newer form.
+  is_newer_form:
+    value: '_io.size >= 16 and size_field == _io.size'
+    doc: Whether the file has the size, the signatures and the additional sections after the offset of the index.
+  newer_header:
+    pos: 8
+    type: newer_header
+    if: is_newer_form
+  index:
+    pos: ofs_index
+    type: mar_index
+types:
+  newer_header:
+    seq:
+      - id: file_size
+        type: u8
+      - id: num_signatures
+        type: u4
+      - id: signatures
+        type: signature
+        repeat: expr
+        repeat-expr: num_signatures
+      - id: num_additional_sections
+        type: u4
+      - id: additional_sections
+        type: additional_section
+        repeat: expr
+        repeat-expr: num_additional_sections
+  signature:
+    seq:
+      - id: algorithm
+        type: u4
+        enum: signature_algorithm
+      - id: len_signature
+        type: u4
+      - id: signature
+        size: len_signature
+  additional_section:
+    seq:
+      - id: len_block
+        type: u4
+        doc: The size of the section, with this field and the identifier.
+      - id: block_identifier
+        type: u4
+        enum: block_identifier
+      - id: body
+        size: len_block - 8
+        type:
+          switch-on: block_identifier
+          cases:
+            block_identifier::product_information: product_information
+  product_information:
+    seq:
+      - id: mar_channel_name
+        size: 64
+        type: strz
+        encoding: UTF-8
+      - id: product_version
+        size: 32
+        type: strz
+        encoding: UTF-8
+  mar_index:
+    seq:
+      - id: len_index
+        type: u4
+      - id: entries
+        type: index_entries
+        size: len_index
+  index_entries:
+    seq:
+      - id: entries
+        type: index_entry
+        repeat: eos
+  index_entry:
+    seq:
+      - id: ofs_content
+        type: u4
+      - id: len_content
+        type: u4
+      - id: flags
+        type: u4
+        doc: The permission bits of the file, as on Unix.
+      - id: file_name
+        type: strz
+        encoding: UTF-8
+    instances:
+      body:
+        pos: ofs_content
+        io: _root._io
+        size: len_content
+enums:
+  signature_algorithm:
+    1: rsa_pkcs1_sha1
+    2: rsa_pkcs1_sha384
+  block_identifier:
+    1: product_information

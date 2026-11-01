@@ -4,7 +4,6 @@ archive/rar	crafted	rar	rar a x.rar files	apt: rar (non-free tool; the file it w
 archive/rpm	crafted	rpmbuild	rpmbuild -bb on a spec with a few files, no dependencies	apt: rpm	easy
 archive/phar_without_stub	crafted	php	php -d phar.readonly=0 with the Phar class, then the part after the stub	apt: php-cli	easy	a phar always has a stub: the definition reads what follows it
 archive/android_dto	crafted	mkdtboimg	dtc to make the .dtbo files, then mkdtboimg.py create	AOSP libufdt (python script); apt: device-tree-compiler	medium
-archive/mozilla_mar	crafted	mar	mar -c x.mar files (pip install mar, Mozilla's build-mar)	pip: mar	easy
 archive/android_bootldr_asus	crafted	vendor firmware	extract bootloader.img from an ASUS Fugu (Nexus Player) factory image	factory image from the vendor	hard	no public packer; the file is fetched by hash and not committed
 archive/android_bootldr_huawei	crafted	vendor firmware	extract the packed bootloader from a Huawei firmware update	firmware update from the vendor	hard	no public packer; fetched by hash, not committed
 archive/android_bootldr_qcom	crafted	vendor firmware	extract bootloader-*.img from a Nexus factory image (older Qualcomm devices)	factory image from the vendor	hard	no public packer; fetched by hash, not committed
@@ -96,12 +95,10 @@ network/rtpdump	crafted	rtpdump	rtpdump -F dump -o x.rtpdump from the rtptools, 
 network/some_ip/some_ip	crafted	vsomeip	the examples of vsomeip (COVESA) on loopback with tcpdump, or the SOME/IP layer of scapy	apt: libvsomeip3; pip: scapy	medium
 network/some_ip/some_ip_container	crafted	vsomeip	same	apt: libvsomeip3	medium
 network/some_ip/some_ip_sd	crafted	vsomeip	service discovery messages of the vsomeip examples	apt: libvsomeip3	medium
-network/tls_client_hello	crafted	openssl	tcpdump while openssl s_client -connect localhost:4433 (the first record)	apt: openssl, tcpdump	easy
 scientific/nt_mdt/nt_mdt	crafted	Gwyddion test data	a file of the public sets of data that Gwyddion's tests use	gwyddion.net	hard	the software that writes it is Windows only
 scientific/nt_mdt/nt_mdt_pal	crafted	NT-MDT software	palette files that the software installs	the software	hard
 scientific/spectroscopy/avantes_roh60	crafted	AvaSoft	save a spectrum in the ROH format with AvaSoft (Windows)	the software	hard
 scientific/spectroscopy/specpr	crafted	specpr	the USGS specpr program (Fortran, open source) writes a file	USGS specpr	medium
-security/efivar_signature_list	crafted	efitools	openssl req -x509 ...; cert-to-efi-sig-list -g GUID cert.pem x.esl	apt: efitools	easy
 serialization/chrome_pak	crafted	pak_util	grit or pak_util.py create of Chromium's tools	Chromium tools/grit	medium
 serialization/ruby_marshal	crafted	ruby	ruby -e 'File.binwrite("x", Marshal.dump(...))'	apt: ruby	easy
 windows/regf	none	hivex	hivexregedit --merge --prefix x x.hive in.reg, on a hive made by hivexsh	apt: libhivex-bin	blocked	the definition lays the nk record out differently from a real hive

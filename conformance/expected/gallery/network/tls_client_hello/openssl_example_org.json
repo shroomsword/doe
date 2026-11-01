@@ -1,0 +1,127 @@
+{
+  "ciphersuites": {
+    "ciphersuites": [
+      4866,
+      4867,
+      4865,
+      49196,
+      49200,
+      159,
+      52393,
+      52392,
+      52394,
+      49195,
+      49199,
+      158,
+      49188,
+      49192,
+      107,
+      49187,
+      49191,
+      103,
+      49162,
+      49172,
+      57,
+      49161,
+      49171,
+      51,
+      157,
+      156,
+      61,
+      60,
+      53,
+      47
+    ],
+    "len": 60
+  },
+  "compressionmethods": {
+    "compressionmethods": "00",
+    "len": 1
+  },
+  "extensions": {
+    "extensions": [
+      {
+        "body": "00",
+        "len": 1,
+        "type": 65281
+      },
+      {
+        "body": {
+          "listlength": 14,
+          "servernames": [
+            {
+              "hostname": "6578616d706c652e6f7267",
+              "length": 11,
+              "nametype": 0
+            }
+          ]
+        },
+        "len": 16,
+        "type": 0
+      },
+      {
+        "body": "03000102",
+        "len": 4,
+        "type": 11
+      },
+      {
+        "body": "001011ec001d0017001e0018001901000101",
+        "len": 18,
+        "type": 10
+      },
+      {
+        "body": "",
+        "len": 0,
+        "type": 35
+      },
+      {
+        "body": "",
+        "len": 0,
+        "type": 22
+      },
+      {
+        "body": "",
+        "len": 0,
+        "type": 23
+      },
+      {
+        "body": "003409050906090404030503060308070808081a081b081c0809080a080b080408050806040105010601030303010302040205020602",
+        "len": 54,
+        "type": 13
+      },
+      {
+        "body": "0403040303",
+        "len": 5,
+        "type": 43
+      },
+      {
+        "body": "0101",
+        "len": 2,
+        "type": 45
+      },
+      {
+        "body": "04e811ec04c0a52c7b0f384db3eca5b5084712dc8ae21a7aecba13d8d7bc73188cb5d334a0fa6e7771ac11bc85179333b42127d7d21b7aea252f5638a4db967bf66652b41df336818a9397dad548b9662233431de8140f1f2c851f00352c70a4b5ec00529b0be05327d8f51def2b3a9b0198680c0c1266cde4f316574602472582c6d6aa1555afe0767bce0431b74149c647bfd948831fb823d080aa03520a387a3db582c32008245b463c8bc7a2e61bbdbe236094eb5e225074b0e72898cc6bdef7cd25406b54e5455cd459ff3a6e96d02714338fc4f21610433cf2249e832b854d9a85d8e8707bb05555e77307a0315d2956ababa69a7aca8396c4f5e19658fbaa5ed06597b2b5f710aa799a1fb0e5b839776fd574899405a2430ba27d90561bb3c49a62010d82afa10181e7795ecba47c5f92b3fd661aac4b6672dc863b03ccdcd9893f2b165944625346bcacf04b1af4a7fff8cd777109927320160b06f3855a859883d4888a29bb8218180936698f97307b59f4ae395999b2f0cd58a8cc2b166364f3bae3b81029b468ae3c2d223c849bb01a8f2c99ae8aaf3952be1018323eb07412e9ccfe9aa327e1a1c3c29a13942c68d70606ec81a1664d4c7828ecd594103ccc3f1629f0662ab1481d6c980cadd78cdb6b38009122d0a14f2efa4d570bbad7aa43c8416dd06612e619ce455485ba99a6daa58995c1cc4ae74aca4b303bf836a196532cb456691a20037c294790720e33af030cd071d08154c71e3e7778bf252eed6118e2556774d701d1849daf322ba21479bfd388ff941afc104d25c22f83f3384534aa489b76e15575b51111e6b9068b4334d1174e7f24be6af1c1c9443084593a54e46daa2a6b8c4a5a82450d3ac6a8a8665e6593481079ca0ffc26e8d77d9ff29c66a70ad4fab14ec12acf283eed0a42e60328f5054459a9c2c0ab0d5b436358c27596723785ca13147534fc5c68127cc5b5ba76cf3a04745c557db1b8fe841f40ca40af84bfaef1b26f14842f9b9c5fb3aa0f195ef86bb33eb595f53ca754061205e672e17657215785149c186cb36690e10abda45d20bc9ed895687a8482d5688db05056111235dcc1598fd483aea2284007cfb42533eb588686c183d7f5a0b8d1c784f3379daa17b34a6999e678502963618a40d0743b9cb593768a8c2fe5bc0d98b4f0924930a44a16848d62b4115a58930408bd26e2560f24433c603547256d339b4fbad58ec2c3885ca998a104671e061de3a6c20dc997ebaa5fa27a96a77011c59134a27b081b80539cb351d3b84c5c5abceb75041ae3a95c52028339370cf69021934cd7a397de87c217d97e5b469f8afbc722236852f9a90f8bae17f88cbfd998e46b1d52529b470abad8022bed447b80d59ec43813b401ca5a502ec95a586e1aa7c5e84e2741bff9f00bc0388d8bf6441242222d0a66737c78ebe8a555514290e5031a462667a9a6b7e6cfe5ca65feb1b7bff16662f0b9cf75831c26abe94a301e4cc724db6766a52186587d2ffa561f51a4904593b615302bba831b566ca7e706d2d3279df3b3827407a15292b4965eaa038eaf2abba94101dab66e664b51b4f00731d97e46e82360a7c43b8876298319106560c9c658f4903775a70339d0d2a79f91294583a16bd9fbd0a96a2bf78ccda781d5e45bedf560a5ba32a7e2bf2d7c2b93a2ef69ca12b6116cf79f93eeaa52a9c99801a8cf0a4b67001d0020dcd6d7a2f10fd5a6524b6b7908fa919a60396da7113f1a88b36577d08575b428",
+        "len": 1258,
+        "type": 51
+      },
+      {
+        "body": "0400010003",
+        "len": 5,
+        "type": 27
+      }
+    ],
+    "len": 1411
+  },
+  "random": {
+    "gmtunixtime": 1156228751,
+    "random": "ac753086c3920d6618662813aa4e3a62795cbff7109746d8ba0f6e97"
+  },
+  "sessionid": {
+    "len": 32,
+    "sid": "afd8d160a69dce0304e7398168b0b7cae353fbef6cd85db0e2f6e26baf71cef9"
+  },
+  "version": {
+    "major": 3,
+    "minor": 3
+  }
+}

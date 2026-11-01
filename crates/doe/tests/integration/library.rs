@@ -534,6 +534,77 @@ fn tga_image_has_the_colour_map_the_data_and_what_the_footer_points_to() {
     assert_eq!(entry["data"]["hex"], "646f652d64617461");
 }
 
+fn decode_real(type_name: &str, sample: &str) -> Json {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../conformance/samples_without_reference")
+        .join(sample);
+    let text = parse_file(
+        &path,
+        type_name,
+        &[types()],
+        Some(Path::new("/nonexistent/config.toml")),
+        OutputFormat::Json,
+    )
+    .unwrap_or_else(|e| panic!("{sample}: {e}"));
+    serde_json::from_str(&text).unwrap()
+}
+
+#[test]
+fn mar_archive_reads_the_form_with_signatures() {
+    let v = decode("mar_archive", "sample.mar");
+    assert_eq!(v["is_newer_form"], true);
+    assert_eq!(v["newer_header"]["num_signatures"], 1);
+    assert_eq!(
+        v["newer_header"]["signatures"][0]["algorithm"]["name"],
+        "rsa_pkcs1_sha1"
+    );
+    let block = &v["newer_header"]["additional_sections"][0]["body"];
+    assert_eq!(block["mar_channel_name"], "release");
+    assert_eq!(block["product_version"], "1.2.3");
+    let entries = &v["index"]["entries"]["entries"];
+    assert_eq!(entries[1]["file_name"], "dir/b.bin");
+    assert_eq!(entries[0]["body"]["hex"], "68656c6c6f206d61720a");
+}
+
+/// The MAR files of the Python package `mar` have only the magic and the offset of the index (#278): the gallery's
+/// `mozilla_mar` reads the start of the first file as the size and the number of signatures.
+#[test]
+fn mar_archive_reads_the_file_that_mar_writes_without_signatures() {
+    let v = decode_real("mar_archive", "archive/mozilla_mar/mar_two_files.bin");
+    assert_eq!(v["is_newer_form"], false);
+    assert!(v["newer_header"].is_null());
+    let entries = &v["index"]["entries"]["entries"];
+    assert_eq!(entries.as_array().unwrap().len(), 2);
+    assert_eq!(entries[0]["file_name"], "a.txt");
+    assert_eq!(entries[0]["ofs_content"], 8);
+    assert_eq!(entries[0]["len_content"], 400);
+    assert_eq!(entries[1]["file_name"], "b.bin");
+    assert_eq!(entries[1]["body"]["len"], 700);
+}
+
+/// The list that `cert-to-efi-sig-list` writes has no 4 bytes of attributes at its start (#278): the gallery's
+/// `efivar_signature_list` is of the file of an EFI variable, which has them.
+#[test]
+fn efi_signature_list_reads_the_list_that_efitools_writes() {
+    let v = decode_real(
+        "efi_signature_list",
+        "security/efivar_signature_list/efitools_x509.bin",
+    );
+    let list = &v["lists"][0];
+    assert_eq!(list["is_x509"], true);
+    assert_eq!(list["len_signature_list"], 827);
+    assert_eq!(list["len_signature_header"], 0);
+    assert_eq!(
+        list["signatures"][0]["owner"]["hex"],
+        "11111111222233334444555555555555"
+    );
+    // a certificate in DER starts with a sequence
+    assert_eq!(
+        &list["signatures"][0]["data"]["hex"].as_str().unwrap()[..2],
+        "30"
+    );
+}
+
 /// The files that Pillow writes have the footer and no extension area (the offset is zero): the gallery's definition
 /// reads one at offset 0 (#275); this type does not, and has all the pixels as the image data.
 #[test]

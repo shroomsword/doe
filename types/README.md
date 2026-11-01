@@ -35,6 +35,8 @@ here; the others are left out, with the reason (a format that is in scope and no
 | ZIP | `zip` | **library** (`zip_archive`: read from the central directory, so streamed archives and the central extended timestamp that Info-ZIP writes read; the gallery's `zip` cannot read those, see below) |
 | 7z | none | **library** (`sevenzip`: the signature header; the next header is bytes; an identifier cannot start with a digit) |
 | TGA | `tga` | **library** (`tga_image`: the gallery's `tga` reads an extension area at the offset in the footer even when it is zero, which is how Pillow, ImageMagick and others say there is none, so it reads the pixels as an author name and comments; this type reads the area only when there is one) |
+| Mozilla MAR | `mozilla_mar` | **library** (`mar_archive`: the gallery's definition always reads the size of the file, the signatures and the sections after the offset of the index; the files of the Python package `mar` have none of them, and the first file starts at byte 8) |
+| UEFI signature list (`.esl`) | `efivar_signature_list` | **library** (`efi_signature_list`: the gallery's definition is of the file of an EFI variable, which starts with 4 bytes of attributes; the lists that efitools writes do not) |
 | TIFF | `exif` reads the TIFF structure (header, IFDs) | not needed: use `exif` |
 | HEIF / AVIF / MP4 (ISO base media) | `quicktime_mov` reads the box structure | not needed: use `quicktime_mov` for the boxes |
 | Matroska / WebM | none | out: EBML ids and sizes are variable-length numbers whose width is in their first bits; the schema language has no way to say that without a type per width, which is the `vlq` kind of workaround and not worth it for 100+ element ids |

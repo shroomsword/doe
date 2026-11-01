@@ -1,0 +1,61 @@
+id: efi_signature_list
+doc: |
+  UEFI signature lists (EFI_SIGNATURE_LIST, the .esl files that efitools writes), as they are before they are put in a variable: the lists, their headers and their signatures
+# Covers: a sequence of EFI_SIGNATURE_LIST structures, each with the signature type (a GUID), the sizes, the header and
+#   the signatures (the owner GUID of each and its data, the certificate or the hash as bytes).
+# Why not the definition of the gallery (`efivar_signature_list`): it reads the file of a UEFI variable as the kernel
+#   shows it in efivarfs, which starts with the 4 bytes of the variable's attributes. The lists that `cert-to-efi-sig-list`
+#   and `hash-to-efi-sig-list` of efitools write (and that `sign-efi-sig-list` signs) are the lists alone, so the gallery's
+#   definition reads the first 4 bytes of the list as attributes and everything after them 4 bytes late.
+# Limits: the data of a signature is bytes (an X.509 certificate is DER: read it with `x509`/`asn1_der` where it is
+#   needed); the signature header is bytes (it is empty for all the types of the specification except a few vendor ones).
+# Detection: the type has no signature at the start, so it is tried for a file whose name ends in one of its
+#   extensions, or with `--detect all`.
+# Specification: UEFI Specification 2.8, section 32.4.1 (EFI_SIGNATURE_LIST).
+meta:
+  id: efi_signature_list
+  file-extension: esl
+  endian: le
+seq:
+  - id: lists
+    type: signature_list
+    repeat: eos
+types:
+  signature_list:
+    seq:
+      - id: signature_type
+        size: 16
+        doc: The kind of signature, as a GUID in the byte order of the file.
+      - id: len_signature_list
+        type: u4
+        doc: The size of the list, with this header.
+      - id: len_signature_header
+        type: u4
+      - id: len_signature
+        type: u4
+        doc: The size of each signature (the owner GUID and the data).
+      - id: header
+        size: len_signature_header
+      - id: signatures
+        size: len_signature
+        type: signature_data
+        repeat: expr
+        repeat-expr: '(len_signature_list - len_signature_header - 28) / len_signature'
+        if: len_signature > 0
+    instances:
+      is_x509:
+        value: 'signature_type == [0xa1, 0x59, 0xc0, 0xa5, 0xe4, 0x94, 0xa7, 0x4a, 0x87, 0xb5, 0xab, 0x15, 0x5c, 0x2b, 0xf0, 0x72]'
+        doc: EFI_CERT_X509_GUID, an X.509 certificate.
+      is_sha256:
+        value: 'signature_type == [0x26, 0x16, 0xc4, 0xc1, 0x4c, 0x50, 0x92, 0x40, 0xac, 0xa9, 0x41, 0xf9, 0x36, 0x93, 0x43, 0x28]'
+        doc: EFI_CERT_SHA256_GUID, a SHA-256 hash.
+      is_rsa2048:
+        value: 'signature_type == [0xe8, 0x66, 0x57, 0x3c, 0x9c, 0x26, 0x34, 0x4e, 0xaa, 0x14, 0xed, 0x77, 0x6e, 0x85, 0xb3, 0xb6]'
+        doc: EFI_CERT_RSA2048_GUID, an RSA-2048 key (the modulus).
+  signature_data:
+    seq:
+      - id: owner
+        size: 16
+        doc: The GUID of whoever added the signature.
+      - id: data
+        size-eos: true
