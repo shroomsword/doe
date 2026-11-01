@@ -40,7 +40,6 @@ firmware/andes_firmware	crafted	linux-firmware	mediatek/mt7601u.bin from the lin
 firmware/broadcom_trx	crafted	trx	trx -o x.trx kernel rootfs (OpenWrt firmware-utils)	OpenWrt firmware-utils	medium
 firmware/uf2	crafted	uf2conv	uf2conv.py -c -b 0x2000 -o x.uf2 in.bin	Microsoft uf2 repository	easy
 font/pcf_font	crafted	bdftopcf	bdftopcf -o x.pcf in.bdf, or the .pcf.gz fonts of xfonts-base as they are	apt: xfonts-utils, xfonts-base	easy
-font/ttf	crafted	fonttools	pyftsubset DejaVuSansMono.ttf --text=ABC --output-file=x.ttf	pip: fonttools; apt: fonts-dejavu-core (free licence)	easy	a font of fontTools cannot be read by the reference compiler: #276
 game/allegro_dat	crafted	dat	dat -a x.dat files (the Allegro 4 utility)	apt: allegro4 tools	medium
 game/doom_wad	crafted	freedoom	freedoom1.wad from Freedoom (BSD licence), or deutex -build	apt: freedoom	easy	large: fetched by hash
 game/dune_2_pak	crafted	game data	no packer is known; a PAK of the game's data	the game (not free)	hard
@@ -85,7 +84,6 @@ media/android_opengl_shaders_cache	crafted	Android emulator	adb pull the com.and
 media/avi	crafted	ffmpeg	ffmpeg -f lavfi -i testsrc=d=1 -f lavfi -i sine -c:v mjpeg x.avi	apt: ffmpeg	easy
 media/blender_blend	crafted	blender	blender -b --python-expr "bpy.ops.wm.save_as_mainfile(filepath='x.blend')"	apt: blender	easy	large: fetched by hash
 media/genmidi_op2	crafted	freedoom	the GENMIDI lump of freedoom1.wad	apt: freedoom	easy
-media/id3v2_4	crafted	mutagen	mutagen.id3 save(v2_version=4)	pip: mutagen	easy	a tag of mutagen cannot be read by the reference compiler: #276
 media/tracker_modules/fasttracker_xm_module	crafted	modarchive	a module of the Mod Archive that is released as public domain or Creative Commons (fetched by hash); no command line writer is known	modarchive.org	medium
 media/tracker_modules/s3m	crafted	modarchive	same	modarchive.org	medium
 network/bitcoin_transaction	crafted	bitcoin-cli	bitcoin-cli -regtest createrawtransaction ..., or the coinbase transaction of the genesis block	apt: bitcoind	medium

@@ -411,6 +411,12 @@ type, then in the types around it).
   repeat-expr: header.record_count
 ```
 
+A path from `_root` can go into a field whose type is still being read, as it
+can in the runtimes of Kaitai Struct that create an object before they read it
+(Java, C#, Python): in `size: _root.tag.header.size.value - _io.pos`, inside
+`tag`, the fields of `tag` that were read before are there. A field that has
+not been read yet is not (the JavaScript runtime has none of this).
+
 An element of a repeated field has to consume input under `repeat: eos` and
 `repeat: until`, or the field would repeat forever. Under `repeat: expr` it may
 take no bytes (the entry after a `long` in the constant pool of a Java class
@@ -898,7 +904,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 70 with a file written by its own tool, 105 with a file built by hand, 0 failing on a file, 9 part of another, 6 without a sample
+> 190 definitions: 72 with a file written by its own tool, 103 with a file built by hand, 0 failing on a file, 9 part of another, 6 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the

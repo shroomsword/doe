@@ -24,6 +24,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent / "samples" / "gallery"
 LIMIT = 64 * 1024
+UNREFERENCED = Path(__file__).resolve().parent / "samples_without_reference"
 made = []
 
 
@@ -35,6 +36,15 @@ def put(path, sample, data):
     (directory / f"{sample}.bin").write_bytes(data)
     if path not in made:
         made.append(path)
+
+
+def put_without_reference(path, sample, data):
+    """A file that the reference compiler cannot read: it is tested by fields written in conformance.rs."""
+    data = bytes(data)
+    assert 0 < len(data) <= LIMIT, f"{path}/{sample} is {len(data)} bytes"
+    directory = UNREFERENCED / path
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / f"{sample}.bin").write_bytes(data)
 
 
 # ── images (Pillow) ──────────────────────────────────────────────────────────
@@ -156,6 +166,37 @@ def make_ttf():
     put("font/ttf", "fonttools_two_squares", out.getvalue())
 
 
+# ── fonts (fontTools) ────────────────────────────────────────────────────────
+def make_ttf():
+    from fontTools.fontBuilder import FontBuilder
+    from fontTools.pens.ttGlyphPen import TTGlyphPen
+
+    def square():
+        pen = TTGlyphPen(None)
+        pen.moveTo((100, 0))
+        pen.lineTo((100, 700))
+        pen.lineTo((600, 700))
+        pen.lineTo((600, 0))
+        pen.closePath()
+        return pen.glyph()
+
+    # The glyphs have names that are not among the 258 standard ones: with the standard names only, the `post` table of
+    # format 2 has no names, and the definition reads one past its end (the report is in #276).
+    names = [".notdef", "doe_square", "doe_other"]
+    builder = FontBuilder(1000, isTTF=True)
+    builder.setupGlyphOrder(names)
+    builder.setupCharacterMap({65: "doe_square", 66: "doe_other"})
+    builder.setupGlyf({name: square() for name in names})
+    builder.setupHorizontalMetrics({name: (700, 100) for name in names})
+    builder.setupHorizontalHeader(ascent=800, descent=-200)
+    builder.setupNameTable({"familyName": "Doe Sample", "styleName": "Regular"})
+    builder.setupOS2(sTypoAscender=800, sTypoDescender=-200, usWinAscent=800, usWinDescent=200)
+    builder.setupPost()
+    out = io.BytesIO()
+    builder.save(out)
+    put("font/ttf", "fonttools_named_glyphs", out.getvalue())
+
+
 # ── tags, audio and music ────────────────────────────────────────────────────
 def make_id3():
     import mutagen.id3 as id3
@@ -169,7 +210,7 @@ def make_id3():
             id3.COMM(encoding=3, lang="eng", desc="", text="a comment"),
         ]
 
-    for version, name in [(3, "id3v2_3")]:  # (the reference parser fails on a v2.4 tag that mutagen writes)
+    for version, name in [(3, "id3v2_3")]:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "x.mp3"
             path.write_bytes(b"")
@@ -178,6 +219,16 @@ def make_id3():
                 tags.add(frame)
             tags.save(path, v2_version=version, v1=0)
             put(f"media/{name}", "mutagen_basic", path.read_bytes())
+    # ID3v2.4 with the padding that tags have: the reference compiler cannot read it (its JavaScript runtime has no
+    # `_root.tag` while the tag is read), so it is not in samples/ but in samples_without_reference/ (#276)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "x.mp3"
+        path.write_bytes(b"")
+        tags = id3.ID3()
+        for frame in frames():
+            tags.add(frame)
+        tags.save(path, v2_version=4, v1=0)
+        put_without_reference("media/id3v2_4", "mutagen_padded", path.read_bytes())
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "x.mp3"
         path.write_bytes(b"\xff\xfb\x90\x00" + bytes(64))
@@ -374,7 +425,7 @@ def make_network():
 
 
 ALL = [
-    make_images, make_exif, make_dicom, make_id3, make_wav, make_midi, make_vox, make_msgpack, make_bson, make_nbt, make_mcap,
+    make_images, make_exif, make_dicom, make_ttf, make_id3, make_wav, make_midi, make_vox, make_msgpack, make_bson, make_nbt, make_mcap,
     make_protobuf, make_gltf, make_stl, make_lnk, make_network,
 ]
 

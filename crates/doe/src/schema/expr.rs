@@ -1121,6 +1121,10 @@ struct Frame {
     keep: bool,
     /// The frame `_root` means: that of the outermost type of the schema the frame's type is from.
     root: usize,
+    /// The field of the frame's parent that this frame's type is being read for, so that `_root.tag.header` can reach
+    /// into `tag` while it is still being read (as it can in the runtimes of Kaitai Struct that create the object
+    /// before they read it).
+    field: Option<String>,
 }
 
 /// The stream the expression being evaluated is in.
@@ -1252,6 +1256,13 @@ impl EvalContext {
         }
         self.stack.push(id);
         id
+    }
+
+    /// Say which field of its parent the current frame's type is being read for.
+    pub fn name_frame(&mut self, field: Option<String>) {
+        if let Some(frame) = self.stack.last().and_then(|&id| self.frames.get_mut(id)) {
+            frame.field = field;
+        }
     }
 
     /// The frame `_parent` means in frame `frame`.
@@ -1407,12 +1418,51 @@ impl EvalContext {
                 }
             }
         }
+        // A path that goes into a field whose type is still being read: what it has read so far.
+        if let Some(found) = self.in_progress(frame_idx, rest, src) {
+            return found;
+        }
         if let Some(first) = parts.first()
             && self.lazy.contains(first)
         {
             return Err(fail(src, &format!("{WANTED_INSTANCE}{first}")));
         }
         Err(fail(src, &format!("unknown field '{}'", parts.join("."))))
+    }
+
+    /// The value at `rest` inside a field of frame `frame_idx` whose type is being read now (it is on the stack, and
+    /// is read for the field that `rest` starts with), from the fields that it has read already. `None` when there
+    /// is no such field, or it has not read that far.
+    fn in_progress<'a>(
+        &'a self,
+        frame_idx: usize,
+        rest: &[String],
+        src: &str,
+    ) -> Option<Result<Cow<'a, ExprValue>>> {
+        let (first, tail) = rest.split_first()?;
+        if tail.is_empty() {
+            return None;
+        }
+        let open = self.stack.iter().copied().find(|&id| {
+            self.frames.get(id).is_some_and(|frame| {
+                frame.parent == Some(frame_idx) && frame.field.as_deref() == Some(first.as_str())
+            })
+        })?;
+        let frame = self.frames.get(open)?;
+        for split in (1..=tail.len()).rev() {
+            let (Some(head), Some(members)) = (tail.get(..split), tail.get(split..)) else {
+                continue;
+            };
+            if let Some(value) = frame.vars.get(head.join(".").as_str()) {
+                return Some(apply_members(
+                    Cow::Borrowed(value),
+                    members,
+                    &self.resolved,
+                    src,
+                ));
+            }
+        }
+        self.in_progress(open, tail, src)
     }
 }
 

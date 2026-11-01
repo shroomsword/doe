@@ -94,6 +94,8 @@ pub struct ParseContext {
     /// The types being read by instances, with the stream and the position they are read at: an instance that
     /// would read the same again, inside itself, is not read.
     reading: Vec<(String, usize, usize, usize, Option<usize>)>,
+    /// The field being read, until the sub-type it is read as is entered (to name the frame of that type).
+    pending_field: Option<String>,
     /// Strings that were not valid in their encoding, in the order they were read.
     text_problems: Vec<TextProblem>,
     /// The string that was just read, if it was not valid.
@@ -195,9 +197,21 @@ impl ParseContext {
             partial: None,
             limits: None,
             reading: Vec::new(),
+            pending_field: None,
             text_problems: Vec::new(),
             pending_text: None,
         }
+    }
+
+    /// Say which field is being read: if it is read as a sub-type, the scope of that type has this name.
+    pub(crate) fn set_pending_field(&mut self, field: Option<&str>) {
+        self.pending_field = field.map(str::to_owned);
+    }
+
+    /// Give the scope that was just entered the name of the field it is read for.
+    pub(crate) fn name_scope(&mut self) {
+        let field = self.pending_field.take();
+        self.eval_ctx.name_frame(field);
     }
 
     /// Note that the string that was just read has data that is not valid in `encoding`, `at` bytes into it, and that
