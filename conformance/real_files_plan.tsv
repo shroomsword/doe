@@ -70,7 +70,6 @@ image/wmf	crafted	inkscape	inkscape in.svg --export-type=wmf	apt: inkscape	easy
 image/xwd	crafted	xwd	xvfb-run sh -c 'xwd -root -silent > x.xwd' (or convert)	apt: x11-apps, xvfb	easy
 log/aix_utmp	crafted	AIX	copy /etc/utmp of an AIX system	an AIX machine	hard
 log/hashcat_restore	crafted	hashcat	hashcat -m 0 --session s hash mask, interrupted with Ctrl-C: s.restore	apt: hashcat	easy
-log/mcap	crafted	mcap	the python mcap writer, or the mcap CLI of Foxglove	pip: mcap	easy	a file that the mcap writer made fails in doe: #274
 log/sudoers_ts	crafted	sudo	sudo -v on a machine with the tty timestamp type: /var/lib/sudo/ts/USER	apt: sudo	medium	needs root to read
 log/systemd_journal	crafted	systemd-journal-remote	printf export-format entries | systemd-journal-remote -o x.journal -	apt: systemd-journal-remote	easy
 log/windows_evt_log	crafted	Windows XP	copy a .evt of a Windows XP or 2003 system, or from the test data of libevt (LGPL)	a VM, or libevt test data	hard
