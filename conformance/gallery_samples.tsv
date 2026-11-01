@@ -104,7 +104,7 @@ image/pcx_dcx	crafted	image/pcx_dcx	built by make_samples_by_hand.py from the fo
 image/pif	crafted	image/pif	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/png	real	image/png	Pillow (the image library), run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
 image/psx_tim	crafted	image/psx_tim	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
-image/tga	crafted	image/tga	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the files that Pillow writes fail (the definition reads an extension area at offset 0): #275
+image/tga	real	image/tga	Pillow, run by make_real_samples_libs.py (the other files are built by hand)	MIT (this repository)	the files that Pillow writes have no extension area, and the definition reads one at offset 0 (the text is shown with replacement characters and doe says so): use the library's tga_image (#275)
 image/webp	real	image/webp	Pillow (the image library), run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
 image/wmf	crafted	image/wmf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 image/xwd	crafted	image/xwd	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	

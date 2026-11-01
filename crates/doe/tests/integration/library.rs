@@ -510,3 +510,59 @@ fn zip_archive_is_found_for_a_file_named_like_a_zip() {
     .unwrap();
     assert_eq!(found.chosen().map(|c| c.name.as_str()), Some("zip_archive"));
 }
+
+#[test]
+fn tga_image_has_the_colour_map_the_data_and_what_the_footer_points_to() {
+    let v = decode("tga_image", "sample.tga");
+    assert_eq!(v["image_type"]["name"], "color_mapped");
+    assert_eq!(
+        (v["width"].clone(), v["height"].clone()),
+        (2.into(), 2.into())
+    );
+    assert_eq!(v["image_id"]["hex"], "646f65");
+    assert_eq!(v["color_map"]["len"], 6);
+    assert_eq!(v["image_data"]["hex"], "00010100");
+    assert_eq!(v["top_to_bottom"], true);
+    assert_eq!(v["is_version_2"], true);
+    let extension = &v["extension_area"];
+    assert_eq!(extension["author_name"], "doe authors");
+    assert_eq!(extension["comments"][1], "second line");
+    assert_eq!(extension["software_version_number"], 301);
+    assert_eq!(extension["attributes_type"]["name"], "useful_alpha");
+    let entry = &v["developer_directory"]["entries"][0];
+    assert_eq!(entry["tag"], 0x0DE0);
+    assert_eq!(entry["data"]["hex"], "646f652d64617461");
+}
+
+/// The files that Pillow writes have the footer and no extension area (the offset is zero): the gallery's definition
+/// reads one at offset 0 (#275); this type does not, and has all the pixels as the image data.
+#[test]
+fn tga_image_reads_the_files_pillow_writes_that_have_no_extension_area() {
+    let dir =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../conformance/samples/gallery/image/tga");
+    for (name, pixels) in [
+        ("pillow_rgb_raw.bin", Some(16 * 16 * 3)),
+        ("pillow_rgb_rle.bin", None),
+    ] {
+        let text = parse_file(
+            &dir.join(name),
+            "tga_image",
+            &[types()],
+            Some(Path::new("/nonexistent/config.toml")),
+            OutputFormat::Json,
+        )
+        .unwrap_or_else(|e| panic!("{name}: {e}"));
+        let v: Json = serde_json::from_str(&text).unwrap();
+        assert_eq!(v["is_version_2"], true, "{name}");
+        assert_eq!(v["footer"]["ofs_extension_area"], 0, "{name}");
+        assert!(v["extension_area"].is_null(), "{name}");
+        assert!(v["developer_directory"].is_null(), "{name}");
+        assert_eq!(v["width"], 16, "{name}");
+        // the image data ends where the footer starts; a run-length encoded image has fewer or more bytes than pixels
+        let size = std::fs::metadata(dir.join(name)).unwrap().len();
+        assert_eq!(v["image_data"]["len"], size - 18 - 26, "{name}");
+        if let Some(pixels) = pixels {
+            assert_eq!(v["image_data"]["len"], pixels, "{name}");
+        }
+    }
+}

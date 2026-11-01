@@ -281,6 +281,34 @@ def sevenzip() -> bytes:
     return b"7z\xbc\xaf\x27\x1c" + bytes([0, 4]) + struct.pack("<I", zlib.crc32(start)) + start + next_header
 
 
+def tga_image() -> bytes:
+    """A TGA file of version 2 with an image id, a colour map of two 24-bit entries, a 2x2 image of indexes, the
+    developer directory with one entry, the extension area and the footer."""
+    image_id = b"doe"
+    color_map = bytes([0, 0, 255, 0, 255, 0])  # blue, green, red order of the entries as stored: B G R
+    pixels = bytes([0, 1, 1, 0])
+    header = struct.pack("<BBBHHBHHHHBB", len(image_id), 1, 1, 0, 2, 24, 0, 0, 2, 2, 8, 0x20)
+    body = header + image_id + color_map + pixels
+    developer_data = b"doe-data"
+    developer_at = len(body)
+    data_at = developer_at + 2 + 10  # the data follows the one entry of the directory
+    body += struct.pack("<H", 1) + struct.pack("<HII", 0x0DE0, data_at, len(developer_data)) + developer_data
+
+    def text(value, size):
+        return value.encode() + bytes(size - len(value))
+
+    extension = struct.pack("<H", 495) + text("doe authors", 41)
+    for line in ("first line", "second line", "", ""):
+        extension += text(line, 81)
+    extension += struct.pack("<6H", 10, 26, 2024, 13, 45, 30) + text("a job", 41) + struct.pack("<3H", 1, 2, 3)
+    extension += text("doe", 41) + struct.pack("<HB", 301, ord("b")) + struct.pack("<I", 0xFF102030)
+    extension += struct.pack("<4H", 1, 1, 22, 10) + struct.pack("<III", 0, 0, 0) + bytes([3])
+    assert len(extension) == 495, len(extension)
+    extension_at = len(body)
+    body += extension
+    return body + struct.pack("<II", extension_at, developer_at) + b"TRUEVISION-XFILE.\x00"
+
+
 def zip_archive() -> bytes:
     """An archive written the way Info-ZIP's `zip` writes one: a directory and a file with an extended timestamp
     (0x5455) that has the modification and access times in the local header but only the modification time in the
@@ -351,3 +379,4 @@ if __name__ == "__main__":
     put("sample.cab", cab())
     put("sample.7z", sevenzip())
     put("sample.zip", zip_archive())
+    put("sample.tga", tga_image())
