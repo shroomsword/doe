@@ -32,15 +32,17 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent / "samples" / "gallery"
+# real files that the gallery's definition cannot read but a type of the library does
+WITHOUT_REFERENCE = Path(__file__).resolve().parent / "samples_without_reference"
 LIMIT = 64 * 1024
 made = []
 skipped = []
 
 
-def put(path, sample, data):
+def put(path, sample, data, root=None):
     data = bytes(data)
     assert 0 < len(data) <= LIMIT, f"{path}/{sample} is {len(data)} bytes"
-    directory = ROOT / path
+    directory = (root or ROOT) / path
     directory.mkdir(parents=True, exist_ok=True)
     (directory / f"{sample}.bin").write_bytes(data)
     if path not in made:
@@ -233,7 +235,7 @@ def make_mar():
         (Path(tmp) / "b.bin").write_bytes(BYTES[:700])
         out = Path(tmp) / "x.mar"
         run([str(mar), "-c", str(out), "a.txt", "b.bin"], cwd=tmp)
-        put("archive/mozilla_mar", "mar_two_files", out.read_bytes())
+        put("archive/mozilla_mar", "mar_two_files", out.read_bytes(), WITHOUT_REFERENCE)
 
 
 def make_android():
@@ -336,7 +338,7 @@ def make_efi():
         run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", str(key), "-out", str(cert), "-days", "3650", "-subj", "/CN=doe sample/"])
         out = Path(tmp) / "x.esl"
         run(["cert-to-efi-sig-list", "-g", "11111111-2222-3333-4444-555555555555", str(cert), str(out)])
-        put("security/efivar_signature_list", "efitools_x509", out.read_bytes())
+        put("security/efivar_signature_list", "efitools_x509", out.read_bytes(), WITHOUT_REFERENCE)
 
 
 def make_gpg():
@@ -454,6 +456,19 @@ def make_ffmpeg():
         encode("x.voc", "ffmpeg_pcm_u8", "media/creative_voice_file", [*audio, "-c:a", "pcm_u8", "-f", "voc"])
 
 
+def make_avi():
+    # not in ALL: the definition of the gallery does not skip the padding byte after a chunk of odd size (#278); ffmpeg
+    # writes the "Lavf" text of its ISFT entry, 13 bytes, and a pad byte after it
+    exe = ffmpeg()
+    video = ["-f", "lavfi", "-i", "testsrc=size=32x32:rate=5:duration=0.6"]
+    audio = ["-f", "lavfi", "-i", "sine=frequency=440:duration=0.2:sample_rate=8000"]
+    quiet = ["-v", "error", "-y", "-bitexact", "-fflags", "+bitexact"]
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "x.avi"
+        run([exe, *quiet, *video, *audio, "-c:v", "mjpeg", "-q:v", "10", "-c:a", "pcm_s16le", "-f", "avi", str(out)])
+        put("media/avi", "ffmpeg_mjpeg_pcm", out.read_bytes())
+
+
 # ── network (the libraries write the frames) ─────────────────────────────────
 def make_websocket():
     from websockets.frames import Frame, Opcode
@@ -465,6 +480,13 @@ def make_websocket():
     put("network/websocket", "websockets_ping", Frame(Opcode.PING, b"ok", True).serialize(mask=True))
 
 
+def client_hello_body(record):
+    # OpenSSL writes a TLS record (5 bytes: type 22, version, length) with a handshake message in it (4 bytes: type 1,
+    # length); the gallery's definition is of the body of the ClientHello alone, so the 9 bytes are cut off
+    assert record[0] == 22 and record[5] == 1 and len(record) == 5 + int.from_bytes(record[3:5], "big"), "not one ClientHello record"
+    return record[9:]
+
+
 def make_tls():
     # OpenSSL writes the ClientHello that a client sends first: a memory BIO, no network
     context = ssl.create_default_context()
@@ -474,7 +496,7 @@ def make_tls():
         connection.do_handshake()
     except ssl.SSLWantReadError:
         pass
-    put("network/tls_client_hello", "openssl_example_org", outgoing.read())
+    put("network/tls_client_hello", "openssl_example_org", client_hello_body(outgoing.read()))
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.maximum_version = ssl.TLSVersion.TLSv1_2
     incoming, outgoing = ssl.MemoryBIO(), ssl.MemoryBIO()
@@ -483,19 +505,23 @@ def make_tls():
         connection.do_handshake()
     except ssl.SSLWantReadError:
         pass
-    put("network/tls_client_hello", "openssl_tls12", outgoing.read())
+    put("network/tls_client_hello", "openssl_tls12", client_hello_body(outgoing.read()))
 
 
 ALL = [
     make_gettext, make_dtb, make_uimage, make_cc65, make_tap, make_xar, make_zchunk, make_zisofs, make_android,
     make_partition_tables, make_gpg, make_msi, make_windres, make_php,
-    make_dbf_shapefile, make_ffmpeg, make_websocket,
+    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi,
 ]
 
-# Not made (make_apm: the map lists a free partition up to the end of the disk, and the definition reads each partition, so a sample would be 1 MiB; make_vfat: the volume label entry that mkfs.fat writes has a date of zero, which dos_datetime does not allow): files that the reference compiler cannot read, and doe cannot either (the definitions do not fit what the tools
-# write; see the issue of the real files): a MAR of `mar`, a LUKS1 header (its key material is 256000 bytes, past the limit of a
-# sample), an X11 PCF font (make_pcf), an AVI of ffmpeg (the next lines), a TLS ClientHello of OpenSSL (make_tls) and an EFI
-# signature list of efitools (make_efi). The functions stay so that they can be run when the definitions are fixed.
+# Not made: files that the gallery's definitions cannot read (#278). The functions stay so that they can be run when the
+# definitions are fixed. make_vfat: the volume label entry that mkfs.fat writes has a date of zero, which `dos_datetime`
+# does not allow; make_pcf: the tables of an X11 font are big-endian and the definition reads them as little-endian; the
+# AVI of ffmpeg (see make_avi): the chunks of odd size have a padding byte that the definition does not skip; make_luks:
+# a LUKS1 header has 8 key slots of 256000 bytes each, past the limit of a sample; the Apple map of make_partition_tables
+# (run with DOE_APM=1): the map of parted lists the free space up to the end of the disk, and the definition reads each partition, so a sample is as large
+# as the disk. The MAR of `mar` and the EFI list of efitools are written to samples_without_reference/ and are read by
+# the library types `mar_archive` and `efi_signature_list`.
 
 if __name__ == "__main__":
     failed = []

@@ -309,6 +309,24 @@ def tga_image() -> bytes:
     return body + struct.pack("<II", extension_at, developer_at) + b"TRUEVISION-XFILE.\x00"
 
 
+def mar_archive() -> bytes:
+    """A MAR file of the newer form: the size of the file, one signature, the product information block, two files
+    and the index."""
+    files = [("a.txt", 0o644, b"hello mar\n"), ("dir/b.bin", 0o755, bytes(range(20)))]
+    signature = struct.pack(">II", 1, 4) + b"sig!"
+    product = struct.pack(">II", 8 + 96, 1) + b"release".ljust(64, b"\0") + b"1.2.3".ljust(32, b"\0")
+    start = 8 + 8 + 4 + len(signature) + 4 + len(product)
+    body, index_entries, at = b"", b"", start
+    for name, mode, data in files:
+        index_entries += struct.pack(">III", at, len(data), mode) + name.encode() + b"\0"
+        body += data
+        at += len(data)
+    index = struct.pack(">I", len(index_entries)) + index_entries
+    total = start + len(body) + len(index)
+    head = b"MAR1" + struct.pack(">IQI", start + len(body), total, 1) + signature + struct.pack(">I", 1) + product
+    return head + body + index
+
+
 def zip_archive() -> bytes:
     """An archive written the way Info-ZIP's `zip` writes one: a directory and a file with an extended timestamp
     (0x5455) that has the modification and access times in the local header but only the modification time in the
@@ -380,3 +398,4 @@ if __name__ == "__main__":
     put("sample.7z", sevenzip())
     put("sample.zip", zip_archive())
     put("sample.tga", tga_image())
+    put("sample.mar", mar_archive())
