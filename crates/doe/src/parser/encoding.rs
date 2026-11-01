@@ -109,16 +109,13 @@ pub fn decode_lossy(bytes: &[u8], encoding: Encoding) -> Result<Decoded> {
             let mut offset = 0;
             let mut text = String::with_capacity(bytes.len());
             for decoded in char::decode_utf16(pairs.iter().map(|&pair| unit(pair))) {
-                match decoded {
-                    Ok(c) => {
-                        offset += 2 * c.len_utf16();
-                        text.push(c);
-                    }
-                    Err(_) => {
-                        invalid_at.get_or_insert(offset);
-                        offset += 2;
-                        text.push(char::REPLACEMENT_CHARACTER);
-                    }
+                if let Ok(c) = decoded {
+                    offset += 2 * c.len_utf16();
+                    text.push(c);
+                } else {
+                    invalid_at.get_or_insert(offset);
+                    offset += 2;
+                    text.push(char::REPLACEMENT_CHARACTER);
                 }
             }
             if !rest.is_empty() {
@@ -137,12 +134,11 @@ pub fn decode_lossy(bytes: &[u8], encoding: Encoding) -> Result<Decoded> {
             let mut invalid_at = None;
             let mut text = String::with_capacity(quads.len());
             for (index, &quad) in quads.iter().enumerate() {
-                match char::from_u32(unit(quad)) {
-                    Some(c) => text.push(c),
-                    None => {
-                        invalid_at.get_or_insert(index * 4);
-                        text.push(char::REPLACEMENT_CHARACTER);
-                    }
+                if let Some(c) = char::from_u32(unit(quad)) {
+                    text.push(c);
+                } else {
+                    invalid_at.get_or_insert(index * 4);
+                    text.push(char::REPLACEMENT_CHARACTER);
                 }
             }
             if !rest.is_empty() {
