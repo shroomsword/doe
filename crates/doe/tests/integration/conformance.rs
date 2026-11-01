@@ -609,6 +609,42 @@ fn an_iso9660_image_is_read_and_the_directories_that_lead_back_are_cut() {
     assert!(docs["entries"][0]["body"]["extent_as_dir"].is_null());
 }
 
+/// An ID3v2.4 tag that mutagen wrote, with the padding that tags have, is read. The reference compiler cannot read
+/// any ID3v2.4 tag of this definition (#276: its `padding` uses `_root.tag.header`, and in the JavaScript runtime
+/// `_root.tag` is not there while the tag is read), so the fields that were checked by hand stand for its output, and
+/// the file is in `samples_without_reference/`.
+#[test]
+fn an_id3v2_4_tag_with_padding_is_read_although_it_uses_the_tag_that_is_being_read() {
+    let sample = conformance_dir()
+        .join("samples_without_reference")
+        .join("media/id3v2_4/mutagen_padded.bin");
+    let ksy = definition("gallery/media/id3v2_4");
+    let text = parse_file(
+        &sample,
+        ksy.to_str().expect("the path is UTF-8"),
+        &[gallery_dir()],
+        Some(Path::new("/nonexistent/config.toml")),
+        OutputFormat::Json,
+    )
+    .expect("the tag is read");
+    let tag: Json = serde_json::from_str(&text).expect("doe's output is JSON");
+    let tag = &tag["tag"];
+    assert_eq!(tag["header"]["version_major"], 4);
+    assert_eq!(tag["header"]["size"]["value"], 1116);
+    let ids: Vec<&str> = tag["frames"]
+        .as_array()
+        .expect("a list of frames")
+        .iter()
+        .filter_map(|frame| frame["id"].as_str())
+        .collect();
+    // the five frames mutagen wrote, and what the loop of the definition takes the start of the padding for
+    assert_eq!(&ids[..5], ["TIT2", "TPE1", "TRCK", "TALB", "COMM"]);
+    assert_eq!(tag["frames"][0]["data"]["hex"], "0353616d706c6500");
+    // the padding is what the size of the tag says is left, `_root.tag.header.size.value - _io.pos`: the header (10), the
+    // five frames (92) and the entry that the loop takes the first bytes of the padding for (10) are before it
+    assert_eq!(tag["padding"]["padding"]["len"], 1116 - (10 + 92 + 10));
+}
+
 /// The spans of a tree lie in the input, in order, and a node's children that
 /// are fields are inside it unless they were placed with `pos:`.
 fn check_spans(

@@ -139,6 +139,11 @@ checkout <commit>`), run `npm run generate`, and review the diff of `expected/`
 with the one of the gallery. The gallery has no release tags, so the submodule
 points at a commit.
 
+The files of `samples_without_reference/` are real files that the reference compiler
+cannot read (an ID3v2.4 tag of mutagen: the definition uses `_root.tag`, which does
+not exist in the JavaScript runtime while the tag is read). `doe` reads them, and a
+test in `conformance.rs` checks the fields that were checked by hand.
+
 ### A plan for files that a tool wrote
 
 `real_files_plan.tsv` has a row for every definition that is tested only with a

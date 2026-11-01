@@ -67,7 +67,7 @@ firmware/uf2	crafted	firmware/uf2	built by make_samples_by_hand.py from the form
 firmware/uimage	real	firmware/uimage	mkimage (U-Boot) (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 font/grub2_font	real	font/grub2_font	grub-mkfont, run by make_real_samples.py (ten glyphs of DejaVu Sans Mono)	MIT (this repository) for the script; the glyphs are DejaVu Sans Mono, Bitstream Vera licence, shared under another name	
 font/pcf_font	crafted	font/pcf_font	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	the X11 PCF fonts cannot be read by the definition: #278
-font/ttf	crafted	font/ttf	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	a font of fontTools cannot be read by the reference compiler: #276
+font/ttf	real	font/ttf	fontTools, run by make_real_samples_libs.py (the other file is built by hand)	MIT (this repository)	
 game/allegro_dat	crafted	game/allegro_dat	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/doom_wad	crafted	game/doom_wad	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 game/dune_2_pak	crafted	game/dune_2_pak	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
@@ -132,7 +132,7 @@ media/creative_voice_file	real	media/creative_voice_file	ffmpeg (run by make_rea
 media/genmidi_op2	crafted	media/genmidi_op2	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	
 media/id3v1_1	real	media/id3v1_1	mutagen (ID3 tags), run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
 media/id3v2_3	real	media/id3v2_3	mutagen (ID3 tags), run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
-media/id3v2_4	crafted	media/id3v2_4	built by make_samples_by_hand.py from the format's documentation	MIT (this repository)	a tag of mutagen cannot be read by the reference compiler: #276
+media/id3v2_4	real	media/id3v2_4	mutagen, run by make_real_samples_libs.py: tested by the fields in conformance.rs (samples_without_reference/), not by the reference compiler (the other files are built by hand)	MIT (this repository)	
 media/magicavoxel_vox	real	media/magicavoxel_vox	py-vox-io, run by make_real_samples_libs.py (the other files are built by hand: make_gallery_samples.py or make_samples_by_hand.py)	MIT (this repository)	
 media/ogg	real	media/ogg	ffmpeg (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	
 media/quicktime_mov	real	media/quicktime_mov	ffmpeg (run by make_real_samples_tools.py) (the other files come from the other scripts: make_gallery_samples.py, make_samples_by_hand.py, make_real_samples_libs.py)	MIT (this repository)	

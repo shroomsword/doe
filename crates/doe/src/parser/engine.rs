@@ -1034,6 +1034,13 @@ impl<'reg> Engine<'reg> {
         ctx: &mut ParseContext,
     ) -> Result<Value> {
         ctx.set_pending_parent(field.parent_up);
+        // a field that is read once and is a type: its scope has the name of the field
+        ctx.set_pending_field(match (&field.kind, &field.repeat) {
+            (FieldKind::TypeRef { .. } | FieldKind::Switch { .. }, RepeatMode::Once) => {
+                Some(field.id.as_str())
+            }
+            _ => None,
+        });
         let raw = match &field.process {
             Some(process) => self.read_processed(field, process, parent_ty, cursor, ctx)?,
             None => self
@@ -1718,6 +1725,7 @@ impl<'reg> Engine<'reg> {
         } else {
             ctx.push_scope_root();
         }
+        ctx.name_scope();
         ctx.bind_params(&sub_ty.params, values);
         let result = match window {
             None => self.parse_compiled_type(sub_ty, cursor, ctx),

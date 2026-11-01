@@ -6119,3 +6119,51 @@ fn a_u4_is_inverted_in_32_bits() {
         assert_eq!(**value, Value::Bool(true), "{name}");
     }
 }
+
+#[test]
+fn a_path_from_the_root_goes_into_a_field_whose_type_is_being_read() {
+    // Kaitai Struct's Java, C# and Python create `tag` before they read it, so `_root.tag.header` is there for the
+    // fields after `header`; the JavaScript runtime does not have it
+    let yaml = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: tag
+            type: tag
+        types:
+          tag:
+            seq:
+              - id: header
+                type: header
+              - id: rest
+                size: _root.tag.header.size.value - 1
+          header:
+            seq:
+              - id: size
+                type: sized
+          sized:
+            seq:
+              - id: value
+                type: u1
+    "};
+    let v = parse(yaml, "t", &[3, 0xaa, 0xbb, 0xcc]);
+    let tag = get_field(&v, "tag");
+    assert_eq!(*get_field(tag, "rest"), Value::Bytes(vec![0xaa, 0xbb]));
+    // a path that goes into a field that is not being read, or has not been read yet, is still an error
+    let bad = indoc! {"
+        meta:
+          id: t
+        seq:
+          - id: tag
+            type: tag
+        types:
+          tag:
+            seq:
+              - id: rest
+                size: _root.tag.later.value
+              - id: later
+                type: u1
+    "};
+    let error = parse_err(bad, "t", &[1, 2, 3]).to_string();
+    assert!(error.contains("later"), "{error}");
+}
