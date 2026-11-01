@@ -93,7 +93,7 @@ pub struct ParseContext {
     limits: Option<Meter>,
     /// The types being read by instances, with the stream and the position they are read at: an instance that
     /// would read the same again, inside itself, is not read.
-    reading: Vec<(String, usize, usize, usize)>,
+    reading: Vec<(String, usize, usize, usize, Option<usize>)>,
     /// Strings that were not valid in their encoding, in the order they were read.
     text_problems: Vec<TextProblem>,
     /// The string that was just read, if it was not valid.
@@ -326,17 +326,26 @@ impl ParseContext {
         cursor.root_len() == self.root_len
     }
 
-    /// Note that an instance starts to read the type `name` at `pos` of the stream `(base, len)`. False if one is
-    /// reading the same already: the instance is then the one being read, and reading it again would not end.
-    pub fn begin_reading(&mut self, name: &str, base: usize, len: usize, pos: usize) -> bool {
+    /// Note that an instance starts to read the type `name` at `pos` of the stream `(base, len)`, with `size` bytes
+    /// when it has a `size:`. False if one is reading the same already: the instance is then the one being read, and
+    /// reading it again would not end. (The same type at the same place with another size is not the same read: a
+    /// list of records that is empty, and so ends where the list around it starts, is not that list.)
+    pub fn begin_reading(
+        &mut self,
+        name: &str,
+        base: usize,
+        len: usize,
+        pos: usize,
+        size: Option<usize>,
+    ) -> bool {
         if self
             .reading
             .iter()
-            .any(|(n, b, l, p)| n == name && *b == base && *l == len && *p == pos)
+            .any(|(n, b, l, p, s)| n == name && *b == base && *l == len && *p == pos && *s == size)
         {
             return false;
         }
-        self.reading.push((name.to_owned(), base, len, pos));
+        self.reading.push((name.to_owned(), base, len, pos, size));
         true
     }
 

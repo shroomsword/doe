@@ -253,6 +253,7 @@ formats!(
     encodings,
     float_types,
     gallery_syntax,
+    empty_read_at_the_start_of_its_section,
     io_position_instances,
     gif_like,
     import_cycle_a,

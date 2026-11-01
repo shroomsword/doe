@@ -1484,7 +1484,10 @@ impl<'reg> Engine<'reg> {
         ctx: &mut ParseContext,
     ) -> Option<bool> {
         let FieldKind::TypeRef {
-            type_name, args, ..
+            type_name,
+            args,
+            size,
+            ..
         } = &field.kind
         else {
             return None;
@@ -1494,7 +1497,12 @@ impl<'reg> Engine<'reg> {
         }
         let at = Self::read_position(field, cursor, ctx)?;
         let base = cursor.absolute_pos().saturating_sub(cursor.pos());
-        Some(ctx.begin_reading(type_name, base, cursor.len(), at))
+        // the size it reads, when it has one: the same type at the same place with another size is another read
+        let size = match size {
+            Some(expr) => eval_size(expr, ctx, cursor).ok(),
+            None => None,
+        };
+        Some(ctx.begin_reading(type_name, base, cursor.len(), at, size))
     }
 
     /// The stream that `io:` of an instance names, positioned at its start.

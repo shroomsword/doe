@@ -279,8 +279,9 @@ def make_mcap():
     writer.start(profile="", library="doe")
     schema = writer.register_schema(name="doe/Text", encoding="jsonschema", data=b'{"type":"object"}')
     channel = writer.register_channel(topic="/text", message_encoding="json", schema_id=schema)
+    # small times: the reference reads a 64-bit integer as a JavaScript number
     for i in range(3):
-        writer.add_message(channel_id=channel, log_time=1_700_000_000_000_000_000 + i, publish_time=1_700_000_000_000_000_000 + i, data=b'{"n":%d}' % i)
+        writer.add_message(channel_id=channel, log_time=1000 + i, publish_time=1000 + i, data=b'{"n":%d}' % i)
     writer.finish()
     put("log/mcap", "mcap_text", out.getvalue())
 
@@ -373,7 +374,7 @@ def make_network():
 
 
 ALL = [
-    make_images, make_exif, make_dicom, make_id3, make_wav, make_midi, make_vox, make_msgpack, make_bson, make_nbt,
+    make_images, make_exif, make_dicom, make_id3, make_wav, make_midi, make_vox, make_msgpack, make_bson, make_nbt, make_mcap,
     make_protobuf, make_gltf, make_stl, make_lnk, make_network,
 ]
 
