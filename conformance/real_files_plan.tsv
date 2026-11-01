@@ -64,7 +64,6 @@ image/nitf	crafted	gdal_translate	gdal_translate -of NITF in.png x.ntf	apt: gdal
 image/pcx_dcx	crafted	convert	convert a.pcx b.pcx x.dcx	apt: imagemagick	easy
 image/pif	crafted	none known	no writer is known; look for files from the software that defined it	unknown	hard
 image/psx_tim	crafted	img2tim	img2tim (PSXSDK) or bmp2tim of the PSn00bSDK tools	PSn00bSDK	medium
-image/tga	crafted	convert	convert -size 8x8 gradient: x.tga	apt: imagemagick	easy	the files that Pillow writes fail (the definition reads an extension area at offset 0): #275
 image/wmf	crafted	inkscape	inkscape in.svg --export-type=wmf	apt: inkscape	easy
 image/xwd	crafted	xwd	xvfb-run sh -c 'xwd -root -silent > x.xwd' (or convert)	apt: x11-apps, xvfb	easy
 log/aix_utmp	crafted	AIX	copy /etc/utmp of an AIX system	an AIX machine	hard

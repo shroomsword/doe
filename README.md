@@ -128,6 +128,7 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `mp3` | MPEG audio layer III: the frames with their headers, and bit rate, sample rate and length worked out |
 | `cab` | Microsoft Cabinet files: the folders, the file entries and the data blocks |
 | `sevenzip` | 7-Zip archives: the signature header, and the packed streams and the next header as bytes |
+| `tga_image` | TGA images: the header, the colour map, the image data as bytes and, in a file of version 2, the footer, the extension area (only when there is one) and the developer directory |
 | `zip_archive` | ZIP archives (and `.jar`, `.apk`, `.docx`...): the entries read from the central directory, with their local headers and data; an archive with a comment is not read |
 
 Each type begins with a comment that says what it covers, its limits and the specification it follows, and
@@ -904,7 +905,7 @@ if a definition has no row, and `python3 conformance/gallery_table.py` adds the 
 of new ones. The numbers (a test checks that this line is current, and the CI log
 prints it):
 
-> 190 definitions: 72 with a file written by its own tool, 103 with a file built by hand, 0 failing on a file, 9 part of another, 6 without a sample
+> 190 definitions: 73 with a file written by its own tool, 102 with a file built by hand, 0 failing on a file, 9 part of another, 6 without a sample
 
 The first kind are written by the tool that normally makes the format
 (`conformance/make_real_samples.py` and `make_gallery_samples.py` run them: the

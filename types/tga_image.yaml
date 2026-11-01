@@ -1,0 +1,221 @@
+id: tga_image
+doc: |
+  TGA image (Truevision TARGA, .tga), the header, the colour map, the image data as bytes, and, in a file of version 2, the footer, the extension area and the developer directory
+# Covers: the 18-byte header (image type, colour map, origin, size, pixel depth, descriptor), the image id, the colour
+#   map, the image data (raw, or the packets of the run-length encoding, as bytes) and, when the file ends with the
+#   footer "TRUEVISION-XFILE.", the footer, the extension area (author, comments, date, job, software, key colour,
+#   aspect ratio, gamma, offsets) and the developer directory.
+# Why not the definition of the gallery (`tga`): it reads an extension area at the offset in the footer even when the
+#   offset is zero, which is how a writer says that there is none (Pillow, ImageMagick and others write the footer
+#   with both offsets zero), and so reads the header and the pixels as an author name and comments. This type reads
+#   the extension area and the developer directory only when their offsets are not zero. It also finds the end of
+#   the image data from the offsets, so that a file with a footer and no extension area has its pixels and no more.
+# Limits: the image data is bytes, and the run-length packets and the pixels in them are not decoded (a packet's
+#   count is in its first byte, and the number of packets is not known without reading them all); the colour map
+#   is bytes too (its entries are 15, 16, 24 or 32 bits, as `color_map_depth` says); the postage stamp, the colour
+#   correction table and the scan line table that the extension area points to are not read (their offsets are shown).
+# Detection: the type has no signature at the start (a version 1 file has none, and the footer is at the end), so it
+#   is tried for a file whose name ends in one of its extensions, or with `--detect all`.
+# Specification: Truevision TGA File Format Specification, version 2.0 (1991).
+meta:
+  id: tga_image
+  file-extension: [tga, icb, vda, vst]
+  endian: le
+seq:
+  - id: id_length
+    type: u1
+    doc: The length of the image id that follows the header, in bytes.
+  - id: color_map_type
+    type: u1
+    enum: color_map_type
+  - id: image_type
+    type: u1
+    enum: image_type
+  - id: color_map_first
+    type: u2
+    doc: The index of the first entry of the colour map that the file has.
+  - id: color_map_length
+    type: u2
+    doc: The number of entries of the colour map.
+  - id: color_map_depth
+    type: u1
+    doc: The bits of an entry of the colour map (15, 16, 24 or 32).
+  - id: x_origin
+    type: u2
+  - id: y_origin
+    type: u2
+  - id: width
+    type: u2
+  - id: height
+    type: u2
+  - id: pixel_depth
+    type: u1
+    doc: The bits of a pixel (8, 15, 16, 24 or 32).
+  - id: interleave
+    type: b2
+    doc: Not used any more (0 is no interleaving).
+  - id: top_to_bottom
+    type: b1
+    doc: Whether the first row of the image data is the top row (else the bottom row).
+  - id: right_to_left
+    type: b1
+    doc: Whether the first pixel of a row is the right one (else the left one).
+  - id: alpha_bits
+    type: b4
+    doc: The bits of a pixel that are alpha.
+  - id: image_id
+    size: id_length
+  - id: color_map
+    size: len_color_map
+  - id: image_data
+    size: len_image_data
+instances:
+  bytes_per_color_map_entry:
+    value: '(color_map_depth + 7) / 8'
+  len_color_map:
+    value: 'color_map_type == color_map_type::has_color_map ? color_map_length * bytes_per_color_map_entry : 0'
+  # The footer of a file of version 2 is the last 26 bytes; a file of version 1 has none, and what would be the
+  # signature is image data.
+  footer:
+    pos: _io.size - 26
+    type: footer
+    if: _io.size >= 44
+  is_version_2:
+    value: '_io.size >= 44 and footer.signature == [0x54, 0x52, 0x55, 0x45, 0x56, 0x49, 0x53, 0x49, 0x4f, 0x4e, 0x2d, 0x58, 0x46, 0x49, 0x4c, 0x45, 0x2e, 0x00]'
+  # The image data ends where the extension area, the developer directory or the footer starts, whichever is first.
+  end_before_extension_area:
+    value: 'is_version_2 and footer.ofs_extension_area != 0 and footer.ofs_extension_area < _io.size - 26 ? footer.ofs_extension_area : (is_version_2 ? _io.size - 26 : _io.size)'
+  end_of_image_data:
+    value: 'is_version_2 and footer.ofs_developer_directory != 0 and footer.ofs_developer_directory < end_before_extension_area ? footer.ofs_developer_directory : end_before_extension_area'
+  len_image_data:
+    value: 'end_of_image_data - 18 - id_length - len_color_map'
+  extension_area:
+    pos: footer.ofs_extension_area
+    type: extension_area
+    if: is_version_2 and footer.ofs_extension_area != 0
+  developer_directory:
+    pos: footer.ofs_developer_directory
+    type: developer_directory
+    if: is_version_2 and footer.ofs_developer_directory != 0
+enums:
+  color_map_type:
+    0: no_color_map
+    1: has_color_map
+  image_type:
+    0: no_image_data
+    1: color_mapped
+    2: true_color
+    3: grayscale
+    9: color_mapped_rle
+    10: true_color_rle
+    11: grayscale_rle
+types:
+  footer:
+    seq:
+      - id: ofs_extension_area
+        type: u4
+        doc: Where the extension area is; 0 when the file has none.
+      - id: ofs_developer_directory
+        type: u4
+        doc: Where the developer directory is; 0 when the file has none.
+      - id: signature
+        size: 18
+        doc: '"TRUEVISION-XFILE." and a zero byte.'
+  extension_area:
+    seq:
+      - id: len_extension_area
+        type: u2
+        doc: Always 495.
+      - id: author_name
+        type: str
+        size: 41
+        terminator: 0
+        encoding: ASCII
+      - id: comments
+        type: str
+        size: 81
+        terminator: 0
+        encoding: ASCII
+        repeat: expr
+        repeat-expr: 4
+      - id: date_month
+        type: u2
+      - id: date_day
+        type: u2
+      - id: date_year
+        type: u2
+      - id: time_hour
+        type: u2
+      - id: time_minute
+        type: u2
+      - id: time_second
+        type: u2
+      - id: job_name
+        type: str
+        size: 41
+        terminator: 0
+        encoding: ASCII
+      - id: job_hours
+        type: u2
+      - id: job_minutes
+        type: u2
+      - id: job_seconds
+        type: u2
+      - id: software_id
+        type: str
+        size: 41
+        terminator: 0
+        encoding: ASCII
+      - id: software_version_number
+        type: u2
+        doc: The version times 100 (301 is 3.01).
+      - id: software_version_letter
+        type: u1
+        doc: A letter, or a space.
+      - id: key_color
+        type: u4
+        doc: The background colour, as ARGB.
+      - id: pixel_aspect_numerator
+        type: u2
+      - id: pixel_aspect_denominator
+        type: u2
+      - id: gamma_numerator
+        type: u2
+      - id: gamma_denominator
+        type: u2
+      - id: ofs_color_correction_table
+        type: u4
+      - id: ofs_postage_stamp
+        type: u4
+      - id: ofs_scan_line_table
+        type: u4
+      - id: attributes_type
+        type: u1
+        enum: attributes_type
+    enums:
+      attributes_type:
+        0: no_alpha
+        1: undefined_ignorable
+        2: undefined_retained
+        3: useful_alpha
+        4: premultiplied_alpha
+  developer_directory:
+    seq:
+      - id: num_entries
+        type: u2
+      - id: entries
+        type: developer_entry
+        repeat: expr
+        repeat-expr: num_entries
+  developer_entry:
+    seq:
+      - id: tag
+        type: u2
+      - id: ofs_data
+        type: u4
+      - id: len_data
+        type: u4
+    instances:
+      data:
+        pos: ofs_data
+        size: len_data
