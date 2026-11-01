@@ -599,10 +599,10 @@ fn efi_signature_list_reads_the_list_that_efitools_writes() {
         "11111111222233334444555555555555"
     );
     // a certificate in DER starts with a sequence
-    assert_eq!(
-        &list["signatures"][0]["data"]["hex"].as_str().unwrap()[..2],
-        "30"
-    );
+    assert!(list["signatures"][0]["data"]["hex"]
+        .as_str()
+        .unwrap()
+        .starts_with("30"));
 }
 
 /// The files that Pillow writes have the footer and no extension area (the offset is zero): the gallery's definition
