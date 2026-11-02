@@ -49,6 +49,46 @@ test.describe('in the page', () => {
     await expect(page.locator('#help-dialog')).toBeHidden();
   });
 
+  test('/ searches the help: matches are marked and counted, Enter and Shift+Enter move, Esc closes the search before the dialog', async ({ page }) => {
+    await page.getByRole('button', { name: 'Help' }).click();
+    await expect(page.locator('.help-text')).toBeVisible();
+    await page.keyboard.press('/');
+    const box = page.getByRole('searchbox', { name: 'search in the help' });
+    await expect(box).toBeFocused();
+    // a "/" typed in the box is text
+    await box.fill('');
+    await page.keyboard.type('Kaitai');
+    await expect(box).toHaveValue('Kaitai');
+    const marks = page.locator('#help-body mark.help-hit');
+    const total = await marks.count();
+    expect(total).toBeGreaterThan(1);
+    const count = page.locator('#help-dialog .pane-search-count');
+    await expect(count).toHaveText(`1 of ${total}`);
+    await expect(page.locator('#help-body mark.help-hit.current')).toHaveCount(1);
+    await expect(marks.first()).toHaveClass(/current/);
+    await page.keyboard.press('Enter');
+    await expect(count).toHaveText(`2 of ${total}`);
+    await expect(marks.nth(1)).toHaveClass(/current/);
+    await expect(marks.nth(1)).toBeInViewport();
+    await page.keyboard.press('Shift+Enter');
+    await page.keyboard.press('Shift+Enter');
+    await expect(count).toHaveText(`${total} of ${total}`);
+    // case does not matter, and a text that is not there says so
+    await box.fill('KAITAI');
+    await expect(count).toHaveText(`1 of ${total}`);
+    await box.fill('zzzzqqqq');
+    await expect(count).toHaveText('no match');
+    await expect(marks).toHaveCount(0);
+    await box.fill('Kaitai');
+    // Esc closes the search and not the dialog; the marks go; the next Esc closes the dialog
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#help-dialog .pane-search')).toBeHidden();
+    await expect(page.locator('#help-dialog')).toBeVisible();
+    await expect(marks).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#help-dialog')).toBeHidden();
+  });
+
   test('the contents list the headings of the included sections and only those; a click goes to the section', async ({ page }) => {
     await page.getByRole('button', { name: 'Help' }).click();
     const toc = page.locator('.help-toc a');

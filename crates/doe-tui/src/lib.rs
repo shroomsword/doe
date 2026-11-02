@@ -18,6 +18,7 @@ pub mod clipboard;
 pub mod draft;
 pub mod field_dialog;
 pub mod format;
+pub mod help;
 pub mod hex_view;
 pub mod highlight;
 pub mod inspect;

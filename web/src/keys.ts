@@ -58,7 +58,7 @@ export const KEYS: readonly Key[] = [
   { key: 'j', action: 'pane-down', label: 'Focus the pane below' },
   { key: 'k', action: 'pane-up', label: 'Focus the pane above' },
   { key: 'l', action: 'pane-right', label: 'Focus the pane on the right' },
-  { key: '/', action: 'search', label: 'Search in the focused pane' },
+  { key: '/', action: 'search', label: 'Search in the focused pane, or in the help when it is open' },
   { key: 'g', action: 'goto', label: 'Go to an offset in the bytes', needs: 'file' },
   { key: 'a', action: 'auto', label: 'Turn automatic detection on or off' },
   { key: 'r', action: 'radix', label: 'Change how integers are shown (decimal, hexadecimal, binary, octal)' },

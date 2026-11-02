@@ -291,7 +291,7 @@ pub const BINDINGS: &[Binding] = &[
         keys: &[ch('?')],
         scope: Scope::Anywhere,
         action: Action::Help,
-        help: "show this help",
+        help: "show this help (/ searches it, the arrow keys scroll it)",
     },
     Binding {
         keys: &[plain(KeyCode::Up), ch('k')],

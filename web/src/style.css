@@ -183,6 +183,8 @@ header label { display: inline-flex; gap: 4px; align-items: center; max-width: 1
 #help-dialog::backdrop { background: rgba(0, 0, 0, .4); }
 #help-dialog[open] { display: flex; flex-direction: column; }
 #help-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-wrap: wrap; align-items: flex-start; }
+mark.help-hit { background: color-mix(in srgb, gold 55%, transparent); color: inherit; border-radius: 2px; }
+mark.help-hit.current { background: gold; color: #000; outline: 2px solid var(--accent, currentColor); }
 .help-toc { flex: 0 0 15rem; max-width: 100%; position: sticky; top: 0; max-height: 100%; overflow: auto; padding: 8px 12px; border-right: 1px solid var(--line); }
 .help-toc ul { list-style: none; margin: 0; padding: 0; }
 .help-toc li { padding: 1px 0; font-size: .9em; }

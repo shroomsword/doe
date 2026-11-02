@@ -153,6 +153,8 @@ pub struct App {
     pub loading_since: Option<std::time::Instant>,
     /// Whether the help is shown.
     pub help: bool,
+    /// How far the help is scrolled, and its search.
+    pub help_view: crate::help::HelpView,
     /// What went wrong, if something did: a parse that stopped, or nothing parsed at all.
     pub report: Option<Report>,
     /// Whether the message about a parse that failed is shown.
@@ -244,6 +246,7 @@ impl App {
             loading: false,
             loading_since: None,
             help: false,
+            help_view: crate::help::HelpView::default(),
             report: None,
             show_report: true,
             options: None,
@@ -307,6 +310,7 @@ impl App {
             loading: false,
             loading_since: None,
             help: false,
+            help_view: crate::help::HelpView::default(),
             report: Some(Report::from_failure(failure, schema_file)),
             show_report: true,
             options: None,
@@ -355,6 +359,7 @@ impl App {
             loading: true,
             loading_since: Some(std::time::Instant::now()),
             help: false,
+            help_view: crate::help::HelpView::default(),
             report: None,
             show_report: true,
             options: None,
@@ -557,7 +562,8 @@ impl App {
     ///
     /// - a search that is going on is stopped by any key (`Esc` and Ctrl-C
     ///   only stop it);
-    /// - the help is closed by any key;
+    /// - the help is scrolled and searched by its keys (`/`, `n`, `N`, the
+    ///   arrows) and closed by any other key;
     /// - a prompt takes the key as text or as an edit of it;
     /// - otherwise the pane that has the keys, then the keys for both.
     pub fn on_key(&mut self, key: KeyEvent) {
@@ -574,7 +580,10 @@ impl App {
             }
         }
         if self.help {
-            self.help = false;
+            if self.help_view.key(&key) == crate::help::Outcome::Close {
+                self.help = false;
+                self.help_view.reset();
+            }
             return;
         }
         if self.schemas.is_some() {
@@ -1180,7 +1189,10 @@ impl App {
                 }
             }
             Action::ToggleInspector => self.inspector = !self.inspector,
-            Action::Help => self.help = true,
+            Action::Help => {
+                self.help_view.reset();
+                self.help = true;
+            }
             Action::ToggleReport => self.show_report = !self.show_report,
             Action::Reload if self.builder.is_some() => self.rename_field(),
             Action::Reload => self.reload(),
