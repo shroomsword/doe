@@ -1822,6 +1822,10 @@ what was changed (`note`) for each theme.
 | `catppuccin-mocha` | Catppuccin Mocha | dark | Catppuccin | MIT |
 | `github-light` | GitHub Light | light | GitHub | MIT |
 | `github-dark` | GitHub Dark | dark | GitHub | MIT |
+| `kanagawa-wave` | Kanagawa Wave | dark | rebelot | MIT |
+| `kanagawa-dragon` | Kanagawa Dragon | dark | rebelot | MIT |
+| `kanagawa-lotus` | Kanagawa Lotus | light | rebelot | MIT |
+| `seafoam-pastel` | Seafoam Pastel | dark | iTerm2 Color Schemes | MIT |
 | `high-contrast` | High Contrast | dark | the doe project | MIT |
 | `high-contrast-light` | High Contrast Light | light | the doe project | MIT |
 
