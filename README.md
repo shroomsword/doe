@@ -1201,6 +1201,7 @@ the editor for its pane, closes a dialog and closes a search.
 | `R` | Put the panes back in their places, all shown |
 | `x` | Close the focused pane (the Schema pane has its X button) |
 | `v` | Choose the panes that are shown |
+| `f` | Maximize the focused pane, or restore it (Esc restores too) |
 | `/` | Search in the focused pane, or in the help when it is open |
 | `g` | Go to an offset in the bytes |
 | `a` | Turn automatic detection on or off |
@@ -1234,6 +1235,13 @@ shown fill the places in their order, side by side in a wide window, with no hol
 kept with the order of the panes, and Reset (`R`) shows them all. `2`, `3` and `4` show a closed pane and
 focus it, a parse that fails or a detection report shows the Status pane, and `g` shows the Bytes pane, so that
 nothing is lost because a pane is closed.
+
+**Maximizing a pane.** `f` on the focused pane, the maximize button in its title bar (the square; it becomes
+two squares, restore, while the pane is maximized) or a double-click on the empty part of the title bar make the
+pane fill the page. The other panes are hidden, not closed: they keep what they show and parsing goes on. The same
+three, and `Esc` (when no dialog, search or editor is in the way), put the page back. While a pane is maximized
+`Tab`, `h j k l` and the moves do nothing, and `1` to `4` for another pane restore the page first. It is a
+state of the view and is not kept with the layout.
 
 ## CLI reference
 

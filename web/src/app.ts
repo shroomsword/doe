@@ -666,6 +666,7 @@ export class App {
     if (event.key === 'Escape') {
       // out of the editor, to its pane, so that the keys work again
       if ((event.target as Element | null)?.closest('.cm-editor')) this.focusPane('schema', true);
+      else this.restoreMaximized();
       return;
     }
     const name = keyName(event);
@@ -758,7 +759,21 @@ export class App {
       button.title = `Close the ${NAMES[name]} pane (x)`;
       button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M5 5l14 14M19 5L5 19"/></svg>';
       button.addEventListener('click', () => this.setVisible(name, false));
-      element(PANE_IDS[name]).querySelector('.pane-title')?.append(button);
+      const title = element(PANE_IDS[name]).querySelector<HTMLElement>('.pane-title');
+      // the maximize button comes before the close button, and the title bar maximizes with a double-click
+      const maximize = document.createElement('button');
+      maximize.type = 'button';
+      maximize.className = 'pane-maximize icon';
+      maximize.dataset.pane = name;
+      maximize.addEventListener('click', () => this.toggleMaximized(name));
+      title?.append(maximize, button);
+      title?.addEventListener('dblclick', (event) => {
+        // the empty part of the bar and its heading, not a button, a box or the search bar
+        if (event.target instanceof Element && event.target.closest('button, input, select, textarea, label, a, .pane-search')) return;
+        window.getSelection()?.removeAllRanges();
+        this.toggleMaximized(name);
+      });
+      this.maximizeButton(name);
     }
     let dragged: PaneName | null = null;
     for (const name of PANES) {
@@ -838,6 +853,7 @@ export class App {
       if (visible && focusIt) this.focusPane(name);
       return;
     }
+    if (!visible && this.maximized === name) this.restoreMaximized();
     const next = withVisible(this.layout, name, visible);
     let focus: PaneName | undefined;
     // the pane that has the focus (or had it last) is closed: the focus goes to the next one that is shown
@@ -857,6 +873,46 @@ export class App {
   /** Show a pane if it was closed (a message must not be lost), without taking the focus. */
   private reveal(name: PaneName): void {
     if (!this.isShown(name)) this.setVisible(name, true);
+  }
+
+  /** The pane that fills the page, if one does. It is a state of the view, not of the layout: it is not kept. */
+  private maximized: PaneName | null = null;
+
+  /** Draw the button of a pane: the icon and the name say maximize, or restore when the pane is maximized. */
+  private maximizeButton(name: PaneName): void {
+    const button = element(PANE_IDS[name]).querySelector<HTMLButtonElement>('.pane-maximize');
+    if (!button) return;
+    const on = this.maximized === name;
+    const label = `${on ? 'Restore' : 'Maximize'} the ${NAMES[name]} pane`;
+    button.setAttribute('aria-label', label);
+    button.title = `${label} (f)`;
+    button.setAttribute('aria-pressed', String(on));
+    // the conventional icons: one square to maximize, two overlapping squares to restore
+    button.innerHTML = on
+      ? '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" d="M8 8V4h12v12h-4M4 8h12v12H4z"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><rect x="4" y="4" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>';
+  }
+
+  /** Make a pane fill the page, or put the page back. The other panes are hidden by the style sheet, not closed. */
+  private toggleMaximized(name: PaneName): void {
+    if (!this.isShown(name)) return;
+    const was = this.maximized;
+    this.maximized = was === name ? null : name;
+    const main = document.querySelector('main') as HTMLElement;
+    main.classList.toggle('has-max', this.maximized !== null);
+    for (const pane of PANES) {
+      element(PANE_IDS[pane]).classList.toggle('maximized', this.maximized === pane);
+      this.maximizeButton(pane);
+    }
+    element('layout-live').textContent = this.maximized ? `${NAMES[name]} maximized` : `${NAMES[name]} restored`;
+    // the focus stays in the pane, which is the one that is on the screen
+    this.focusPane(name);
+    element(PANE_IDS[name]).scrollIntoView({ block: 'nearest' });
+  }
+
+  /** Put the page back after a maximized pane, when something needs the others. */
+  private restoreMaximized(): void {
+    if (this.maximized) this.toggleMaximized(this.maximized);
   }
 
   /** The key x: it closes the focused pane, but not Schema (its button does), so that the key cannot close the editor by mistake. */
@@ -895,6 +951,14 @@ export class App {
 
   private perform(action: Action): void {
     const click = (id: string): void => element(id).click();
+    // while a pane is maximized the keys that go to the other panes do nothing, except the ones that name a pane: they
+    // put the page back first (f and Esc put it back too)
+    if (this.maximized && ['next-pane', 'previous-pane', 'pane-left', 'pane-down', 'pane-up', 'pane-right', 'move-left', 'move-down', 'move-up', 'move-right'].includes(action)) {
+      element('layout-live').textContent = 'A pane is maximized: press f or Esc to restore the others';
+      return;
+    }
+    const named: Partial<Record<Action, PaneName>> = { 'pane-schema': 'schema', 'pane-parsed': 'parsed', 'pane-bytes': 'bytes', 'pane-status': 'status' };
+    if (this.maximized && named[action] && named[action] !== this.maximized) this.restoreMaximized();
     switch (action) {
       case 'help':
         void this.help.show();
@@ -993,6 +1057,9 @@ export class App {
       case 'pane-status':
         this.setVisible('status', true, true);
         this.focusPane('status');
+        break;
+      case 'maximize':
+        this.toggleMaximized(this.currentPane());
         break;
       case 'close-pane':
         this.closeFocusedPane();
