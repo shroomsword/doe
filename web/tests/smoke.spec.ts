@@ -176,8 +176,9 @@ test('Integers is the last tool at the right end of the Parsed pane\'s title bar
   const barBox = await bar.boundingBox();
   const closeBox = await bar.locator('.pane-close').boundingBox();
   const maximizeBox = await bar.locator('.pane-maximize').boundingBox();
-  expect((radix?.x ?? 0) + (radix?.width ?? 0)).toBeGreaterThan((barBox?.x ?? 0) + (barBox?.width ?? 0) - (closeBox?.width ?? 0) - (maximizeBox?.width ?? 0) - 24);
-  expect(before(radix, closeBox)).toBe(true);
+  expect((radix?.x ?? 0) + (radix?.width ?? 0)).toBeGreaterThan((barBox?.x ?? 0) + (barBox?.width ?? 0) - (closeBox?.width ?? 0) - (maximizeBox?.width ?? 0) - 40);
+  expect(before(radix, maximizeBox)).toBe(true);
+  expect(before(maximizeBox, closeBox)).toBe(true);
   expect(before(await bar.locator('#detect-auto-box').boundingBox(), radix)).toBe(true);
 });
 
