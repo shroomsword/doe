@@ -121,7 +121,7 @@ test('the buttons of the schema are in the title bar of the Schema pane, and say
   await expect(button('open-input')).toHaveAttribute('title', /never uploaded/);
 });
 
-test('Open, Add imports and Browse... are at the right end of the Schema pane\'s title bar, not in the header', async ({ page }) => {
+test('Open, Add imports and Browse... are at the right end of the Schema pane\'s title bar, before its maximize and close buttons, not in the header', async ({ page }) => {
   const bar = page.locator('#pane-editor .pane-title');
   const heading = bar.locator('h2');
   const actions = bar.locator('.pane-actions');
@@ -135,9 +135,13 @@ test('Open, Add imports and Browse... are at the right end of the Schema pane\'s
   expect(before(boxes[1] ?? null, boxes[2] ?? null)).toBe(true);
   expect(before(await heading.boundingBox(), boxes[0] ?? null)).toBe(true);
   // the last one ends at the right end of the bar
+  // the last one ends at the right end of the bar, where only the buttons that maximize and close the pane come after it
   const barBox = await bar.boundingBox();
   const last = boxes[2];
-  expect((last?.x ?? 0) + (last?.width ?? 0)).toBeGreaterThan((barBox?.x ?? 0) + (barBox?.width ?? 0) - 16);
+  const maximizeBox = await bar.locator('.pane-maximize').boundingBox();
+  const closeBox = await bar.locator('.pane-close').boundingBox();
+  expect((last?.x ?? 0) + (last?.width ?? 0)).toBeGreaterThan((barBox?.x ?? 0) + (barBox?.width ?? 0) - (maximizeBox?.width ?? 0) - (closeBox?.width ?? 0) - 40);
+  expect(before(last ?? null, maximizeBox)).toBe(true);
 });
 
 test('the title bars wrap on a narrow screen and the page does not scroll sideways', async ({ page }) => {

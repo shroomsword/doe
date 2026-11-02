@@ -108,3 +108,11 @@ export function applyLayout(main: HTMLElement, ids: Record<PaneName, string>, la
     if (!inOrder) main.append(section);
   });
 }
+
+/** The layout with `pane` taken out and put before `target`, or after it. */
+export function moved(layout: Layout, pane: PaneName, target: PaneName, after: boolean): Layout {
+  if (pane === target) return layout;
+  const rest = layout.order.filter((name) => name !== pane);
+  const at = rest.indexOf(target) + (after ? 1 : 0);
+  return { ...layout, order: [...rest.slice(0, at), pane, ...rest.slice(at)] };
+}

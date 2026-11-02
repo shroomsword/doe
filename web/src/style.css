@@ -74,11 +74,9 @@ section { border: 1px solid var(--line); border-radius: 4px; min-width: 0; displ
 section[data-slot="1"], section[data-slot="2"], section[data-slot="3"] { height: 60vh; min-height: 16rem; }
 section[data-slot="4"] { max-height: 14rem; overflow: auto; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.pane-title h2[draggable="true"] { cursor: grab; }
 .pane-close { display: inline-flex; align-items: center; padding: 2px 5px; margin-left: auto; flex: 0 0 auto; }
 .pane-title .pane-actions { margin-right: 0; }
 section.dragging { opacity: .55; }
-section.drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
 #editor, #tree-box, #hex { flex: 1; min-height: 0; overflow: auto; }
 #problems { flex: 1 1 auto; min-height: 0; overflow: auto; }
 #problems:empty, .problems:empty { display: none; }
@@ -280,3 +278,9 @@ main.has-max > section.maximized[data-slot] { grid-area: max; height: 85dvh; max
 @media (min-width: 1200px) {
   main.has-max > section.maximized[data-slot] { height: auto; min-height: 0; }
 }
+.pane-title h2, .pane-grip { cursor: grab; }
+.pane-grip { display: inline-flex; align-items: center; color: var(--muted); padding: 2px 0; margin-right: -4px; touch-action: none; user-select: none; }
+body.pane-dragging, body.pane-dragging * { cursor: grabbing !important; user-select: none !important; }
+.drag-ghost { position: fixed; z-index: 1000; pointer-events: none; padding: 3px 10px; background: var(--panel); color: var(--fg, inherit); border: 1px solid var(--accent); border-radius: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, .35); font-weight: 600; font-size: .9em; }
+.drop-line { position: fixed; z-index: 999; pointer-events: none; background: var(--accent); border-radius: 2px; }
+.drop-line[hidden] { display: none; }
