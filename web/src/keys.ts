@@ -70,7 +70,7 @@ export const KEYS: readonly Key[] = [
   { key: 'Alt+Shift+k', action: 'move-up', label: 'Move the pane up', inFields: true },
   { key: 'Alt+Shift+l', action: 'move-right', label: 'Move the pane to the right', inFields: true },
   { key: 'R', action: 'reset-layout', label: 'Put the panes back in their places, all shown' },
-  { key: 'x', action: 'close-pane', label: 'Close the focused pane (not the Schema pane)' },
+  { key: 'x', action: 'close-pane', label: 'Close the focused pane (the Schema pane has its X button)' },
   { key: 'v', action: 'panes', label: 'Choose the panes that are shown' },
   { key: '/', action: 'search', label: 'Search in the focused pane, or in the help when it is open' },
   { key: 'g', action: 'goto', label: 'Go to an offset in the bytes', needs: 'file' },
