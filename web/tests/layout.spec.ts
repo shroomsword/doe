@@ -8,8 +8,8 @@ test('a saved layout is read only when it is four different panes of this versio
   expect(parseLayout(layoutText({ order: [...order], hidden: ['bytes'] }))).toEqual({ order: [...order], hidden: ['bytes'] });
   // a record of version 1 has the order only: all the panes are shown
   expect(parseLayout(JSON.stringify({ v: 1, order }))).toEqual({ order: [...order], hidden: [] });
-  // Schema cannot be closed, and a pane cannot be closed twice or be unknown
-  expect(parseLayout(JSON.stringify({ v: 2, order, hidden: ['schema'] }))).toBeNull();
+  // a pane cannot be closed twice or be unknown
+  expect(parseLayout(JSON.stringify({ v: 2, order, hidden: ['schema'] }))).toEqual({ order: [...order], hidden: ['schema'] });
   expect(parseLayout(JSON.stringify({ v: 2, order, hidden: ['bytes', 'bytes'] }))).toBeNull();
   expect(parseLayout(JSON.stringify({ v: 2, order, hidden: ['nothing'] }))).toBeNull();
   expect(parseLayout(JSON.stringify({ v: 2, order, hidden: 'bytes' }))).toBeNull();
@@ -27,12 +27,12 @@ test('two panes swap places, and the default is the order the panes are written 
   expect(swapped(defaultLayout(), 'schema', 'bytes').order).toEqual(['bytes', 'parsed', 'schema', 'status']);
   expect(isDefault(defaultLayout())).toBe(true);
   expect(isDefault(swapped(defaultLayout(), 'schema', 'bytes'))).toBe(false);
-  // closing: Schema stays, the shown panes keep the order
+  // closing: the shown panes keep the order
   const closed = withVisible(withVisible(defaultLayout(), 'parsed', false), 'schema', false);
-  expect(closed.hidden).toEqual(['parsed']);
-  expect(shown(closed)).toEqual(['schema', 'bytes', 'status']);
+  expect(closed.hidden).toEqual(['schema', 'parsed']);
+  expect(shown(closed)).toEqual(['bytes', 'status']);
   expect(isDefault(closed)).toBe(false);
-  expect(isDefault(withVisible(closed, 'parsed', true))).toBe(true);
+  expect(isDefault(withVisible(withVisible(closed, 'parsed', true), 'schema', true))).toBe(true);
 });
 
 test.describe('in the page', () => {

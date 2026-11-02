@@ -2,7 +2,7 @@
 // the first three are the columns of the top row and the fourth is the row under them; in a medium one they are two
 // columns, the third across, and the fourth across; in a narrow one they are one under the other. A layout is the
 // order of the four panes and the set of those that are closed; the shown panes fill the places in that order. The
-// Schema pane is always shown. The default is the order the panes are written in, all shown; the user can swap two
+// Schema pane is closed like the others (the key x does not close it, the button does). The default is the order the panes are written in, all shown; the user can swap two
 // and close the others, and it is kept in the browser's local storage. No DOM here except in `applyLayout`.
 
 export type PaneName = 'schema' | 'parsed' | 'bytes' | 'status';
@@ -13,7 +13,7 @@ export const DEFAULT_ORDER: readonly PaneName[] = PANE_NAMES;
 export interface Layout {
   /** All four panes, in the order of the places. */
   order: PaneName[];
-  /** The panes that are closed (never Schema). */
+  /** The panes that are closed. */
   hidden: PaneName[];
 }
 
@@ -37,7 +37,7 @@ export function parseLayout(text: string | null): Layout | null {
     if (names.length !== PANE_NAMES.length || new Set(names).size !== PANE_NAMES.length) return null;
     // a record of version 1 has all the panes shown
     const closed = v === 1 || hidden === undefined ? [] : hidden;
-    if (!Array.isArray(closed) || !closed.every(isPane) || new Set(closed).size !== closed.length || closed.includes('schema')) return null;
+    if (!Array.isArray(closed) || !closed.every(isPane) || new Set(closed).size !== closed.length) return null;
     return { order: names, hidden: closed };
   } catch {
     return null;
@@ -58,9 +58,8 @@ export function shown(layout: Layout): PaneName[] {
   return layout.order.filter((name) => !layout.hidden.includes(name));
 }
 
-/** The layout with a pane shown or closed. Schema cannot be closed. */
+/** The layout with a pane shown or closed. */
 export function withVisible(layout: Layout, pane: PaneName, visible: boolean): Layout {
-  if (pane === 'schema') return layout;
   const hidden = layout.hidden.filter((name) => name !== pane);
   if (!visible) hidden.push(pane);
   return { ...layout, hidden: PANE_NAMES.filter((name) => hidden.includes(name)) };

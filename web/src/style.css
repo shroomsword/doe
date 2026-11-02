@@ -270,3 +270,4 @@ kbd { font-family: var(--mono); font-size: .9em; padding: 0 5px; border: 1px sol
 #panes-list label { display: flex; gap: 8px; align-items: center; }
 #panes-list .state { margin-left: auto; color: var(--muted); font-size: .85em; }
 #panes-body .note { color: var(--muted); font-size: .85em; }
+main[data-count="0"]::after { content: "All the panes are closed. Press v, or use the panes button in the header, to show some."; padding: 2rem; color: var(--muted); }

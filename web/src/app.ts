@@ -749,9 +749,8 @@ export class App {
     element('layout-reset').addEventListener('click', () => this.resetLayout());
     element('panes-button').addEventListener('click', () => this.perform('panes'));
     element('panes-close').addEventListener('click', () => element<HTMLDialogElement>('panes-dialog').close());
-    // every pane but Schema has a button at the top right of its title bar that closes it
+    // every pane has a button at the top right of its title bar that closes it
     for (const name of PANES) {
-      if (name === 'schema') continue;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'pane-close icon';
@@ -835,10 +834,6 @@ export class App {
 
   /** Close or show a pane. Schema stays; when the pane that has the focus is closed, the focus goes to the next one that is shown. */
   private setVisible(name: PaneName, visible: boolean, focusIt = false): void {
-    if (name === 'schema' && !visible) {
-      element('layout-live').textContent = 'The Schema pane cannot be closed';
-      return;
-    }
     if (this.isShown(name) === visible) {
       if (visible && focusIt) this.focusPane(name);
       return;
@@ -848,8 +843,12 @@ export class App {
     // the pane that has the focus (or had it last) is closed: the focus goes to the next one that is shown
     if (!visible && (element(PANE_IDS[name]).contains(document.activeElement) || (this.lastPane === name && document.activeElement === document.body))) {
       const open = shown(this.layout);
-      focus = open[(open.indexOf(name) + 1) % open.length] ?? 'schema';
-      if (focus === name) focus = 'schema';
+      focus = open[(open.indexOf(name) + 1) % open.length];
+      // the last pane that was shown: the focus goes to the button that opens the list of the panes
+      if (focus === name || focus === undefined) {
+        focus = undefined;
+        element('panes-button').focus();
+      }
     }
     if (visible && focusIt) focus = name;
     this.commit(next, `The ${NAMES[name]} pane is ${visible ? 'shown' : 'closed'}`, focus);
@@ -860,8 +859,14 @@ export class App {
     if (!this.isShown(name)) this.setVisible(name, true);
   }
 
+  /** The key x: it closes the focused pane, but not Schema (its button does), so that the key cannot close the editor by mistake. */
   private closeFocusedPane(): void {
-    this.setVisible(this.currentPane(), false);
+    const pane = this.currentPane();
+    if (pane === 'schema') {
+      element('layout-live').textContent = 'x does not close the Schema pane: use its X button, or v';
+      return;
+    }
+    this.setVisible(pane, false);
   }
 
   /** The list in the dialog of the panes: a check box for each, the state in words. */
@@ -873,9 +878,7 @@ export class App {
       const box = document.createElement('input');
       box.type = 'checkbox';
       box.checked = this.isShown(name);
-      box.disabled = name === 'schema';
       box.dataset.pane = name;
-      if (name === 'schema') label.title = 'The Schema pane is always shown';
       box.addEventListener('change', () => this.setVisible(name, box.checked));
       const state = document.createElement('span');
       state.className = 'state';

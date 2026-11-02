@@ -25,9 +25,8 @@ test.describe('wide window', () => {
   test.use({ viewport: { width: 1400, height: 800 } });
   test.beforeEach(async ({ page }) => ready(page));
 
-  test('every pane but Schema has an X at the top right of its title bar; it closes the pane', async ({ page }) => {
-    await expect(page.locator('#pane-editor .pane-close')).toHaveCount(0);
-    for (const name of ['parsed', 'bytes', 'status'] as const) {
+  test('every pane has an X at the top right of its title bar; it closes the pane', async ({ page }) => {
+    for (const name of ['schema', 'parsed', 'bytes', 'status'] as const) {
       await expect(page.locator(`#${ids[name]} .pane-title .pane-close`)).toHaveCount(1);
     }
     const close = page.getByRole('button', { name: 'Close the Bytes pane' });
@@ -43,7 +42,32 @@ test.describe('wide window', () => {
     await expect(page.locator('#layout-reset')).toBeVisible();
   });
 
-  test('x closes the focused pane, but not Schema, and not in a text field', async ({ page }) => {
+  test('the X of the Schema pane closes it; the others fill the window, and v or Reset brings it back; with every pane closed a note says how to open them', async ({ page }) => {
+    await page.getByRole('button', { name: 'Close the Schema pane' }).click();
+    await expect(page.locator('#pane-editor')).toBeHidden();
+    expect(await visible(page)).toEqual(['pane-tree', 'pane-hex', 'pane-status']);
+    expect(parseLayout(await stored(page))?.hidden).toEqual(['schema']);
+    await page.reload();
+    await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
+    await expect(page.locator('#pane-editor')).toBeHidden();
+    await page.locator('#pane-tree').focus();
+    await page.keyboard.press('v');
+    await page.locator('#panes-list li').nth(0).locator('input').check();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#pane-editor')).toBeVisible();
+    // every pane closed
+    for (const name of ['Schema', 'Parsed', 'Bytes', 'Status']) await page.getByRole('button', { name: `Close the ${name} pane` }).click();
+    expect(await visible(page)).toEqual([]);
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('main')!, '::after').content)).toContain('All the panes are closed');
+    await page.getByRole('button', { name: 'Panes' }).click();
+    await page.locator('#panes-list li').nth(2).locator('input').check();
+    await expect(page.locator('#pane-hex')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Shift+R');
+    expect(await visible(page)).toEqual(['pane-editor', 'pane-tree', 'pane-hex', 'pane-status']);
+  });
+
+  test('x closes the focused pane, but not Schema (its button does), and not in a text field', async ({ page }) => {
     await page.locator('#pane-tree').focus();
     await page.keyboard.press('x');
     await expect(page.locator('#pane-tree')).toBeHidden();
@@ -52,7 +76,7 @@ test.describe('wide window', () => {
     await page.locator('#pane-editor').focus();
     await page.keyboard.press('x');
     await expect(page.locator('#pane-editor')).toBeVisible();
-    await expect(page.locator('#layout-live')).toHaveText('The Schema pane cannot be closed');
+    await expect(page.locator('#layout-live')).toHaveText('x does not close the Schema pane: use its X button, or v');
     // in the editor x is text
     await page.locator('.cm-content').click();
     await page.keyboard.press('x');
@@ -78,7 +102,7 @@ test.describe('wide window', () => {
     expect((await widthOf('pane-editor')) + 2 * 16).toBeGreaterThan(main!.width - 4);
   });
 
-  test('v opens a list of the four panes with their state; the boxes show and close them, Schema cannot be closed', async ({ page }) => {
+  test('v opens a list of the four panes with their state; the boxes show and close them, Schema too', async ({ page }) => {
     await page.locator('#pane-tree').focus();
     await page.keyboard.press('v');
     const dialog = page.locator('#panes-dialog');
@@ -86,7 +110,7 @@ test.describe('wide window', () => {
     const rows = dialog.locator('#panes-list li');
     await expect(rows).toHaveCount(4);
     await expect(rows.nth(0)).toContainText('Schema');
-    await expect(rows.nth(0).locator('input')).toBeDisabled();
+    await expect(rows.nth(0).locator('input')).toBeEnabled();
     await expect(rows.nth(0).locator('input')).toBeChecked();
     await expect(rows.nth(1)).toContainText('shown');
     await rows.nth(1).locator('input').uncheck();
@@ -148,7 +172,7 @@ test.describe('wide window', () => {
   });
 
   test('junk in the storage is the default, and a record of the first version shows every pane', async ({ page }) => {
-    await page.evaluate((key) => window.localStorage.setItem(key, '{"v":2,"order":["schema","parsed","bytes","status"],"hidden":["schema"]}'), LAYOUT_KEY);
+    await page.evaluate((key) => window.localStorage.setItem(key, '{"v":2,"order":["schema","parsed","bytes","status"],"hidden":["nothing"]}'), LAYOUT_KEY);
     await page.reload();
     await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
     expect(await visible(page)).toEqual(['pane-editor', 'pane-tree', 'pane-hex', 'pane-status']);
