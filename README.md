@@ -1821,13 +1821,26 @@ what was changed (`note`) for each theme.
 | `kanagawa-lotus` | Kanagawa Lotus | light | rebelot | MIT |
 | `kanagawa-wave` | Kanagawa Wave | dark | rebelot | MIT |
 | `monokai` | Monokai | dark | Wimer Hazenberg | MIT |
+| `neobones-dark` | Neobones Dark | dark | mcchrish | MIT |
+| `neobones-light` | Neobones Light | light | mcchrish | MIT |
 | `nord` | Nord | dark | Sven Greb (Arctic Ice Studio) | MIT |
 | `one-dark` | One Dark | dark | GitHub (Atom) | MIT |
 | `one-light` | One Light | light | GitHub (Atom) | MIT |
 | `seafoam-pastel` | Seafoam Pastel | dark | iTerm2 Color Schemes | MIT |
+| `seoul256-dark` | seoul256 Dark | dark | Junegunn Choi | MIT |
+| `seoul256-light` | seoul256 Light | light | Junegunn Choi | MIT |
+| `seoulbones-dark` | Seoulbones Dark | dark | mcchrish | MIT |
+| `seoulbones-light` | Seoulbones Light | light | mcchrish | MIT |
 | `solarized-dark` | Solarized Dark | dark | Ethan Schoonover | MIT |
 | `solarized-light` | Solarized Light | light | Ethan Schoonover | MIT |
 | `tokyo-night` | Tokyo Night | dark | enkia | MIT |
+| `vimbones-dark` | Vimbones Dark | dark | mcchrish | MIT |
+| `vimbones-light` | Vimbones Light | light | mcchrish | MIT |
+| `zenbones-dark` | Zenbones Dark | dark | mcchrish | MIT |
+| `zenbones-light` | Zenbones Light | light | mcchrish | MIT |
+| `zenburned` | Zenburned | dark | mcchrish | MIT |
+| `zenwritten-dark` | Zenwritten Dark | dark | mcchrish | MIT |
+| `zenwritten-light` | Zenwritten Light | light | mcchrish | MIT |
 
 ### Color
 
