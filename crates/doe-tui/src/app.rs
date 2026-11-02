@@ -722,7 +722,7 @@ impl App {
         }
     }
 
-    /// `Enter` on a theme: use it until the viewer is closed, and say how to keep it.
+    /// `Enter` on a theme: use it, and keep it in the configuration file (or say how to, when there is none).
     fn choose_theme(&mut self) {
         let Some(browser) = self.themes.as_ref() else {
             return;
@@ -743,12 +743,38 @@ impl App {
             self.themes = None;
             return;
         }
-        let message = format!(
-            "theme {} for this session; {}",
-            crate::format::safe(&entry.name),
-            entry.how_to_keep()
-        );
-        self.theme_id = Some(entry.id.clone());
+        // the choice is kept in the configuration file of this run: the terminal's own colours take the key out
+        let id = entry.id.clone();
+        let name = crate::format::safe(&entry.name);
+        let keep = (entry.group != crate::theme_browser::Group::Terminal).then(|| id.clone());
+        let how = entry.how_to_keep();
+        let target = self.options.as_ref().and_then(|o| {
+            o.config_file
+                .clone()
+                .map(|path| (path, o.theme_on_command_line))
+        });
+        let message = match target {
+            Some((path, on_command_line)) => {
+                let said = match crate::config_write::save_theme(&path, keep.as_deref()) {
+                    Ok(crate::config_write::Saved::Written) => {
+                        format!("theme {name} used and saved to {}", path.display())
+                    }
+                    Ok(crate::config_write::Saved::Unchanged) => {
+                        format!("theme {name} used; {} already has it", path.display())
+                    }
+                    Err(error) => {
+                        format!("theme {name} for this session; not saved: {error:#}")
+                    }
+                };
+                if on_command_line {
+                    format!("{said}; --theme on the command line wins until it is removed")
+                } else {
+                    said
+                }
+            }
+            None => format!("theme {name} for this session; {how}"),
+        };
+        self.theme_id = Some(id);
         self.notice = Some(message);
         self.preview_theme();
         self.themes = None;
@@ -2035,6 +2061,8 @@ pub(crate) mod tests {
             watch: false,
             theme: None,
             theme_dir: None,
+            config_file: None,
+            theme_on_command_line: false,
             radix: None,
         };
         (App::new(file, load(&options).unwrap()), dir)
@@ -2082,6 +2110,8 @@ pub(crate) mod tests {
             watch: false,
             theme: None,
             theme_dir: None,
+            config_file: None,
+            theme_on_command_line: false,
             radix: None,
         };
         let loaded = load(&options).unwrap();
@@ -2523,6 +2553,8 @@ seq:
             watch: false,
             theme: None,
             theme_dir: None,
+            config_file: None,
+            theme_on_command_line: false,
             radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
@@ -2821,6 +2853,8 @@ types:
             watch: false,
             theme: None,
             theme_dir: None,
+            config_file: None,
+            theme_on_command_line: false,
             radix: None,
         };
         let mut app = App::new(options.file.clone(), load(&options).unwrap());
@@ -2879,6 +2913,8 @@ types:
             watch: false,
             theme: None,
             theme_dir: None,
+            config_file: None,
+            theme_on_command_line: false,
             radix: None,
         }
     }
@@ -3063,6 +3099,8 @@ types:
             watch: false,
             theme: None,
             theme_dir: None,
+            config_file: None,
+            theme_on_command_line: false,
             radix: None,
         })
         .unwrap();

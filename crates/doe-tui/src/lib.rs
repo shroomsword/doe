@@ -15,6 +15,7 @@ pub mod app;
 pub mod builder;
 pub mod bytes;
 pub mod clipboard;
+pub mod config_write;
 pub mod draft;
 pub mod field_dialog;
 pub mod format;
@@ -70,6 +71,11 @@ pub struct Options {
     pub theme: Option<String>,
     /// Where the themes of the person are (see [`theme::user_dir`]).
     pub theme_dir: Option<PathBuf>,
+    /// The configuration file of this run (`--config`, or the default one): where `Enter` in the list of themes saves
+    /// the choice. None: nothing is saved, and the list says what to put in the file.
+    pub config_file: Option<PathBuf>,
+    /// Whether `--theme` was given on the command line, which wins over the configuration file.
+    pub theme_on_command_line: bool,
     /// The radix in which integers are first shown (`--radix` or the `radix`
     /// key of the config); decimal when it is none.
     pub radix: Option<doe::radix::Radix>,

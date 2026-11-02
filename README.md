@@ -1515,7 +1515,7 @@ error colour. With the terminal's own colours it uses the ANSI colours, and with
 YAML that schemas use, not a parser: what it does not understand is shown as it
 is.
 
-`T` browses the colour **themes** and chooses one for the session: the viewer
+`T` browses the colour **themes** and chooses one (kept in the config file): the viewer
 shows each as you move through the list (see [Themes](#themes)).
 
 `t` browses the types that are **available**: those of the type paths (`-I`, and
@@ -1757,11 +1757,14 @@ screen so that the viewer behind it can be seen: the terminal's own colours firs
 then the built-in themes (dark, then light; each group in the order of the names, without regard to case or accents, with a number in a name by its value), then your own files (`NAME.toml` of
 the `themes` directory; one that cannot be read is listed with its error). Moving
 through the list shows each theme on the whole viewer, the list included. `/`
-filters by name, `Enter` uses the selected theme until the viewer is closed and
-says what to put in the config file to keep it (`theme = "nord"`, or `--theme
-nord`; the viewer never writes the config file itself), and `Esc` puts back the
-theme that was in use. With `NO_COLOR` or `--color never` the list says there is
-no colour in this run and applies nothing.
+filters by name, `Enter` uses the selected theme and **saves it**: it sets the `theme` key of the config file
+that the run reads (`--config`, or the default `~/.config/doe/config.toml`; the file and its directory are made
+when they are not there), so that the next run starts with it. This is the one thing the viewer writes. The
+rest of the file is left as it is (other keys, comments and order); a file that is not valid TOML is not
+touched, and the message says why the theme was not saved, which is still used for the session. The
+terminal's own colours take the key out. If `--theme` was given on the command line the message says that it
+wins at the next run until it is removed. `Esc` puts back the theme that was in use and writes nothing. With
+`NO_COLOR` or `--color never` the list says there is no colour in this run and applies nothing (nor saves).
 
 A theme file is TOML, with the colours of the table:
 

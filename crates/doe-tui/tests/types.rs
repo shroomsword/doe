@@ -62,6 +62,8 @@ fn app(f: &Fixture, type_name: &str) -> App {
         watch: false,
         theme: None,
         theme_dir: None,
+        config_file: None,
+        theme_on_command_line: false,
         radix: None,
     };
     let mut app = App::new(f.file.clone(), load(&options).unwrap());

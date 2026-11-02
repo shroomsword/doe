@@ -183,6 +183,8 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         theme_dir: doe_tui::theme::user_dir(
             cli.config.clone().or_else(Config::default_path).as_deref(),
         ),
+        config_file: cli.config.clone().or_else(Config::default_path),
+        theme_on_command_line: cli.theme.is_some(),
     };
     match &cli.build {
         Some(out) => doe_tui::run_build(&options, out),
