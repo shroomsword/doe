@@ -164,17 +164,19 @@ test('Open, Detect and auto are in the title bar of the Parsed pane, and the det
   await expect(page.locator('#pane-tree #detect-report')).toHaveCount(0);
 });
 
-test('Integers is the last tool at the right end of the Parsed pane\'s title bar, with This field just before it', async ({ page }) => {
+test('Integers is the last tool at the right end of the Parsed pane\'s title bar, before the close button, with This field just before it', async ({ page }) => {
   const bar = page.locator('#pane-tree .pane-title');
   await expect(bar.locator('#radix-box')).toHaveCount(1);
   await expect(bar.locator('#field-radix-box')).toHaveCount(1);
   await expect(page.locator('#pane-tree .pane-tools')).toHaveCount(0);
   // This field is for an integer that is selected: before that it is not shown
   await expect(bar.locator('#field-radix-box')).toBeHidden();
-  // Integers ends the bar, at its right end
+  // Integers ends the tools, at the right end of the bar, where only the button that closes the pane comes after it
   const radix = await bar.locator('#radix-box').boundingBox();
   const barBox = await bar.boundingBox();
-  expect((radix?.x ?? 0) + (radix?.width ?? 0)).toBeGreaterThan((barBox?.x ?? 0) + (barBox?.width ?? 0) - 16);
+  const closeBox = await bar.locator('.pane-close').boundingBox();
+  expect((radix?.x ?? 0) + (radix?.width ?? 0)).toBeGreaterThan((barBox?.x ?? 0) + (barBox?.width ?? 0) - (closeBox?.width ?? 0) - 24);
+  expect(before(radix, closeBox)).toBe(true);
   expect(before(await bar.locator('#detect-auto-box').boundingBox(), radix)).toBe(true);
 });
 
