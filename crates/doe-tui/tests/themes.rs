@@ -530,6 +530,8 @@ fn the_screens_of(id: &str, depth: Depth) {
         watch: false,
         theme: Some(id.to_owned()),
         theme_dir: None,
+        config_file: None,
+        theme_on_command_line: false,
         radix: None,
     };
     let loaded = load(&options).unwrap();
@@ -645,6 +647,8 @@ fn without_colour_a_theme_is_not_used() {
         watch: false,
         theme: Some("nord".to_owned()),
         theme_dir: None,
+        config_file: None,
+        theme_on_command_line: false,
         radix: None,
     };
     assert_eq!(options.theme(Depth::True).unwrap(), Theme::new(false));
@@ -702,6 +706,8 @@ fn started_with(id: Option<&str>) -> (App, Theme, tempfile::TempDir, Options) {
         watch: false,
         theme: id.map(str::to_owned),
         theme_dir: Some(themes),
+        config_file: None,
+        theme_on_command_line: false,
         radix: None,
     };
     let loaded = load(&options).unwrap();
@@ -802,6 +808,168 @@ fn enter_uses_the_theme_for_the_session_and_says_how_to_keep_it() {
     press(&mut app, KeyCode::Esc);
     terminal.draw(|f| draw(f, &mut app, &styles)).unwrap();
     assert!(cell_colours(&terminal).is_subset(&palette_of("solarized-light")));
+}
+
+/// Point the run at a configuration file (`--config`), and say whether `--theme` was on the command line.
+fn with_config(app: &mut App, path: &std::path::Path, on_command_line: bool) {
+    let options = app.options.as_mut().unwrap();
+    options.config_file = Some(path.to_owned());
+    options.theme_on_command_line = on_command_line;
+}
+
+/// Open the list, find a theme by what is typed, and press Enter on it.
+fn choose(app: &mut App, filter: &str) {
+    press(app, KeyCode::Char('T'));
+    press(app, KeyCode::Char('/'));
+    type_text(app, filter);
+    press(app, KeyCode::Enter);
+    press(app, KeyCode::Enter);
+}
+
+#[test]
+fn enter_saves_the_theme_in_the_config_file_of_the_run_and_keeps_the_rest_of_it() {
+    let (mut app, _styles, dir, _) = started_with(None);
+    let config = dir.path().join("config").join("doe").join("config.toml");
+    std::fs::create_dir_all(config.parent().unwrap()).unwrap();
+    std::fs::write(&config, "# my doe\nradix = \"hex\" # for ids\n").unwrap();
+    with_config(&mut app, &config, false);
+    choose(&mut app, "solarized light");
+    let notice = app.notice.clone().unwrap();
+    assert!(
+        notice.contains("solarized light") || notice.contains("Solarized Light"),
+        "{notice}"
+    );
+    assert!(notice.contains("used and saved to"), "{notice}");
+    assert!(notice.contains(config.to_str().unwrap()), "{notice}");
+    assert!(!notice.contains("--theme on the command line"), "{notice}");
+    let text = std::fs::read_to_string(&config).unwrap();
+    assert!(
+        text.starts_with("# my doe\nradix = \"hex\" # for ids\n"),
+        "{text}"
+    );
+    assert!(text.contains("theme = \"solarized-light\""), "{text}");
+    assert_eq!(app.theme_id.as_deref(), Some("solarized-light"));
+
+    // the same choice again does not touch the file, and says so
+    let before = std::fs::metadata(&config).unwrap().modified().unwrap();
+    choose(&mut app, "solarized light");
+    assert!(app.notice.clone().unwrap().contains("already has it"));
+    assert_eq!(
+        std::fs::metadata(&config).unwrap().modified().unwrap(),
+        before
+    );
+
+    // another theme replaces it, and the terminal's own colours take the key out
+    choose(&mut app, "dracula");
+    assert!(
+        std::fs::read_to_string(&config)
+            .unwrap()
+            .contains("theme = \"dracula\"")
+    );
+    press(&mut app, KeyCode::Char('T'));
+    press(&mut app, KeyCode::Home);
+    assert_eq!(
+        app.themes.as_ref().unwrap().current().unwrap().id,
+        "terminal"
+    );
+    press(&mut app, KeyCode::Enter);
+    let text = std::fs::read_to_string(&config).unwrap();
+    assert!(!text.contains("theme"), "{text}");
+    assert!(text.contains("radix = \"hex\" # for ids"), "{text}");
+}
+
+#[test]
+fn a_theme_of_the_users_directory_is_saved_by_its_file_name() {
+    let (mut app, _styles, dir, _) = started_with(None);
+    let config = dir.path().join("config.toml");
+    with_config(&mut app, &config, false);
+    choose(&mut app, "mine");
+    assert_eq!(
+        std::fs::read_to_string(&config).unwrap(),
+        "theme = \"mine\"\n"
+    );
+}
+
+#[test]
+fn nothing_is_saved_on_escape_with_no_colour_or_for_a_theme_that_cannot_be_read() {
+    let (mut app, _styles, dir, _) = started_with(None);
+    let config = dir.path().join("config.toml");
+    with_config(&mut app, &config, false);
+    press(&mut app, KeyCode::Char('T'));
+    press(&mut app, KeyCode::Char('/'));
+    type_text(&mut app, "nord");
+    press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Esc);
+    assert!(!config.exists(), "Esc saves nothing");
+
+    // a file in the themes directory that is not a theme: listed with its error, cannot be chosen
+    std::fs::write(
+        dir.path().join("themes").join("broken.toml"),
+        "this is not a theme",
+    )
+    .unwrap();
+    choose(&mut app, "broken");
+    assert!(app.notice.clone().unwrap().contains("cannot be used"));
+    assert!(!config.exists());
+
+    // NO_COLOR / --color never: the list applies nothing
+    let (mut quiet, _styles, dir, _) = started_with(None);
+    quiet.options.as_mut().unwrap().color = false;
+    let config = dir.path().join("config.toml");
+    with_config(&mut quiet, &config, false);
+    press(&mut quiet, KeyCode::Char('T'));
+    if quiet.themes.is_some() {
+        press(&mut quiet, KeyCode::Char('/'));
+        type_text(&mut quiet, "nord");
+        press(&mut quiet, KeyCode::Enter);
+        press(&mut quiet, KeyCode::Enter);
+    }
+    assert!(!config.exists(), "with no colour nothing is written");
+}
+
+#[test]
+fn a_config_file_that_cannot_be_changed_is_said_and_the_theme_is_still_used() {
+    let (mut app, _styles, dir, _) = started_with(None);
+    let config = dir.path().join("config.toml");
+    std::fs::write(&config, "this = is = not toml\n").unwrap();
+    with_config(&mut app, &config, false);
+    choose(&mut app, "nord");
+    let notice = app.notice.clone().unwrap();
+    assert!(notice.contains("for this session; not saved"), "{notice}");
+    assert!(notice.contains("not valid TOML"), "{notice}");
+    assert_eq!(app.theme_id.as_deref(), Some("nord"));
+    assert_eq!(
+        std::fs::read_to_string(&config).unwrap(),
+        "this = is = not toml\n"
+    );
+}
+
+#[test]
+fn the_message_says_when_theme_on_the_command_line_wins() {
+    let (mut app, _styles, dir, _) = started_with(Some("dracula"));
+    let config = dir.path().join("config.toml");
+    with_config(&mut app, &config, true);
+    choose(&mut app, "nord");
+    let notice = app.notice.clone().unwrap();
+    assert!(notice.contains("used and saved to"), "{notice}");
+    assert!(
+        notice.contains("--theme on the command line wins until it is removed"),
+        "{notice}"
+    );
+    assert!(
+        std::fs::read_to_string(&config)
+            .unwrap()
+            .contains("theme = \"nord\"")
+    );
+}
+
+#[test]
+fn without_a_config_file_the_list_says_what_to_put_in_it() {
+    let (mut app, _styles, _dir, _) = started_with(None);
+    choose(&mut app, "nord");
+    let notice = app.notice.clone().unwrap();
+    assert!(notice.contains("for this session"), "{notice}");
+    assert!(notice.contains("theme = \"nord\""), "{notice}");
 }
 
 #[test]

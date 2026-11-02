@@ -219,7 +219,7 @@ pub const BINDINGS: &[Binding] = &[
         keys: &[ch('T')],
         scope: Scope::Anywhere,
         action: Action::Themes,
-        help: "browse the colour themes (each is shown as you move; Enter uses it)",
+        help: "browse the colour themes (each is shown as you move; Enter uses and saves it)",
     },
     Binding {
         keys: &[ch('t')],

@@ -29,6 +29,8 @@ fn building() -> (App, tempfile::TempDir) {
         watch: false,
         theme: None,
         theme_dir: None,
+        config_file: None,
+        theme_on_command_line: false,
         radix: None,
     };
     let (options, builder) = prepare_build(&options, &dir.path().join("built.yaml")).unwrap();
@@ -158,6 +160,8 @@ fn the_ordinary_viewer_has_no_builder_and_leaves_at_once() {
         watch: false,
         theme: None,
         theme_dir: None,
+        config_file: None,
+        theme_on_command_line: false,
         radix: None,
     };
     let mut app = App::new(options.file.clone(), load(&options).unwrap());
