@@ -19,6 +19,7 @@ import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { RADIXES, Radixes, isRadix } from './radix.js';
 import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
 import { TreeView } from './tree.js';
+import { type PaneName, DEFAULT_LAYOUT, PANE_NAMES, applyLayout, isDefault, loadLayout, saveLayout, swapped } from './layout.js';
 
 /** How long the schema is left alone before it is checked again. */
 const PAUSE_MS = 250;
@@ -35,8 +36,9 @@ type WindowWithPicker = Window & {
 const SCHEMA_EXTENSIONS = ['.ksy', '.yaml', '.yml'];
 
 /** The panes that the keys move between, in order. */
-type PaneName = 'schema' | 'parsed' | 'bytes' | 'status';
-const PANES: readonly PaneName[] = ['schema', 'parsed', 'bytes', 'status'];
+const PANES: readonly PaneName[] = PANE_NAMES;
+/** What the panes are called, for the messages. */
+const NAMES: Record<PaneName, string> = { schema: 'Schema', parsed: 'Parsed', bytes: 'Bytes', status: 'Status' };
 const PANE_IDS: Record<PaneName, string> = { schema: 'pane-editor', parsed: 'pane-tree', bytes: 'pane-hex', status: 'pane-status' };
 
 function element<T extends HTMLElement>(id: string): T {
@@ -607,6 +609,8 @@ export class App {
   // ── the keys ───────────────────────────────────────────────────────────────
 
   private lastPane: PaneName = 'parsed';
+  /** The panes in the four places of the page (layout.ts). */
+  private order: PaneName[] = loadLayout();
   /** Where the last search of the bytes found its match. */
   private byteFound: number | null = null;
   private searches: Record<'parsed' | 'bytes' | 'status', PaneSearch> | null = null;
@@ -624,6 +628,7 @@ export class App {
         this.lastPane = name;
       });
     }
+    this.layoutSetup();
     const buttons: Record<string, Action> = {
       'open-input': 'open-file',
       'open-schema': 'open-schema',
@@ -653,7 +658,9 @@ export class App {
 
   private onKey(event: KeyboardEvent): void {
     if (event.defaultPrevented || event.isComposing || event.repeat) return;
-    if (event.ctrlKey || event.altKey || event.metaKey) return;
+    if (event.ctrlKey || event.metaKey) return;
+    // Alt works only with Shift and a letter: the keys that move a pane
+    if (event.altKey && !(event.shiftKey && keyName(event).startsWith('Alt+Shift+'))) return;
     if (document.querySelector('dialog[open]')) return;
     if (event.key === 'Escape') {
       // out of the editor, to its pane, so that the keys work again
@@ -699,8 +706,8 @@ export class App {
   }
 
   private cyclePane(step: 1 | -1): void {
-    const at = PANES.indexOf(this.currentPane());
-    this.focusPane(PANES[(at + step + PANES.length) % PANES.length] ?? 'parsed');
+    const at = this.order.indexOf(this.currentPane());
+    this.focusPane(this.order[(at + step + this.order.length) % this.order.length] ?? 'parsed');
   }
 
   /**
@@ -709,6 +716,12 @@ export class App {
    * its width or height. At the edge nothing happens.
    */
   private movePane(dx: number, dy: number): void {
+    const target = this.neighbour(dx, dy);
+    if (target) this.focusPane(target);
+  }
+
+  /** The pane that lies in a direction from the current one (see `movePane`), or null at the edge. */
+  private neighbour(dx: number, dy: number): PaneName | null {
     const here = this.currentPane();
     const from = element(PANE_IDS[here]).getBoundingClientRect();
     let best: { name: PaneName; gap: number; overlap: number } | null = null;
@@ -722,7 +735,80 @@ export class App {
       if (overlap <= 0) continue;
       if (!best || gap < best.gap - 1 || (Math.abs(gap - best.gap) <= 1 && overlap > best.overlap)) best = { name, gap, overlap };
     }
-    if (best) this.focusPane(best.name);
+    return best ? best.name : null;
+  }
+
+  // ── the layout ─────────────────────────────────────────────────────────────
+
+  /** Put the panes where they were left, and make them draggable by their titles. */
+  private layoutSetup(): void {
+    applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, this.order);
+    this.layoutChanged(false);
+    element('layout-reset').addEventListener('click', () => this.resetLayout());
+    let dragged: PaneName | null = null;
+    for (const name of PANES) {
+      const section = element(PANE_IDS[name]);
+      const handle = section.querySelector<HTMLElement>('.pane-title h2');
+      if (!handle) continue;
+      handle.draggable = true;
+      handle.title = 'Drag onto another pane to swap their places (or Alt+Shift+h, j, k, l)';
+      handle.addEventListener('dragstart', (event) => {
+        dragged = name;
+        section.classList.add('dragging');
+        event.dataTransfer?.setData('text/plain', name);
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+      });
+      handle.addEventListener('dragend', () => {
+        dragged = null;
+        for (const other of PANES) element(PANE_IDS[other]).classList.remove('dragging', 'drop-target');
+      });
+      section.addEventListener('dragover', (event) => {
+        if (dragged === null || dragged === name) return;
+        event.preventDefault();
+        section.classList.add('drop-target');
+      });
+      section.addEventListener('dragleave', (event) => {
+        if (!(event.relatedTarget instanceof Node) || !section.contains(event.relatedTarget)) section.classList.remove('drop-target');
+      });
+      section.addEventListener('drop', (event) => {
+        event.preventDefault();
+        section.classList.remove('drop-target');
+        if (dragged !== null && dragged !== name) this.swapPanes(dragged, name);
+      });
+    }
+  }
+
+  private swapPanes(a: PaneName, b: PaneName): void {
+    this.order = swapped(this.order, a, b);
+    const focus = this.currentPane();
+    applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, this.order);
+    saveLayout(this.order);
+    this.layoutChanged(true, `${NAMES[a]} and ${NAMES[b]} swapped places`);
+    // moving elements in the page drops the focus; put it back where it was
+    this.focusPane(focus);
+  }
+
+  /** The pane moved one place in a direction: it takes the place of the pane that is there. */
+  private moveBy(dx: number, dy: number): void {
+    const here = this.currentPane();
+    const target = this.neighbour(dx, dy);
+    if (target) this.swapPanes(here, target);
+  }
+
+  private resetLayout(): void {
+    if (isDefault(this.order)) return;
+    const focus = this.currentPane();
+    this.order = [...DEFAULT_LAYOUT];
+    applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, this.order);
+    saveLayout(this.order);
+    this.layoutChanged(true, 'The panes are back in their places');
+    this.focusPane(focus);
+  }
+
+  /** Show the reset button when the layout is not the default, and say what happened to a screen reader. */
+  private layoutChanged(announce: boolean, message = ''): void {
+    element('layout-reset').hidden = isDefault(this.order);
+    if (announce) element('layout-live').textContent = message;
   }
 
   private perform(action: Action): void {
@@ -773,6 +859,21 @@ export class App {
         break;
       case 'pane-right':
         this.movePane(1, 0);
+        break;
+      case 'move-left':
+        this.moveBy(-1, 0);
+        break;
+      case 'move-down':
+        this.moveBy(0, 1);
+        break;
+      case 'move-up':
+        this.moveBy(0, -1);
+        break;
+      case 'move-right':
+        this.moveBy(1, 0);
+        break;
+      case 'reset-layout':
+        this.resetLayout();
         break;
       case 'search':
         this.searchPane();

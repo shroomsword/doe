@@ -112,4 +112,6 @@ in `.github/actions/build-web`.
 
 ## Keys
 
+The layout of the panes (the four places, the order that is saved, swapping two) is `src/layout.ts`; the page puts `data-slot` on each pane and the style sheet puts a slot in its place, so the order of the keys is the order on the screen.
+
 The keys of the page are in one table, `src/keys.ts`, which both acts on them and draws the list that `K` shows, so the two cannot differ; the top-level README documents them (a test checks that every key is there). The letters never act in a text field or with Ctrl, Alt or Meta held, nor while a dialog is open. `h` `j` `k` `l` move between the panes as they are laid out on the page (by their boxes, so they follow the one, two or three columns), the way that works where the browser keeps `Tab` for itself (Firefox); `Tab` does it too from a pane (the tree, the bytes, the pane itself), and stays the browser's `Tab` on a button, in a box and in the editor, so that the keyboard is never trapped. The search bars of Parsed, Bytes and Status are `src/search.ts`; the pure parts (the meaning of a query of the bytes, finding a node) are in `keys.ts` and `model.ts`.

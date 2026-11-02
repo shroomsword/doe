@@ -1194,6 +1194,11 @@ the editor for its pane, closes a dialog and closes a search.
 | `j` | Focus the pane below |
 | `k` | Focus the pane above |
 | `l` | Focus the pane on the right |
+| `Alt+Shift+h` | Move the pane to the left (it swaps places with that one) |
+| `Alt+Shift+j` | Move the pane down |
+| `Alt+Shift+k` | Move the pane up |
+| `Alt+Shift+l` | Move the pane to the right |
+| `R` | Put the panes back in their places |
 | `/` | Search in the focused pane, or in the help when it is open |
 | `g` | Go to an offset in the bytes |
 | `a` | Turn automatic detection on or off |
@@ -1211,6 +1216,14 @@ text (`Enter` for the next match, `Shift+Enter` for the previous one); in
 hexadecimal; `@#500` in decimal), which is also what `g` asks for; in
 **Status**, the lines of the problems and of the detection report that have the
 text. In the help dialog `/` opens a search bar over its text: the matches are marked and counted, `Enter` and `Shift+Enter` go to the next and previous one, and `Esc` closes the bar (a second `Esc` closes the dialog).
+
+**The layout.** The four panes are in four places: three side by side and the fourth under them in a wide
+window, two columns with the third and fourth across in a medium one, one column in a narrow one. Drag a pane by
+its title onto another to swap their places, or press `Alt+Shift+h`, `j`, `k` or `l` to swap the pane that has
+the focus with the one next to it in that direction (the move is announced to a screen reader). The layout is
+kept in the browser's local storage and applied when the page loads; if the browser has no storage the page
+starts with the default layout. Once the layout is not the default, a button in the header and the key `R` put
+the panes back.
 
 ## CLI reference
 
