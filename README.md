@@ -1172,7 +1172,7 @@ page that says that instead.
 
 ### Keys
 
-The page can be driven from the keyboard; `k` lists the keys in the page. The
+The page can be driven from the keyboard; `K` lists the keys in the page. The
 letters work when the focus is not in a text field (the schema editor, a box),
 never with Ctrl, Alt or Meta held, and not while a dialog is open. `Esc` leaves
 the editor for its pane, closes a dialog and closes a search.
@@ -1180,7 +1180,7 @@ the editor for its pane, closes a dialog and closes a search.
 | Key | Does |
 |---|---|
 | `?` | Help |
-| `k` | Show these keys |
+| `K` | Show these keys |
 | `T` | Choose a theme |
 | `o` | Open a file to parse |
 | `O` | Open a schema file |
@@ -1190,8 +1190,10 @@ the editor for its pane, closes a dialog and closes a search.
 | `s` | Save the parsed value |
 | `Tab` | Next pane (from a pane, not from a button or a field) |
 | `Shift+Tab` | Previous pane |
-| `F6` | Next pane, from anywhere |
-| `Shift+F6` | Previous pane, from anywhere |
+| `h` | Focus the pane on the left |
+| `j` | Focus the pane below |
+| `k` | Focus the pane above |
+| `l` | Focus the pane on the right |
 | `/` | Search in the focused pane |
 | `g` | Go to an offset in the bytes |
 | `a` | Turn automatic detection on or off |

@@ -1,5 +1,5 @@
 // The keys of the page: one table that both acts on a key and draws the list of
-// them (the dialog of `k`), so that the list cannot get out of step with what
+// them (the dialog of `K`), so that the list cannot get out of step with what
 // the keys do. No DOM here, except where a function takes the target of an event.
 
 /** What a key needs before it does anything: a file to look at, a parsed value, or a parse that is running. */
@@ -17,6 +17,10 @@ export type Action =
   | 'save'
   | 'next-pane'
   | 'previous-pane'
+  | 'pane-left'
+  | 'pane-down'
+  | 'pane-up'
+  | 'pane-right'
   | 'search'
   | 'goto'
   | 'auto'
@@ -28,7 +32,7 @@ export type Action =
   | 'pane-status';
 
 export interface Key {
-  /** The name of the key as the page reads it: the character, or `Tab`, `Shift+Tab`, `F6`. */
+  /** The name of the key as the page reads it: the character, or `Tab`, `Shift+Tab`. */
   key: string;
   action: Action;
   /** What it does, for the list. */
@@ -40,7 +44,7 @@ export interface Key {
 
 export const KEYS: readonly Key[] = [
   { key: '?', action: 'help', label: 'Help' },
-  { key: 'k', action: 'keys', label: 'Show these keys' },
+  { key: 'K', action: 'keys', label: 'Show these keys' },
   { key: 'T', action: 'theme', label: 'Choose a theme' },
   { key: 'o', action: 'open-file', label: 'Open a file to parse' },
   { key: 'O', action: 'open-schema', label: 'Open a schema file' },
@@ -50,8 +54,10 @@ export const KEYS: readonly Key[] = [
   { key: 's', action: 'save', label: 'Save the parsed value', needs: 'parsed' },
   { key: 'Tab', action: 'next-pane', label: 'Next pane (from a pane, not from a button or a field)' },
   { key: 'Shift+Tab', action: 'previous-pane', label: 'Previous pane' },
-  { key: 'F6', action: 'next-pane', label: 'Next pane, from anywhere', inFields: true },
-  { key: 'Shift+F6', action: 'previous-pane', label: 'Previous pane, from anywhere', inFields: true },
+  { key: 'h', action: 'pane-left', label: 'Focus the pane on the left' },
+  { key: 'j', action: 'pane-down', label: 'Focus the pane below' },
+  { key: 'k', action: 'pane-up', label: 'Focus the pane above' },
+  { key: 'l', action: 'pane-right', label: 'Focus the pane on the right' },
   { key: '/', action: 'search', label: 'Search in the focused pane' },
   { key: 'g', action: 'goto', label: 'Go to an offset in the bytes', needs: 'file' },
   { key: 'a', action: 'auto', label: 'Turn automatic detection on or off' },

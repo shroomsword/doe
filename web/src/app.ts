@@ -703,6 +703,28 @@ export class App {
     this.focusPane(PANES[(at + step + PANES.length) % PANES.length] ?? 'parsed');
   }
 
+  /**
+   * Focus the pane that lies in a direction from the current one, as the page is laid out now (one column, two or
+   * three): the nearest pane whose box is entirely past this one's edge, preferring the one that shares the most of
+   * its width or height. At the edge nothing happens.
+   */
+  private movePane(dx: number, dy: number): void {
+    const here = this.currentPane();
+    const from = element(PANE_IDS[here]).getBoundingClientRect();
+    let best: { name: PaneName; gap: number; overlap: number } | null = null;
+    for (const name of PANES) {
+      if (name === here) continue;
+      const box = element(PANE_IDS[name]).getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) continue;
+      const gap = dx > 0 ? box.left - from.right : dx < 0 ? from.left - box.right : dy > 0 ? box.top - from.bottom : from.top - box.bottom;
+      if (gap < -1) continue;
+      const overlap = dx !== 0 ? Math.min(from.bottom, box.bottom) - Math.max(from.top, box.top) : Math.min(from.right, box.right) - Math.max(from.left, box.left);
+      if (overlap <= 0) continue;
+      if (!best || gap < best.gap - 1 || (Math.abs(gap - best.gap) <= 1 && overlap > best.overlap)) best = { name, gap, overlap };
+    }
+    if (best) this.focusPane(best.name);
+  }
+
   private perform(action: Action): void {
     const click = (id: string): void => element(id).click();
     switch (action) {
@@ -739,6 +761,18 @@ export class App {
         break;
       case 'previous-pane':
         this.cyclePane(-1);
+        break;
+      case 'pane-left':
+        this.movePane(-1, 0);
+        break;
+      case 'pane-down':
+        this.movePane(0, 1);
+        break;
+      case 'pane-up':
+        this.movePane(0, -1);
+        break;
+      case 'pane-right':
+        this.movePane(1, 0);
         break;
       case 'search':
         this.searchPane();
