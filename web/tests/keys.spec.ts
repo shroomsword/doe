@@ -72,12 +72,12 @@ test.describe('in the page', () => {
   /** The pane that has the focus. */
   const focused = (page: Page) => page.evaluate(() => document.activeElement?.closest('section')?.id ?? document.activeElement?.tagName ?? '');
 
-  test('? opens the help and k the list of the keys, which is made from the table', async ({ page }) => {
+  test('? opens the help and K the list of the keys, which is made from the table', async ({ page }) => {
     await page.keyboard.press('Shift+?');
     await expect(page.locator('#help-dialog')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.locator('#help-dialog')).toBeHidden();
-    await page.keyboard.press('k');
+    await page.keyboard.press('Shift+K');
     await expect(page.locator('#keys-dialog')).toBeVisible();
     const keys = await page.locator('#keys-table th kbd').allTextContents();
     expect(keys).toEqual(KEYS.map((entry) => entry.key));
@@ -142,14 +142,14 @@ test.describe('in the page', () => {
     await page.keyboard.press('Control+k');
     await page.keyboard.press('Alt+t');
     await expect(page.locator('dialog[open]')).toHaveCount(0);
-    // a letter while a dialog is open does nothing to the page
-    await page.keyboard.press('k');
+    // the keys dialog opens with K, and a letter while it is open does nothing to the page
+    await page.keyboard.press('Shift+K');
     await expect(page.locator('#keys-dialog')).toBeVisible();
     await page.keyboard.press('t');
     await expect(page.locator('#browse-dialog')).toBeHidden();
   });
 
-  test('Tab and Shift+Tab visit every pane and come back; F6 does from anywhere; Tab does not trap the editor', async ({ page }) => {
+  test('Tab and Shift+Tab visit every pane and come back; Tab does not trap the editor', async ({ page }) => {
     await page.locator('#pane-tree').focus();
     const order = ['pane-tree'];
     for (let i = 0; i < 3; i += 1) {
@@ -167,15 +167,49 @@ test.describe('in the page', () => {
     await page.locator('.cm-content').click();
     await page.keyboard.press('Tab');
     expect(await page.evaluate(() => document.activeElement?.closest('.cm-editor') !== null)).toBe(false);
-    // F6 works in the editor
-    await page.locator('.cm-content').click();
-    await page.keyboard.press('F6');
-    expect(await focused(page)).toBe('pane-tree');
-    await page.keyboard.press('Shift+F6');
-    expect(await focused(page)).toBe('pane-editor');
     // the focused pane shows it
     const bar = await page.locator('#pane-editor .pane-title').evaluate((element) => getComputedStyle(element).boxShadow);
     expect(bar).not.toBe('none');
+  });
+
+  test('h j k l move between the panes as they are laid out (three columns), and stop at the edge', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 800 });
+    await page.locator('#pane-editor').focus();
+    for (const [key, id] of [['l', 'pane-tree'], ['l', 'pane-hex'], ['l', 'pane-hex'], ['h', 'pane-tree'], ['j', 'pane-status'], ['j', 'pane-status']] as const) {
+      await page.keyboard.press(key);
+      expect(await focused(page), key).toBe(id);
+    }
+    // up from the status line, which lies under all three columns, is one of them
+    await page.keyboard.press('k');
+    expect(['pane-editor', 'pane-tree', 'pane-hex']).toContain(await focused(page));
+    await page.keyboard.press('k');
+    expect(['pane-editor', 'pane-tree', 'pane-hex']).toContain(await focused(page));
+  });
+
+  test('h j k l follow the layout in one column, and are not typed into the editor or a box', async ({ page }) => {
+    await page.setViewportSize({ width: 500, height: 800 });
+    await page.locator('#pane-editor').focus();
+    await page.keyboard.press('h');
+    expect(await focused(page)).toBe('pane-editor');
+    for (const id of ['pane-tree', 'pane-hex', 'pane-status', 'pane-status']) {
+      await page.keyboard.press('j');
+      expect(await focused(page)).toBe(id);
+    }
+    for (const id of ['pane-hex', 'pane-tree', 'pane-editor', 'pane-editor']) {
+      await page.keyboard.press('k');
+      expect(await focused(page)).toBe(id);
+    }
+    // in the editor the letters are text
+    await page.locator('.cm-content').click();
+    await page.keyboard.type('hjkl');
+    expect(await page.locator('.cm-content').innerText()).toContain('hjkl');
+    expect(await page.evaluate(() => document.activeElement?.closest('.cm-editor') !== null)).toBe(true);
+  });
+
+  test('F6 no longer moves between the panes', async ({ page }) => {
+    await page.locator('#pane-tree').focus();
+    await page.keyboard.press('F6');
+    expect(await focused(page)).toBe('pane-tree');
   });
 
   test('1 to 4 focus the panes, and Esc leaves the editor for its pane so that the keys work again', async ({ page }) => {
