@@ -1194,7 +1194,7 @@ the editor for its pane, closes a dialog and closes a search.
 | `j` | Focus the pane below |
 | `k` | Focus the pane above |
 | `l` | Focus the pane on the right |
-| `/` | Search in the focused pane |
+| `/` | Search in the focused pane, or in the help when it is open |
 | `g` | Go to an offset in the bytes |
 | `a` | Turn automatic detection on or off |
 | `r` | Change how integers are shown (decimal, hexadecimal, binary, octal) |
@@ -1210,7 +1210,7 @@ text (`Enter` for the next match, `Shift+Enter` for the previous one); in
 **Bytes**, hexadecimal bytes (`de ad`), text, or an offset (`@1f4`, in
 hexadecimal; `@#500` in decimal), which is also what `g` asks for; in
 **Status**, the lines of the problems and of the detection report that have the
-text.
+text. In the help dialog `/` opens a search bar over its text: the matches are marked and counted, `Enter` and `Shift+Enter` go to the next and previous one, and `Esc` closes the bar (a second `Esc` closes the dialog).
 
 ## CLI reference
 
@@ -1457,7 +1457,7 @@ match, round the end of the tree. The search looks at the fields in steps betwee
 redraws, so a tree of millions of fields does not freeze the screen, and any key
 stops it. `g` asks for an offset (decimal, or `0x…` for hex), shows it in the
 bytes and selects the innermost field that holds it; an offset past the end of the
-file, or in the part of the file that was not parsed, says so. `?` lists every key.
+file, or in the part of the file that was not parsed, says so. `?` lists every key; in that list `/` searches (`n` and `N` go on, `Esc` clears the search) and the arrow keys scroll.
 
 `s` lists the **schemas** that are open: the one named on the command line first,
 then the files it imports (and they import), each with its id, when the file was

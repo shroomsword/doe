@@ -540,7 +540,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         themes_overlay(frame, browser, *theme);
     }
     if app.help {
-        help(frame, *theme);
+        help(frame, app, *theme);
     }
 }
 
@@ -1156,12 +1156,9 @@ fn prompt_line(frame: &mut Frame<'_>, prompt: &Prompt, theme: Theme) {
     frame.set_cursor_position((x.min(row.right().saturating_sub(1)), row.y));
 }
 
-/// The help: every key, in a box over the screen.
-fn help(frame: &mut Frame<'_>, theme: Theme) {
-    let screen = frame.area();
-    if screen.width < 10 || screen.height < 4 {
-        return;
-    }
+/// The lines of the help: every key, in the order of the tables.
+#[must_use]
+pub fn help_lines(theme: Theme) -> Vec<Line<'static>> {
     let mut lines: Vec<Line<'static>> = Vec::new();
     for (title, bindings) in keymap::help() {
         lines.push(Line::from(Span::styled(title, theme.title())));
@@ -1185,9 +1182,63 @@ fn help(frame: &mut Frame<'_>, theme: Theme) {
     }
     lines.push(Line::raw(""));
     lines.push(Line::from(Span::styled(
-        "any key closes this help",
+        "/ searches this help (n and N go on), the arrow keys scroll it, any other key closes it",
         theme.dim(),
     )));
+    lines
+}
+
+/// `line` with the places of `needle` (any case) shown reversed; `current` also bold.
+fn mark_matches(line: Line<'static>, needle: &str, current: bool) -> Line<'static> {
+    let mark = if current {
+        Modifier::REVERSED | Modifier::BOLD
+    } else {
+        Modifier::REVERSED
+    };
+    let mut spans = Vec::new();
+    for span in line.spans {
+        let text = span.content.to_string();
+        let lower = text.to_lowercase();
+        // lowercasing can change the length of a letter; then the positions do not fit, so the span is left as it is
+        if lower.len() != text.len() || needle.is_empty() || !lower.contains(needle) {
+            spans.push(span);
+            continue;
+        }
+        let mut from = 0;
+        for (start, found) in lower.match_indices(needle) {
+            let end = start + found.len();
+            let (Some(before), Some(hit)) = (text.get(from..start), text.get(start..end)) else {
+                continue;
+            };
+            if !before.is_empty() {
+                spans.push(Span::styled(before.to_owned(), span.style));
+            }
+            spans.push(Span::styled(hit.to_owned(), span.style.add_modifier(mark)));
+            from = end;
+        }
+        if let Some(rest) = text.get(from..).filter(|rest| !rest.is_empty()) {
+            spans.push(Span::styled(rest.to_owned(), span.style));
+        }
+    }
+    Line::from(spans)
+}
+
+/// The help: every key, in a box over the screen, scrolled and searched as `app.help_view` says.
+fn help(frame: &mut Frame<'_>, app: &App, theme: Theme) {
+    let screen = frame.area();
+    if screen.width < 10 || screen.height < 4 {
+        return;
+    }
+    let view = &app.help_view;
+    let mut lines = help_lines(theme);
+    let matches = view.matches();
+    let current = view.current_line();
+    let needle = view.query.to_lowercase();
+    for &at in &matches {
+        if let Some(slot) = lines.get_mut(at) {
+            *slot = mark_matches(std::mem::take(slot), &needle, current == Some(at));
+        }
+    }
 
     let wanted = u16::try_from(lines.len() + 2).unwrap_or(u16::MAX);
     let width = screen.width.min(100);
@@ -1200,21 +1251,41 @@ fn help(frame: &mut Frame<'_>, theme: Theme) {
     };
     clear(frame, area, theme);
     let truncated = usize::from(height.saturating_sub(2)) < lines.len();
+    let bottom = if view.typing {
+        format!(" /{}_ ", view.query)
+    } else if !view.query.is_empty() {
+        if matches.is_empty() {
+            format!(" /{}: no match · Esc clears ", view.query)
+        } else {
+            format!(
+                " /{}: {} of {} · n N go on · Esc clears ",
+                view.query,
+                view.at % matches.len() + 1,
+                matches.len()
+            )
+        }
+    } else if truncated {
+        " the terminal is too small for all of the help: ↑ ↓ scroll · / searches ".to_owned()
+    } else {
+        " / searches · any other key closes ".to_owned()
+    };
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(theme.border(true))
         .title(Span::styled(" keys ", theme.title()))
-        .title_bottom(Line::from(Span::styled(
-            if truncated {
-                " the terminal is too small for all of the help "
-            } else {
-                " any key closes "
-            },
-            theme.dim(),
-        )));
+        .title_bottom(Line::from(Span::styled(bottom, theme.dim())));
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+    view.rows.set(inner.height);
+    let scroll = view
+        .scroll
+        .min(lines.len().saturating_sub(usize::from(inner.height)));
+    frame.render_widget(
+        Paragraph::new(lines)
+            .wrap(Wrap { trim: false })
+            .scroll((u16::try_from(scroll).unwrap_or(u16::MAX), 0)),
+        inner,
+    );
 }
 
 /// The shortest pane that has the message about a failed parse under the tree.
@@ -1838,7 +1909,7 @@ instances:
             "Ctrl-C",
             "go to an offset",
             "search the names",
-            "any key closes",
+            "any other key closes",
         ] {
             assert!(
                 has(&lines, needle),
@@ -1856,6 +1927,65 @@ instances:
         for (w, h) in [(9, 4), (10, 3), (3, 3), (1, 1), (100, 4)] {
             let _ = draw_app(&mut app, w, h);
         }
+    }
+
+    #[test]
+    fn searching_the_help_says_how_many_matches_and_scrolls_to_the_current_one() {
+        let (mut app, _dir) = app();
+        app.help = true;
+        let key = |app: &mut App, c: char| {
+            app.on_key(crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Char(c),
+                crossterm::event::KeyModifiers::NONE,
+            ));
+        };
+        // a short terminal: the help is scrolled
+        let _ = draw_app(&mut app, 100, 12);
+        key(&mut app, '/');
+        let (lines, _) = draw_app(&mut app, 100, 12);
+        assert!(has(&lines, " /_ "), "{lines:?}");
+        for c in "prompt".chars() {
+            key(&mut app, c);
+        }
+        let (lines, _) = draw_app(&mut app, 100, 12);
+        let total = app.help_view.matches().len();
+        assert!(total >= 2);
+        // while it is typed the bottom line shows the text; the matches are counted after Enter
+        assert!(has(&lines, "/prompt_"), "{lines:?}");
+        let shown = crate::help::plain_lines()[app.help_view.current_line().unwrap()]
+            .trim()
+            .to_owned();
+        assert!(has(&lines, &shown), "{shown}: {lines:?}");
+        app.on_key(crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Enter,
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        let (lines, _) = draw_app(&mut app, 100, 12);
+        assert!(has(&lines, &format!("/prompt: 1 of {total}")), "{lines:?}");
+        key(&mut app, 'n');
+        let (lines, _) = draw_app(&mut app, 100, 12);
+        assert!(has(&lines, &format!("/prompt: 2 of {total}")), "{lines:?}");
+        // no match says so
+        key(&mut app, '/');
+        for c in "zzzz".chars() {
+            key(&mut app, c);
+        }
+        let (lines, _) = draw_app(&mut app, 100, 12);
+        assert!(has(&lines, "/zzzz_"), "{lines:?}");
+        app.on_key(crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Enter,
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        let (lines, _) = draw_app(&mut app, 100, 12);
+        assert!(has(&lines, "no match"), "{lines:?}");
+        // Esc clears the search and the help stays; the next key closes it
+        app.on_key(crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Esc,
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        assert!(app.help && app.help_view.query.is_empty());
+        key(&mut app, 'q');
+        assert!(!app.help && !app.quit);
     }
 
     #[test]
