@@ -110,6 +110,24 @@ test('the system setting is followed until a theme is chosen', async ({ page }) 
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(rgb(find('doe-light').colors.background));
 });
 
+test('the themes of each group are listed in the order of their names, without regard to case or accents, numbers by value', async ({ page }) => {
+  await ready(page);
+  const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+  const groups = await page.locator('#theme optgroup').evaluateAll((items) => items.map((group) => ({ label: (group as HTMLOptGroupElement).label, names: [...group.querySelectorAll('option')].map((option) => option.textContent ?? '') })));
+  expect(groups.map((group) => group.label)).toEqual(['Dark', 'Light']);
+  for (const group of groups) {
+    expect(group.names.length).toBeGreaterThan(3);
+    expect(group.names, group.label).toEqual([...group.names].sort((a, b) => collator.compare(a, b)));
+  }
+  // the table the page is made from is in that order too
+  const names = THEMES.map((theme) => theme.name);
+  expect(names).toEqual([...names].sort((a, b) => collator.compare(a, b)));
+  // the dark group has the Kanagawa themes between GitHub / Gruvbox and Monokai, not at the end
+  const dark = groups[0]!.names;
+  expect(dark.indexOf('Kanagawa Dragon')).toBeGreaterThan(dark.indexOf('Gruvbox Dark'));
+  expect(dark.indexOf('Kanagawa Dragon')).toBeLessThan(dark.indexOf('Monokai'));
+});
+
 test('the picker lists the built-in themes and a choice shows in the page, the editor and the bytes, and is remembered', async ({ page }) => {
   await ready(page);
   const options = await page.locator('#theme option').evaluateAll((items) => items.map((item) => (item as HTMLOptionElement).value));

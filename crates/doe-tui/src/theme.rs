@@ -245,7 +245,13 @@ impl ColorTheme {
 pub fn builtin() -> &'static [ColorTheme] {
     static THEMES: OnceLock<Vec<ColorTheme>> = OnceLock::new();
     THEMES.get_or_init(|| match toml::from_str::<Table>(BUILTIN_SOURCE) {
-        Ok(table) => table.theme.into_iter().map(ColorTheme::from).collect(),
+        Ok(table) => {
+            let mut themes: Vec<ColorTheme> =
+                table.theme.into_iter().map(ColorTheme::from).collect();
+            // every list shows them by name, whatever order the table has
+            themes.sort_by(|a, b| compare_names(&a.name, &b.name));
+            themes
+        }
         Err(error) => {
             log::error!("the table of built-in themes is broken: {error}");
             Vec::new()
@@ -253,12 +259,80 @@ pub fn builtin() -> &'static [ColorTheme] {
     })
 }
 
-/// The ids of the built-in themes, for a message.
+/// The ids of the built-in themes, for a message, in the order of their names.
 #[must_use]
 pub fn builtin_ids() -> Vec<&'static str> {
     builtin().iter().map(|t| t.id.as_str()).collect()
 }
 
+/// A letter as it is sorted: lower case, without its accent (the common letters of the Latin alphabets).
+fn base_letter(c: char) -> char {
+    let lower = c.to_lowercase().next().unwrap_or(c);
+    match lower {
+        'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'ā' => 'a',
+        'ç' | 'ć' | 'č' => 'c',
+        'è' | 'é' | 'ê' | 'ë' | 'ē' | 'ę' => 'e',
+        'ì' | 'í' | 'î' | 'ï' | 'ī' => 'i',
+        'ñ' | 'ń' => 'n',
+        'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'ø' | 'ō' => 'o',
+        'ù' | 'ú' | 'û' | 'ü' | 'ū' => 'u',
+        'ý' | 'ÿ' => 'y',
+        'š' | 'ś' => 's',
+        'ž' | 'ź' | 'ż' => 'z',
+        other => other,
+    }
+}
+
+/// A piece of a name: a run of digits, compared as a number (and before any text), or a run of anything else.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Part {
+    Number(u128),
+    Text(String),
+}
+
+/// A name cut into runs of digits and of anything else, the text folded.
+fn name_parts(name: &str) -> Vec<Part> {
+    let mut parts = Vec::new();
+    let mut digits = String::new();
+    let mut text = String::new();
+    for c in name.trim().chars() {
+        if c.is_ascii_digit() {
+            if !text.is_empty() {
+                parts.push(Part::Text(std::mem::take(&mut text)));
+            }
+            digits.push(c);
+        } else {
+            if !digits.is_empty() {
+                parts.push(
+                    digits
+                        .parse()
+                        .map_or_else(|_| Part::Text(digits.clone()), Part::Number),
+                );
+                digits.clear();
+            }
+            text.push(base_letter(c));
+        }
+    }
+    if !digits.is_empty() {
+        parts.push(
+            digits
+                .parse()
+                .map_or_else(|_| Part::Text(digits.clone()), Part::Number),
+        );
+    }
+    if !text.is_empty() {
+        parts.push(Part::Text(text));
+    }
+    parts
+}
+
+/// How the names of themes are ordered in every list: without regard to case or accents, with a number in a name
+/// compared by its value ("Base16 2" before "Base16 10"), and a number before a letter. The web IDE's
+/// `Intl.Collator` with `numeric` and `sensitivity: 'base'` gives the same order for the names that the table has.
+#[must_use]
+pub fn compare_names(a: &str, b: &str) -> std::cmp::Ordering {
+    name_parts(a).cmp(&name_parts(b)).then_with(|| a.cmp(b))
+}
 /// What a name is compared as: case, spaces and underscores do not matter.
 pub fn simple(name: &str) -> String {
     name.trim()

@@ -180,6 +180,125 @@ fn user_theme(name: &str) -> String {
 }
 
 #[test]
+fn names_are_ordered_without_case_or_accents_and_with_numbers_by_value() {
+    use std::cmp::Ordering::{Equal, Greater, Less};
+    let order = theme::compare_names;
+    assert_eq!(order("doe Dark", "Dracula"), Less, "case does not matter");
+    assert_eq!(
+        order("Catppuccin Frappé", "Catppuccin Latte"),
+        Less,
+        "an accent sorts with its letter"
+    );
+    assert_eq!(
+        order("Frappé", "Frappe"),
+        Greater,
+        "equal but for the accent: a fixed order, not Equal"
+    );
+    assert_eq!(order("Frappe", "Frappé"), Less);
+    assert_eq!(
+        order("Base16 2", "Base16 10"),
+        Less,
+        "a number is compared by its value"
+    );
+    assert_eq!(order("seoul256", "seoul1000"), Less);
+    assert_eq!(
+        order("Theme 7", "Theme A"),
+        Less,
+        "a number before a letter"
+    );
+    assert_eq!(order("Nord", "Nord"), Equal);
+    assert_eq!(
+        order("  Nord", "Nord"),
+        Less,
+        "spaces at the start only break a tie"
+    );
+}
+
+#[test]
+fn the_built_in_themes_and_the_readme_are_in_the_order_of_their_names() {
+    let themes = theme::builtin();
+    for pair in themes.windows(2) {
+        assert_ne!(
+            theme::compare_names(&pair[0].name, &pair[1].name),
+            std::cmp::Ordering::Greater,
+            "{} is before {}",
+            pair[0].name,
+            pair[1].name
+        );
+    }
+    assert_eq!(
+        theme::builtin_ids(),
+        themes.iter().map(|t| t.id.as_str()).collect::<Vec<_>>()
+    );
+    // the README's table has them in that order
+    let rows: Vec<&str> = README
+        .lines()
+        .filter(|line| {
+            line.starts_with("| `")
+                && themes
+                    .iter()
+                    .any(|t| line.starts_with(&format!("| `{}` |", t.id)))
+        })
+        .collect();
+    let in_readme: Vec<String> = rows
+        .iter()
+        .map(|row| {
+            row.split('|')
+                .nth(1)
+                .unwrap()
+                .trim()
+                .trim_matches('`')
+                .to_owned()
+        })
+        .collect();
+    let in_table: Vec<String> = themes.iter().map(|t| t.id.clone()).collect();
+    assert_eq!(
+        in_readme, in_table,
+        "the table of themes in the README is not in the order of their names"
+    );
+}
+
+#[test]
+fn the_browser_lists_the_built_in_themes_of_each_group_and_the_users_own_in_the_order_of_their_names()
+ {
+    use doe_tui::theme_browser::{Group, ThemeBrowser};
+    let dir = tempfile::tempdir().unwrap();
+    // the files are in an order of their own (file names), the names are another
+    std::fs::write(dir.path().join("a.toml"), user_theme("zeta")).unwrap();
+    std::fs::write(dir.path().join("b.toml"), user_theme("Émile")).unwrap();
+    std::fs::write(dir.path().join("c.toml"), user_theme("alpha 10")).unwrap();
+    std::fs::write(dir.path().join("d.toml"), user_theme("alpha 9")).unwrap();
+    std::fs::write(dir.path().join("e.toml"), "this is not a theme").unwrap();
+    let browser = ThemeBrowser::read(Some(dir.path()), None, None, true);
+    for group in [Group::Dark, Group::Light, Group::Yours] {
+        let names: Vec<&str> = browser
+            .entries
+            .iter()
+            .filter(|e| e.group == group)
+            .map(|e| e.name.as_str())
+            .collect();
+        assert!(!names.is_empty(), "{group:?}");
+        for pair in names.windows(2) {
+            assert_ne!(
+                theme::compare_names(pair[0], pair[1]),
+                std::cmp::Ordering::Greater,
+                "{group:?}: {pair:?}"
+            );
+        }
+    }
+    let yours: Vec<&str> = browser
+        .entries
+        .iter()
+        .filter(|e| e.group == Group::Yours)
+        .map(|e| e.name.as_str())
+        .collect();
+    // the file that is not a theme is listed by its name too, among the others
+    assert_eq!(yours, ["alpha 9", "alpha 10", "e", "Émile", "zeta"]);
+    // the terminal's own colours stay first
+    assert_eq!(browser.entries[0].group, Group::Terminal);
+}
+
+#[test]
 fn a_theme_is_found_in_the_directory_of_the_person_and_by_path() {
     let dir = tempfile::tempdir().unwrap();
     let themes = dir.path().join("themes");
