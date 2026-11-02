@@ -19,7 +19,7 @@ import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { RADIXES, Radixes, isRadix } from './radix.js';
 import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
 import { TreeView } from './tree.js';
-import { type PaneName, DEFAULT_LAYOUT, PANE_NAMES, applyLayout, isDefault, loadLayout, saveLayout, swapped } from './layout.js';
+import { type Layout, type PaneName, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, saveLayout, shown, swapped, withVisible } from './layout.js';
 
 /** How long the schema is left alone before it is checked again. */
 const PAUSE_MS = 250;
@@ -291,6 +291,7 @@ export class App {
   }
 
   private showDetectReport(title: string, lines: { text: string; fit: boolean }[], offerAll: boolean): void {
+    this.reveal('status');
     const box = element('detect-report');
     box.hidden = false;
     box.replaceChildren();
@@ -609,8 +610,8 @@ export class App {
   // ── the keys ───────────────────────────────────────────────────────────────
 
   private lastPane: PaneName = 'parsed';
-  /** The panes in the four places of the page (layout.ts). */
-  private order: PaneName[] = loadLayout();
+  /** The order of the panes in the places of the page, and the ones that are closed (layout.ts). */
+  private layout: Layout = loadLayout();
   /** Where the last search of the bytes found its match. */
   private byteFound: number | null = null;
   private searches: Record<'parsed' | 'bytes' | 'status', PaneSearch> | null = null;
@@ -691,7 +692,7 @@ export class App {
   private currentPane(): PaneName {
     const active = document.activeElement;
     for (const name of PANES) if (active && element(PANE_IDS[name]).contains(active)) return name;
-    return this.lastPane;
+    return this.isShown(this.lastPane) ? this.lastPane : (shown(this.layout)[0] ?? 'schema');
   }
 
   /** Put the focus in a pane. `plain`: on the pane itself, not on what is in it (out of the editor). */
@@ -706,8 +707,9 @@ export class App {
   }
 
   private cyclePane(step: 1 | -1): void {
-    const at = this.order.indexOf(this.currentPane());
-    this.focusPane(this.order[(at + step + this.order.length) % this.order.length] ?? 'parsed');
+    const open = shown(this.layout);
+    const at = open.indexOf(this.currentPane());
+    this.focusPane(open[(at + step + open.length) % open.length] ?? 'schema');
   }
 
   /**
@@ -742,9 +744,23 @@ export class App {
 
   /** Put the panes where they were left, and make them draggable by their titles. */
   private layoutSetup(): void {
-    applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, this.order);
+    applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, this.layout);
     this.layoutChanged(false);
     element('layout-reset').addEventListener('click', () => this.resetLayout());
+    element('panes-button').addEventListener('click', () => this.perform('panes'));
+    element('panes-close').addEventListener('click', () => element<HTMLDialogElement>('panes-dialog').close());
+    // every pane but Schema has a button at the top right of its title bar that closes it
+    for (const name of PANES) {
+      if (name === 'schema') continue;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'pane-close icon';
+      button.setAttribute('aria-label', `Close the ${NAMES[name]} pane`);
+      button.title = `Close the ${NAMES[name]} pane (x)`;
+      button.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M5 5l14 14M19 5L5 19"/></svg>';
+      button.addEventListener('click', () => this.setVisible(name, false));
+      element(PANE_IDS[name]).querySelector('.pane-title')?.append(button);
+    }
     let dragged: PaneName | null = null;
     for (const name of PANES) {
       const section = element(PANE_IDS[name]);
@@ -778,14 +794,21 @@ export class App {
     }
   }
 
+  /** Use a new layout: put the panes in it, keep it, say what happened, and give the focus back (moving elements drops it). */
+  private commit(layout: Layout, message: string, focus?: PaneName): void {
+    const had = document.activeElement;
+    this.layout = layout;
+    applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, layout);
+    saveLayout(layout);
+    this.layoutChanged(true, message);
+    // moving elements in the page drops the focus: give it back to what had it, or to the pane that was asked for
+    if (focus) this.focusPane(focus);
+    else if (had instanceof HTMLElement && had !== document.activeElement && document.contains(had) && !had.closest('[hidden]')) had.focus();
+    this.panesList();
+  }
+
   private swapPanes(a: PaneName, b: PaneName): void {
-    this.order = swapped(this.order, a, b);
-    const focus = this.currentPane();
-    applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, this.order);
-    saveLayout(this.order);
-    this.layoutChanged(true, `${NAMES[a]} and ${NAMES[b]} swapped places`);
-    // moving elements in the page drops the focus; put it back where it was
-    this.focusPane(focus);
+    this.commit(swapped(this.layout, a, b), `${NAMES[a]} and ${NAMES[b]} swapped places`);
   }
 
   /** The pane moved one place in a direction: it takes the place of the pane that is there. */
@@ -796,19 +819,75 @@ export class App {
   }
 
   private resetLayout(): void {
-    if (isDefault(this.order)) return;
-    const focus = this.currentPane();
-    this.order = [...DEFAULT_LAYOUT];
-    applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, this.order);
-    saveLayout(this.order);
-    this.layoutChanged(true, 'The panes are back in their places');
-    this.focusPane(focus);
+    if (isDefault(this.layout)) return;
+    this.commit(defaultLayout(), 'The panes are back in their places');
   }
 
   /** Show the reset button when the layout is not the default, and say what happened to a screen reader. */
   private layoutChanged(announce: boolean, message = ''): void {
-    element('layout-reset').hidden = isDefault(this.order);
+    element('layout-reset').hidden = isDefault(this.layout);
     if (announce) element('layout-live').textContent = message;
+  }
+
+  private isShown(name: PaneName): boolean {
+    return !this.layout.hidden.includes(name);
+  }
+
+  /** Close or show a pane. Schema stays; when the pane that has the focus is closed, the focus goes to the next one that is shown. */
+  private setVisible(name: PaneName, visible: boolean, focusIt = false): void {
+    if (name === 'schema' && !visible) {
+      element('layout-live').textContent = 'The Schema pane cannot be closed';
+      return;
+    }
+    if (this.isShown(name) === visible) {
+      if (visible && focusIt) this.focusPane(name);
+      return;
+    }
+    const next = withVisible(this.layout, name, visible);
+    let focus: PaneName | undefined;
+    // the pane that has the focus (or had it last) is closed: the focus goes to the next one that is shown
+    if (!visible && (element(PANE_IDS[name]).contains(document.activeElement) || (this.lastPane === name && document.activeElement === document.body))) {
+      const open = shown(this.layout);
+      focus = open[(open.indexOf(name) + 1) % open.length] ?? 'schema';
+      if (focus === name) focus = 'schema';
+    }
+    if (visible && focusIt) focus = name;
+    this.commit(next, `The ${NAMES[name]} pane is ${visible ? 'shown' : 'closed'}`, focus);
+  }
+
+  /** Show a pane if it was closed (a message must not be lost), without taking the focus. */
+  private reveal(name: PaneName): void {
+    if (!this.isShown(name)) this.setVisible(name, true);
+  }
+
+  private closeFocusedPane(): void {
+    this.setVisible(this.currentPane(), false);
+  }
+
+  /** The list in the dialog of the panes: a check box for each, the state in words. */
+  private panesList(): void {
+    const list = element('panes-list');
+    const rows = PANES.map((name) => {
+      const item = document.createElement('li');
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = this.isShown(name);
+      box.disabled = name === 'schema';
+      box.dataset.pane = name;
+      if (name === 'schema') label.title = 'The Schema pane is always shown';
+      box.addEventListener('change', () => this.setVisible(name, box.checked));
+      const state = document.createElement('span');
+      state.className = 'state';
+      state.textContent = this.isShown(name) ? 'shown' : 'closed';
+      label.append(box, document.createTextNode(NAMES[name]), state);
+      item.append(label);
+      return item;
+    });
+    // keep the focus on the box that was changed
+    const active = document.activeElement instanceof HTMLInputElement ? document.activeElement.dataset.pane : undefined;
+    list.replaceChildren(...rows);
+    if (active) list.querySelector<HTMLInputElement>(`input[data-pane="${active}"]`)?.focus();
   }
 
   private perform(action: Action): void {
@@ -879,6 +958,7 @@ export class App {
         this.searchPane();
         break;
       case 'goto':
+        this.reveal('bytes');
         this.searches?.bytes.open('@');
         break;
       case 'auto':
@@ -900,13 +980,23 @@ export class App {
         this.focusPane('schema');
         break;
       case 'pane-parsed':
+        this.setVisible('parsed', true, true);
         this.focusPane('parsed');
         break;
       case 'pane-bytes':
+        this.setVisible('bytes', true, true);
         this.focusPane('bytes');
         break;
       case 'pane-status':
+        this.setVisible('status', true, true);
         this.focusPane('status');
+        break;
+      case 'close-pane':
+        this.closeFocusedPane();
+        break;
+      case 'panes':
+        this.panesList();
+        element<HTMLDialogElement>('panes-dialog').showModal();
         break;
     }
   }
@@ -1384,6 +1474,8 @@ export class App {
     this.diagnostics = response.diagnostics;
     this.lastId = response.id;
     this.problems.show(problems);
+    // a parse that failed must not go unseen because the Status pane is closed
+    if (!response.ok || response.error) this.reveal('status');
     this.trace = response.trace;
     this.tree.setTrace(response.trace);
     // The selection stays on a node that is still there with the same name.

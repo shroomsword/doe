@@ -26,6 +26,8 @@ export type Action =
   | 'move-up'
   | 'move-right'
   | 'reset-layout'
+  | 'close-pane'
+  | 'panes'
   | 'search'
   | 'goto'
   | 'auto'
@@ -67,16 +69,18 @@ export const KEYS: readonly Key[] = [
   { key: 'Alt+Shift+j', action: 'move-down', label: 'Move the pane down', inFields: true },
   { key: 'Alt+Shift+k', action: 'move-up', label: 'Move the pane up', inFields: true },
   { key: 'Alt+Shift+l', action: 'move-right', label: 'Move the pane to the right', inFields: true },
-  { key: 'R', action: 'reset-layout', label: 'Put the panes back in their places' },
+  { key: 'R', action: 'reset-layout', label: 'Put the panes back in their places, all shown' },
+  { key: 'x', action: 'close-pane', label: 'Close the focused pane (not the Schema pane)' },
+  { key: 'v', action: 'panes', label: 'Choose the panes that are shown' },
   { key: '/', action: 'search', label: 'Search in the focused pane, or in the help when it is open' },
   { key: 'g', action: 'goto', label: 'Go to an offset in the bytes', needs: 'file' },
   { key: 'a', action: 'auto', label: 'Turn automatic detection on or off' },
   { key: 'r', action: 'radix', label: 'Change how integers are shown (decimal, hexadecimal, binary, octal)' },
   { key: 'c', action: 'cancel', label: 'Cancel the parse that is running', needs: 'running' },
   { key: '1', action: 'pane-schema', label: 'Focus the Schema pane' },
-  { key: '2', action: 'pane-parsed', label: 'Focus the Parsed pane' },
-  { key: '3', action: 'pane-bytes', label: 'Focus the Bytes pane' },
-  { key: '4', action: 'pane-status', label: 'Focus the Status pane' },
+  { key: '2', action: 'pane-parsed', label: 'Focus the Parsed pane (shows it if it is closed)' },
+  { key: '3', action: 'pane-bytes', label: 'Focus the Bytes pane (shows it if it is closed)' },
+  { key: '4', action: 'pane-status', label: 'Focus the Status pane (shows it if it is closed)' },
 ];
 
 /** The name of the key of an event, as the table has it: a character as it is typed, other keys with `Shift+` when Shift is held. */

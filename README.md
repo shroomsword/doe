@@ -1198,16 +1198,18 @@ the editor for its pane, closes a dialog and closes a search.
 | `Alt+Shift+j` | Move the pane down |
 | `Alt+Shift+k` | Move the pane up |
 | `Alt+Shift+l` | Move the pane to the right |
-| `R` | Put the panes back in their places |
+| `R` | Put the panes back in their places, all shown |
+| `x` | Close the focused pane (not the Schema pane) |
+| `v` | Choose the panes that are shown |
 | `/` | Search in the focused pane, or in the help when it is open |
 | `g` | Go to an offset in the bytes |
 | `a` | Turn automatic detection on or off |
 | `r` | Change how integers are shown (decimal, hexadecimal, binary, octal) |
 | `c` | Cancel the parse that is running |
 | `1` | Focus the Schema pane |
-| `2` | Focus the Parsed pane |
-| `3` | Focus the Bytes pane |
-| `4` | Focus the Status pane |
+| `2` | Focus the Parsed pane (shows it if it is closed) |
+| `3` | Focus the Bytes pane (shows it if it is closed) |
+| `4` | Focus the Status pane (shows it if it is closed) |
 
 `/` searches the pane that has the focus: in **Schema**, with the search panel
 of the editor; in **Parsed**, the next node whose name, type or value has the
@@ -1224,6 +1226,14 @@ the focus with the one next to it in that direction (the move is announced to a 
 kept in the browser's local storage and applied when the page loads; if the browser has no storage the page
 starts with the default layout. Once the layout is not the default, a button in the header and the key `R` put
 the panes back.
+
+**Closing panes.** Every pane but Schema has an X at the right of its title bar, and `x` closes the focused
+pane. `v` (or the panes button in the header) opens a list of the four panes with a box for each that shows or
+closes it; Schema is always shown. A closed pane is only hidden, so it keeps what it shows; the panes that are
+shown fill the places in their order, side by side in a wide window, with no hole. Which panes are closed is
+kept with the order of the panes, and Reset (`R`) shows them all. `2`, `3` and `4` show a closed pane and
+focus it, a parse that fails or a detection report shows the Status pane, and `g` shows the Bytes pane, so that
+nothing is lost because a pane is closed.
 
 ## CLI reference
 

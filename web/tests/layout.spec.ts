@@ -1,25 +1,38 @@
 // The layout of the panes: moving them, and keeping where they are.
 
 import { expect, test, type Page } from '@playwright/test';
-import { DEFAULT_LAYOUT, LAYOUT_KEY, isDefault, layoutText, parseLayout, swapped } from '../src/layout.js';
+import { LAYOUT_KEY, defaultLayout, isDefault, layoutText, parseLayout, shown, swapped, withVisible } from '../src/layout.js';
 
 test('a saved layout is read only when it is four different panes of this version', () => {
   const order = ['parsed', 'schema', 'bytes', 'status'] as const;
-  expect(parseLayout(layoutText(order))).toEqual(order);
+  expect(parseLayout(layoutText({ order: [...order], hidden: ['bytes'] }))).toEqual({ order: [...order], hidden: ['bytes'] });
+  // a record of version 1 has the order only: all the panes are shown
+  expect(parseLayout(JSON.stringify({ v: 1, order }))).toEqual({ order: [...order], hidden: [] });
+  // Schema cannot be closed, and a pane cannot be closed twice or be unknown
+  expect(parseLayout(JSON.stringify({ v: 2, order, hidden: ['schema'] }))).toBeNull();
+  expect(parseLayout(JSON.stringify({ v: 2, order, hidden: ['bytes', 'bytes'] }))).toBeNull();
+  expect(parseLayout(JSON.stringify({ v: 2, order, hidden: ['nothing'] }))).toBeNull();
+  expect(parseLayout(JSON.stringify({ v: 2, order, hidden: 'bytes' }))).toBeNull();
   expect(parseLayout(null)).toBeNull();
   expect(parseLayout('not json')).toBeNull();
   expect(parseLayout('42')).toBeNull();
   expect(parseLayout('null')).toBeNull();
-  expect(parseLayout(JSON.stringify({ v: 2, order }))).toBeNull();
+  expect(parseLayout(JSON.stringify({ v: 3, order }))).toBeNull();
   expect(parseLayout(JSON.stringify({ v: 1, order: ['parsed', 'parsed', 'bytes', 'status'] }))).toBeNull();
   expect(parseLayout(JSON.stringify({ v: 1, order: ['parsed', 'schema', 'bytes'] }))).toBeNull();
   expect(parseLayout(JSON.stringify({ v: 1, order: ['parsed', 'schema', 'bytes', 'nothing'] }))).toBeNull();
 });
 
 test('two panes swap places, and the default is the order the panes are written in', () => {
-  expect(swapped(DEFAULT_LAYOUT, 'schema', 'bytes')).toEqual(['bytes', 'parsed', 'schema', 'status']);
-  expect(isDefault(DEFAULT_LAYOUT)).toBe(true);
-  expect(isDefault(swapped(DEFAULT_LAYOUT, 'schema', 'bytes'))).toBe(false);
+  expect(swapped(defaultLayout(), 'schema', 'bytes').order).toEqual(['bytes', 'parsed', 'schema', 'status']);
+  expect(isDefault(defaultLayout())).toBe(true);
+  expect(isDefault(swapped(defaultLayout(), 'schema', 'bytes'))).toBe(false);
+  // closing: Schema stays, the shown panes keep the order
+  const closed = withVisible(withVisible(defaultLayout(), 'parsed', false), 'schema', false);
+  expect(closed.hidden).toEqual(['parsed']);
+  expect(shown(closed)).toEqual(['schema', 'bytes', 'status']);
+  expect(isDefault(closed)).toBe(false);
+  expect(isDefault(withVisible(closed, 'parsed', true))).toBe(true);
 });
 
 test.describe('in the page', () => {
@@ -57,7 +70,7 @@ test.describe('in the page', () => {
     const right = await page.locator('#pane-editor').boundingBox();
     expect(left!.x).toBeLessThan(right!.x);
     await expect(page.locator('#layout-reset')).toBeVisible();
-    expect(parseLayout(await stored(page))).toEqual(['bytes', 'parsed', 'schema', 'status']);
+    expect(parseLayout(await stored(page))?.order).toEqual(['bytes', 'parsed', 'schema', 'status']);
     await expect(page.locator('#layout-live')).toHaveText('Schema and Bytes swapped places');
 
     await page.reload();

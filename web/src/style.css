@@ -68,12 +68,15 @@ h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin
 #status:empty { display: none; }
 
 main { display: grid; gap: var(--gutter); padding: var(--gutter); grid-template-columns: 1fr; }
+section[hidden] { display: none; }
 section { border: 1px solid var(--line); border-radius: 4px; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
 /* the panes are in four slots (layout.ts): three tall ones and one low one, whichever pane is in them */
 section[data-slot="1"], section[data-slot="2"], section[data-slot="3"] { height: 60vh; min-height: 16rem; }
 section[data-slot="4"] { max-height: 14rem; overflow: auto; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .pane-title h2[draggable="true"] { cursor: grab; }
+.pane-close { display: inline-flex; align-items: center; padding: 2px 5px; margin-left: auto; flex: 0 0 auto; }
+.pane-title .pane-actions { margin-right: 0; }
 section.dragging { opacity: .55; }
 section.drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
 #editor, #tree-box, #hex { flex: 1; min-height: 0; overflow: auto; }
@@ -90,6 +93,16 @@ section.drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
   body { height: 100dvh; display: flex; flex-direction: column; }
   main { flex: 1; min-height: 0; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr auto; grid-template-areas: 'a1 a2 a3' 'a4 a4 a4'; }
   section[data-slot="1"], section[data-slot="2"], section[data-slot="3"] { height: auto; min-height: 0; }
+  /* fewer panes shown: they fill the places in order, with no row for a fourth */
+  main[data-count="3"] { grid-template-rows: 1fr; grid-template-areas: 'a1 a2 a3'; }
+  main[data-count="2"] { grid-template-rows: 1fr; grid-template-columns: 1fr 1fr; grid-template-areas: 'a1 a2'; }
+  main[data-count="1"] { grid-template-rows: 1fr; grid-template-columns: 1fr; grid-template-areas: 'a1'; }
+}
+@media (min-width: 760px) and (max-width: 1199.98px) {
+  main[data-count="3"] { grid-template-areas: 'a1 a2' 'a3 a3'; }
+  main[data-count="2"] { grid-template-areas: 'a1 a2'; }
+  main[data-count="1"] { grid-template-columns: 1fr; grid-template-areas: 'a1'; }
+  main[data-count="2"] section, main[data-count="1"] section { height: 60vh; }
 }
 
 /* the schemas that are open */
@@ -202,7 +215,7 @@ mark.help-hit.current { background: gold; color: #000; outline: 2px solid var(--
 .help-table th, .help-table td { border: 1px solid var(--line); padding: 2px 8px; text-align: left; vertical-align: top; }
 .help-gone { color: inherit; }
 #help { font: inherit; font-weight: bold; }
-#theme-button { margin-left: auto; }
+#panes-button { margin-left: auto; }
 #theme-dialog { width: min(26rem, calc(100vw - 32px)); padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
 #theme-dialog::backdrop { background: rgba(0, 0, 0, .4); }
 #theme-body { padding: 4px 12px 12px; }
@@ -249,3 +262,11 @@ section:focus-within > .pane-title { box-shadow: inset 0 -2px 0 var(--accent); }
 #keys-table tr.unavailable { color: var(--muted); }
 #keys-table .why { font-size: .85em; }
 kbd { font-family: var(--mono); font-size: .9em; padding: 0 5px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); }
+#panes-dialog { width: min(22rem, calc(100vw - 32px)); padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
+#panes-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+#panes-body { padding: 4px 12px 12px; }
+#panes-list { list-style: none; margin: 0 0 8px; padding: 0; }
+#panes-list li { padding: 3px 0; }
+#panes-list label { display: flex; gap: 8px; align-items: center; }
+#panes-list .state { margin-left: auto; color: var(--muted); font-size: .85em; }
+#panes-body .note { color: var(--muted); font-size: .85em; }
