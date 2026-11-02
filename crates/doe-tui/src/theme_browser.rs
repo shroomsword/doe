@@ -238,7 +238,7 @@ fn user_entries(dir: Option<&Path>) -> Vec<Entry> {
         .filter(|p| p.is_file() && p.extension().is_some_and(|e| e == "toml"))
         .collect();
     files.sort();
-    files
+    let mut entries: Vec<Entry> = files
         .into_iter()
         .map(|path| {
             let id = path
@@ -268,7 +268,9 @@ fn user_entries(dir: Option<&Path>) -> Vec<Entry> {
                 },
             }
         })
-        .collect()
+        .collect();
+    entries.sort_by(|a, b| theme::compare_names(&a.name, &b.name));
+    entries
 }
 
 #[cfg(test)]

@@ -1754,7 +1754,7 @@ colours of every terminal are used on one with fewer. `NO_COLOR` and
 
 In the viewer, **`T`** opens the list of the themes, at the right edge of the
 screen so that the viewer behind it can be seen: the terminal's own colours first,
-then the built-in themes (dark, then light), then your own files (`NAME.toml` of
+then the built-in themes (dark, then light; each group in the order of the names, without regard to case or accents, with a number in a name by its value), then your own files (`NAME.toml` of
 the `themes` directory; one that cannot be read is listed with its error). Moving
 through the list shows each theme on the whole viewer, the list included. `/`
 filters by name, `Enter` uses the selected theme until the viewer is closed and
@@ -1804,30 +1804,30 @@ what was changed (`note`) for each theme.
 
 | Id | Name | Variant | Author | Licence |
 |---|---|---|---|---|
-| `doe-light` | doe Light | light | the doe project | MIT |
-| `doe-dark` | doe Dark | dark | the doe project | MIT |
-| `solarized-dark` | Solarized Dark | dark | Ethan Schoonover | MIT |
-| `solarized-light` | Solarized Light | light | Ethan Schoonover | MIT |
-| `dracula` | Dracula | dark | Zeno Rocha | MIT |
-| `nord` | Nord | dark | Sven Greb (Arctic Ice Studio) | MIT |
-| `gruvbox-dark` | Gruvbox Dark | dark | Pavel Pertsev | MIT |
-| `gruvbox-light` | Gruvbox Light | light | Pavel Pertsev | MIT |
-| `monokai` | Monokai | dark | Wimer Hazenberg | MIT |
-| `one-dark` | One Dark | dark | GitHub (Atom) | MIT |
-| `one-light` | One Light | light | GitHub (Atom) | MIT |
-| `tokyo-night` | Tokyo Night | dark | enkia | MIT |
-| `catppuccin-latte` | Catppuccin Latte | light | Catppuccin | MIT |
 | `catppuccin-frappe` | Catppuccin Frappé | dark | Catppuccin | MIT |
+| `catppuccin-latte` | Catppuccin Latte | light | Catppuccin | MIT |
 | `catppuccin-macchiato` | Catppuccin Macchiato | dark | Catppuccin | MIT |
 | `catppuccin-mocha` | Catppuccin Mocha | dark | Catppuccin | MIT |
-| `github-light` | GitHub Light | light | GitHub | MIT |
+| `doe-dark` | doe Dark | dark | the doe project | MIT |
+| `doe-light` | doe Light | light | the doe project | MIT |
+| `dracula` | Dracula | dark | Zeno Rocha | MIT |
 | `github-dark` | GitHub Dark | dark | GitHub | MIT |
-| `kanagawa-wave` | Kanagawa Wave | dark | rebelot | MIT |
-| `kanagawa-dragon` | Kanagawa Dragon | dark | rebelot | MIT |
-| `kanagawa-lotus` | Kanagawa Lotus | light | rebelot | MIT |
-| `seafoam-pastel` | Seafoam Pastel | dark | iTerm2 Color Schemes | MIT |
+| `github-light` | GitHub Light | light | GitHub | MIT |
+| `gruvbox-dark` | Gruvbox Dark | dark | Pavel Pertsev | MIT |
+| `gruvbox-light` | Gruvbox Light | light | Pavel Pertsev | MIT |
 | `high-contrast` | High Contrast | dark | the doe project | MIT |
 | `high-contrast-light` | High Contrast Light | light | the doe project | MIT |
+| `kanagawa-dragon` | Kanagawa Dragon | dark | rebelot | MIT |
+| `kanagawa-lotus` | Kanagawa Lotus | light | rebelot | MIT |
+| `kanagawa-wave` | Kanagawa Wave | dark | rebelot | MIT |
+| `monokai` | Monokai | dark | Wimer Hazenberg | MIT |
+| `nord` | Nord | dark | Sven Greb (Arctic Ice Studio) | MIT |
+| `one-dark` | One Dark | dark | GitHub (Atom) | MIT |
+| `one-light` | One Light | light | GitHub (Atom) | MIT |
+| `seafoam-pastel` | Seafoam Pastel | dark | iTerm2 Color Schemes | MIT |
+| `solarized-dark` | Solarized Dark | dark | Ethan Schoonover | MIT |
+| `solarized-light` | Solarized Light | light | Ethan Schoonover | MIT |
+| `tokyo-night` | Tokyo Night | dark | enkia | MIT |
 
 ### Color
 
