@@ -1,0 +1,140 @@
+// The layout of the panes: moving them, and keeping where they are.
+
+import { expect, test, type Page } from '@playwright/test';
+import { DEFAULT_LAYOUT, LAYOUT_KEY, isDefault, layoutText, parseLayout, swapped } from '../src/layout.js';
+
+test('a saved layout is read only when it is four different panes of this version', () => {
+  const order = ['parsed', 'schema', 'bytes', 'status'] as const;
+  expect(parseLayout(layoutText(order))).toEqual(order);
+  expect(parseLayout(null)).toBeNull();
+  expect(parseLayout('not json')).toBeNull();
+  expect(parseLayout('42')).toBeNull();
+  expect(parseLayout('null')).toBeNull();
+  expect(parseLayout(JSON.stringify({ v: 2, order }))).toBeNull();
+  expect(parseLayout(JSON.stringify({ v: 1, order: ['parsed', 'parsed', 'bytes', 'status'] }))).toBeNull();
+  expect(parseLayout(JSON.stringify({ v: 1, order: ['parsed', 'schema', 'bytes'] }))).toBeNull();
+  expect(parseLayout(JSON.stringify({ v: 1, order: ['parsed', 'schema', 'bytes', 'nothing'] }))).toBeNull();
+});
+
+test('two panes swap places, and the default is the order the panes are written in', () => {
+  expect(swapped(DEFAULT_LAYOUT, 'schema', 'bytes')).toEqual(['bytes', 'parsed', 'schema', 'status']);
+  expect(isDefault(DEFAULT_LAYOUT)).toBe(true);
+  expect(isDefault(swapped(DEFAULT_LAYOUT, 'schema', 'bytes'))).toBe(false);
+});
+
+test.describe('in the page', () => {
+  test.use({ viewport: { width: 1400, height: 800 } });
+
+  const ready = async (page: Page): Promise<void> => {
+    await page.goto('/');
+    await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
+  };
+  /** The ids of the panes in the order they are laid out: by the left edge, the bottom row last. */
+  const places = (page: Page) =>
+    page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('main > section')]
+        .map((section) => ({ id: section.id, slot: section.dataset.slot, ...section.getBoundingClientRect().toJSON() }))
+        .sort((a, b) => Number(a.slot) - Number(b.slot))
+        .map((section) => section.id),
+    );
+  const stored = (page: Page) => page.evaluate((key) => window.localStorage.getItem(key), LAYOUT_KEY);
+
+  test.beforeEach(async ({ page }) => {
+    await ready(page);
+  });
+
+  test('the default layout has nothing stored and no reset button', async ({ page }) => {
+    expect(await places(page)).toEqual(['pane-editor', 'pane-tree', 'pane-hex', 'pane-status']);
+    expect(await stored(page)).toBeNull();
+    await expect(page.locator('#layout-reset')).toBeHidden();
+  });
+
+  test('dragging a title onto another pane swaps them; it is kept after a reload, and the button puts it back', async ({ page }) => {
+    await page.locator('#pane-editor .pane-title h2').dragTo(page.locator('#pane-hex'));
+    expect(await places(page)).toEqual(['pane-hex', 'pane-tree', 'pane-editor', 'pane-status']);
+    // on the screen the bytes are the left column now
+    const left = await page.locator('#pane-hex').boundingBox();
+    const right = await page.locator('#pane-editor').boundingBox();
+    expect(left!.x).toBeLessThan(right!.x);
+    await expect(page.locator('#layout-reset')).toBeVisible();
+    expect(parseLayout(await stored(page))).toEqual(['bytes', 'parsed', 'schema', 'status']);
+    await expect(page.locator('#layout-live')).toHaveText('Schema and Bytes swapped places');
+
+    await page.reload();
+    await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
+    expect(await places(page)).toEqual(['pane-hex', 'pane-tree', 'pane-editor', 'pane-status']);
+    await expect(page.locator('#layout-reset')).toBeVisible();
+
+    await page.locator('#layout-reset').click();
+    expect(await places(page)).toEqual(['pane-editor', 'pane-tree', 'pane-hex', 'pane-status']);
+    expect(await stored(page)).toBeNull();
+    await expect(page.locator('#layout-reset')).toBeHidden();
+  });
+
+  test('Alt+Shift+h, j, k, l swap the focused pane with the one beside it, the focus stays, and R puts them back', async ({ page }) => {
+    await page.locator('#pane-tree').focus();
+    await page.keyboard.press('Alt+Shift+KeyL');
+    expect(await places(page)).toEqual(['pane-editor', 'pane-hex', 'pane-tree', 'pane-status']);
+    expect(await page.evaluate(() => document.activeElement?.closest('section')?.id)).toBe('pane-tree');
+    await expect(page.locator('#layout-live')).toHaveText('Parsed and Bytes swapped places');
+    // at the right edge nothing moves
+    await page.keyboard.press('Alt+Shift+KeyL');
+    expect(await places(page)).toEqual(['pane-editor', 'pane-hex', 'pane-tree', 'pane-status']);
+    await page.keyboard.press('Alt+Shift+KeyJ');
+    expect(await places(page)).toEqual(['pane-editor', 'pane-hex', 'pane-status', 'pane-tree']);
+    await page.keyboard.press('Alt+Shift+KeyK');
+    await page.keyboard.press('Alt+Shift+KeyH');
+    await page.keyboard.press('Alt+Shift+KeyH');
+    expect(await page.evaluate(() => document.activeElement?.closest('section')?.id)).toBe('pane-tree');
+    // h j k l after a move follow the new places
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('l');
+    expect(await page.evaluate(() => document.activeElement?.closest('section')?.id)).not.toBe('pane-tree');
+    // that may be the editor, where the letters are text
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Shift+R');
+    expect(await places(page)).toEqual(['pane-editor', 'pane-tree', 'pane-hex', 'pane-status']);
+    expect(await stored(page)).toBeNull();
+  });
+
+  test('Tab goes through the panes in the order they are on the screen', async ({ page }) => {
+    await page.locator('#pane-editor .pane-title h2').dragTo(page.locator('#pane-hex'));
+    await page.locator('#pane-hex').focus();
+    const order: string[] = [];
+    for (let i = 0; i < 2; i += 1) {
+      await page.keyboard.press('Tab');
+      order.push((await page.evaluate(() => document.activeElement?.closest('section')?.id)) ?? '');
+    }
+    // the third place is the editor, where Tab is the browser's again
+    expect(order).toEqual(['pane-tree', 'pane-editor']);
+  });
+
+  test('junk in the storage, and a storage that throws, give the default layout', async ({ page }) => {
+    await page.evaluate((key) => window.localStorage.setItem(key, '{"v":1,"order":["schema","schema","bytes","status"]}'), LAYOUT_KEY);
+    await page.reload();
+    await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
+    expect(await places(page)).toEqual(['pane-editor', 'pane-tree', 'pane-hex', 'pane-status']);
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'localStorage', {
+        get() {
+          throw new Error('blocked');
+        },
+      });
+    });
+    await page.reload();
+    await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
+    expect(await places(page)).toEqual(['pane-editor', 'pane-tree', 'pane-hex', 'pane-status']);
+    // a move still works, for as long as the page is open
+    await page.locator('#pane-tree').focus();
+    await page.keyboard.press('Alt+Shift+KeyH');
+    expect(await places(page)).toEqual(['pane-tree', 'pane-editor', 'pane-hex', 'pane-status']);
+  });
+
+  test('in one column the saved order is the order from top to bottom', async ({ page }) => {
+    await page.locator('#pane-editor .pane-title h2').dragTo(page.locator('#pane-status'));
+    await page.setViewportSize({ width: 500, height: 900 });
+    const tops = await page.evaluate(() => [...document.querySelectorAll('main > section')].map((section) => [section.id, section.getBoundingClientRect().top]));
+    const ids = tops.sort((a, b) => Number(a[1]) - Number(b[1])).map((entry) => entry[0]);
+    expect(ids).toEqual(['pane-status', 'pane-tree', 'pane-hex', 'pane-editor']);
+  });
+});

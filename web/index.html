@@ -15,10 +15,11 @@
         <label id="types-box" hidden>Types <select id="types"></select></label>
         <button id="use-input" type="button" hidden></button>
       </div>
+      <button id="layout-reset" class="icon-link" type="button" hidden aria-label="Reset the layout" title="Put the panes back in their places (R)"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h8v8H3v-8zm10-3h8v11h-8V10z"/></svg></button>
       <button id="theme-button" class="icon-link" type="button" aria-label="Theme" title="Choose the colours of the page"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.3-.5-.8-.5-1.2 0-1.1.9-2 2-2h2.4c2.2 0 4-1.8 4-4C21.4 6.6 17.2 3 12 3zM6.5 12a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg></button>
     </header>
     <main>
-      <section id="pane-editor" tabindex="-1" aria-labelledby="h-schema">
+      <section id="pane-editor" data-slot="1" tabindex="-1" aria-labelledby="h-schema">
         <div class="pane-title">
           <h2 id="h-schema">Schema <small id="editing"></small></h2>
           <div class="pane-actions">
@@ -37,7 +38,7 @@
           <ul id="schemas" aria-labelledby="h-schemas"></ul>
         </div>
       </section>
-      <section id="pane-tree" tabindex="-1" aria-labelledby="h-parsed">
+      <section id="pane-tree" data-slot="2" tabindex="-1" aria-labelledby="h-parsed">
         <div class="pane-title">
           <h2 id="h-parsed">Parsed <small id="parsed-as"></small></h2>
           <div class="pane-actions">
@@ -66,11 +67,11 @@
         </div>
         <div id="tree-box"><div id="tree"></div></div>
       </section>
-      <section id="pane-hex" tabindex="-1" aria-labelledby="h-bytes">
+      <section id="pane-hex" data-slot="3" tabindex="-1" aria-labelledby="h-bytes">
         <div class="pane-title"><h2 id="h-bytes">Bytes <small id="selection"></small></h2></div>
         <div id="hex"></div>
       </section>
-      <section id="pane-status" tabindex="-1" aria-labelledby="h-status">
+      <section id="pane-status" data-slot="4" tabindex="-1" aria-labelledby="h-status">
         <div class="pane-title">
           <h2 id="h-status">Status</h2>
           <div class="pane-actions"><button type="button" id="cancel" hidden>Cancel parse</button></div>
@@ -80,6 +81,7 @@
         <div id="problems"></div>
       </section>
     </main>
+    <p id="layout-live" class="sr-only" role="status" aria-live="polite"></p>
     <dialog id="browse-dialog" aria-labelledby="browse-title">
       <div class="browse-bar">
         <h3 id="browse-title">Types</h3>

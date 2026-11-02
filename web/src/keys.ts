@@ -21,6 +21,11 @@ export type Action =
   | 'pane-down'
   | 'pane-up'
   | 'pane-right'
+  | 'move-left'
+  | 'move-down'
+  | 'move-up'
+  | 'move-right'
+  | 'reset-layout'
   | 'search'
   | 'goto'
   | 'auto'
@@ -58,6 +63,11 @@ export const KEYS: readonly Key[] = [
   { key: 'j', action: 'pane-down', label: 'Focus the pane below' },
   { key: 'k', action: 'pane-up', label: 'Focus the pane above' },
   { key: 'l', action: 'pane-right', label: 'Focus the pane on the right' },
+  { key: 'Alt+Shift+h', action: 'move-left', label: 'Move the pane to the left (it swaps places with that one)', inFields: true },
+  { key: 'Alt+Shift+j', action: 'move-down', label: 'Move the pane down', inFields: true },
+  { key: 'Alt+Shift+k', action: 'move-up', label: 'Move the pane up', inFields: true },
+  { key: 'Alt+Shift+l', action: 'move-right', label: 'Move the pane to the right', inFields: true },
+  { key: 'R', action: 'reset-layout', label: 'Put the panes back in their places' },
   { key: '/', action: 'search', label: 'Search in the focused pane, or in the help when it is open' },
   { key: 'g', action: 'goto', label: 'Go to an offset in the bytes', needs: 'file' },
   { key: 'a', action: 'auto', label: 'Turn automatic detection on or off' },
@@ -70,7 +80,9 @@ export const KEYS: readonly Key[] = [
 ];
 
 /** The name of the key of an event, as the table has it: a character as it is typed, other keys with `Shift+` when Shift is held. */
-export function keyName(event: Pick<KeyboardEvent, 'key' | 'shiftKey'>): string {
+export function keyName(event: Pick<KeyboardEvent, 'key' | 'shiftKey'> & Partial<Pick<KeyboardEvent, 'altKey' | 'code'>>): string {
+  // Alt+Shift and a letter: the letter that the key is (on some keyboards Alt makes `event.key` another character)
+  if (event.altKey && event.shiftKey && event.code?.startsWith('Key')) return `Alt+Shift+${event.code.slice(3).toLowerCase()}`;
   return event.key.length > 1 && event.shiftKey ? `Shift+${event.key}` : event.key;
 }
 
