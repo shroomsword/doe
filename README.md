@@ -1222,7 +1222,11 @@ text. In the help dialog `/` opens a search bar over its text: the matches are m
 
 **The layout.** The four panes are in four places: three side by side and the fourth under them in a wide
 window, two columns with the third and fourth across in a medium one, one column in a narrow one. Drag a pane by
-its title onto another to swap their places, or press `Alt+Shift+h`, `j`, `k` or `l` to swap the pane that has
+the grip at the left of its title bar (with a mouse also by the empty part of the bar or its heading; with a finger
+or a pen by the grip) and drop it on the first or second half of another pane: it goes before or after that pane
+and the others shift, as a line at the edge of the target shows while you drag (hold `Shift` when you drop to
+swap the two panes instead). `Esc` cancels a drag, and the page scrolls when the pointer is near the top or the
+bottom of the window. `Alt+Shift+h`, `j`, `k` or `l` swap the pane that has
 the focus with the one next to it in that direction (the move is announced to a screen reader). The layout is
 kept in the browser's local storage and applied when the page loads; if the browser has no storage the page
 starts with the default layout. Once the layout is not the default, a button in the header and the key `R` put

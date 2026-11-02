@@ -19,7 +19,8 @@ import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { RADIXES, Radixes, isRadix } from './radix.js';
 import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
 import { TreeView } from './tree.js';
-import { type Layout, type PaneName, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, saveLayout, shown, swapped, withVisible } from './layout.js';
+import { type Layout, type PaneName, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, moved, saveLayout, shown, swapped, withVisible } from './layout.js';
+import { PaneDrag } from './drag.js';
 
 /** How long the schema is left alone before it is checked again. */
 const PAUSE_MS = 250;
@@ -775,37 +776,20 @@ export class App {
       });
       this.maximizeButton(name);
     }
-    let dragged: PaneName | null = null;
+    // a grip at the left of each title bar shows that the pane can be dragged; the empty part of the bar drags too (with a mouse)
     for (const name of PANES) {
-      const section = element(PANE_IDS[name]);
-      const handle = section.querySelector<HTMLElement>('.pane-title h2');
-      if (!handle) continue;
-      handle.draggable = true;
-      handle.title = 'Drag onto another pane to swap their places (or Alt+Shift+h, j, k, l)';
-      handle.addEventListener('dragstart', (event) => {
-        dragged = name;
-        section.classList.add('dragging');
-        event.dataTransfer?.setData('text/plain', name);
-        if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-      });
-      handle.addEventListener('dragend', () => {
-        dragged = null;
-        for (const other of PANES) element(PANE_IDS[other]).classList.remove('dragging', 'drop-target');
-      });
-      section.addEventListener('dragover', (event) => {
-        if (dragged === null || dragged === name) return;
-        event.preventDefault();
-        section.classList.add('drop-target');
-      });
-      section.addEventListener('dragleave', (event) => {
-        if (!(event.relatedTarget instanceof Node) || !section.contains(event.relatedTarget)) section.classList.remove('drop-target');
-      });
-      section.addEventListener('drop', (event) => {
-        event.preventDefault();
-        section.classList.remove('drop-target');
-        if (dragged !== null && dragged !== name) this.swapPanes(dragged, name);
-      });
+      const grip = document.createElement('span');
+      grip.className = 'pane-grip';
+      grip.title = `Drag to put the ${NAMES[name]} pane before or after another (Shift swaps them), or use Alt+Shift+h, j, k, l`;
+      grip.setAttribute('aria-hidden', 'true');
+      grip.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" focusable="false"><path fill="currentColor" d="M8 5a1.8 1.8 0 1 1 0 .01zM16 5a1.8 1.8 0 1 1 0 .01zM8 12a1.8 1.8 0 1 1 0 .01zM16 12a1.8 1.8 0 1 1 0 .01zM8 19a1.8 1.8 0 1 1 0 .01zM16 19a1.8 1.8 0 1 1 0 .01z"/></svg>';
+      element(PANE_IDS[name]).querySelector('.pane-title')?.prepend(grip);
     }
+    new PaneDrag({
+      panes: PANES.map((name) => ({ name, section: element(PANE_IDS[name]), label: NAMES[name] })),
+      shown: () => shown(this.layout),
+      drop: (name, target, after, swap) => this.dropPane(name, target, after, swap),
+    });
   }
 
   /** Use a new layout: put the panes in it, keep it, say what happened, and give the focus back (moving elements drops it). */
@@ -819,6 +803,18 @@ export class App {
     if (focus) this.focusPane(focus);
     else if (had instanceof HTMLElement && had !== document.activeElement && document.contains(had) && !had.closest('[hidden]')) had.focus();
     this.panesList();
+  }
+
+  /** A pane was dropped on another with the mouse: before it or after it (with Shift held, in its place). */
+  private dropPane(name: PaneName, target: PaneName, after: boolean, swap: boolean): void {
+    if (this.maximized) return;
+    if (swap) {
+      this.swapPanes(name, target);
+      return;
+    }
+    const next = moved(this.layout, name, target, after);
+    if (next.order.every((pane, i) => pane === this.layout.order[i])) return;
+    this.commit(next, `${NAMES[name]} moved ${after ? 'after' : 'before'} ${NAMES[target]}`);
   }
 
   private swapPanes(a: PaneName, b: PaneName): void {
