@@ -122,6 +122,43 @@ test.describe('in the page', () => {
     }
   });
 
+  /** The one-word cells of the first column and the headings of every table of the help, and whether each is on one line. */
+  const brokenWords = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => {
+      const broken: string[] = [];
+      for (const cell of document.querySelectorAll<HTMLElement>('.help-text table th, .help-text table td')) {
+        const text = (cell.textContent ?? '').trim();
+        if (text === '' || /\s/.test(text) || cell.children.length > 0) continue;
+        const range = document.createRange();
+        range.selectNodeContents(cell);
+        if (range.getClientRects().length > 1) broken.push(text);
+      }
+      return broken;
+    });
+
+  for (const width of [1280, 800, 360]) {
+    test(`narrow table columns keep room for their words: none is broken inside a word at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.getByRole('button', { name: 'Help' }).click();
+      const gallery = page.locator('.help-table', { has: page.locator('th', { hasText: 'Directory' }) });
+      await expect(gallery).toBeAttached();
+      await gallery.scrollIntoViewIfNeeded();
+      const first = gallery.locator('th').first();
+      // the first column is as wide as its longest word, and the heading is on one line
+      const widest = await gallery.evaluate((table) => {
+        const column = [...table.querySelectorAll<HTMLElement>('tr')].map((row) => (row.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 0);
+        const longest = Math.max(...[...table.querySelectorAll('tr')].map((row) => ((row.firstElementChild?.textContent ?? '').trim().length)));
+        return { min: Math.min(...column), longest };
+      });
+      // a character is about 7px or more: "Directory" and "executable" and "filesystem" need over 60px
+      expect(widest.min).toBeGreaterThan(widest.longest * 5);
+      expect((await first.boundingBox())!.height).toBeLessThan(40);
+      expect(await brokenWords(page)).toEqual([]);
+      // a long word in a cell does not make the dialog wider than the window
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    });
+  }
+
   test('code blocks scroll and tables scroll sideways, and the page does not on a phone', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 700 });
     await page.getByRole('button', { name: 'Help' }).click();

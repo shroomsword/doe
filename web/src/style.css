@@ -205,7 +205,8 @@ mark.help-hit.current { background: gold; color: #000; outline: 2px solid var(--
 .help-toc ul { list-style: none; margin: 0; padding: 0; }
 .help-toc li { padding: 1px 0; font-size: .9em; }
 .help-toc li.level-3 { padding-left: 14px; font-size: .85em; }
-.help-text { flex: 1 1 24rem; min-width: 0; padding: 0 16px 16px; overflow-wrap: anywhere; }
+/* break-word, not anywhere: a long token wraps, but a table column keeps room for its longest word (anywhere let a column shrink to one letter) */
+.help-text { flex: 1 1 24rem; min-width: 0; padding: 0 16px 16px; overflow-wrap: break-word; }
 .help-text pre { overflow: auto; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
 .help-text code { font-family: var(--mono); font-size: .9em; }
 .help-table { overflow-x: auto; max-width: 100%; }
