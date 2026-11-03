@@ -487,6 +487,7 @@ mod tests {
             theme_dir: None,
             config_file: None,
             theme_on_command_line: false,
+            transparent: None,
             radix: None,
         })
         .unwrap();

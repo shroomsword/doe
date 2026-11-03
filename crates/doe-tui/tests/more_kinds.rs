@@ -50,6 +50,7 @@ fn building() -> (App, tempfile::TempDir) {
         theme_dir: None,
         config_file: None,
         theme_on_command_line: false,
+        transparent: None,
         radix: None,
     };
     let (options, builder) = prepare_build(&options, &dir.path().join("rich.yaml")).unwrap();

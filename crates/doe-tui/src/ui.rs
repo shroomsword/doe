@@ -32,6 +32,8 @@ use crate::types::{Row as TypeRow, TypeBrowser};
 pub struct Theme {
     color: bool,
     palette: Option<Palette>,
+    /// Leave the background of the screen to the terminal (the theme's text colours are used on it).
+    transparent: bool,
 }
 
 impl Theme {
@@ -41,6 +43,7 @@ impl Theme {
         Theme {
             color,
             palette: None,
+            transparent: false,
         }
     }
 
@@ -50,7 +53,24 @@ impl Theme {
         Theme {
             color: true,
             palette: Some(palette),
+            transparent: false,
         }
+    }
+
+    /// The same, with the background of the screen left to the terminal (`on`), or the theme's own. Only the screen's
+    /// own background goes: the selection, the panel and the bar, the prompts and the marks keep their colours.
+    #[must_use]
+    pub fn with_transparent(self, on: bool) -> Self {
+        Theme {
+            transparent: on,
+            ..self
+        }
+    }
+
+    /// Whether the background of the screen is left to the terminal.
+    #[must_use]
+    pub fn is_transparent(self) -> bool {
+        self.transparent
     }
 
     /// The palette of the theme, if there is one.
@@ -79,6 +99,8 @@ impl Theme {
     #[must_use]
     pub fn base(self) -> Style {
         match self.palette {
+            // the terminal's default background, not a colour: a translucent terminal shows through
+            Some(p) if self.transparent => Style::default().fg(p.foreground).bg(Color::Reset),
             Some(p) => Style::default().fg(p.foreground).bg(p.background),
             None => Style::default(),
         }
@@ -2063,6 +2085,7 @@ instances:
             theme_dir: None,
             config_file: None,
             theme_on_command_line: false,
+            transparent: None,
             radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
@@ -2106,6 +2129,7 @@ instances:
             theme_dir: None,
             config_file: None,
             theme_on_command_line: false,
+            transparent: None,
             radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
@@ -2153,6 +2177,7 @@ instances:
                 theme_dir: None,
                 config_file: None,
                 theme_on_command_line: false,
+                transparent: None,
                 radix: None,
             };
             let failure = crate::load::try_load(&options).unwrap_err();

@@ -31,6 +31,7 @@ fn building() -> (App, tempfile::TempDir) {
         theme_dir: None,
         config_file: None,
         theme_on_command_line: false,
+        transparent: None,
         radix: None,
     };
     let (options, builder) = prepare_build(&options, &dir.path().join("built.yaml")).unwrap();
@@ -299,6 +300,7 @@ fn a_key_that_needs_a_field_says_so_when_none_is_selected_and_nothing_changes_wi
         theme_dir: None,
         config_file: None,
         theme_on_command_line: false,
+        transparent: None,
         radix: None,
     };
     let mut plain = App::new(options.file.clone(), load(&options).unwrap());

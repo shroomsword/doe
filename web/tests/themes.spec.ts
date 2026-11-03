@@ -64,6 +64,17 @@ test('a theme file is read as the terminal viewer reads it', () => {
   expect(plain.variant).toBe('dark');
 });
 
+test('a theme file may say transparent, which is for the terminal viewer: the page reads it and ignores it', () => {
+  const colors = COLOR_NAMES.map((key) => `${key} = "#aabbcc"`).join('\n');
+  for (const value of ['true', 'false', 'true # glass']) {
+    const theme = parseThemeFile(`name = "Glass"\ntransparent = ${value}\n[colors]\n${colors}\n`);
+    expect(theme.name, value).toBe('Glass');
+    expect(theme.colors.background).toBe('#aabbcc');
+  }
+  expect(() => parseThemeFile(`name = "Glass"\ntransparent = "yes"\n[colors]\n${colors}\n`)).toThrow(/transparent is true or false/);
+  expect(() => parseThemeFile(`name = "Glass"\ntransparent = true\ntransparent = false\n[colors]\n${colors}\n`)).toThrow(/twice/);
+});
+
 test('a theme file that is not usable says what is wrong', () => {
   const full = themeFile('T');
   const bad = (text: string): string => {

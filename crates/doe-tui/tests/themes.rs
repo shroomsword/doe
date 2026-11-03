@@ -532,6 +532,7 @@ fn the_screens_of(id: &str, depth: Depth) {
         theme_dir: None,
         config_file: None,
         theme_on_command_line: false,
+        transparent: None,
         radix: None,
     };
     let loaded = load(&options).unwrap();
@@ -649,6 +650,7 @@ fn without_colour_a_theme_is_not_used() {
         theme_dir: None,
         config_file: None,
         theme_on_command_line: false,
+        transparent: None,
         radix: None,
     };
     assert_eq!(options.theme(Depth::True).unwrap(), Theme::new(false));
@@ -708,6 +710,7 @@ fn started_with(id: Option<&str>) -> (App, Theme, tempfile::TempDir, Options) {
         theme_dir: Some(themes),
         config_file: None,
         theme_on_command_line: false,
+        transparent: None,
         radix: None,
     };
     let loaded = load(&options).unwrap();
@@ -1016,4 +1019,168 @@ fn with_no_colour_the_list_says_so_and_nothing_is_applied() {
     press(&mut app, KeyCode::Enter);
     assert!(app.themes.is_none() && app.styles.is_none());
     assert!(app.notice.clone().unwrap().contains("no colour"));
+}
+
+// ── a transparent background ─────────────────────────────────────────────────
+
+/// How many cells of a drawn screen have each background.
+fn backgrounds(terminal: &Terminal<TestBackend>) -> std::collections::HashMap<Color, usize> {
+    let mut counts = std::collections::HashMap::new();
+    for cell in &terminal.backend().buffer().content {
+        *counts.entry(cell.bg).or_insert(0) += 1;
+    }
+    counts
+}
+
+fn drawn_with(
+    id: &str,
+    transparent: Option<bool>,
+    help: bool,
+) -> (Terminal<TestBackend>, theme::Palette) {
+    let (mut app, _styles, _dir, mut options) = started_with(Some(id));
+    options.transparent = transparent;
+    let styles = options.theme(Depth::True).unwrap();
+    app.help = help;
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    terminal.draw(|f| draw(f, &mut app, &styles)).unwrap();
+    (terminal, Palette::new(&find(id).colors, Depth::True))
+}
+
+#[test]
+fn a_transparent_background_leaves_the_screen_to_the_terminal_and_keeps_the_other_backgrounds() {
+    let (opaque, p) = drawn_with("nord", None, false);
+    let (clear, _) = drawn_with("nord", Some(true), false);
+    let before = backgrounds(&opaque);
+    let after = backgrounds(&clear);
+    // with the theme's own background most cells have it; transparent: none has it, the terminal's default is there
+    assert!(
+        before.get(&p.background).copied().unwrap_or(0) > 1000,
+        "{before:?}"
+    );
+    assert_eq!(after.get(&p.background), None, "{after:?}");
+    assert!(
+        after.get(&Color::Reset).copied().unwrap_or(0) > 1000,
+        "{after:?}"
+    );
+    // the colours that mean something stay: the status bar (panel) and the selected row
+    for (name, color) in [("panel", p.panel), ("selection", p.selection)] {
+        assert!(
+            after.get(&color).copied().unwrap_or(0) > 0,
+            "{name} {color:?} is gone: {after:?}"
+        );
+        assert_eq!(after.get(&color), before.get(&color), "{name} changed");
+    }
+    // the text is still in the colours of the theme
+    let text: HashSet<Color> = clear
+        .backend()
+        .buffer()
+        .content
+        .iter()
+        .map(|c| c.fg)
+        .collect();
+    assert!(text.contains(&p.foreground), "{text:?}");
+}
+
+#[test]
+fn an_overlay_clears_its_area_with_the_terminals_background_when_it_is_transparent() {
+    let (terminal, p) = drawn_with("nord", Some(true), true);
+    let buffer = terminal.backend().buffer();
+    let screen: String = buffer
+        .content
+        .iter()
+        .map(ratatui::buffer::Cell::symbol)
+        .collect();
+    assert!(screen.contains("Anywhere"), "the help is drawn");
+    // no cell has the theme's background, also under the help; and the cells of its box are the default background
+    assert_eq!(backgrounds(&terminal).get(&p.background), None);
+    let (width, height) = (buffer.area.width, buffer.area.height);
+    let middle = &buffer[(width / 2, height / 2)];
+    assert_eq!(middle.bg, Color::Reset);
+    // and the text under it is not left showing: the box has the help only
+    let (plain, _) = drawn_with("nord", Some(true), false);
+    assert_ne!(
+        plain.backend().buffer()[(width / 2, height / 2)].symbol(),
+        middle.symbol(),
+        "the help is over the screen"
+    );
+}
+
+#[test]
+fn a_theme_file_can_ask_for_it_and_the_setting_of_the_person_wins() {
+    let text = |extra: &str| {
+        format!("name = \"T\"\n{extra}[colors]\n{}", {
+            find("nord")
+                .colors
+                .named()
+                .iter()
+                .fold(String::new(), |mut t, (n, c)| {
+                    writeln!(t, "{n} = \"{}\"", c.hex()).unwrap();
+                    t
+                })
+        })
+    };
+    assert!(
+        !ColorTheme::parse(&text("")).unwrap().transparent,
+        "off when the theme does not say"
+    );
+    assert!(
+        ColorTheme::parse(&text("transparent = true\n"))
+            .unwrap()
+            .transparent
+    );
+    assert!(
+        !ColorTheme::parse(&text("transparent = false\n"))
+            .unwrap()
+            .transparent
+    );
+    let error = ColorTheme::parse(&text("transparent = \"yes\"\n"))
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("transparent")
+            || error.contains("boolean")
+            || error.contains("invalid type"),
+        "{error}"
+    );
+    // the built-in themes are not transparent
+    assert!(theme::builtin().iter().all(|t| !t.transparent));
+
+    // the viewer: the theme file asks, the person says nothing / yes / no
+    let (_app, _styles, dir, mut options) = started_with(None);
+    let file = dir.path().join("themes").join("glass.toml");
+    std::fs::write(&file, text("transparent = true\n")).unwrap();
+    options.theme = Some("glass".to_owned());
+    for (setting, wanted) in [(None, true), (Some(true), true), (Some(false), false)] {
+        options.transparent = setting;
+        assert_eq!(
+            options.theme(Depth::True).unwrap().is_transparent(),
+            wanted,
+            "{setting:?}"
+        );
+    }
+    // a theme that does not ask is opaque unless the person asks
+    options.theme = Some("nord".to_owned());
+    for (setting, wanted) in [(None, false), (Some(true), true), (Some(false), false)] {
+        options.transparent = setting;
+        assert_eq!(
+            options.theme(Depth::True).unwrap().is_transparent(),
+            wanted,
+            "{setting:?}"
+        );
+    }
+}
+
+#[test]
+fn the_list_of_themes_shows_each_with_the_transparent_setting() {
+    let (mut app, _styles, _dir, mut options) = started_with(None);
+    options.transparent = Some(true);
+    app.options = Some(options);
+    press(&mut app, KeyCode::Char('T'));
+    press(&mut app, KeyCode::Char('/'));
+    type_text(&mut app, "dracula");
+    press(&mut app, KeyCode::Enter);
+    assert!(
+        app.styles.unwrap().is_transparent(),
+        "the preview is transparent"
+    );
 }

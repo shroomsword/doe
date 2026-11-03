@@ -1281,6 +1281,8 @@ Options:
       --tui                  Show FILE decoded with the given type or schema in an interactive viewer in the terminal, instead of printing it. Needs a terminal on stdin and stdout
       --watch                With `--tui`: read the schema and the file again when either changes on disk (the modification times are looked at twice a second)
       --theme <NAME|FILE>    With `--tui`: the colour theme, a built-in one by its id (`nord`, `solarized-dark`, `catppuccin-mocha`...), a file `NAME.toml` in the `themes` directory next to the config file, or the path of a theme file; `terminal` is the colours of the terminal itself, which is the default (the `theme` key of the config file changes that)
+      --transparent          With `--tui`: leave the background of the screen to the terminal (a translucent or blurred one shows through), and use the theme's colours for the text; the selection, the status bar and the marks keep theirs (the `transparent` key of the config file, or of a theme file, changes that; `--no-transparent` overrides them)
+      --no-transparent       With `--tui`: use the background of the theme, whatever the config file or the theme file says about `transparent`
       --radix <RADIX>        With `--tui`: the radix in which integers are first shown, `dec` (the default), `hex`, `bin` or `oct`; `x` in the viewer goes through them, and `X` chooses one for the selected field (the `radix` key of the config file changes the default)
       --ide                  Serve the web IDE on this machine and print its address, instead of parsing a file. Only the loopback address is used. A FILE is offered to the page as the input, however large it is; the types found through the include paths and the config are offered too
       --port <PORT>          With `--ide`: the port to serve on (0 for any free one) [default: 8765]
@@ -1766,12 +1768,24 @@ terminal's own colours take the key out. If `--theme` was given on the command l
 wins at the next run until it is removed. `Esc` puts back the theme that was in use and writes nothing. With
 `NO_COLOR` or `--color never` the list says there is no colour in this run and applies nothing (nor saves).
 
+**A transparent background.** A theme paints the whole screen with its `background`. With `transparent = true` in
+the config file, `--transparent` on the command line, or `transparent = true` in a theme file, the viewer leaves the
+screen's background to the terminal (its default background, not black), so that a translucent or blurred terminal
+shows through, and uses the theme's colours for the text. The setting of the command line wins over the config file,
+and the config file over the theme file (`--no-transparent` turns it off for a run); the built-in themes are opaque.
+Only the background of the screen goes: the selected row and bytes, the status bar, the prompts and the marks keep
+their colours, and the help and the lists clear their area with the terminal's default background. The contrast
+that the tests check is the theme's text on the theme's background, so with `transparent` the text is only as readable
+as the terminal's own background lets it be (a dark theme on a light terminal will not be). Nothing changes with
+`NO_COLOR` or `--color never`, which apply no theme, or without a theme.
+
 A theme file is TOML, with the colours of the table:
 
 ```toml
 name = "Example theme"
 variant = "dark"          # or "light"; "dark" if left out
 author = "A. Person"      # author, license, source and note are optional
+transparent = false       # optional: true leaves the background to the terminal
 [colors]
 background = "#1e1e2e"
 foreground = "#cdd6f4"
@@ -1902,6 +1916,7 @@ level = "debug"
 | `include_paths` | list of paths | Directories searched for bare type names, in order. `~/` is expanded. | `-I`/`--include-path` (these come first) |
 | `default_types` | `true`, `false` | Whether the directory made by `doe --install-types` (`~/.doe/types`) is searched after `include_paths`. Default `true`; `false` leaves it out. | |
 | `theme` | text | The colour theme of `doe --tui`: a built-in id, a file in the `themes` directory next to this file, or a path (see [Themes](#themes)). Default: the terminal's own colours. | `--theme` |
+| `transparent` | `true`, `false` | Whether `doe --tui` leaves the background of the screen to the terminal, so that a translucent one shows through (see [Themes](#themes)). Overrides the `transparent` key of a theme file. Default: what the theme says, which is off for the built-in themes. | `--transparent`, `--no-transparent` |
 | `radix` | `dec`, `hex`, `bin`, `oct` | The radix in which `doe --tui` first shows integers (`x` changes it in the viewer). Default `dec`. | `--radix` |
 | `log.level` | `off`, `error`, `warn`, `info`, `debug`, `trace` | Verbosity of the log file. Default `debug`. | `--log-level` |
 

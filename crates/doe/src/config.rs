@@ -66,6 +66,14 @@ pub struct Config {
     #[serde(default)]
     pub theme: Option<String>,
 
+    /// Whether the terminal viewer (`doe --tui`) leaves the background of the
+    /// screen to the terminal, so that a translucent one shows through, and
+    /// uses the theme's colours for the text only. `--transparent` and
+    /// `--no-transparent` override it; a theme file may say `transparent =
+    /// true` too, which this overrides. Off when unset.
+    #[serde(default)]
+    pub transparent: Option<bool>,
+
     /// The radix in which the terminal viewer (`doe --tui`) first shows
     /// integers: `dec`, `hex`, `bin` or `oct`. `--radix` overrides it.
     #[serde(default)]
