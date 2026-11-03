@@ -200,6 +200,7 @@ fn tui(_cli: &Cli, _config: &Config) -> anyhow::Result<()> {
 
 /// The `transparent` setting of the viewer: `--transparent` or `--no-transparent`, else the config file's key. None
 /// leaves it to the theme (a theme file may say `transparent = true`).
+#[cfg(feature = "tui")]
 pub(crate) fn transparent_setting(cli: &Cli, config: &Config) -> Option<bool> {
     if cli.transparent {
         Some(true)
@@ -334,7 +335,7 @@ pub(crate) fn describe_config(path: Option<&Path>) -> String {
         .map_or_else(|| "<none>".to_owned(), |p| p.display().to_string())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tui"))]
 mod transparent_tests {
     use clap::Parser;
 
