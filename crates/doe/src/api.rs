@@ -236,6 +236,11 @@ pub struct SignatureResponse {
     /// What every file of the schema starts with (see [`crate::detect::magic_of`]);
     /// empty when the schema says nothing of it.
     pub magic: Vec<crate::detect::Magic>,
+    /// Other starts of the file when it has more than one (see
+    /// [`crate::detect::signatures_of`]).
+    pub alternatives: Vec<Vec<crate::detect::Magic>>,
+    /// How many things the schema checks (see [`crate::detect::checks_of`]).
+    pub checks: u32,
     /// The names of the format, in lower case: id, file name, extensions.
     pub names: Vec<String>,
     /// What is wrong with the schema.
@@ -249,6 +254,8 @@ pub fn signature(request: &str) -> SignatureResponse {
     let failed = |diagnostics| SignatureResponse {
         ok: false,
         magic: Vec::new(),
+        alternatives: Vec::new(),
+        checks: 0,
         names: Vec::new(),
         diagnostics,
     };
@@ -257,15 +264,21 @@ pub fn signature(request: &str) -> SignatureResponse {
         Err(diagnostic) => return failed(vec![diagnostic]),
     };
     match compile(&request) {
-        Ok(compiled) => SignatureResponse {
-            ok: true,
-            magic: crate::detect::magic_of(
+        Ok(compiled) => {
+            let mut signatures = crate::detect::signatures_of(
                 &compiled.compiler.registry,
                 request.type_name.as_deref().unwrap_or(&compiled.id),
-            ),
-            names: compiled.names,
-            diagnostics: Vec::new(),
-        },
+            )
+            .into_iter();
+            SignatureResponse {
+                ok: true,
+                magic: signatures.next().unwrap_or_default(),
+                alternatives: signatures.collect(),
+                checks: crate::detect::checks_of(&compiled.compiler.registry),
+                names: compiled.names,
+                diagnostics: Vec::new(),
+            }
+        }
         Err(diagnostics) => failed(diagnostics),
     }
 }
@@ -307,7 +320,7 @@ pub fn detect_order(request: &str, head: &[u8]) -> OrderResponse {
             let excluded = request
                 .sources
                 .iter()
-                .filter(|s| !s.magic.is_empty() && !crate::detect::matches_magic(&s.magic, head))
+                .filter(|s| s.has_signature() && s.starts_like(head).is_none())
                 .count();
             OrderResponse {
                 ok: true,

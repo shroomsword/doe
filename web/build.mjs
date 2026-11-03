@@ -152,8 +152,10 @@ for (const format of manifest.formats) {
   format.names = answer.ok ? [...new Set(answer.names)] : [format.id.toLowerCase()];
   if (answer.ok && answer.magic.length > 0) {
     format.magic = answer.magic;
+    if (answer.alternatives.length > 0) format.alternatives = answer.alternatives;
     withSignature += 1;
   }
+  if (answer.ok && answer.checks > 0) format.checks = answer.checks;
 }
 console.log(`gallery.json: ${withSignature} of ${manifest.formats.length} formats have a signature`);
 writeFileSync(join(dist, 'gallery.json'), JSON.stringify(manifest));

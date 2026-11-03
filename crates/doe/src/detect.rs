@@ -66,6 +66,92 @@ pub fn magic_of(registry: &TypeRegistry, type_name: &str) -> Vec<Magic> {
     out
 }
 
+/// The most values of an enum that make signatures.
+const ENUM_SIGNATURES_MAX: usize = 32;
+
+/// Every signature a file of the type can start with: the one of [`magic_of`]; or,
+/// when the type has none, one for each value of the enum of its first field
+/// when that is a magic number (an unsigned integer of two bytes or more whose id
+/// has `magic` or `signature` in it, as `magic_number: u4be` with `enum: magic`
+/// of a capture file). An enum that is not a magic number lists values that a
+/// file may leave out, so it says nothing of how the file starts. The values are
+/// in order of their number. Empty when the type says nothing of its start.
+#[must_use]
+pub fn signatures_of(registry: &TypeRegistry, type_name: &str) -> Vec<Vec<Magic>> {
+    let plain = magic_of(registry, type_name);
+    if !plain.is_empty() {
+        return vec![plain];
+    }
+    enum_signatures(registry, type_name)
+}
+
+fn enum_signatures(registry: &TypeRegistry, type_name: &str) -> Vec<Vec<Magic>> {
+    let Some(ty) = registry.get(type_name) else {
+        return Vec::new();
+    };
+    let Some(field) = ty.fields.first() else {
+        return Vec::new();
+    };
+    let (FieldKind::UInt { width, endian }, Some(enum_name)) = (&field.kind, &field.enum_ref)
+    else {
+        return Vec::new();
+    };
+    let id = field.id.to_ascii_lowercase();
+    if !ty.params.is_empty()
+        || field.pos.is_some()
+        || field.if_expr.is_some()
+        || !matches!(field.repeat, RepeatMode::Once)
+        || field.valid.is_some()
+        || !(id.contains("magic") || id.contains("signature"))
+    {
+        return Vec::new();
+    }
+    let bytes = match width {
+        IntWidth::W8 => 1,
+        IntWidth::W16 => 2,
+        IntWidth::W32 => 4,
+        IntWidth::W64 => 8,
+    };
+    let big = match endian {
+        EndianOverride::Little => false,
+        EndianOverride::Big => true,
+        EndianOverride::Inherit => match ty.endian_rule {
+            EndianRule::Fixed => ty.endian == Endian::Big,
+            _ => return Vec::new(),
+        },
+    };
+    let Some(values) = ty.enums.get(enum_name) else {
+        return Vec::new();
+    };
+    if bytes < 2 || values.variants.is_empty() || values.variants.len() > ENUM_SIGNATURES_MAX {
+        return Vec::new();
+    }
+    let mut numbers: Vec<u64> = values.variants.keys().copied().collect();
+    numbers.sort_unstable();
+    let mut out = Vec::new();
+    for number in numbers {
+        let le = number.to_le_bytes();
+        let Some(taken) = le.get(..bytes) else {
+            return Vec::new();
+        };
+        if le
+            .get(bytes..)
+            .is_some_and(|rest| rest.iter().any(|b| *b != 0))
+        {
+            return Vec::new();
+        }
+        let mut taken = taken.to_vec();
+        if big {
+            taken.reverse();
+        }
+        out.push(vec![Magic {
+            offset: 0,
+            bytes: taken,
+        }]);
+    }
+    out
+}
+
 /// How deep a type is looked into for a signature.
 const SIGNATURE_DEPTH: usize = 8;
 
@@ -246,10 +332,39 @@ pub struct Source {
     /// What the file starts with, if the schema says; see [`magic_of`].
     #[serde(default)]
     pub magic: Vec<Magic>,
+    /// Other things a file of the schema may start with, when it has more than
+    /// one start (the values of a magic number that is an enum; see
+    /// [`signatures_of`]): the file fits when it has `magic` or any of these.
+    #[serde(default)]
+    pub alternatives: Vec<Vec<Magic>>,
     /// The names of the format, in lower case: the extensions of its files,
     /// its `id`, the name of its file.
     #[serde(default)]
     pub names: Vec<String>,
+    /// How many things the schema checks (`contents:` and `valid:`): a schema
+    /// with no signature and nothing to check fits any file, so it is tried
+    /// after the ones that check something when all are tried.
+    #[serde(default)]
+    pub checks: u32,
+}
+
+impl Source {
+    /// Whether the schema says how a file of it starts.
+    #[must_use]
+    pub fn has_signature(&self) -> bool {
+        !self.magic.is_empty()
+    }
+
+    /// Whether a file that starts with `head` has one of the signatures of the
+    /// schema, and the length of the one it has; None when it has none.
+    #[must_use]
+    pub fn starts_like(&self, head: &[u8]) -> Option<usize> {
+        std::iter::once(&self.magic)
+            .chain(&self.alternatives)
+            .filter(|magic| !magic.is_empty() && matches_magic(magic, head))
+            .map(|magic| magic.iter().map(|m| m.bytes.len()).sum())
+            .max()
+    }
 }
 
 /// Why a schema is tried.
@@ -306,21 +421,25 @@ pub fn rank(sources: &[Source], head: &[u8], file_name: Option<&str>, all: bool)
         let named = ext
             .as_deref()
             .is_some_and(|ext| source.names.iter().any(|name| name == ext));
-        let length: usize = source.magic.iter().map(|m| m.bytes.len()).sum();
-        let why = if source.magic.is_empty() {
+        let (why, length) = if !source.has_signature() {
             if named {
-                Why::Name
+                (Why::Name, 0)
             } else if all {
-                Why::Remaining
+                (Why::Remaining, source.checks as usize)
             } else {
                 continue;
             }
-        } else if !matches_magic(&source.magic, head) {
-            continue;
-        } else if named {
-            Why::SignatureAndName
+        } else if let Some(length) = source.starts_like(head) {
+            (
+                if named {
+                    Why::SignatureAndName
+                } else {
+                    Why::Signature
+                },
+                length,
+            )
         } else {
-            Why::Signature
+            continue;
         };
         ranked.push((Ranked { index, why }, length));
     }
@@ -507,14 +626,31 @@ fn source_from(
     if let Ok(raw) = Compiler::new(include_paths.to_vec()).read_schema(&available.source) {
         names.extend(extensions_of(raw.meta.file_extension.as_ref()));
     }
-    let magic = compiled
-        .map(|c| magic_of(&c.registry, &available.id))
-        .unwrap_or_default();
+    let mut signatures = compiled
+        .map(|c| signatures_of(&c.registry, &available.id))
+        .unwrap_or_default()
+        .into_iter();
+    let magic = signatures.next().unwrap_or_default();
     Source {
         name: available.id.clone(),
         magic,
+        alternatives: signatures.collect(),
         names,
+        checks: compiled.map_or(0, |c| checks_of(&c.registry)),
     }
+}
+
+/// How many `contents:` and `valid:` the types of a schema have: what can make a
+/// parse fail on a file that is not of the format.
+#[must_use]
+pub fn checks_of(registry: &TypeRegistry) -> u32 {
+    let count = registry
+        .types
+        .values()
+        .flat_map(|ty| &ty.fields)
+        .filter(|field| field.valid.is_some() || matches!(field.kind, FieldKind::Contents(_)))
+        .count();
+    u32::try_from(count).unwrap_or(u32::MAX)
 }
 
 /// A schema of the include paths, compiled for trying.
@@ -620,7 +756,7 @@ impl Library {
             excluded: self
                 .loaded
                 .iter()
-                .filter(|l| !l.source.magic.is_empty() && !matches_magic(&l.source.magic, &head))
+                .filter(|l| l.source.has_signature() && l.source.starts_like(&head).is_none())
                 .count(),
             ..Detection::default()
         };
@@ -698,7 +834,9 @@ mod tests {
                     bytes: bytes.to_vec(),
                 })
                 .collect(),
+            alternatives: Vec::new(),
             names: names.iter().map(|n| (*n).to_owned()).collect(),
+            checks: 0,
         }
     }
 

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context as _;
 use doe::config::{Config, discover_types, unreadable_schemas};
-use doe::detect::{magic_of, source_of};
+use doe::detect::{signatures_of, source_of};
 use doe::inspect::inspect;
 use doe::schema::compiler::Compiler;
 use serde_json::{Value, json};
@@ -84,7 +84,7 @@ pub(crate) fn of_type_paths(
                 .to_path_buf();
             let (signature, error) = if with_signature {
                 let (source, error) = source_of(include_paths, available);
-                (!source.magic.is_empty(), error)
+                (source.has_signature(), error)
             } else {
                 (false, None)
             };
@@ -169,7 +169,7 @@ pub(crate) fn of_schema(
                 doc: None,
                 signature: registry
                     .as_ref()
-                    .is_some_and(|r| !magic_of(r, name).is_empty()),
+                    .is_some_and(|r| !signatures_of(r, name).is_empty()),
                 error: None,
             });
         }

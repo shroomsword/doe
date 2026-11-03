@@ -149,6 +149,29 @@ test('the button finds the format of a file by its signature and fetches only th
   expect(asked).toContain('image/png.ksy');
 });
 
+test('a libpcap capture is found by the values of its magic number, whatever its name says', async ({ page }) => {
+  test.skip(!hasGallery || !existsSync(join(samples, 'network', 'pcap', 'scapy_seven_packets.bin')), 'the gallery is not checked out');
+  await serveGallery(page);
+  await ready(page);
+  const capture = readFileSync(join(samples, 'network', 'pcap', 'scapy_seven_packets.bin'));
+  // the four byte orders and precisions of the magic number: the sample is little-endian, microseconds
+  const others = [Buffer.from([0xa1, 0xb2, 0xc3, 0xd4]), Buffer.from([0x4d, 0x3c, 0xb2, 0xa1]), Buffer.from([0xa1, 0xb2, 0x3c, 0x4d])];
+  expect([...capture.subarray(0, 4)]).toEqual([0xd4, 0xc3, 0xb2, 0xa1]);
+  // a file named like the pcapng format is still found as pcap
+  await page.setInputFiles('#open-input', { name: 'dump.pcapng', mimeType: 'application/octet-stream', buffer: capture });
+  await page.click('#detect');
+  await expect(page.locator('#detect-report')).toContainText('pcap parses the file', { timeout: 30_000 });
+  await expect(page.locator('#detect-report li.fit')).toContainText('the file starts with its signature');
+  await expect(page.locator('#parsed-as')).toHaveText('pcap');
+  // the other values of the enum are signatures too: the file is tried as pcap (its parse may fail on the rest)
+  for (const magic of others) {
+    await page.setInputFiles('#open-input', { name: 'x.bin', mimeType: 'application/octet-stream', buffer: Buffer.concat([magic, capture.subarray(4)]) });
+    await page.click('#detect');
+    await expect(page.locator('#detect-report')).toContainText('pcap', { timeout: 30_000 });
+    await expect(page.locator('#detect-report')).not.toContainText('no gallery format');
+  }
+});
+
 test('a file that nothing fits has a report, and "Try them all" is offered', async ({ page }) => {
   test.skip(!hasGallery, 'the gallery is not checked out');
   const asked = await serveGallery(page);

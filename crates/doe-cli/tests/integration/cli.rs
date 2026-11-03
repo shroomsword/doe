@@ -141,6 +141,38 @@ fn a_file_that_no_schema_fits_is_an_error_that_lists_what_was_tried() {
         .stderr(predicate::str::contains("--detect all"));
 }
 
+#[test]
+fn a_parse_that_fails_on_a_file_with_the_signature_of_another_type_says_which() {
+    let dir = TempDir::new().unwrap();
+    let lib = detect_library(dir.path());
+    let file = dir.path().join("x.bin");
+    std::fs::write(&file, b"ABcd").unwrap();
+    doe()
+        .args(["-c", NO_CONFIG, "-I"])
+        .arg(&lib)
+        .arg(&file)
+        .arg("c_other")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("could not parse"))
+        .stderr(predicate::str::contains(
+            "the file starts like `a_wide`, `b_narrow`",
+        ))
+        .stderr(predicate::str::contains("not like c_other"));
+    // a failure on a file that starts like nothing else has no hint
+    let other = dir.path().join("y.bin");
+    std::fs::write(&other, b"zzzz").unwrap();
+    doe()
+        .args(["-c", NO_CONFIG, "-I"])
+        .arg(&lib)
+        .arg(&other)
+        .arg("c_other")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("could not parse"))
+        .stderr(predicate::str::contains("starts like").not());
+}
+
 #[cfg(feature = "tui")]
 #[test]
 fn the_viewer_without_a_schema_says_the_same_when_nothing_fits() {

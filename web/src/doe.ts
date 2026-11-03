@@ -103,13 +103,19 @@ export interface Magic {
 export interface DetectSource {
   name: string;
   magic: Magic[];
+  /** Other starts of a file of the schema, when it has more than one (the values of a magic number that is an enum). */
+  alternatives?: Magic[][];
   names: string[];
+  /** How many things the schema checks; a schema that checks nothing is tried last when all are tried. */
+  checks?: number;
 }
 
 /** What `signature` answers: what a type starts with and what the format is called. */
 export interface SignatureResponse {
   ok: boolean;
   magic: Magic[];
+  alternatives: Magic[][];
+  checks: number;
   names: string[];
   diagnostics: Diagnostic[];
 }

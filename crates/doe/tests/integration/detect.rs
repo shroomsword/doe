@@ -285,3 +285,136 @@ fn the_signature_of_a_type_of_a_schema_is_asked_by_the_type() {
     assert_eq!(inner.magic.len(), 1);
     assert_eq!(inner.magic[0].bytes, b"XY");
 }
+
+/// A capture file as `pcap` reads it: a magic number that is an enum, then the header.
+const CAPTURE: &str = "meta:
+  id: capture
+  file-extension: cap
+seq:
+  - id: magic_number
+    type: u4be
+    enum: magic
+  - id: rest
+    size-eos: true
+enums:
+  magic:
+    0xd4c3b2a1: le_microseconds
+    0xa1b2c3d4: be_microseconds
+    0x4d3cb2a1: le_nanoseconds
+    0xa1b23c4d: be_nanoseconds
+";
+
+/// The format the name says: it starts with a block type, which is no signature, and checks it.
+const BLOCKS: &str = "meta:
+  id: blocks
+  file-extension: cap
+  endian: le
+seq:
+  - id: block_type
+    type: u4
+    valid: 0x0a0d0d0a
+";
+
+#[test]
+fn a_magic_number_that_is_an_enum_gives_a_signature_for_each_value() {
+    let mut compiler = Compiler::new(vec![]);
+    compiler
+        .process_schema(&doe::schema::raw::RawSchema::from_yaml_str(CAPTURE).unwrap())
+        .unwrap();
+    let signatures = doe::detect::signatures_of(&compiler.registry, "capture");
+    let bytes: Vec<&[u8]> = signatures
+        .iter()
+        .map(|s| {
+            assert_eq!(s.len(), 1);
+            assert_eq!(s[0].offset, 0);
+            s[0].bytes.as_slice()
+        })
+        .collect();
+    // in the order of the numbers, as the file has them: a u4be
+    assert_eq!(
+        bytes,
+        [
+            &[0x4d, 0x3c, 0xb2, 0xa1][..],
+            &[0xa1, 0xb2, 0x3c, 0x4d],
+            &[0xa1, 0xb2, 0xc3, 0xd4],
+            &[0xd4, 0xc3, 0xb2, 0xa1],
+        ]
+    );
+    // magic_of says nothing of it: one signature is one start
+    assert_eq!(magic_of(&compiler.registry, "capture"), []);
+}
+
+#[test]
+fn an_enum_that_is_not_a_magic_number_says_nothing_of_the_start_of_the_file() {
+    // a kind may have values the enum does not list
+    let text = CAPTURE.replace("magic_number", "kind");
+    let mut compiler = Compiler::new(vec![]);
+    compiler
+        .process_schema(&doe::schema::raw::RawSchema::from_yaml_str(&text).unwrap())
+        .unwrap();
+    assert_eq!(
+        doe::detect::signatures_of(&compiler.registry, "capture"),
+        Vec::<Vec<Magic>>::new()
+    );
+}
+
+#[test]
+fn a_capture_with_the_name_of_another_format_is_found_by_its_signature() {
+    let dir = library();
+    schema(dir.path(), "capture", CAPTURE);
+    schema(dir.path(), "blocks", BLOCKS);
+    // every byte order and precision, with the name of the other format
+    for magic in [
+        [0xd4, 0xc3, 0xb2, 0xa1],
+        [0xa1, 0xb2, 0xc3, 0xd4],
+        [0x4d, 0x3c, 0xb2, 0xa1],
+        [0xa1, 0xb2, 0x3c, 0x4d],
+    ] {
+        let mut bytes = magic.to_vec();
+        bytes.extend_from_slice(&[2, 0, 4, 0, 0, 0, 0, 0]);
+        let data = file(dir.path(), "x.cap", &bytes);
+        let found = detect(dir.path(), &data, &Options::default());
+        let chosen = found.chosen().unwrap();
+        assert_eq!(chosen.name, "capture", "{magic:?}: {}", found.report());
+        // the signature comes before the name: the format the name fits is not even tried
+        assert_eq!(chosen.why, Why::SignatureAndName);
+        assert_eq!(found.attempts.len(), 1, "{}", found.report());
+    }
+    // a file that is what its name says still is
+    let data = file(dir.path(), "y.cap", &[0x0a, 0x0d, 0x0d, 0x0a]);
+    let found = detect(dir.path(), &data, &Options::default());
+    assert_eq!(found.chosen().unwrap().name, "blocks", "{}", found.report());
+    // a start that is no value of the enum leaves the capture out
+    let data = file(dir.path(), "z.cap", &[1, 2, 3, 4, 5, 6, 7, 8]);
+    let found = detect(dir.path(), &data, &Options::default());
+    assert!(found.chosen().is_none());
+    assert_eq!(found.excluded, 2);
+}
+
+#[test]
+fn when_all_are_tried_a_schema_that_checks_nothing_comes_after_one_that_does() {
+    let dir = library();
+    // a_loose is first by name and fits any file
+    schema(
+        dir.path(),
+        "a_loose",
+        "meta:\n  id: a_loose\nseq:\n  - id: all\n    size-eos: true\n",
+    );
+    schema(
+        dir.path(),
+        "b_strict",
+        "meta:\n  id: b_strict\nseq:\n  - id: n\n    type: u1\n    valid: 7\n  - id: all\n    size-eos: true\n",
+    );
+    let data = file(dir.path(), "data", &[7, 1, 2]);
+    let all = Options {
+        all: true,
+        ..Options::default()
+    };
+    let found = detect(dir.path(), &data, &all);
+    assert_eq!(
+        found.chosen().unwrap().name,
+        "b_strict",
+        "{}",
+        found.report()
+    );
+}
