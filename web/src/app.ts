@@ -21,6 +21,7 @@ import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigi
 import { TreeView } from './tree.js';
 import { type Layout, type PaneName, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, moved, saveLayout, shown, swapped, withVisible } from './layout.js';
 import { PaneDrag } from './drag.js';
+import type { EditorSelection } from '@codemirror/state';
 import { type BoxSelection, Positions, boxSelection, putBackSelection } from './keep.js';
 
 /** How long the schema is left alone before it is checked again. */
@@ -799,6 +800,7 @@ export class App {
   private commit(layout: Layout, message: string, focus?: PaneName): void {
     const had = document.activeElement;
     const selection = boxSelection(had);
+    const caret = had?.closest('.cm-editor') ? this.editor.selection() : null;
     this.positions.remember(this.sections());
     this.layout = layout;
     applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, layout);
@@ -807,7 +809,7 @@ export class App {
     // what moving the elements took away comes back: the focus with the caret or selection, and then the scroll
     // offsets (giving the focus back can scroll the caret into view, which is not where the user had left the pane)
     if (focus) this.focusPane(focus);
-    else this.giveFocusBack(had, selection);
+    else this.giveFocusBack(had, selection, caret);
     this.positions.restore();
     this.panesList();
   }
@@ -818,11 +820,12 @@ export class App {
   }
 
   /** Put the focus back on the element that had it before the panes were moved, with its caret. */
-  private giveFocusBack(had: Element | null, selection: BoxSelection | null): void {
+  private giveFocusBack(had: Element | null, selection: BoxSelection | null, caret: EditorSelection | null): void {
     if (!(had instanceof HTMLElement) || had === document.activeElement || !document.contains(had) || had.closest('[hidden]')) return;
     // the editor keeps its selection in its state: its own focus puts the caret there
     if (had.closest('.cm-editor')) {
       this.editor.focus();
+      if (caret) this.editor.restoreSelection(caret);
       return;
     }
     had.focus({ preventScroll: true });

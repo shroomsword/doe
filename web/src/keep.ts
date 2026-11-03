@@ -9,6 +9,11 @@ function isLaidOut(element: Element): boolean {
   return element.isConnected && element.getClientRects().length > 0;
 }
 
+/** How many frames the offsets that were put back are kept in place (a slow machine measures the editor late). */
+const REAPPLY_FRAMES = 20;
+/** What ends that: the person has taken over. */
+const INPUT_EVENTS = ['wheel', 'keydown', 'pointerdown', 'touchstart'] as const;
+
 export class Positions {
   private readonly saved = new Map<Element, { top: number; left: number }>();
 
@@ -30,8 +35,8 @@ export class Positions {
   /**
    * Put back the offsets of the elements that are laid out now; the others wait for the time they are. An editor that
    * has the focus measures itself again when its size changes, and scrolls its caret into view when it has done, a
-   * moment after the change: so the offsets that were put back are put back once more after two frames (nobody has
-   * scrolled in that time), and an element is only moved if it is not where it was.
+   * moment after the change: so for the next frames (until the person scrolls, types or presses something) an
+   * element that is not where it was put back is moved there again.
    */
   restore(): void {
     const applied: [Element, { top: number; left: number }][] = [];
@@ -47,15 +52,27 @@ export class Positions {
       this.saved.delete(element);
     }
     if (applied.length === 0) return;
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        for (const [element, at] of applied) {
-          if (!isLaidOut(element) || (element.scrollTop === at.top && element.scrollLeft === at.left)) continue;
-          element.scrollTop = at.top;
-          element.scrollLeft = at.left;
-        }
-      }),
-    );
+    // for a few frames, until the person scrolls or types: nothing else should move what was just put back
+    let frames = 0;
+    const stop = (): void => {
+      frames = Infinity;
+      for (const type of INPUT_EVENTS) window.removeEventListener(type, stop, true);
+    };
+    for (const type of INPUT_EVENTS) window.addEventListener(type, stop, { capture: true, passive: true });
+    const again = (): void => {
+      frames += 1;
+      if (frames > REAPPLY_FRAMES) {
+        stop();
+        return;
+      }
+      for (const [element, at] of applied) {
+        if (!isLaidOut(element) || (element.scrollTop === at.top && element.scrollLeft === at.left)) continue;
+        element.scrollTop = at.top;
+        element.scrollLeft = at.left;
+      }
+      requestAnimationFrame(again);
+    };
+    requestAnimationFrame(again);
   }
 
   /** How many offsets are remembered (for tests). */
