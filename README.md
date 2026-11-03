@@ -1206,7 +1206,8 @@ the editor for its pane, closes a dialog and closes a search.
 | `g` | Go to an offset in the bytes |
 | `a` | Turn automatic detection on or off |
 | `r` | Change how integers are shown (decimal, hexadecimal, binary, octal) |
-| `c` | Cancel the parse that is running |
+| `c` | Set the number of columns of the Parsed pane |
+| `C` | Cancel the parse that is running |
 | `1` | Focus the Schema pane |
 | `2` | Focus the Parsed pane (shows it if it is closed) |
 | `3` | Focus the Bytes pane (shows it if it is closed) |
@@ -1239,6 +1240,16 @@ shown fill the places in their order, side by side in a wide window, with no hol
 kept with the order of the panes, and Reset (`R`) shows them all. `2`, `3` and `4` show a closed pane and
 focus it, a parse that fails or a detection report shows the Status pane, and `g` shows the Bytes pane, so that
 nothing is lost because a pane is closed.
+
+**Columns of the Parsed pane.** The rows of the parsed value can flow in several columns, down the first and then
+the next, which uses a wide pane better and shortens the scrolling. `c`, or the columns button (an icon of a
+rectangle in three bands) in the title bar of the Parsed pane, opens a dialog in which the number of columns is
+entered (1 to 8, with quick choices 1 to 4): `Enter` or **Apply** sets it, `Esc` or **Cancel** changes nothing, a
+number that is not a whole number in range is refused with a message, and **Reset** goes back to one column.
+The number is kept in the browser'"'"'s local storage and used when the page loads. A column keeps at least 20 rem,
+so a pane that is too narrow shows fewer columns than the number (the dialog says how many fit; the number is not
+changed), and a row that is longer than its column is clipped. The arrow keys and the search follow the order of
+the rows, down a column and then on to the next. Cancelling a parse that is running is `C` (Shift+c).
 
 **Maximizing a pane.** `f` on the focused pane, the maximize button in its title bar (the square; it becomes
 two squares, restore, while the pane is maximized) or a double-click on the empty part of the title bar make the
