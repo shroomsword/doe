@@ -5,7 +5,7 @@ import { yaml } from '@codemirror/lang-yaml';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
 import { openSearchPanel } from '@codemirror/search';
-import { Compartment, type EditorSelection, EditorState, type Extension } from '@codemirror/state';
+import { Compartment, EditorSelection, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, basicSetup } from 'codemirror';
 import { tags } from '@lezer/highlight';
 import type { Diagnostic, Position } from './doe.js';
@@ -119,13 +119,27 @@ export class SchemaEditor {
 
   /**
    * Put the selection back and show it in the browser's own selection, without scrolling. Moving the editor in the
-   * page leaves the browser's selection at the start of the text in some browsers, which the editor then reads as the
-   * user's, so the state is set again after the focus is given back.
+   * page leaves the browser's selection at the top of what is drawn in some browsers (Firefox), which the editor then
+   * reads as the person's: a transaction that sets the state it already has does not touch the browser's selection, so
+   * the selection is moved off and back, which does. It is set once more a frame later, until a key is pressed.
    */
   restoreSelection(selection: EditorSelection): void {
-    const length = this.view.state.doc.length;
-    if (selection.ranges.some((range) => range.to > length)) return;
-    this.view.dispatch({ selection });
+    const set = (): void => {
+      const length = this.view.state.doc.length;
+      if (selection.ranges.some((range) => range.to > length)) return;
+      this.view.dispatch({ selection: EditorSelection.cursor(selection.main.head === 0 ? length : 0) });
+      this.view.dispatch({ selection });
+    };
+    set();
+    let typed = false;
+    const mark = (): void => {
+      typed = true;
+    };
+    window.addEventListener('keydown', mark, { once: true, capture: true });
+    requestAnimationFrame(() => {
+      window.removeEventListener('keydown', mark, true);
+      if (!typed && this.view.hasFocus) set();
+    });
   }
 
   /** Open the search panel of the editor (with the focus in it). */
