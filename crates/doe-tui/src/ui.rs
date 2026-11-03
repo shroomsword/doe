@@ -1178,36 +1178,150 @@ fn prompt_line(frame: &mut Frame<'_>, prompt: &Prompt, theme: Theme) {
     frame.set_cursor_position((x.min(row.right().saturating_sub(1)), row.y));
 }
 
+/// The gap between the keys of a row of the help and what they do, at least.
+const HELP_GAP: usize = 2;
+
+/// The rows of the help with the width of their key column (the indent of the keys, the widest label of all the
+/// sections, and the gap), so that every description starts in one column. Each line comes with the width of the part
+/// that a wrapped line is indented by: the key column of a row, 0 for a title or a note.
+fn help_rows(theme: Theme) -> Vec<(Line<'static>, usize)> {
+    let sections = keymap::help();
+    let widest = sections
+        .iter()
+        .flat_map(|(_, bindings)| bindings.iter().map(|(keys, _)| format::width(keys)))
+        .chain(
+            keymap::PROMPT_HELP
+                .iter()
+                .map(|(keys, _)| format::width(keys)),
+        )
+        .max()
+        .unwrap_or(0);
+    let column = 2 + widest + HELP_GAP;
+    let row = |keys: &str, what: &'static str| {
+        let pad = column.saturating_sub(2 + format::width(keys));
+        (
+            Line::from(vec![
+                Span::styled(format!("  {keys}{}", " ".repeat(pad)), theme.name()),
+                Span::raw(what),
+            ]),
+            column,
+        )
+    };
+    let mut lines: Vec<(Line<'static>, usize)> = Vec::new();
+    for (title, bindings) in sections {
+        lines.push((Line::from(Span::styled(title, theme.title())), 0));
+        for (keys, what) in bindings {
+            lines.push(row(&keys, what));
+        }
+        lines.push((Line::raw(""), 0));
+    }
+    lines.push((
+        Line::from(Span::styled("In a prompt (/ and g)", theme.title())),
+        0,
+    ));
+    for (keys, what) in keymap::PROMPT_HELP {
+        lines.push(row(keys, what));
+    }
+    lines.push((Line::raw(""), 0));
+    lines.push((
+        Line::from(Span::styled(
+            "/ searches this help (n and N go on), the arrow keys scroll it, any other key closes it",
+            theme.dim(),
+        )),
+        0,
+    ));
+    lines
+}
+
 /// The lines of the help: every key, in the order of the tables.
 #[must_use]
 pub fn help_lines(theme: Theme) -> Vec<Line<'static>> {
-    let mut lines: Vec<Line<'static>> = Vec::new();
-    for (title, bindings) in keymap::help() {
-        lines.push(Line::from(Span::styled(title, theme.title())));
-        for (keys, what) in bindings {
-            lines.push(Line::from(vec![
-                Span::styled(format!("  {keys:<14}"), theme.name()),
-                Span::raw(what),
-            ]));
+    help_rows(theme).into_iter().map(|(line, _)| line).collect()
+}
+
+/// `cells` (characters with their style) as a line.
+fn line_of(cells: &[(char, Style)]) -> Line<'static> {
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    let mut text = String::new();
+    let mut style = Style::default();
+    for &(c, s) in cells {
+        if !text.is_empty() && s != style {
+            spans.push(Span::styled(std::mem::take(&mut text), style));
         }
-        lines.push(Line::raw(""));
+        style = s;
+        text.push(c);
     }
-    lines.push(Line::from(Span::styled(
-        "In a prompt (/ and g)",
-        theme.title(),
-    )));
-    for (keys, what) in keymap::PROMPT_HELP {
-        lines.push(Line::from(vec![
-            Span::styled(format!("  {keys:<14}"), theme.name()),
-            Span::raw(*what),
-        ]));
+    if !text.is_empty() {
+        spans.push(Span::styled(text, style));
     }
-    lines.push(Line::raw(""));
-    lines.push(Line::from(Span::styled(
-        "/ searches this help (n and N go on), the arrow keys scroll it, any other key closes it",
-        theme.dim(),
-    )));
-    lines
+    Line::from(spans)
+}
+
+/// A row of the help made to fit `width` cells: what is past the keys goes on the next lines, indented to the
+/// description column (`hang` cells). A row whose keys take more than a third of the width has them on a line of
+/// their own, and the description under them, indented by four. A row that fits, a title and a note are as they are
+/// (a note wraps without an indent).
+fn wrap_row(line: Line<'static>, hang: usize, width: usize) -> Vec<Line<'static>> {
+    let total: usize = line.spans.iter().map(|s| format::width(&s.content)).sum();
+    if total <= width || width < 8 {
+        return vec![line];
+    }
+    let cells: Vec<(char, Style)> = line
+        .spans
+        .iter()
+        .flat_map(|s| s.content.chars().map(move |c| (c, s.style)))
+        .collect();
+    let mut keys_end = 0;
+    let mut used = 0;
+    while used < hang {
+        let Some((c, _)) = cells.get(keys_end) else {
+            break;
+        };
+        used += format::width(c.encode_utf8(&mut [0; 4]));
+        keys_end += 1;
+    }
+    let (keys, rest) = cells.split_at(keys_end);
+    let mut out: Vec<Line<'static>> = Vec::new();
+    let (indent, mut current) = if hang * 3 > width {
+        let end = keys
+            .iter()
+            .rposition(|(c, _)| *c != ' ')
+            .map_or(0, |at| at + 1);
+        out.push(line_of(keys.get(..end).unwrap_or_default()));
+        let indent = 4.min(width / 2);
+        (indent, vec![(' ', Style::default()); indent])
+    } else {
+        (hang, keys.to_vec())
+    };
+    let mut at = used.max(indent);
+    if hang * 3 > width {
+        at = indent;
+    }
+    let mut fresh = true;
+    for word in rest.split(|(c, _)| *c == ' ') {
+        let size: usize = word
+            .iter()
+            .map(|(c, _)| format::width(c.encode_utf8(&mut [0; 4])))
+            .sum();
+        if word.is_empty() {
+            continue;
+        }
+        if !fresh && at + 1 + size > width {
+            out.push(line_of(&current));
+            current = vec![(' ', Style::default()); indent];
+            at = indent;
+            fresh = true;
+        }
+        if !fresh {
+            current.push((' ', Style::default()));
+            at += 1;
+        }
+        current.extend_from_slice(word);
+        at += size;
+        fresh = false;
+    }
+    out.push(line_of(&current));
+    out
 }
 
 /// `line` with the places of `needle` (any case) shown reversed; `current` also bold.
@@ -1252,18 +1366,27 @@ fn help(frame: &mut Frame<'_>, app: &App, theme: Theme) {
         return;
     }
     let view = &app.help_view;
-    let mut lines = help_lines(theme);
+    let mut rows = help_rows(theme);
     let matches = view.matches();
     let current = view.current_line();
     let needle = view.query.to_lowercase();
     for &at in &matches {
-        if let Some(slot) = lines.get_mut(at) {
+        if let Some((slot, _)) = rows.get_mut(at) {
             *slot = mark_matches(std::mem::take(slot), &needle, current == Some(at));
         }
     }
+    let width = screen.width.min(100);
+    // the rows that are wider than the box go on in the description column; the scroll counts rows of the help
+    let text_width = usize::from(width.saturating_sub(2));
+    let wrapped: Vec<Vec<Line<'static>>> = rows
+        .into_iter()
+        .map(|(line, hang)| wrap_row(line, hang, text_width))
+        .collect();
+    let logical = wrapped.len();
+    let first_shown = |scroll: usize| wrapped.iter().take(scroll).map(Vec::len).sum::<usize>();
+    let lines: Vec<Line<'static>> = wrapped.iter().flatten().cloned().collect();
 
     let wanted = u16::try_from(lines.len() + 2).unwrap_or(u16::MAX);
-    let width = screen.width.min(100);
     let height = screen.height.min(wanted);
     let area = Rect {
         x: screen.x + (screen.width - width) / 2,
@@ -1299,9 +1422,11 @@ fn help(frame: &mut Frame<'_>, app: &App, theme: Theme) {
     let inner = block.inner(area);
     frame.render_widget(block, area);
     view.rows.set(inner.height);
-    let scroll = view
-        .scroll
-        .min(lines.len().saturating_sub(usize::from(inner.height)));
+    let scroll = first_shown(
+        view.scroll
+            .min(logical.saturating_sub(usize::from(inner.height))),
+    )
+    .min(lines.len().saturating_sub(usize::from(inner.height)));
     frame.render_widget(
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })
@@ -1939,9 +2064,26 @@ instances:
             );
         }
         // every line of the table is on the screen of a tall terminal
+        let column = help_column();
         for (_, bindings) in crate::keymap::help() {
             for (keys, what) in bindings {
-                assert!(has(&lines, &format!("{keys:<14}{what}")), "{keys}: {what}");
+                let pad = " ".repeat(column - 2 - format::width(&keys));
+                // a long description goes on under its column: the words are all there, in order
+                let first = what.split(' ').next().unwrap_or_default();
+                assert!(
+                    has(&lines, &format!("  {keys}{pad}{first}")),
+                    "{keys}: {what}"
+                );
+                let shown = lines.join(" ").replace('│', " ");
+                let squeezed: Vec<&str> = shown.split_whitespace().collect();
+                let words: Vec<&str> = what.split_whitespace().collect();
+                assert!(
+                    squeezed.windows(words.len()).any(|w| {
+                        // the box draws a border between the lines of a wrapped row
+                        w.iter().zip(&words).all(|(a, b)| a.trim_matches('│') == *b)
+                    }) || lines.iter().any(|l| l.contains(what)),
+                    "{keys}: {what}"
+                );
             }
         }
         let (lines, _) = draw_app(&mut app, 60, 12);
@@ -1949,6 +2091,95 @@ instances:
         for (w, h) in [(9, 4), (10, 3), (3, 3), (1, 1), (100, 4)] {
             let _ = draw_app(&mut app, w, h);
         }
+    }
+
+    /// The width of the key column of the help, from the tables.
+    fn help_column() -> usize {
+        let widest = crate::keymap::help()
+            .iter()
+            .flat_map(|(_, b)| b.iter().map(|(keys, _)| format::width(keys)))
+            .chain(
+                crate::keymap::PROMPT_HELP
+                    .iter()
+                    .map(|(keys, _)| format::width(keys)),
+            )
+            .max()
+            .unwrap();
+        2 + widest + HELP_GAP
+    }
+
+    #[test]
+    fn the_descriptions_of_the_help_start_in_one_column_with_a_gap_after_the_keys() {
+        let lines = crate::help::plain_lines();
+        let column = help_column();
+        let rows: Vec<(String, &str)> = crate::keymap::help()
+            .into_iter()
+            .flat_map(|(_, b)| b)
+            .chain(
+                crate::keymap::PROMPT_HELP
+                    .iter()
+                    .map(|(keys, what)| ((*keys).to_owned(), *what)),
+            )
+            .collect();
+        for (keys, what) in &rows {
+            let line = lines
+                .iter()
+                .find(|l| l.starts_with(&format!("  {keys} ")) && l.ends_with(what))
+                .unwrap_or_else(|| panic!("{keys}: {what}"));
+            let before: String = line
+                .chars()
+                .take(line.chars().count() - what.chars().count())
+                .collect();
+            assert_eq!(format::width(&before), column, "{keys}");
+            assert!(before.ends_with("  "), "{keys}: no gap");
+        }
+        // the longest label is not cut short, and none of the old labels runs into its text
+        assert!(lines.iter().any(|l| l.starts_with("  Backspace Delete  ")));
+    }
+
+    fn text_of(lines: &[Line<'static>]) -> Vec<String> {
+        lines
+            .iter()
+            .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
+            .collect()
+    }
+
+    #[test]
+    fn a_row_wider_than_the_box_goes_on_in_the_description_column() {
+        let row = Line::from(vec![
+            Span::raw("  Tab  "),
+            Span::raw("move the keys between the panes and then some more words to wrap"),
+        ]);
+        let wrapped = text_of(&wrap_row(row, 7, 30));
+        assert!(wrapped.len() >= 3, "{wrapped:?}");
+        assert!(wrapped[0].starts_with("  Tab  move"), "{wrapped:?}");
+        for line in &wrapped[1..] {
+            assert!(
+                line.starts_with("       ") && !line.starts_with("        "),
+                "{line:?}"
+            );
+        }
+        assert!(
+            wrapped.iter().all(|l| format::width(l) <= 30),
+            "{wrapped:?}"
+        );
+        // all the words are still there, in order
+        let words: Vec<&str> = wrapped.iter().flat_map(|l| l.split_whitespace()).collect();
+        assert_eq!(
+            words.join(" "),
+            "Tab move the keys between the panes and then some more words to wrap"
+        );
+        // keys that take more than a third of the width have a line to themselves
+        let long = Line::from(vec![
+            Span::raw("  Backspace Delete  "),
+            Span::raw("delete a character or more"),
+        ]);
+        let wrapped = text_of(&wrap_row(long, 20, 30));
+        assert_eq!(wrapped[0], "  Backspace Delete");
+        assert!(wrapped[1].starts_with("    delete"), "{wrapped:?}");
+        // a row that fits is as it was
+        let short = Line::from(vec![Span::raw("  q  "), Span::raw("quit")]);
+        assert_eq!(text_of(&wrap_row(short, 5, 30)), ["  q  quit"]);
     }
 
     #[test]
