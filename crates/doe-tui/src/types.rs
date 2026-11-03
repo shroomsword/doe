@@ -38,7 +38,7 @@ impl TypeEntry {
     /// Whether it starts with something that can be checked, if that is known yet.
     #[must_use]
     pub fn has_signature(&self) -> Option<bool> {
-        self.source.as_ref().map(|s| !s.magic.is_empty())
+        self.source.as_ref().map(doe::detect::Source::has_signature)
     }
 }
 
@@ -330,6 +330,8 @@ impl TypeBrowser {
                 e.source.clone().unwrap_or_else(|| Source {
                     name: e.id.clone(),
                     magic: Vec::new(),
+                    alternatives: Vec::new(),
+                    checks: 0,
                     names: Vec::new(),
                 })
             })

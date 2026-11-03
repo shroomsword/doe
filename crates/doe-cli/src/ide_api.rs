@@ -198,6 +198,8 @@ impl Local {
                                 "id": t.id,
                                 "path": t.source,
                                 "magic": source.magic,
+                                "alternatives": source.alternatives,
+                                "checks": source.checks,
                                 "names": source.names,
                                 "error": error,
                             })

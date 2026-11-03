@@ -1424,6 +1424,8 @@ export class App {
       try {
         const answer = await this.client.signature({ ...this.request(), type: entry.id });
         entry.magic = answer.ok ? answer.magic : [];
+        entry.alternatives = answer.ok ? answer.alternatives : [];
+        entry.checks = answer.ok ? answer.checks : 0;
         entry.names = [...new Set([...entry.names, ...answer.names])];
         entry.compileError = answer.ok ? null : (answer.diagnostics[0]?.message ?? 'the schema does not compile');
       } catch {
@@ -1435,6 +1437,8 @@ export class App {
     for (const entry of library) {
       const known = signatures.find((s) => s.path === entry.path);
       entry.magic = known?.magic ?? [];
+      entry.alternatives = known?.alternatives ?? [];
+      entry.checks = known?.checks ?? 0;
       entry.names = known?.names ?? entry.names;
       entry.compileError = known?.error ?? null;
     }
@@ -1446,7 +1450,7 @@ export class App {
     if (!this.canDetect()) return null;
     try {
       if (this.serverInput && this.local) this.client.setInput(await this.local.range(0, 64 * 1024));
-      const sources = entries.map((e) => ({ name: e.id, magic: e.magic ?? [], names: e.names }));
+      const sources = entries.map((e) => ({ name: e.id, magic: e.magic ?? [], alternatives: e.alternatives ?? [], checks: e.checks ?? 0, names: e.names }));
       const answer = await this.client.order(sources, this.inputName, false);
       return answer.ok ? { order: answer.order, excluded: answer.excluded } : null;
     } catch {

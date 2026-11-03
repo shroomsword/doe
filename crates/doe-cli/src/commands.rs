@@ -211,6 +211,36 @@ pub(crate) fn transparent_setting(cli: &Cli, config: &Config) -> Option<bool> {
     }
 }
 
+/// When a parse fails, the types of the library whose signature the file starts with, if it is not the type that was
+/// asked for: a `.pcapng` file that is a libpcap capture, for example.
+fn other_start_hint(cli: &Cli, config: &Config, file: &Path, tried: &str) -> Option<String> {
+    use std::io::Read as _;
+
+    let mut head = Vec::new();
+    std::fs::File::open(file)
+        .ok()?
+        .take(doe::detect::HEAD_BYTES as u64)
+        .read_to_end(&mut head)
+        .ok()?;
+    let library = doe::detect::Library::load(&include_paths(&cli.include_paths, config)).ok()?;
+    let names: Vec<String> = library
+        .sources()
+        .into_iter()
+        .filter(|s| s.name != tried && s.starts_like(&head).is_some())
+        .map(|s| s.name)
+        .collect();
+    let first = names.first()?;
+    Some(format!(
+        "  the file starts like {} (a signature of the type), not like {tried}: try `doe {} {first}`",
+        names
+            .iter()
+            .map(|n| format!("`{n}`"))
+            .collect::<Vec<_>>()
+            .join(", "),
+        file.display()
+    ))
+}
+
 fn run(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     let Some(file) = &cli.file else {
         // clap requires it unless `--help`, `--completions` or `--man` was given.
@@ -242,7 +272,14 @@ fn run(cli: &Cli, config: &Config) -> anyhow::Result<()> {
             instances: !cli.no_instances,
         },
     )
-    .with_context(|| format!("could not parse {} as {type_or_schema}", file.display()))?;
+    .with_context(|| {
+        let mut message = format!("could not parse {} as {type_or_schema}", file.display());
+        if let Some(hint) = other_start_hint(cli, config, file, type_or_schema) {
+            message.push('\n');
+            message.push_str(&hint);
+        }
+        message
+    })?;
 
     write_stdout(report.output.as_bytes())?;
     if report.text_problems.is_empty() {

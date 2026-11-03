@@ -1328,7 +1328,13 @@ fits. The order is:
    or string with an exact `valid:`, after fields of a fixed size, also inside a
    field that is a type) can only describe a file that starts with those bytes.
    That is read from the compiled schema without parsing anything, and a schema
-   whose signature the file does not have is left out.
+   whose signature the file does not have is left out. A first field that is a
+   magic number written as an integer of two bytes or more with an `enum:` and
+   no `valid:` (its id has `magic` or `signature` in it, as `magic_number: u4be`
+   of `pcap`) has one signature for each value of the enum, and the file fits if
+   it starts with any of them. A signature comes before a name that fits: a
+   libpcap capture called `dump.pcapng` is found as `pcap`, and `pcapng` is not
+   even tried.
 2. **By name.** The extension of the file against the schema's `id`, the name of
    its file and its `meta: file-extension`, for the schemas that have no
    signature; and to put a schema first when both fit.
@@ -1345,12 +1351,15 @@ signature. `doe --tui FILE` does the same before the viewer opens (the viewer ha
 no command to open another file, so that is the only time it looks).
 
 **The limits.** A format with no signature (a magic number that is an `enum`
-without `valid:`, as in `pcap`, `mach_o` and `wav`; the signature further in
+whose id does not say it is a magic number, as in `wav`; the signature further in
 than a field of a size that is not fixed) is only found by its name, or when
-`--detect all` is given, which tries every schema that is left in the order of
-their names and can take a long time for a big library. Only the first 64 KiB of
-the file are compared with signatures. Of the 237 samples of the Kaitai gallery
-in the tests, 106 are found with their own schema (those of the formats whose
+`--detect all` is given, which tries every schema that is left, the ones that
+check something (`contents:`, `valid:`) before the ones that check nothing and so
+fit any file, and can take a long time for a big library. When a parse with a
+type given by name fails on a file that starts with the signature of another
+type, the error says which. Only the first 64 KiB of
+the file are compared with signatures. Of the 327 samples of the Kaitai gallery
+in the tests, 152 are found with their own schema (those of the formats whose
 signature is read from the schema), and the rest need their name or
 `--detect all`; a test keeps the number that are found from falling.
 
