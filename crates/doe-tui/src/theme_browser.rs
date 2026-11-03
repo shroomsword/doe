@@ -55,12 +55,15 @@ pub struct Entry {
 }
 
 impl Entry {
-    /// The styles of the viewer with this theme at the terminal's `depth`; none
-    /// for a file that cannot be used.
+    /// The styles of the viewer with this theme at the terminal's `depth` (and with the background left to the
+    /// terminal when `transparent` says so, else as the theme asks); none for a file that cannot be used.
     #[must_use]
-    pub fn styles(&self, depth: Depth) -> Option<Theme> {
+    pub fn styles(&self, depth: Depth, transparent: Option<bool>) -> Option<Theme> {
         match (&self.colors, self.group) {
-            (Some(found), _) => Some(Theme::themed(Palette::new(&found.colors, depth))),
+            (Some(found), _) => Some(
+                Theme::themed(Palette::new(&found.colors, depth))
+                    .with_transparent(transparent.unwrap_or(found.transparent)),
+            ),
             (None, Group::Terminal) => Some(Theme::new(true)),
             (None, _) => None,
         }
@@ -300,7 +303,7 @@ mod tests {
         let first_light = groups.iter().position(|g| *g == Group::Light).unwrap();
         assert!(groups[..first_light].iter().all(|g| *g != Group::Light));
         assert!(!groups.contains(&Group::Yours));
-        assert!(b.entries[0].styles(Depth::True).is_some());
+        assert!(b.entries[0].styles(Depth::True, None).is_some());
     }
 
     #[test]
@@ -319,10 +322,10 @@ mod tests {
             yours.iter().map(|e| e.id.as_str()).collect::<Vec<_>>(),
             ["broken", "mine"]
         );
-        assert!(yours[0].error.is_some() && yours[0].styles(Depth::True).is_none());
+        assert!(yours[0].error.is_some() && yours[0].styles(Depth::True, None).is_none());
         assert_eq!(yours[1].name, "Mine");
         assert_eq!(yours[1].author.as_deref(), Some("A. Person"));
-        assert!(yours[1].styles(Depth::True).is_some());
+        assert!(yours[1].styles(Depth::True, None).is_some());
     }
 
     #[test]

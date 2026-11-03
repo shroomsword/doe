@@ -51,6 +51,7 @@ fn app() -> (App, tempfile::TempDir) {
         theme_dir: None,
         config_file: None,
         theme_on_command_line: false,
+        transparent: None,
         radix: None,
     };
     let mut app = App::new(options.file.clone(), load(&options).unwrap());

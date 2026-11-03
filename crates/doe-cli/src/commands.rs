@@ -185,6 +185,7 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         ),
         config_file: cli.config.clone().or_else(Config::default_path),
         theme_on_command_line: cli.theme.is_some(),
+        transparent: transparent_setting(cli, config),
     };
     match &cli.build {
         Some(out) => doe_tui::run_build(&options, out),
@@ -195,6 +196,18 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
 #[cfg(not(feature = "tui"))]
 fn tui(_cli: &Cli, _config: &Config) -> anyhow::Result<()> {
     anyhow::bail!("--tui is not in this build of doe: it was built without the `tui` feature")
+}
+
+/// The `transparent` setting of the viewer: `--transparent` or `--no-transparent`, else the config file's key. None
+/// leaves it to the theme (a theme file may say `transparent = true`).
+pub(crate) fn transparent_setting(cli: &Cli, config: &Config) -> Option<bool> {
+    if cli.transparent {
+        Some(true)
+    } else if cli.no_transparent {
+        Some(false)
+    } else {
+        config.transparent
+    }
 }
 
 fn run(cli: &Cli, config: &Config) -> anyhow::Result<()> {
@@ -319,4 +332,67 @@ pub(crate) fn describe_config(path: Option<&Path>) -> String {
     path.map(Path::to_owned)
         .or_else(Config::default_path)
         .map_or_else(|| "<none>".to_owned(), |p| p.display().to_string())
+}
+
+#[cfg(test)]
+mod transparent_tests {
+    use clap::Parser;
+
+    use super::transparent_setting;
+    use crate::cli::Cli;
+    use doe::config::Config;
+
+    fn cli(args: &[&str]) -> Cli {
+        let mut all = vec!["doe", "--tui"];
+        all.extend_from_slice(args);
+        all.push("file.bin");
+        Cli::try_parse_from(all).unwrap()
+    }
+
+    fn config(transparent: Option<bool>) -> Config {
+        Config {
+            transparent,
+            ..Config::default()
+        }
+    }
+
+    #[test]
+    fn the_flags_win_over_the_config_file_and_the_config_file_over_the_theme() {
+        let unset = config(None);
+        let on = config(Some(true));
+        let off = config(Some(false));
+        // nothing said: it is left to the theme
+        assert_eq!(transparent_setting(&cli(&[]), &unset), None);
+        // the config file
+        assert_eq!(transparent_setting(&cli(&[]), &on), Some(true));
+        assert_eq!(transparent_setting(&cli(&[]), &off), Some(false));
+        // the flags
+        assert_eq!(
+            transparent_setting(&cli(&["--transparent"]), &unset),
+            Some(true)
+        );
+        assert_eq!(
+            transparent_setting(&cli(&["--transparent"]), &off),
+            Some(true)
+        );
+        assert_eq!(
+            transparent_setting(&cli(&["--no-transparent"]), &on),
+            Some(false)
+        );
+        // the last of the two flags is the one that counts
+        assert_eq!(
+            transparent_setting(&cli(&["--transparent", "--no-transparent"]), &on),
+            Some(false)
+        );
+        assert_eq!(
+            transparent_setting(&cli(&["--no-transparent", "--transparent"]), &off),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn the_flags_need_the_viewer() {
+        assert!(Cli::try_parse_from(["doe", "--transparent", "file.bin"]).is_err());
+        assert!(Cli::try_parse_from(["doe", "--no-transparent", "file.bin"]).is_err());
+    }
 }

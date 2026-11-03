@@ -114,13 +114,20 @@ export function parseThemeFile(text: string): ThemeInfo {
     const key = trimmed.slice(0, equals).trim();
     const value = trimmed.slice(equals + 1).trim();
     if (!/^[A-Za-z_][A-Za-z0-9_-]*$/.test(key)) throw new Error(`line ${line}: ${key} is not a key`);
+    // `transparent` is for the terminal viewer, which leaves the background to the terminal; the page reads it and does not use it
+    if (key === 'transparent' && into === top) {
+      if (!/^(true|false)\s*(#.*)?$/.test(value)) throw new Error(`line ${line}: transparent is true or false`);
+      if (key in into) throw new Error(`line ${line}: ${key} twice`);
+      into[key] = value.startsWith('true') ? 'true' : 'false';
+      return;
+    }
     if (value[0] !== '"' && value[0] !== "'") throw new Error(`line ${line}: the value of ${key} is text in quotes`);
     if (key in into) throw new Error(`line ${line}: ${key} twice`);
     into[key] = readString(value, line);
   });
 
   for (const key of Object.keys(top)) {
-    if (!['name', 'variant', 'author', 'license', 'source', 'note', 'id'].includes(key)) throw new Error(`${key} is not a key of a theme`);
+    if (!['name', 'variant', 'author', 'license', 'source', 'note', 'id', 'transparent'].includes(key)) throw new Error(`${key} is not a key of a theme`);
   }
   const name = top.name;
   if (!name) throw new Error('a theme needs a name');

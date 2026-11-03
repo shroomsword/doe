@@ -667,7 +667,11 @@ impl App {
         if !browser.color {
             return;
         }
-        if let Some(styles) = browser.current().and_then(|e| e.styles(self.depth)) {
+        let transparent = self.options.as_ref().and_then(|o| o.transparent);
+        if let Some(styles) = browser
+            .current()
+            .and_then(|e| e.styles(self.depth, transparent))
+        {
             self.styles = Some(styles);
         }
     }
@@ -2063,6 +2067,7 @@ pub(crate) mod tests {
             theme_dir: None,
             config_file: None,
             theme_on_command_line: false,
+            transparent: None,
             radix: None,
         };
         (App::new(file, load(&options).unwrap()), dir)
@@ -2112,6 +2117,7 @@ pub(crate) mod tests {
             theme_dir: None,
             config_file: None,
             theme_on_command_line: false,
+            transparent: None,
             radix: None,
         };
         let loaded = load(&options).unwrap();
@@ -2555,6 +2561,7 @@ seq:
             theme_dir: None,
             config_file: None,
             theme_on_command_line: false,
+            transparent: None,
             radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
@@ -2855,6 +2862,7 @@ types:
             theme_dir: None,
             config_file: None,
             theme_on_command_line: false,
+            transparent: None,
             radix: None,
         };
         let mut app = App::new(options.file.clone(), load(&options).unwrap());
@@ -2915,6 +2923,7 @@ types:
             theme_dir: None,
             config_file: None,
             theme_on_command_line: false,
+            transparent: None,
             radix: None,
         }
     }
@@ -3101,6 +3110,7 @@ types:
             theme_dir: None,
             config_file: None,
             theme_on_command_line: false,
+            transparent: None,
             radix: None,
         })
         .unwrap();

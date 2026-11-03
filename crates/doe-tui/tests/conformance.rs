@@ -126,6 +126,7 @@ fn the_tree_and_the_bytes_agree_on_the_conformance_samples() {
                 theme_dir: None,
                 config_file: None,
                 theme_on_command_line: false,
+                transparent: None,
                 radix: None,
             })
             .unwrap_or_else(|e| panic!("{label}: {e}"));

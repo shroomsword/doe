@@ -495,3 +495,23 @@ fn the_default_types_directory_is_searched_last_and_once() {
     let again = with_default_types(paths.clone(), &Config::default());
     assert_eq!(again, paths);
 }
+
+#[test]
+fn transparent_is_unset_or_a_boolean() {
+    assert_eq!(Config::default().transparent, None);
+    for (text, wanted) in [
+        ("transparent = true", Some(true)),
+        ("transparent = false", Some(false)),
+    ] {
+        let mut f = NamedTempFile::new().unwrap();
+        writeln!(f, "{text}").unwrap();
+        assert_eq!(
+            Config::load(f.path()).unwrap().transparent,
+            wanted,
+            "{text}"
+        );
+    }
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "transparent = \"yes\"").unwrap();
+    assert!(Config::load(f.path()).is_err(), "text is not a boolean");
+}

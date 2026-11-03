@@ -172,6 +172,9 @@ struct Definition {
     source: Option<String>,
     #[serde(default)]
     note: Option<String>,
+    /// The theme asks for the terminal's own background (the setting of the person can say otherwise).
+    #[serde(default)]
+    transparent: bool,
     colors: Colors,
 }
 
@@ -202,6 +205,9 @@ pub struct ColorTheme {
     pub source: Option<String>,
     /// What was changed from the original, if anything.
     pub note: Option<String>,
+    /// Whether the theme leaves the background of the screen to the terminal (`transparent = true` in a theme file).
+    /// `--transparent` and the `transparent` key of the config file win over it.
+    pub transparent: bool,
     /// The colours.
     pub colors: Colors,
 }
@@ -216,6 +222,7 @@ impl From<Definition> for ColorTheme {
             license: d.license,
             source: d.source,
             note: d.note,
+            transparent: d.transparent,
             colors: d.colors,
         }
     }
@@ -223,8 +230,8 @@ impl From<Definition> for ColorTheme {
 
 impl ColorTheme {
     /// Read a theme from the text of a file: `name`, optionally `variant`
-    /// (`dark`, the default, or `light`), `author`, `license`, `source` and
-    /// `note`, and a `[colors]` table with every colour of `themes/themes.toml`.
+    /// (`dark`, the default, or `light`), `author`, `license`, `source`, `note`
+    /// and `transparent` (`true` or `false`), and a `[colors]` table with every colour of `themes/themes.toml`.
     ///
     /// # Errors
     ///

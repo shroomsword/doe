@@ -76,6 +76,9 @@ pub struct Options {
     pub config_file: Option<PathBuf>,
     /// Whether `--theme` was given on the command line, which wins over the configuration file.
     pub theme_on_command_line: bool,
+    /// Whether to leave the background of the screen to the terminal: `--transparent` or `--no-transparent`, else the
+    /// `transparent` key of the config. None: what the theme says (a theme file may have `transparent = true`).
+    pub transparent: Option<bool>,
     /// The radix in which integers are first shown (`--radix` or the `radix`
     /// key of the config); decimal when it is none.
     pub radix: Option<doe::radix::Radix>,
@@ -95,7 +98,8 @@ impl Options {
         match &self.theme {
             Some(name) if name != "terminal" => {
                 let found = theme::resolve(name, self.theme_dir.as_deref())?;
-                Ok(Theme::themed(theme::Palette::new(&found.colors, depth)))
+                Ok(Theme::themed(theme::Palette::new(&found.colors, depth))
+                    .with_transparent(self.transparent.unwrap_or(found.transparent)))
             }
             _ => Ok(Theme::new(true)),
         }

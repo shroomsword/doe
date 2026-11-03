@@ -82,6 +82,7 @@ fn the_keys_of_the_readme_build_the_schema_of_the_readme() {
         theme_dir: None,
         config_file: None,
         theme_on_command_line: false,
+        transparent: None,
         radix: None,
     };
     let (options, builder) = prepare_build(&options, &out).unwrap();

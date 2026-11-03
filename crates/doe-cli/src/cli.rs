@@ -188,6 +188,19 @@ pub(crate) struct Cli {
     #[arg(long, value_name = "NAME|FILE", requires = "tui")]
     pub(crate) theme: Option<String>,
 
+    /// With `--tui`: leave the background of the screen to the terminal (a
+    /// translucent or blurred one shows through), and use the theme's colours
+    /// for the text; the selection, the status bar and the marks keep theirs
+    /// (the `transparent` key of the config file, or of a theme file, changes
+    /// that; `--no-transparent` overrides them).
+    #[arg(long, requires = "tui", overrides_with = "no_transparent")]
+    pub(crate) transparent: bool,
+
+    /// With `--tui`: use the background of the theme, whatever the config file
+    /// or the theme file says about `transparent`.
+    #[arg(long, requires = "tui", overrides_with = "transparent")]
+    pub(crate) no_transparent: bool,
+
     /// With `--tui`: the radix in which integers are first shown, `dec`
     /// (the default), `hex`, `bin` or `oct`; `x` in the viewer goes through
     /// them, and `X` chooses one for the selected field (the `radix` key of
