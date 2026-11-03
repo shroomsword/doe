@@ -47,6 +47,7 @@
             <button id="detect" type="button" title="Find the schema of the opened file among the gallery (and the types of this machine, with doe --ide)">Detect</button>
             <label id="detect-auto-box" title="Detect the schema when a file is opened and the current one does not parse it"><input id="detect-auto" type="checkbox" /> auto</label>
             <button id="save" type="button" class="icon" disabled aria-label="Save" title="Save the parsed value as a file: choose the format and where"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2 1h9l3 3v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm1 1v4h8V2H3zm1 8v4h8v-4H4zm5-7h1.5v3H9V3z"/></svg></button>
+            <button id="columns-button" type="button" class="icon" aria-label="Columns of the parsed value" aria-haspopup="dialog" title="Columns of the parsed value"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 4v16M15 4v16" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
             <label id="field-radix-box" hidden title="Write this field, in every element and every parse of this schema, in a radix of its own">This field
               <select id="field-radix">
                 <option value="">as above</option>
@@ -126,6 +127,28 @@
         <ul id="panes-list"></ul>
         <p class="note">A closed pane keeps what it shows. The choice is kept in this browser with the places of the panes.</p>
       </div>
+    </dialog>
+    <dialog id="columns-dialog" aria-labelledby="columns-title">
+      <div class="browse-bar">
+        <h3 id="columns-title">Columns</h3>
+        <button id="columns-close" type="button">Close</button>
+      </div>
+      <form id="columns-form" novalidate>
+        <div id="columns-body">
+          <label>Columns of the parsed value <input id="columns-input" type="number" min="1" max="8" step="1" inputmode="numeric" /></label>
+          <div id="columns-quick" role="group" aria-label="common numbers of columns">
+            <button type="button" data-columns="1">1</button><button type="button" data-columns="2">2</button><button type="button" data-columns="3">3</button><button type="button" data-columns="4">4</button>
+          </div>
+          <p class="note">The rows of the tree flow in this many columns, down the first and then the next. A pane that is too narrow shows fewer.</p>
+          <p id="columns-error" role="alert" hidden></p>
+          <p id="columns-fit" role="status"></p>
+          <div class="columns-buttons">
+            <button type="submit" id="columns-apply">Apply</button>
+            <button type="button" id="columns-cancel">Cancel</button>
+            <button type="button" id="columns-reset">Reset</button>
+          </div>
+        </div>
+      </form>
     </dialog>
     <dialog id="keys-dialog" aria-labelledby="keys-title">
       <div class="browse-bar">

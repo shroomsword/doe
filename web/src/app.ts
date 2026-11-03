@@ -21,6 +21,7 @@ import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigi
 import { TreeView } from './tree.js';
 import { type Layout, type PaneName, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, moved, saveLayout, shown, swapped, withVisible } from './layout.js';
 import { PaneDrag } from './drag.js';
+import { COLUMN_WIDTH_REM, columnsError, loadColumns, parseColumns, saveColumns, shownColumns } from './columns.js';
 import type { EditorSelection } from '@codemirror/state';
 import { type BoxSelection, Positions, boxSelection, putBackSelection } from './keep.js';
 
@@ -635,6 +636,7 @@ export class App {
       });
     }
     this.layoutSetup();
+    this.columnsSetup();
     const buttons: Record<string, Action> = {
       'open-input': 'open-file',
       'open-schema': 'open-schema',
@@ -645,6 +647,7 @@ export class App {
       help: 'help',
       'theme-button': 'theme',
       cancel: 'cancel',
+      'columns-button': 'columns',
       'detect-auto': 'auto',
       radix: 'radix',
     };
@@ -946,6 +949,91 @@ export class App {
     if (this.maximized) this.toggleMaximized(this.maximized);
   }
 
+  // ── the columns of the Parsed pane ─────────────────────────────────────────
+
+  /** How many columns of rows the tree is set to (what the person chose; a narrow pane shows fewer). */
+  private columns = loadColumns();
+
+  /** Set up the button, the dialog and the saved number. */
+  private columnsSetup(): void {
+    this.applyColumns(false);
+    const dialog = element<HTMLDialogElement>('columns-dialog');
+    const input = element<HTMLInputElement>('columns-input');
+    element('columns-button').addEventListener('click', () => this.openColumns());
+    element('columns-close').addEventListener('click', () => dialog.close());
+    element('columns-cancel').addEventListener('click', () => dialog.close());
+    element('columns-reset').addEventListener('click', () => {
+      this.columns = 1;
+      this.applyColumns(true);
+      dialog.close();
+    });
+    for (const quick of element('columns-quick').querySelectorAll<HTMLButtonElement>('button')) {
+      quick.addEventListener('click', () => {
+        input.value = quick.dataset.columns ?? '1';
+        this.showColumnsFit();
+        input.focus();
+      });
+    }
+    input.addEventListener('input', () => {
+      element('columns-error').hidden = true;
+      this.showColumnsFit();
+    });
+    element<HTMLFormElement>('columns-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const problem = columnsError(input.value);
+      const error = element('columns-error');
+      if (problem !== null) {
+        error.textContent = problem;
+        error.hidden = false;
+        input.setAttribute('aria-invalid', 'true');
+        input.focus();
+        return;
+      }
+      input.removeAttribute('aria-invalid');
+      this.columns = parseColumns(input.value) ?? 1;
+      this.applyColumns(true);
+      dialog.close();
+    });
+    // the dialog gives the focus back to the button that opened it (or to the Parsed pane, for the key)
+    dialog.addEventListener('close', () => {
+      input.removeAttribute('aria-invalid');
+      element('columns-error').hidden = true;
+    });
+  }
+
+  private openColumns(): void {
+    const input = element<HTMLInputElement>('columns-input');
+    input.value = String(this.columns);
+    element('columns-error').hidden = true;
+    element<HTMLDialogElement>('columns-dialog').showModal();
+    input.focus();
+    input.select();
+    this.showColumnsFit();
+  }
+
+  /** Say how many columns the pane has room for, when that is fewer than what the box says. */
+  private showColumnsFit(): void {
+    const wanted = parseColumns(element<HTMLInputElement>('columns-input').value);
+    const box = element('tree-box');
+    const fit = element('columns-fit');
+    if (wanted === null || !this.isShown('parsed') || box.clientWidth === 0) {
+      fit.textContent = '';
+      return;
+    }
+    const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const shown = shownColumns(wanted, box.clientWidth, rem, 16);
+    fit.textContent = shown < wanted ? `This pane is wide enough for ${shown} of ${wanted} columns (each keeps ${COLUMN_WIDTH_REM}rem); the number is kept.` : '';
+  }
+
+  /** Put the number on the tree, keep it, and say so. */
+  private applyColumns(announce: boolean): void {
+    const box = element('tree-box');
+    box.style.setProperty('--tree-cols', String(this.columns));
+    box.classList.toggle('multi', this.columns > 1);
+    saveColumns(this.columns);
+    if (announce) element('layout-live').textContent = `Parsed pane: ${this.columns} ${this.columns === 1 ? 'column' : 'columns'}`;
+  }
+
   /** The key x: it closes the focused pane, but not Schema (its button does), so that the key cannot close the editor by mistake. */
   private closeFocusedPane(): void {
     const pane = this.currentPane();
@@ -1094,6 +1182,9 @@ export class App {
         break;
       case 'close-pane':
         this.closeFocusedPane();
+        break;
+      case 'columns':
+        this.openColumns();
         break;
       case 'panes':
         this.panesList();

@@ -239,8 +239,8 @@ test.describe('in the page', () => {
     await page.keyboard.press('r');
     await page.keyboard.press('r');
     await expect(page.locator('#radix')).toHaveValue('dec');
-    // there is no parse to cancel
-    await page.keyboard.press('c');
+    // there is no parse to cancel (C), and c is the columns of the Parsed pane, which are tested elsewhere
+    await page.keyboard.press('Shift+C');
     await expect(page.locator('dialog[open]')).toHaveCount(0);
   });
 
