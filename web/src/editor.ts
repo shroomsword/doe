@@ -5,7 +5,7 @@ import { yaml } from '@codemirror/lang-yaml';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
 import { openSearchPanel } from '@codemirror/search';
-import { Compartment, EditorState, type Extension } from '@codemirror/state';
+import { Compartment, type EditorSelection, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, basicSetup } from 'codemirror';
 import { tags } from '@lezer/highlight';
 import type { Diagnostic, Position } from './doe.js';
@@ -110,6 +110,22 @@ export class SchemaEditor {
   /** Give the editor the focus. */
   focus(): void {
     this.view.focus();
+  }
+
+  /** Where the caret or the selection is, to put it back after the editor was moved in the page. */
+  selection(): EditorSelection {
+    return this.view.state.selection;
+  }
+
+  /**
+   * Put the selection back and show it in the browser's own selection, without scrolling. Moving the editor in the
+   * page leaves the browser's selection at the start of the text in some browsers, which the editor then reads as the
+   * user's, so the state is set again after the focus is given back.
+   */
+  restoreSelection(selection: EditorSelection): void {
+    const length = this.view.state.doc.length;
+    if (selection.ranges.some((range) => range.to > length)) return;
+    this.view.dispatch({ selection });
   }
 
   /** Open the search panel of the editor (with the focus in it). */
