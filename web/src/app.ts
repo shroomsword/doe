@@ -808,6 +808,9 @@ export class App {
     this.layoutChanged(true, message);
     // what moving the elements took away comes back: the focus with the caret or selection, and then the scroll
     // offsets (giving the focus back can scroll the caret into view, which is not where the user had left the pane)
+    // the offsets before the focus too, so that an editor draws the part of the text that was in view when it is given
+    // the focus, and not the top of it
+    this.positions.apply();
     if (focus) this.focusPane(focus);
     else this.giveFocusBack(had, selection, caret);
     this.positions.restore();

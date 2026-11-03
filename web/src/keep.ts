@@ -32,6 +32,15 @@ export class Positions {
     }
   }
 
+  /** Put the offsets back now, and keep them remembered (for a second `restore` after the focus has been given back). */
+  apply(): void {
+    for (const [element, at] of this.saved) {
+      if (!element.isConnected || !isLaidOut(element)) continue;
+      element.scrollTop = at.top;
+      element.scrollLeft = at.left;
+    }
+  }
+
   /**
    * Put back the offsets of the elements that are laid out now; the others wait for the time they are. An editor that
    * has the focus measures itself again when its size changes, and scrolls its caret into view when it has done, a
