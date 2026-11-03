@@ -335,7 +335,8 @@ pub(crate) fn describe_config(path: Option<&Path>) -> String {
         .map_or_else(|| "<none>".to_owned(), |p| p.display().to_string())
 }
 
-#[cfg(all(test, feature = "tui"))]
+#[cfg(test)]
+#[cfg(feature = "tui")]
 mod transparent_tests {
     use clap::Parser;
 
