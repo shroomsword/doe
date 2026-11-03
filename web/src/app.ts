@@ -21,6 +21,7 @@ import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigi
 import { TreeView } from './tree.js';
 import { type Layout, type PaneName, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, moved, saveLayout, shown, swapped, withVisible } from './layout.js';
 import { PaneDrag } from './drag.js';
+import { type BoxSelection, Positions, boxSelection, putBackSelection } from './keep.js';
 
 /** How long the schema is left alone before it is checked again. */
 const PAUSE_MS = 250;
@@ -611,6 +612,8 @@ export class App {
   // ── the keys ───────────────────────────────────────────────────────────────
 
   private lastPane: PaneName = 'parsed';
+  /** The scroll offsets that a change of the layout must not lose (keep.ts). */
+  private readonly positions = new Positions();
   /** The order of the panes in the places of the page, and the ones that are closed (layout.ts). */
   private layout: Layout = loadLayout();
   /** Where the last search of the bytes found its match. */
@@ -795,14 +798,35 @@ export class App {
   /** Use a new layout: put the panes in it, keep it, say what happened, and give the focus back (moving elements drops it). */
   private commit(layout: Layout, message: string, focus?: PaneName): void {
     const had = document.activeElement;
+    const selection = boxSelection(had);
+    this.positions.remember(this.sections());
     this.layout = layout;
     applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, layout);
     saveLayout(layout);
     this.layoutChanged(true, message);
-    // moving elements in the page drops the focus: give it back to what had it, or to the pane that was asked for
+    // what moving the elements took away comes back: the focus with the caret or selection, and then the scroll
+    // offsets (giving the focus back can scroll the caret into view, which is not where the user had left the pane)
     if (focus) this.focusPane(focus);
-    else if (had instanceof HTMLElement && had !== document.activeElement && document.contains(had) && !had.closest('[hidden]')) had.focus();
+    else this.giveFocusBack(had, selection);
+    this.positions.restore();
     this.panesList();
+  }
+
+  /** The four panes' elements. */
+  private sections(): HTMLElement[] {
+    return PANES.map((name) => element(PANE_IDS[name]));
+  }
+
+  /** Put the focus back on the element that had it before the panes were moved, with its caret. */
+  private giveFocusBack(had: Element | null, selection: BoxSelection | null): void {
+    if (!(had instanceof HTMLElement) || had === document.activeElement || !document.contains(had) || had.closest('[hidden]')) return;
+    // the editor keeps its selection in its state: its own focus puts the caret there
+    if (had.closest('.cm-editor')) {
+      this.editor.focus();
+      return;
+    }
+    had.focus({ preventScroll: true });
+    putBackSelection(had, selection);
   }
 
   /** A pane was dropped on another with the mouse: before it or after it (with Shift held, in its place). */
@@ -893,6 +917,8 @@ export class App {
   private toggleMaximized(name: PaneName): void {
     if (!this.isShown(name)) return;
     const was = this.maximized;
+    // the panes that are hidden while one fills the page keep their scroll offsets for when they are shown again
+    this.positions.remember(this.sections());
     this.maximized = was === name ? null : name;
     const main = document.querySelector('main') as HTMLElement;
     main.classList.toggle('has-max', this.maximized !== null);
@@ -901,6 +927,7 @@ export class App {
       this.maximizeButton(pane);
     }
     element('layout-live').textContent = this.maximized ? `${NAMES[name]} maximized` : `${NAMES[name]} restored`;
+    this.positions.restore();
     // the focus stays in the pane, which is the one that is on the screen
     this.focusPane(name);
     element(PANE_IDS[name]).scrollIntoView({ block: 'nearest' });
