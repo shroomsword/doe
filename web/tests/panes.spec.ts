@@ -51,7 +51,7 @@ test.describe('wide window', () => {
     await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
     await expect(page.locator('#pane-editor')).toBeHidden();
     await page.locator('#pane-tree').focus();
-    await page.keyboard.press('v');
+    await page.keyboard.press('p');
     await page.locator('#panes-list li').nth(0).locator('input').check();
     await page.keyboard.press('Escape');
     await expect(page.locator('#pane-editor')).toBeVisible();
@@ -76,7 +76,7 @@ test.describe('wide window', () => {
     await page.locator('#pane-editor').focus();
     await page.keyboard.press('x');
     await expect(page.locator('#pane-editor')).toBeVisible();
-    await expect(page.locator('#layout-live')).toHaveText('x does not close the Schema pane: use its X button, or v');
+    await expect(page.locator('#layout-live')).toHaveText('x does not close the Schema pane: use its X button, or p');
     // in the editor x is text
     await page.locator('.cm-content').click();
     await page.keyboard.press('x');
@@ -102,9 +102,9 @@ test.describe('wide window', () => {
     expect((await widthOf('pane-editor')) + 2 * 16).toBeGreaterThan(main!.width - 4);
   });
 
-  test('v opens a list of the four panes with their state; the boxes show and close them, Schema too', async ({ page }) => {
+  test('p opens a list of the four panes with their state; the boxes show and close them, Schema too', async ({ page }) => {
     await page.locator('#pane-tree').focus();
-    await page.keyboard.press('v');
+    await page.keyboard.press('p');
     const dialog = page.locator('#panes-dialog');
     await expect(dialog).toBeVisible();
     const rows = dialog.locator('#panes-list li');
@@ -128,6 +128,28 @@ test.describe('wide window', () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.locator('li').nth(3)).toContainText('closed');
     await page.locator('#panes-close').click();
+  });
+
+  test('v no longer opens the list; p does not either in a text field, with Ctrl or while a dialog is open', async ({ page }) => {
+    await page.locator('#pane-tree').focus();
+    await page.keyboard.press('v');
+    await expect(page.locator('#panes-dialog')).toBeHidden();
+    await page.keyboard.press('Control+p');
+    await expect(page.locator('#panes-dialog')).toBeHidden();
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('p');
+    await expect(page.locator('#panes-dialog')).toBeHidden();
+    await expect(page.locator('.cm-content')).toContainText('p');
+    await page.locator('#pane-tree').focus();
+    await page.keyboard.press('Shift+K');
+    await expect(page.locator('#keys-dialog')).toBeVisible();
+    await page.keyboard.press('p');
+    await expect(page.locator('#panes-dialog')).toBeHidden();
+    await page.keyboard.press('Escape');
+    // and the list names its key
+    await expect(page.getByRole('button', { name: 'Panes' })).toHaveAttribute('title', 'Choose the panes that are shown (p)');
+    await page.keyboard.press('Shift+K');
+    await expect(page.locator('#keys-table tr', { hasText: 'Choose the panes' }).locator('kbd')).toHaveText('p');
   });
 
   test('the closed panes are kept after a reload, and Reset shows every pane again', async ({ page }) => {
