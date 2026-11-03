@@ -34,8 +34,14 @@ async function scrollAll(page: Page): Promise<Awaited<ReturnType<typeof offsets>
   return offsets(page);
 }
 
+/** Where the editor, the tree and the bytes are scrolled to; and the first line of the editor that is in view (CodeMirror
+ *  re-estimates the heights of the lines it has not drawn, so the same place in it is found by its line, not by the pixel). */
 const offsets = (page: Page) =>
   page.evaluate(() => ({
+    line: (() => {
+      const top = (document.querySelector('.cm-scroller') as HTMLElement).getBoundingClientRect().top;
+      return [...document.querySelectorAll('.cm-line')].find((l) => l.getBoundingClientRect().bottom > top + 1)?.textContent ?? '';
+    })(),
     editor: (document.querySelector('.cm-scroller') as HTMLElement).scrollTop,
     tree: (document.querySelector('#tree-box') as HTMLElement).scrollTop,
     hex: (document.querySelector('#hex .hex') as HTMLElement).scrollTop,
@@ -46,7 +52,10 @@ async function expectKept(page: Page, before: Awaited<ReturnType<typeof offsets>
   // an editor that has the focus measures itself again a moment after its size changed
   await page.waitForTimeout(150);
   const after = await offsets(page);
-  for (const key of ['editor', 'tree', 'hex'] as const) {
+  expect(before.editor, `${what}: the editor was scrolled`).toBeGreaterThan(50);
+  expect(after.line, `${what}: the first line of the editor in view`).toBe(before.line);
+  expect(after.editor, `${what}: the editor is not at the top`).toBeGreaterThan(50);
+  for (const key of ['tree', 'hex'] as const) {
     expect(before[key], `${what}: ${key} was scrolled`).toBeGreaterThan(50);
     expect(Math.abs(after[key] - before[key]), `${what}: the ${key} offset`).toBeLessThanOrEqual(1);
   }
@@ -56,7 +65,11 @@ async function expectKept(page: Page, before: Awaited<ReturnType<typeof offsets>
 async function expectCaretAtEnd(page: Page, what: string): Promise<void> {
   expect(await page.evaluate(() => document.activeElement?.className ?? ''), `${what}: the focus`).toContain('cm-content');
   await page.keyboard.type('ZZ');
-  await expect(page.locator('.cm-content')).toContainText('size-eos: trueZZ');
+  const where = await page.evaluate(() => {
+    const text = document.querySelector('.cm-content')?.textContent ?? '';
+    return `ZZ at ${text.indexOf('ZZ')} of ${text.length}: ...${text.slice(Math.max(0, text.indexOf('ZZ') - 20), text.indexOf('ZZ') + 8)}...`;
+  });
+  expect(where, `${what}: where the typed text went`).toContain('size-eos: trueZZ');
   await page.keyboard.press('Backspace');
   await page.keyboard.press('Backspace');
 }
