@@ -821,13 +821,15 @@ export class App {
 
   /** Put the focus back on the element that had it before the panes were moved, with its caret. */
   private giveFocusBack(had: Element | null, selection: BoxSelection | null, caret: EditorSelection | null): void {
-    if (!(had instanceof HTMLElement) || had === document.activeElement || !document.contains(had) || had.closest('[hidden]')) return;
-    // the editor keeps its selection in its state: its own focus puts the caret there
+    if (!(had instanceof HTMLElement) || !document.contains(had) || had.closest('[hidden]')) return;
+    // the editor keeps its selection in its state: its own focus puts the caret there, and the state is set again
+    // even when the browser says the focus never left (a moved editor can have its selection reset)
     if (had.closest('.cm-editor')) {
       this.editor.focus();
       if (caret) this.editor.restoreSelection(caret);
       return;
     }
+    if (had === document.activeElement) return;
     had.focus({ preventScroll: true });
     putBackSelection(had, selection);
   }
