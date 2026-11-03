@@ -915,7 +915,7 @@ export class App {
   private closeFocusedPane(): void {
     const pane = this.currentPane();
     if (pane === 'schema') {
-      element('layout-live').textContent = 'x does not close the Schema pane: use its X button, or v';
+      element('layout-live').textContent = 'x does not close the Schema pane: use its X button, or p';
       return;
     }
     this.setVisible(pane, false);
