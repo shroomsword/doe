@@ -181,6 +181,8 @@ export class TypeBrowser {
   /** The text in the reader, to be drawn again when the theme changes; null while it shows a note. */
   private readerSource: string | null = null;
   private style: HighlightStyle | null = null;
+  /** Whether the person opened the group of the open schemas; closed again at each opening of the dialog. */
+  private openGroup = false;
 
   constructor(
     private readonly dialog: HTMLDialogElement,
@@ -219,6 +221,7 @@ export class TypeBrowser {
   /** Show the dialog with these entries. */
   open(entries: Entry[]): void {
     this.entries = entries;
+    this.openGroup = false;
     this.ranking = null;
     this.rankBox.checked = false;
     this.rankBox.disabled = !this.handlers.canRank();
@@ -298,9 +301,35 @@ export class TypeBrowser {
     }
     for (const group of grouped(kept)) {
       const section = make('section');
-      section.append(make('h4', `${SOURCE_LABEL[group.source]} · ${group.entries.length}`));
+      const title = `${SOURCE_LABEL[group.source]} · ${group.entries.length}`;
       const items = make('ul');
       for (const entry of group.entries) items.append(this.item(entry, null));
+      if (group.source === 'open') {
+        // the schemas that are open are in the Schemas list already: the group is closed until it is asked for, or until
+        // a filter has something in it
+        items.id = 'browse-open-list';
+        const heading = make('h4');
+        const toggle = make('button', undefined, 'browse-toggle');
+        toggle.type = 'button';
+        toggle.setAttribute('aria-controls', items.id);
+        const chevron = make('span', undefined, 'browse-chevron');
+        chevron.setAttribute('aria-hidden', 'true');
+        toggle.append(chevron, document.createTextNode(title));
+        const show = (shown: boolean): void => {
+          items.hidden = !shown;
+          toggle.setAttribute('aria-expanded', String(shown));
+          chevron.textContent = shown ? '▾ ' : '▸ ';
+        };
+        show(this.openGroup || this.filter.value.trim() !== '');
+        toggle.addEventListener('click', () => {
+          this.openGroup = Boolean(items.hidden);
+          show(this.openGroup);
+        });
+        heading.append(toggle);
+        section.append(heading);
+      } else {
+        section.append(make('h4', title));
+      }
       section.append(items);
       this.list.append(section);
     }
