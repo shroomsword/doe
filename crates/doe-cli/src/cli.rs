@@ -43,6 +43,17 @@ pub(crate) struct Cli {
     #[arg(long, value_name = "WHAT", value_parser = ["all"], conflicts_with = "type_or_schema")]
     pub(crate) detect: Option<String>,
 
+    /// Show the outermost layer only: a `.tar.gz` is shown as the gzip file it is, not as the tar it holds.
+    /// Without it, when the schema is looked for and the file holds another file (its schema says so with
+    /// `payload:`), that is decoded in memory and its schema found, to a depth of 4.
+    #[arg(long, conflicts_with_all = ["type_or_schema", "layer"])]
+    pub(crate) no_unwrap: bool,
+
+    /// Show layer N of a file that holds files (1 is the file itself, 2 what it holds...). Without it the
+    /// innermost layer is shown as text, and every layer as JSON with `--json` or `--pretty`.
+    #[arg(long, value_name = "N", value_parser = clap::value_parser!(u8).range(1..=4), conflicts_with = "type_or_schema")]
+    pub(crate) layer: Option<u8>,
+
     /// Add a directory to the schema search path (repeatable).
     #[arg(short = 'I', long = "include-path", value_name = "DIR")]
     pub(crate) include_paths: Vec<PathBuf>,

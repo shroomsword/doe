@@ -33,6 +33,8 @@ pub mod detect;
 pub mod error;
 pub mod filesystem;
 pub mod inspect;
+#[cfg(feature = "fs")]
+pub mod layers;
 pub mod parser;
 pub mod radix;
 pub mod render;
@@ -204,31 +206,9 @@ pub fn parse_file_report(
     format: OutputFormat,
     options: &ParseOptions,
 ) -> Result<ParseReport> {
-    use config::{Config, resolve_include_paths, with_default_types};
     use parser::{cursor::Cursor, engine::Engine};
-    use schema::compiler::Compiler;
 
-    // ── Config ────────────────────────────────────────────────────────────────
-
-    let config = Config::load_or_default(config_path)?;
-    let all_include_paths =
-        with_default_types(resolve_include_paths(include_paths, &config), &config);
-
-    // ── Schema ────────────────────────────────────────────────────────────────
-
-    let mut compiler = Compiler::new(all_include_paths);
-
-    let (schema_arg, wanted) = split_type_arg(type_or_schema);
-    let id = if is_schema_path(schema_arg) {
-        let schema = load_schema_file(Path::new(schema_arg))?;
-        let id = schema.id.clone();
-        compiler.process_schema(&schema)?;
-        id
-    } else {
-        compiler.load(schema_arg, None)?;
-        schema_arg.to_owned()
-    };
-    let type_name = type_in_schema(&compiler.registry, &id, wanted)?;
+    let (compiler, type_name) = compile_for(type_or_schema, include_paths, config_path)?;
 
     // ── Parse ─────────────────────────────────────────────────────────────────
 
@@ -256,15 +236,74 @@ pub fn parse_file_report(
 
     // ── Render ────────────────────────────────────────────────────────────────
 
-    let output = match format {
-        OutputFormat::Text { indent } => render::text::render_with_indent(&value, &indent),
-        OutputFormat::Json => render::json::render(&value),
-        OutputFormat::JsonPretty => render::json::render_pretty(&value),
-    };
     Ok(ParseReport {
-        output,
+        output: render_value(&value, format),
         text_problems,
     })
+}
+
+/// Compile the schema that `type_or_schema` names (a type of the include paths, a schema file, `SCHEMA::TYPE`) and say
+/// which type to parse with.
+#[cfg(feature = "fs")]
+fn compile_for(
+    type_or_schema: &str,
+    include_paths: &[PathBuf],
+    config_path: Option<&Path>,
+) -> Result<(schema::compiler::Compiler, String)> {
+    use config::{Config, resolve_include_paths, with_default_types};
+    use schema::compiler::Compiler;
+
+    let config = Config::load_or_default(config_path)?;
+    let all_include_paths =
+        with_default_types(resolve_include_paths(include_paths, &config), &config);
+    let mut compiler = Compiler::new(all_include_paths);
+
+    let (schema_arg, wanted) = split_type_arg(type_or_schema);
+    let id = if is_schema_path(schema_arg) {
+        let schema = load_schema_file(Path::new(schema_arg))?;
+        let id = schema.id.clone();
+        compiler.process_schema(&schema)?;
+        id
+    } else {
+        compiler.load(schema_arg, None)?;
+        schema_arg.to_owned()
+    };
+    let type_name = type_in_schema(&compiler.registry, &id, wanted)?;
+    Ok((compiler, type_name))
+}
+
+/// Like `parse_file_report`, for data that is in memory: the payload of another file (see [`layers`]).
+///
+/// # Errors
+///
+/// Returns the same errors as `parse_file`, except those about the file.
+#[cfg(feature = "fs")]
+pub fn parse_bytes_report(
+    data: &[u8],
+    type_or_schema: &str,
+    include_paths: &[PathBuf],
+    config_path: Option<&Path>,
+    format: OutputFormat,
+    options: &ParseOptions,
+) -> Result<ParseReport> {
+    use parser::{cursor::Cursor, engine::Engine};
+
+    let (compiler, type_name) = compile_for(type_or_schema, include_paths, config_path)?;
+    let engine = Engine::new(&compiler.registry).with_instances(options.instances);
+    let (value, text_problems) = engine.parse_type_reported(&type_name, &mut Cursor::new(data))?;
+    Ok(ParseReport {
+        output: render_value(&value, format),
+        text_problems,
+    })
+}
+
+/// The value in the format asked for.
+fn render_value(value: &Value, format: OutputFormat) -> String {
+    match format {
+        OutputFormat::Text { indent } => render::text::render_with_indent(value, &indent),
+        OutputFormat::Json => render::json::render(value),
+        OutputFormat::JsonPretty => render::json::render_pretty(value),
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

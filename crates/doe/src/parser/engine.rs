@@ -1144,6 +1144,14 @@ impl<'reg> Engine<'reg> {
                 data = process::inflate(&data, MAX_PROCESSED_LEN)
                     .map_err(|e| fail(format!("process: {e}")))?;
             }
+            Process::Deflate => {
+                data = process::inflate_raw(&data, MAX_PROCESSED_LEN)
+                    .map_err(|e| fail(format!("process: {e}")))?;
+            }
+            Process::Gzip => {
+                data = process::gunzip(&data, MAX_PROCESSED_LEN)
+                    .map_err(|e| fail(format!("process: {e}")))?;
+            }
         }
         let mut inner = Cursor::new(&data);
         if let Some(trace) = ctx.trace() {

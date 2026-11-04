@@ -1,0 +1,93 @@
+id: gzip_file
+doc: |
+  gzip file (RFC 1952): the header of the first member, the compressed bytes, and the trailer; its payload is the uncompressed file
+# Covers: the member header (the signature, the method, the flags, the modification time, the extra flags, the operating
+#   system, the extra field, the file name and the comment when the flags say they are there, and the header's CRC-16),
+#   the compressed data as bytes, and the trailer (CRC-32 and size of the uncompressed data, read from the end of the file).
+#   The `payload:` key says that the file holds another file once it is gunzipped (`process: gzip`: every member, with the
+#   CRC-32 and the size of each checked), so `doe FILE.tar.gz` goes on to find the schema of the result and shows the tar.
+# Limits: only the first member's header is shown (a file of several members, like `cat a.gz b.gz`, is decoded whole by
+#   the payload); the deflate stream is bytes; `pigz` and `bgzip` extra fields are bytes. Not named `gzip`: that is the
+#   gallery's definition, which has no payload.
+# Specification: RFC 1952, "GZIP file format specification version 4.3"; RFC 1951 for the deflate data.
+meta:
+  id: gzip_file
+  file-extension: [gz, tgz, taz]
+  endian: le
+payload:
+  process: gzip
+seq:
+  - id: signature
+    contents: [0x1f, 0x8b]
+  - id: method
+    type: u1
+    enum: method
+  - id: flags
+    type: u1
+  - id: mtime
+    type: u4
+  - id: extra_flags
+    type: u1
+  - id: os
+    type: u1
+    enum: os
+  - id: extra
+    type: extra_field
+    if: has_extra
+  - id: name
+    type: strz
+    encoding: ISO-8859-1
+    if: has_name
+  - id: comment
+    type: strz
+    encoding: ISO-8859-1
+    if: has_comment
+  - id: header_crc16
+    type: u2
+    if: has_header_crc
+  - id: compressed
+    size-eos: true
+instances:
+  has_header_crc:
+    value: (flags & 2) != 0
+  has_extra:
+    value: (flags & 4) != 0
+  has_name:
+    value: (flags & 8) != 0
+  has_comment:
+    value: (flags & 16) != 0
+  is_text:
+    value: (flags & 1) != 0
+  crc32:
+    pos: _io.size - 8
+    type: u4
+  uncompressed_size:
+    pos: _io.size - 4
+    type: u4
+    doc: The size of the uncompressed data modulo 2^32 (of the last member).
+enums:
+  method:
+    8: deflate
+  os:
+    0: fat
+    1: amiga
+    2: vms
+    3: unix
+    4: vm_cms
+    5: atari
+    6: hpfs
+    7: macintosh
+    8: z_system
+    9: cpm
+    10: tops_20
+    11: ntfs
+    12: qdos
+    13: acorn_riscos
+    255: unknown
+types:
+  extra_field:
+    seq:
+      - id: length
+        type: u2
+      - id: data
+        size: length

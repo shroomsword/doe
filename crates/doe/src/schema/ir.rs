@@ -38,6 +38,8 @@ pub struct TypeRegistry {
     pub uses_io: bool,
     /// The `filesystem:` key of each schema that has one, by the id of the schema.
     pub filesystems: std::collections::HashMap<String, crate::schema::raw::RawFilesystem>,
+    /// The `payload:` key of each schema that has one, by the id of the schema.
+    pub payloads: std::collections::HashMap<String, crate::schema::raw::RawPayload>,
 }
 
 impl TypeRegistry {
@@ -182,6 +184,10 @@ pub enum Process {
     Ror(Expr),
     /// Decompress zlib data.
     Zlib,
+    /// Decompress a raw deflate stream (RFC 1951).
+    Deflate,
+    /// Decompress gzip data (RFC 1952), every member, with the CRC-32 and the size checked.
+    Gzip,
 }
 
 /// The rules a field's value must satisfy; all that are given must hold.
