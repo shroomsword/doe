@@ -1086,11 +1086,12 @@ link and of the saved work, and the status line says which type was parsed.
 *Browse...* in the title bar of the Schema pane opens one list of every type that can be used: the
 types of the open schemas, the type library of this machine (with `doe --ide`),
 the [doe type library](#type-library) (`tar`, `pcapng`, `wasm`...) and the formats
-of the Kaitai Struct gallery, grouped by where they come from (the group of the
-open schemas, which the Schemas list already shows, is closed each time the
-dialog opens: its heading opens it, and a filter that matches one of its types
-opens it too),
-each with its id, its file and its doc or title, and for the gallery and the doe
+of the Kaitai Struct gallery, in one list sorted by name and then path (case and
+accents do not matter, and a number counts by its value). The path says where a
+type is from: `open: …` for a schema in the editor, `local: …` for the library of
+this machine, `library/…` for doe's own and the directory and file of the gallery
+(`archive/zip.ksy`), so typing `library/` or `open:` in the filter narrows the
+list to a source. Each has its id, its file and its doc or title, and for the gallery and the doe
 library whether it has a signature (`doe` tries it first on a file that starts
 with it) and a ✓ or ○ when it was tried on a file (the doe library's types all
 have ○: a sample built by hand). The filter above the list keeps the entries that

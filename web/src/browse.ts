@@ -14,16 +14,6 @@ import type { ThemeInfo } from './theme.js';
 
 export type Source = 'open' | 'library' | 'bundled' | 'gallery';
 
-/** The heading of each source, in the order they are listed. */
-export const SOURCE_LABEL: Record<Source, string> = {
-  open: 'Open schemas',
-  library: 'Type library of this machine',
-  bundled: 'doe type library',
-  gallery: 'Kaitai Struct gallery',
-};
-
-const ORDER: Source[] = ['open', 'library', 'bundled', 'gallery'];
-
 /** One type that can be used. */
 export interface Entry {
   source: Source;
@@ -138,14 +128,34 @@ export function filterEntries(entries: readonly Entry[], text: string): Entry[] 
   const words = text.toLowerCase().split(/\s+/).filter((word) => word !== '');
   if (words.length === 0) return [...entries];
   return entries.filter((entry) => {
-    const haystack = `${entry.id} ${entry.path} ${entry.doc ?? ''}`.toLowerCase();
+    const haystack = `${entry.id} ${shownPath(entry)} ${entry.path} ${entry.doc ?? ''}`.toLowerCase();
     return words.every((word) => haystack.includes(word));
   });
 }
 
-/** The entries by source, in the order of the sources, each source's own order kept. */
-export function grouped(entries: readonly Entry[]): { source: Source; entries: Entry[] }[] {
-  return ORDER.map((source) => ({ source, entries: entries.filter((e) => e.source === source) })).filter((g) => g.entries.length > 0);
+const COLLATOR = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+
+/** The path an entry shows, which says where the type is from: `open: ` for a schema in the editor, `local: ` and the last directory and file for the library of this machine, `library/…` for doe's own, the gallery's own directory and file. */
+export function shownPath(entry: Entry): string {
+  switch (entry.source) {
+    case 'open':
+      return `open: ${entry.path === '' ? '(editor)' : entry.path}`;
+    case 'library':
+      return `local: ${entry.path.split(/[\\/]/).filter((part) => part !== '').slice(-2).join('/')}`;
+    default:
+      return entry.path;
+  }
+}
+
+/** Alphabetical order of the types: by name, then by the path shown, then by the exact text, so the order is total. Case and accents do not matter, and a number in a name counts by its value. */
+export function compareEntries(a: Entry, b: Entry): number {
+  const exact = (x: string, y: string): number => (x < y ? -1 : x > y ? 1 : 0);
+  return COLLATOR.compare(a.id, b.id) || COLLATOR.compare(shownPath(a), shownPath(b)) || exact(a.id, b.id) || exact(shownPath(a), shownPath(b));
+}
+
+/** The entries in the alphabetical order. */
+export function sorted(entries: readonly Entry[]): Entry[] {
+  return [...entries].sort(compareEntries);
 }
 
 export interface Handlers {
@@ -181,8 +191,6 @@ export class TypeBrowser {
   /** The text in the reader, to be drawn again when the theme changes; null while it shows a note. */
   private readerSource: string | null = null;
   private style: HighlightStyle | null = null;
-  /** Whether the person opened the group of the open schemas; closed again at each opening of the dialog. */
-  private openGroup = false;
 
   constructor(
     private readonly dialog: HTMLDialogElement,
@@ -221,7 +229,6 @@ export class TypeBrowser {
   /** Show the dialog with these entries. */
   open(entries: Entry[]): void {
     this.entries = entries;
-    this.openGroup = false;
     this.ranking = null;
     this.rankBox.checked = false;
     this.rankBox.disabled = !this.handlers.canRank();
@@ -229,6 +236,8 @@ export class TypeBrowser {
     this.closeReader();
     this.render();
     if (!this.dialog.open) this.dialog.showModal();
+    // the type in use is in view in a long list
+    this.list.querySelector('li.current')?.scrollIntoView({ block: 'nearest' });
     this.filter.focus();
     this.filter.select();
   }
@@ -299,40 +308,9 @@ export class TypeBrowser {
       this.list.append(make('p', this.entries.length === 0 ? 'There are no types to list.' : 'No type matches the filter.', 'browse-empty'));
       return;
     }
-    for (const group of grouped(kept)) {
-      const section = make('section');
-      const title = `${SOURCE_LABEL[group.source]} · ${group.entries.length}`;
-      const items = make('ul');
-      for (const entry of group.entries) items.append(this.item(entry, null));
-      if (group.source === 'open') {
-        // the schemas that are open are in the Schemas list already: the group is closed until it is asked for, or until
-        // a filter has something in it
-        items.id = 'browse-open-list';
-        const heading = make('h4');
-        const toggle = make('button', undefined, 'browse-toggle');
-        toggle.type = 'button';
-        toggle.setAttribute('aria-controls', items.id);
-        const chevron = make('span', undefined, 'browse-chevron');
-        chevron.setAttribute('aria-hidden', 'true');
-        toggle.append(chevron, document.createTextNode(title));
-        const show = (shown: boolean): void => {
-          items.hidden = !shown;
-          toggle.setAttribute('aria-expanded', String(shown));
-          chevron.textContent = shown ? '▾ ' : '▸ ';
-        };
-        show(this.openGroup || this.filter.value.trim() !== '');
-        toggle.addEventListener('click', () => {
-          this.openGroup = Boolean(items.hidden);
-          show(this.openGroup);
-        });
-        heading.append(toggle);
-        section.append(heading);
-      } else {
-        section.append(make('h4', title));
-      }
-      section.append(items);
-      this.list.append(section);
-    }
+    const items = make('ul');
+    for (const entry of sorted(kept)) items.append(this.item(entry, null));
+    this.list.append(items);
   }
 
   private item(entry: Entry, why: string | null): HTMLElement {
@@ -347,7 +325,7 @@ export class TypeBrowser {
       head.append(mark);
     }
     item.append(head);
-    item.append(make('div', entry.path, 'browse-path'));
+    item.append(make('div', shownPath(entry), 'browse-path'));
     if (why) item.append(make('div', why, 'browse-why'));
     if (entry.doc) item.append(make('div', entry.doc, 'browse-doc'));
     if (entry.compileError) item.append(make('div', `✗ ${entry.compileError}`, 'browse-error'));
