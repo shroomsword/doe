@@ -39,7 +39,7 @@ here; the others are left out, with the reason (a format that is in scope and no
 | Mozilla MAR | `mozilla_mar` | **library** (`mar_archive`: the gallery's definition always reads the size of the file, the signatures and the sections after the offset of the index; the files of the Python package `mar` have none of them, and the first file starts at byte 8) |
 | UEFI signature list (`.esl`) | `efivar_signature_list` | **library** (`efi_signature_list`: the gallery's definition is of the file of an EFI variable, which starts with 4 bytes of attributes; the lists that efitools writes do not) |
 | TIFF | `exif` reads the TIFF structure (header, IFDs) | not needed: use `exif` |
-| HEIF / AVIF / MP4 (ISO base media) | `quicktime_mov` reads the box structure | not needed: use `quicktime_mov` for the boxes |
+| HEIF / AVIF / MP4 (ISO base media) | `quicktime_mov` nests the boxes but decodes only `ftyp`, `tkhd` and `mvhd` | **library** (`mp4`: the movie, tracks, sample tables and entries, tags and fragments decoded, the samples not; the gallery's `quicktime_mov` stays for QuickTime `.mov`) |
 | Matroska / WebM | none | out: EBML ids and sizes are variable-length numbers whose width is in their first bits; the schema language has no way to say that without a type per width, which is the `vlq` kind of workaround and not worth it for 100+ element ids |
 | PDF | none | out: a text format with cross-reference tables found by searching from the end; a parser, not a layout |
 | Parquet, Avro, CBOR | none | out: self-describing or schema-driven encodings (Thrift, varints, recursive values); the layout depends on the data |

@@ -1,0 +1,747 @@
+id: mp4
+doc: |
+  MP4 / ISO base media file (ISO/IEC 14496-12, -14): the box tree with the movie, tracks, sample tables, tags and fragments decoded
+# Covers: every box read inside its own size (32-bit size, the 64-bit `largesize` when it is 1, the extended `uuid` type, and
+#   size 0 that runs to the end of the file); an unknown box is its bytes, so the file always parses to the end. Decoded:
+#   `ftyp` / `styp`, `mvhd`, `trak` > `tkhd`, `edts` > `elst`, `mdia` > `mdhd`, `hdlr`, `minf` > `vmhd`, `smhd`, `dinf`, `stbl`
+#   > `stsd` (sample entries: width, height, depth, channel count, sample rate, and the codec configuration box `avcC`,
+#   `hvcC`, `av1C`, `esds`... as bytes), `stts`, `ctts`, `stss`, `stsc`, `stsz`, `stco`, `co64`, `udta`, `meta` > `hdlr`,
+#   `ilst` (iTunes tags with their `data` boxes), `free` / `skip` / `wide`, `mvex` > `mehd`, `trex`, `moof` > `mfhd`, `traf`
+#   > `tfhd`, `tfdt`, `trun`, `sidx`, `mfra`, `mdat` (its length; the bytes are not listed). Computed: the duration of the
+#   movie and of each track in seconds (duration / timescale).
+# Limits: the samples (H.264 / H.265 NAL units, AAC frames) are not decoded; the codec boxes beyond the sample entry are
+#   bytes; DRM boxes (`pssh`, `sinf`, `tenc`) are bytes. The file must start with `ftyp` (that is the signature, at offset 4);
+#   a file that starts with `styp`, `moov` or `mdat` is read with `doe FILE mp4` only if a leading `ftyp` is added, and is
+#   not found by detection. Dates are seconds since 1904-01-01 (no readable date). Very long sample tables are long arrays,
+#   which the viewers show with their "more" rows. A file that is cut is read box by box as far as there is data (a box
+#   that runs past the end gets the bytes that are there); a cut inside a box that is decoded (a table, a header) or in
+#   the 8 bytes of a box header is an error.
+# Specification: ISO/IEC 14496-12 (ISO base media file format) and 14496-14 (MP4); Apple's QuickTime File Format for `ilst`.
+meta:
+  id: mp4
+  endian: be
+  file-extension:
+    - mp4
+    - m4a
+    - m4v
+    - 3gp
+    - heic
+    - avif
+seq:
+  - id: ftyp
+    type: first_box
+  - id: boxes
+    type: box
+    repeat: eos
+types:
+  # the first box is `ftyp`: its size and type are the signature of the file
+  first_box:
+    seq:
+      - id: size
+        type: u4
+      - id: type
+        contents: "ftyp"
+      - id: body
+        size: size - 8
+        type: ftyp_body
+  box:
+    seq:
+      - id: size32
+        type: u4
+      - id: type
+        type: str
+        size: 4
+        encoding: ISO-8859-1
+      - id: largesize
+        type: u8
+        if: size32 == 1
+      - id: usertype
+        size: 16
+        if: type == "uuid"
+      - id: body
+        size: body_len
+        type:
+          switch-on: type
+          cases:
+            '"ftyp"': ftyp_body
+            '"styp"': ftyp_body
+            '"moov"': boxes
+            '"trak"': boxes
+            '"mdia"': boxes
+            '"minf"': boxes
+            '"stbl"': boxes
+            '"dinf"': boxes
+            '"edts"': boxes
+            '"udta"': boxes
+            '"mvex"': boxes
+            '"moof"': boxes
+            '"traf"': boxes
+            '"mfra"': boxes
+            '"ilst"': ilst
+            '"mvhd"': mvhd
+            '"tkhd"': tkhd
+            '"elst"': elst
+            '"mdhd"': mdhd
+            '"hdlr"': hdlr
+            '"vmhd"': raw
+            '"smhd"': raw
+            '"stsd"': stsd
+            '"stts"': stts
+            '"ctts"': ctts
+            '"stss"': stss
+            '"stsc"': stsc
+            '"stsz"': stsz
+            '"stco"': stco
+            '"co64"': co64
+            '"meta"': meta
+            '"data"': data
+            '"mehd"': mehd
+            '"trex"': trex
+            '"mfhd"': mfhd
+            '"tfhd"': tfhd
+            '"tfdt"': tfdt
+            '"trun"': trun
+            '"sidx"': sidx
+            '"mdat"': raw
+            _: raw
+    instances:
+      header_len:
+        value: '8 + (size32 == 1 ? 8 : 0) + (type == "uuid" ? 16 : 0)'
+      declared_len:
+        value: '(size32 == 1 ? largesize : size32) - header_len'
+      # a box that runs past the end (a truncated file) is read as far as there is data; size 0 runs to the end
+      body_len:
+        value: 'size32 == 0 or declared_len > _io.size - _io.pos ? _io.size - _io.pos : declared_len'
+  boxes:
+    seq:
+      - id: items
+        type: box
+        repeat: eos
+  # the tags of iTunes: each is a box that holds a `data` box
+  ilst:
+    seq:
+      - id: items
+        type: tag
+        repeat: eos
+  tag:
+    seq:
+      - id: size
+        type: u4
+      - id: type
+        type: str
+        size: 4
+        encoding: ISO-8859-1
+      - id: body
+        size: size - 8
+        type: boxes
+  raw:
+    seq:
+      - id: bytes
+        size-eos: true
+  ftyp_body:
+    seq:
+      - id: major_brand
+        type: str
+        size: 4
+        encoding: ISO-8859-1
+      - id: minor_version
+        type: u4
+      - id: compatible_brands
+        type: str
+        size: 4
+        encoding: ISO-8859-1
+        repeat: eos
+  # a full box starts with a version and 24 bits of flags
+  mvhd:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: creation_time_v0
+        type: u4
+        if: version == 0
+      - id: modification_time_v0
+        type: u4
+        if: version == 0
+      - id: timescale_v0
+        type: u4
+        if: version == 0
+      - id: duration_v0
+        type: u4
+        if: version == 0
+      - id: creation_time_v1
+        type: u8
+        if: version == 1
+      - id: modification_time_v1
+        type: u8
+        if: version == 1
+      - id: timescale_v1
+        type: u4
+        if: version == 1
+      - id: duration_v1
+        type: u8
+        if: version == 1
+      - id: rate
+        type: u4
+      - id: volume
+        type: u2
+      - id: reserved
+        size: 10
+      - id: matrix
+        size: 36
+      - id: pre_defined
+        size: 24
+      - id: next_track_id
+        type: u4
+    instances:
+      timescale:
+        value: 'version == 1 ? timescale_v1 : timescale_v0'
+      duration:
+        value: 'version == 1 ? duration_v1 : duration_v0'
+      duration_seconds:
+        value: 'timescale == 0 ? 0.0 : duration * 1.0 / timescale'
+      rate_value:
+        value: rate * 1.0 / 65536
+  tkhd:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: creation_time_v0
+        type: u4
+        if: version == 0
+      - id: modification_time_v0
+        type: u4
+        if: version == 0
+      - id: track_id_v0
+        type: u4
+        if: version == 0
+      - id: reserved1_v0
+        type: u4
+        if: version == 0
+      - id: duration_v0
+        type: u4
+        if: version == 0
+      - id: creation_time_v1
+        type: u8
+        if: version == 1
+      - id: modification_time_v1
+        type: u8
+        if: version == 1
+      - id: track_id_v1
+        type: u4
+        if: version == 1
+      - id: reserved1_v1
+        type: u4
+        if: version == 1
+      - id: duration_v1
+        type: u8
+        if: version == 1
+      - id: reserved2
+        size: 8
+      - id: layer
+        type: u2
+      - id: alternate_group
+        type: u2
+      - id: volume
+        type: u2
+      - id: reserved3
+        type: u2
+      - id: matrix
+        size: 36
+      - id: width_fixed
+        type: u4
+      - id: height_fixed
+        type: u4
+    instances:
+      track_id:
+        value: 'version == 1 ? track_id_v1 : track_id_v0'
+      duration:
+        value: 'version == 1 ? duration_v1 : duration_v0'
+      enabled:
+        value: (flags & 1) != 0
+      in_movie:
+        value: (flags & 2) != 0
+      width:
+        value: width_fixed * 1.0 / 65536
+      height:
+        value: height_fixed * 1.0 / 65536
+  elst:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: entry_count
+        type: u4
+      - id: entries
+        type: elst_entry(version)
+        repeat: expr
+        repeat-expr: entry_count
+  elst_entry:
+    params:
+      - id: version
+        type: u1
+    seq:
+      - id: segment_duration_v0
+        type: u4
+        if: version == 0
+      - id: media_time_v0
+        type: s4
+        if: version == 0
+      - id: segment_duration_v1
+        type: u8
+        if: version == 1
+      - id: media_time_v1
+        type: s8
+        if: version == 1
+      - id: media_rate
+        type: u4
+  mdhd:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: creation_time_v0
+        type: u4
+        if: version == 0
+      - id: modification_time_v0
+        type: u4
+        if: version == 0
+      - id: timescale_v0
+        type: u4
+        if: version == 0
+      - id: duration_v0
+        type: u4
+        if: version == 0
+      - id: creation_time_v1
+        type: u8
+        if: version == 1
+      - id: modification_time_v1
+        type: u8
+        if: version == 1
+      - id: timescale_v1
+        type: u4
+        if: version == 1
+      - id: duration_v1
+        type: u8
+        if: version == 1
+      - id: language_code
+        type: u2
+      - id: pre_defined
+        type: u2
+    instances:
+      timescale:
+        value: 'version == 1 ? timescale_v1 : timescale_v0'
+      duration:
+        value: 'version == 1 ? duration_v1 : duration_v0'
+      duration_seconds:
+        value: 'timescale == 0 ? 0.0 : duration * 1.0 / timescale'
+  hdlr:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: pre_defined
+        type: u4
+      - id: handler_type
+        type: str
+        size: 4
+        encoding: ISO-8859-1
+      - id: reserved
+        size: 12
+      - id: name
+        type: strz
+        encoding: UTF-8
+        size-eos: true
+  # sample descriptions
+  stsd:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: entry_count
+        type: u4
+      - id: entries
+        type: sample_entry
+        repeat: expr
+        repeat-expr: entry_count
+  sample_entry:
+    seq:
+      - id: size
+        type: u4
+      - id: format
+        type: str
+        size: 4
+        encoding: ISO-8859-1
+      - id: body
+        size: size - 8
+        type:
+          switch-on: format
+          cases:
+            '"avc1"': visual_entry
+            '"avc3"': visual_entry
+            '"hvc1"': visual_entry
+            '"hev1"': visual_entry
+            '"av01"': visual_entry
+            '"vp08"': visual_entry
+            '"vp09"': visual_entry
+            '"mp4v"': visual_entry
+            '"encv"': visual_entry
+            '"mp4a"': audio_entry
+            '"Opus"': audio_entry
+            '"ac-3"': audio_entry
+            '"ec-3"': audio_entry
+            '"fLaC"': audio_entry
+            '"enca"': audio_entry
+            _: generic_entry
+  generic_entry:
+    seq:
+      - id: reserved
+        size: 6
+      - id: data_reference_index
+        type: u2
+      - id: rest
+        size-eos: true
+  visual_entry:
+    seq:
+      - id: reserved
+        size: 6
+      - id: data_reference_index
+        type: u2
+      - id: pre_defined1
+        type: u2
+      - id: reserved1
+        type: u2
+      - id: pre_defined2
+        size: 12
+      - id: width
+        type: u2
+      - id: height
+        type: u2
+      - id: horizresolution
+        type: u4
+      - id: vertresolution
+        type: u4
+      - id: reserved2
+        type: u4
+      - id: frame_count
+        type: u2
+      - id: compressorname
+        size: 32
+      - id: depth
+        type: u2
+      - id: pre_defined3
+        type: s2
+      - id: boxes
+        type: box
+        repeat: eos
+  audio_entry:
+    seq:
+      - id: reserved
+        size: 6
+      - id: data_reference_index
+        type: u2
+      - id: reserved1
+        size: 8
+      - id: channel_count
+        type: u2
+      - id: sample_size
+        type: u2
+      - id: pre_defined
+        type: u2
+      - id: reserved2
+        type: u2
+      - id: sample_rate_fixed
+        type: u4
+      - id: boxes
+        type: box
+        repeat: eos
+    instances:
+      sample_rate:
+        value: sample_rate_fixed * 1.0 / 65536
+  # time to sample, composition offsets, sync samples, sample to chunk, sample sizes, chunk offsets
+  stts:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: entry_count
+        type: u4
+      - id: entries
+        type: time_entry
+        repeat: expr
+        repeat-expr: entry_count
+  time_entry:
+    seq:
+      - id: sample_count
+        type: u4
+      - id: sample_delta
+        type: u4
+  ctts:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: entry_count
+        type: u4
+      - id: entries
+        type: offset_entry
+        repeat: expr
+        repeat-expr: entry_count
+  offset_entry:
+    seq:
+      - id: sample_count
+        type: u4
+      - id: sample_offset
+        type: u4
+  stss:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: entry_count
+        type: u4
+      - id: sample_numbers
+        type: u4
+        repeat: expr
+        repeat-expr: entry_count
+  stsc:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: entry_count
+        type: u4
+      - id: entries
+        type: chunk_entry
+        repeat: expr
+        repeat-expr: entry_count
+  chunk_entry:
+    seq:
+      - id: first_chunk
+        type: u4
+      - id: samples_per_chunk
+        type: u4
+      - id: sample_description_index
+        type: u4
+  stsz:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: sample_size
+        type: u4
+      - id: sample_count
+        type: u4
+      - id: entry_sizes
+        type: u4
+        repeat: expr
+        repeat-expr: 'sample_size == 0 ? sample_count : 0'
+  stco:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: entry_count
+        type: u4
+      - id: chunk_offsets
+        type: u4
+        repeat: expr
+        repeat-expr: entry_count
+  co64:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: entry_count
+        type: u4
+      - id: chunk_offsets
+        type: u8
+        repeat: expr
+        repeat-expr: entry_count
+  # metadata and tags
+  meta:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: boxes
+        type: box
+        repeat: eos
+  data:
+    seq:
+      - id: type_indicator
+        type: u4
+      - id: locale
+        type: u4
+      - id: value
+        size-eos: true
+  # fragments
+  mehd:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: fragment_duration_v0
+        type: u4
+        if: version == 0
+      - id: fragment_duration_v1
+        type: u8
+        if: version == 1
+  trex:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: track_id
+        type: u4
+      - id: default_sample_description_index
+        type: u4
+      - id: default_sample_duration
+        type: u4
+      - id: default_sample_size
+        type: u4
+      - id: default_sample_flags
+        type: u4
+  mfhd:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: sequence_number
+        type: u4
+  tfhd:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: track_id
+        type: u4
+      - id: base_data_offset
+        type: u8
+        if: (flags & 1) != 0
+      - id: sample_description_index
+        type: u4
+        if: (flags & 2) != 0
+      - id: default_sample_duration
+        type: u4
+        if: (flags & 8) != 0
+      - id: default_sample_size
+        type: u4
+        if: (flags & 16) != 0
+      - id: default_sample_flags
+        type: u4
+        if: (flags & 32) != 0
+    instances:
+      duration_is_empty:
+        value: (flags & 0x10000) != 0
+      default_base_is_moof:
+        value: (flags & 0x20000) != 0
+  tfdt:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: base_media_decode_time_v0
+        type: u4
+        if: version == 0
+      - id: base_media_decode_time_v1
+        type: u8
+        if: version == 1
+  trun:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: sample_count
+        type: u4
+      - id: data_offset
+        type: s4
+        if: (flags & 1) != 0
+      - id: first_sample_flags
+        type: u4
+        if: (flags & 4) != 0
+      - id: samples
+        type: trun_sample(flags)
+        repeat: expr
+        repeat-expr: sample_count
+  trun_sample:
+    params:
+      - id: flags
+        type: u4
+    seq:
+      - id: duration
+        type: u4
+        if: (flags & 0x100) != 0
+      - id: size
+        type: u4
+        if: (flags & 0x200) != 0
+      - id: sample_flags
+        type: u4
+        if: (flags & 0x400) != 0
+      - id: composition_time_offset
+        type: u4
+        if: (flags & 0x800) != 0
+  sidx:
+    seq:
+      - id: version
+        type: u1
+      - id: flags
+        type: b24
+      - id: reference_id
+        type: u4
+      - id: timescale
+        type: u4
+      - id: earliest_presentation_time_v0
+        type: u4
+        if: version == 0
+      - id: first_offset_v0
+        type: u4
+        if: version == 0
+      - id: earliest_presentation_time_v1
+        type: u8
+        if: version == 1
+      - id: first_offset_v1
+        type: u8
+        if: version == 1
+      - id: reserved
+        type: u2
+      - id: reference_count
+        type: u2
+      - id: references
+        type: sidx_reference
+        repeat: expr
+        repeat-expr: reference_count
+  sidx_reference:
+    seq:
+      - id: reference_type_and_size
+        type: u4
+      - id: subsegment_duration
+        type: u4
+      - id: starts_with_sap_and_type
+        type: u4
+    instances:
+      is_index:
+        value: (reference_type_and_size >> 31) != 0
+      referenced_size:
+        value: reference_type_and_size & 0x7fffffff
