@@ -13,7 +13,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::parser::trace::TraceNode;
-use crate::schema::raw::RawFilesystem;
+use crate::schema::raw::{OneOrMany, RawFilesystem};
 use crate::value::Value;
 
 /// What an entry is.
@@ -213,6 +213,9 @@ pub fn list(value: &Value, trace: &TraceNode, spec: &RawFilesystem) -> Option<Li
             .map(String::as_str)
             .collect::<Vec<_>>()
             .join("/");
+        if spec.ignore.contains(&joined) {
+            continue;
+        }
         let absolute = joined.starts_with('/');
         let trailing_slash = joined.ends_with('/');
         let path: Vec<String> = joined
@@ -233,23 +236,22 @@ pub fn list(value: &Value, trace: &TraceNode, spec: &RawFilesystem) -> Option<Li
         if !path.is_empty() && !seen.insert(path.clone()) {
             flags.push(flag::REPEATED.to_owned());
         }
-        let mode = spec
-            .mode
-            .as_deref()
-            .and_then(|p| field(item, p))
+        // the first of the names that the entry has
+        let first = |names: &Option<OneOrMany>| {
+            names
+                .as_ref()
+                .and_then(|names| names.names().into_iter().find_map(|p| field(item, p)))
+        };
+        let mode = first(&spec.mode)
             .and_then(number_of)
             .and_then(|n| u32::try_from(n).ok());
-        let number = |name: &Option<String>| {
-            name.as_deref()
-                .and_then(|p| field(item, p))
-                .and_then(number_of)
-        };
+        let number = |names: &Option<OneOrMany>| first(names).and_then(number_of);
         let mut trace_path = list_path.clone();
         trace_path.push(index);
         let data = spec
             .data
-            .as_deref()
-            .and_then(|p| trace_at(node, p))
+            .as_ref()
+            .and_then(|names| names.names().into_iter().find_map(|p| trace_at(node, p)))
             .and_then(|(_, n)| n.span)
             .filter(|s| !s.is_empty())
             .map(|s| (s.start_byte(), s.end_byte()));
@@ -268,10 +270,7 @@ pub fn list(value: &Value, trace: &TraceNode, spec: &RawFilesystem) -> Option<Li
             size,
             mode,
             mtime: number(&spec.mtime).and_then(|n| i64::try_from(n).ok()),
-            link: spec
-                .link
-                .as_deref()
-                .and_then(|p| field(item, p))
+            link: first(&spec.link)
                 .and_then(text_of)
                 .filter(|t| !t.is_empty()),
             path,

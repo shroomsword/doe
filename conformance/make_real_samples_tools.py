@@ -341,6 +341,22 @@ def make_efi():
         put("security/efivar_signature_list", "efitools_x509", out.read_bytes(), WITHOUT_REFERENCE)
 
 
+def make_cpio():
+    need("cpio")
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "tree"
+        (tree / "dir").mkdir(parents=True)
+        (tree / "dir" / "a.txt").write_bytes(b"hello\n")
+        (tree / "b").write_bytes(b"odd")
+        os.symlink("a.txt", tree / "dir" / "link")
+        for path in (tree / "dir" / "a.txt", tree / "b", tree / "dir", tree):
+            os.utime(path, (1700000000, 1700000000))
+        names = "\n".join(sorted(str(p.relative_to(tree)) for p in tree.rglob("*"))).encode() + b"\n"
+        for sample, fmt in (("gnu_newc", "newc"), ("gnu_crc", "crc"), ("gnu_odc", "odc"), ("gnu_binary", "bin")):
+            out = run(["cpio", "-o", "-H", fmt, "--quiet", "--reproducible", "-R", "0:0"], input=names, cwd=tree)
+            put("archive/cpio", sample, out, WITHOUT_REFERENCE)
+
+
 def make_gpg():
     need("gpg")
     with tempfile.TemporaryDirectory() as tmp:
@@ -511,7 +527,7 @@ def make_tls():
 ALL = [
     make_gettext, make_dtb, make_uimage, make_cc65, make_tap, make_xar, make_zchunk, make_zisofs, make_android,
     make_partition_tables, make_gpg, make_msi, make_windres, make_php,
-    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi,
+    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio,
 ]
 
 # Not made: files that the gallery's definitions cannot read (#278). The functions stay so that they can be run when the

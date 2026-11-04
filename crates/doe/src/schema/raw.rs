@@ -186,15 +186,16 @@ pub struct RawFilesystem {
     /// The path of an entry: one field, or several whose texts are joined with `/` (tar's `prefix` and `name`);
     /// empty ones are skipped.
     pub path: OneOrMany,
-    /// The size in bytes (a number).
+    /// The size in bytes (a number). Several names: the first that an entry has (a format whose entries have more
+    /// than one layout, like cpio's).
     #[serde(default)]
-    pub size: Option<String>,
+    pub size: Option<OneOrMany>,
     /// The mode: the permission bits, and the file type bits (`0o170000`) when the format has them.
     #[serde(default)]
-    pub mode: Option<String>,
+    pub mode: Option<OneOrMany>,
     /// The modification time, in seconds since 1970.
     #[serde(default)]
-    pub mtime: Option<String>,
+    pub mtime: Option<OneOrMany>,
     /// The field that says what kind of entry it is (tar's type flag), read with `kinds`.
     #[serde(default)]
     pub kind: Option<String>,
@@ -203,14 +204,18 @@ pub struct RawFilesystem {
     pub kinds: IndexMap<String, Vec<serde_json::Value>>,
     /// The target of a symbolic or hard link (text).
     #[serde(default)]
-    pub link: Option<String>,
+    pub link: Option<OneOrMany>,
     /// The bytes of the file's contents, for a preview and for saving it.
     #[serde(default)]
-    pub data: Option<String>,
+    pub data: Option<OneOrMany>,
     /// Whether a path that ends in `/` is a directory when nothing else says what the entry is (the default).
     /// `false` for a format like `ar`, whose names end in `/` as a terminator.
     #[serde(default)]
     pub directory_slash: Option<bool>,
+    /// Names (whole paths) of entries that are not files and are left out of the list: the `TRAILER!!!` entry that
+    /// ends a cpio archive.
+    #[serde(default)]
+    pub ignore: Vec<String>,
 }
 
 /// A field name or several.

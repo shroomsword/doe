@@ -505,6 +505,38 @@ def gzip_file(data: bytes, name: bytes = b"", extra: bytes | None = None) -> byt
     return header + body + struct.pack("<II", zlib.crc32(data), len(data) & 0xFFFFFFFF)
 
 
+def cpio_archive(kind: str) -> bytes:
+    """A directory, a file with an odd size, a symbolic link and the trailer, in one of the formats: `newc`, `crc`, `odc`,
+    `bin_le` or `bin_be` (the old binary format in either byte order)."""
+    mtime = 1_700_000_000
+    entries = [
+        ("docs", 0o040755, b""),
+        ("docs/hello.txt", 0o100644, b"hello\n"),
+        ("odd", 0o100600, b"odd"),
+        ("link", 0o120777, b"docs/hello.txt"),
+        ("TRAILER!!!", 0, b""),
+    ]
+    out = b""
+    for inode, (name, mode, data) in enumerate(entries, 1):
+        raw = name.encode() + b"\0"
+        if kind in ("newc", "crc"):
+            magic = b"070701" if kind == "newc" else b"070702"
+            check = sum(data) if kind == "crc" else 0
+            fields = [inode, mode, 0, 0, 1 if mode & 0o170000 != 0o040000 else 2, mtime, len(data), 8, 1, 0, 0, len(raw), check]
+            header = magic + b"".join(b"%08X" % value for value in fields)
+            out += header + raw
+            out += bytes((4 - len(out) % 4) % 4)
+            out += data + bytes((4 - len(data) % 4) % 4)
+        elif kind == "odc":
+            fields = [(65, 6), (inode, 6), (mode, 6), (0, 6), (0, 6), (1, 6), (0, 6), (mtime, 11), (len(raw), 6), (len(data), 11)]
+            out += b"070707" + b"".join(b"%0*o" % (width, value) for value, width in fields) + raw + data
+        else:
+            order = "<" if kind == "bin_le" else ">"
+            words = [0o070707, 7, inode, mode, 0, 0, 1, 0, mtime >> 16, mtime & 0xFFFF, len(raw), len(data) >> 16, len(data) & 0xFFFF]
+            out += struct.pack(order + "13H", *words) + raw + bytes(len(raw) % 2) + data + bytes(len(data) % 2)
+    return out + bytes((512 - len(out) % 512) % 512)
+
+
 def mar_archive() -> bytes:
     """A MAR file of the newer form: the size of the file, one signature, the product information block, two files
     and the index."""
@@ -597,6 +629,8 @@ if __name__ == "__main__":
     put("sample.zip", zip_archive())
     put("sample.tga", tga_image())
     put("sample.mar", mar_archive())
+    for kind, name in (("newc", "sample.cpio"), ("crc", "sample_crc.cpio"), ("odc", "sample_odc.cpio"), ("bin_le", "sample_bin_le.cpio"), ("bin_be", "sample_bin_be.cpio")):
+        put(name, cpio_archive(kind))
     put("sample.wav", wav_audio())
     classic = pdf_classic()
     put("sample.pdf", classic)
