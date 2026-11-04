@@ -23,6 +23,12 @@ meta:
   id: zip_archive
   file-extension: [zip, jar, war, apk, docx, xlsx, pptx, odt, epub]
   endian: le
+# The entries as a file system (the Files view). The contents are compressed, so the view has no preview of them.
+filesystem:
+  entries: entries
+  path: name
+  size: len_uncompressed
+  mode: unix_mode
 instances:
   end_of_central_directory:
     pos: _io.size - 22

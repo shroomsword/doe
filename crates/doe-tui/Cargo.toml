@@ -25,5 +25,8 @@ toml_edit = "0.25.17"
 [target.'cfg(unix)'.dependencies]
 signal-hook.workspace = true
 
+[dev-dependencies]
+serde_json = { workspace = true, features = ["std"] }
+
 [lints]
 workspace = true

@@ -29,6 +29,8 @@ pub struct Loaded {
     pub error: Option<DoeError>,
     /// The schema files that were read: the schema and what it imports.
     pub schema_files: Vec<PathBuf>,
+    /// The entries of the value, when the schema says it is a file system (`filesystem:`).
+    pub filesystem: Option<doe::filesystem::Listing>,
 }
 
 /// Where loading stopped.
@@ -194,6 +196,11 @@ pub fn try_load(options: &Options) -> Result<Loaded, Box<LoadFailure>> {
         ..
     } = outcome;
     let schema_files = files(&seen);
+    let filesystem = value.as_ref().and_then(|value| {
+        let schema = type_name.split("::").next().unwrap_or(&type_name);
+        let spec = compiler.registry.filesystems.get(schema)?;
+        doe::filesystem::list(value, &trace, spec)
+    });
     Ok(Loaded {
         type_name,
         size,
@@ -201,5 +208,6 @@ pub fn try_load(options: &Options) -> Result<Loaded, Box<LoadFailure>> {
         trace,
         error,
         schema_files,
+        filesystem,
     })
 }

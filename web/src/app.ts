@@ -21,6 +21,8 @@ import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigi
 import { TreeView } from './tree.js';
 import { type Layout, type PaneName, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, moved, saveLayout, shown, swapped, withVisible } from './layout.js';
 import { PaneDrag } from './drag.js';
+import { FilesView } from './files.js';
+import type { FsEntry, Listing } from './doe.js';
 import { columnsError, loadColumns, parseColumns, saveColumns, DEFAULT_COLUMNS } from './columns.js';
 import type { EditorSelection } from '@codemirror/state';
 import { type BoxSelection, Positions, boxSelection, putBackSelection } from './keep.js';
@@ -90,6 +92,7 @@ export class App {
 
   private readonly editor: SchemaEditor;
   private readonly tree: TreeView;
+  private readonly archive: FilesView;
   private readonly hex: HexView;
   private readonly problems: ProblemsView;
   private readonly themes: Themes;
@@ -129,6 +132,11 @@ export class App {
       (path) => this.select(path, 'tree'),
       (key) => this.radixes.of(key),
     );
+    this.archive = new FilesView(element('files'), {
+      select: (path) => this.select(path, 'files'),
+      read: (from, to) => this.readInput(from, to),
+      save: (entry) => this.saveEntry(entry),
+    });
     element<HTMLSelectElement>('radix').value = this.radixes.global;
     this.hex = new HexView(element('hex'), (byte) => this.pickByte(byte));
     this.problems = new ProblemsView(element('problems'), (item) => this.pickProblem(item));
@@ -640,6 +648,7 @@ export class App {
     }
     this.layoutSetup();
     this.columnsSetup();
+    element('files-toggle').addEventListener('click', () => this.toggleFiles());
     const buttons: Record<string, Action> = {
       'open-input': 'open-file',
       'open-schema': 'open-schema',
@@ -692,12 +701,13 @@ export class App {
 
   /** Whether the focus is on a pane or its main part (not on a button or a field of it), where Tab goes on to the next pane. */
   private onPane(target: EventTarget | null): boolean {
-    return target === document.body || (target instanceof Element && target.matches('section, .tree, .hex'));
+    return target === document.body || (target instanceof Element && target.matches('section, .tree, .hex, #files-list'));
   }
 
   private available(needs: Needs): boolean {
     if (needs === 'file') return this.canDetect();
     if (needs === 'parsed') return !element<HTMLButtonElement>('save').disabled;
+    if (needs === 'filesystem') return this.archive.has;
     return !element('cancel').hidden;
   }
 
@@ -713,9 +723,79 @@ export class App {
     const section = element(PANE_IDS[name]);
     if (plain) section.focus();
     else if (name === 'schema') this.editor.focus();
-    else if (name === 'parsed') this.tree.focus();
+    else if (name === 'parsed') this.focusParsed();
     else if (name === 'bytes') this.hex.focus();
     else section.focus();
+  }
+
+  /** The focus in the Parsed pane goes to the view that is shown: the tree of fields or the files of an archive. */
+  private focusParsed(): void {
+    if (this.filesShown()) this.archive.focus();
+    else this.tree.focus();
+  }
+
+  // ── the Files view of an archive ────────────────────────────────────────────
+
+  /** Whether the person wants the files (the default when there are some) and not the tree of fields. */
+  private filesWanted = true;
+
+  private filesShown(): boolean {
+    return this.archive.has && this.filesWanted;
+  }
+
+  /** Show the listing of the new result, and the button that switches to it, only for a file system. */
+  private showArchive(listing: Listing | null | undefined): void {
+    this.archive.setListing(listing);
+    element('files-toggle').hidden = !this.archive.has;
+    this.drawFilesMode();
+  }
+
+  private drawFilesMode(): void {
+    const on = this.filesShown();
+    element('files').hidden = !on;
+    element('tree').hidden = on;
+    element('files-toggle').setAttribute('aria-pressed', String(on));
+  }
+
+  /** Switch between the files of an archive and the tree of fields (the key F and the button). */
+  private toggleFiles(): void {
+    if (!this.archive.has) return;
+    this.filesWanted = !this.filesWanted;
+    this.drawFilesMode();
+    this.focusParsed();
+    if (this.selection) this.archive.syncSelection(this.selection);
+  }
+
+  /** The bytes of the input from `from` to `to`, or undefined when the page has not got them all (a file that stays on disk). */
+  private readInput(from: number, to: number): Uint8Array | undefined {
+    const source = this.hex.source;
+    const end = Math.min(to, source.length);
+    source.want(from, end);
+    const out = new Uint8Array(Math.max(0, end - from));
+    for (let i = from; i < end; i += 1) {
+      const byte = source.byteAt(i);
+      if (byte === undefined) return undefined;
+      out[i - from] = byte;
+    }
+    return out;
+  }
+
+  /** Download the contents of an entry as a file named like it. */
+  private saveEntry(entry: FsEntry): void {
+    if (!entry.data) return;
+    const bytes = this.readInput(entry.data[0], entry.data[1]);
+    if (!bytes) {
+      element('status').textContent = 'the bytes of this entry are not all loaded in the page; use doe --ide to save from the machine';
+      return;
+    }
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' }));
+    link.href = url;
+    link.download = entry.path[entry.path.length - 1] ?? 'entry';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
 
   private cyclePane(step: 1 | -1): void {
@@ -1091,6 +1171,9 @@ export class App {
       case 'save':
         this.openSave();
         break;
+      case 'files':
+        this.toggleFiles();
+        break;
       case 'next-pane':
         this.cyclePane(1);
         break;
@@ -1185,7 +1268,7 @@ export class App {
 
   /** The list of the keys, with the ones that need something that is not there marked. */
   private showKeys(): void {
-    const needs: Record<Needs, string> = { file: 'needs an open file', parsed: 'needs a parsed value', running: 'needs a parse that is running' };
+    const needs: Record<Needs, string> = { file: 'needs an open file', parsed: 'needs a parsed value', running: 'needs a parse that is running', filesystem: 'needs a file system (an archive) parsed' };
     const rows = KEYS.map((entry) => {
       const missing = entry.needs && !this.available(entry.needs) ? needs[entry.needs] : '';
       const row = document.createElement('tr');
@@ -1658,6 +1741,7 @@ export class App {
     if (!response.ok || response.error) this.reveal('status');
     this.trace = response.trace;
     this.tree.setTrace(response.trace);
+    this.showArchive(response.filesystem);
     // The selection stays on a node that is still there with the same name.
     if (this.selection && this.trace) {
       const same = pathName(this.trace, this.selection) === this.selectionName;
@@ -1673,15 +1757,16 @@ export class App {
 
   private selectionName = '';
 
-  private select(path: Path | null, from: 'tree' | 'hex' | 'none'): void {
+  private select(path: Path | null, from: 'tree' | 'hex' | 'files' | 'none'): void {
     this.selection = path;
     const node = path && this.trace ? nodeAt(this.trace, path) : null;
     this.selectionName = path && this.trace ? pathName(this.trace, path) : '';
     this.tree.select(node ? path : null, from !== 'tree');
+    if (from !== 'files') this.archive.syncSelection(node ? path : null);
     const range = node && !node.processed ? byteRange(node) : null;
     if (node && range && node.start !== null && node.end !== null) {
       this.hex.setSelection({ first: range.first, end: range.end, startBit: node.start, endBit: node.end });
-      if (from === 'tree') this.hex.reveal(range.first);
+      if (from === 'tree' || from === 'files') this.hex.reveal(range.first);
     } else this.hex.setSelection(null);
     this.showSelection(node);
     this.showFieldRadix();

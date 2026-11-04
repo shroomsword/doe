@@ -12,6 +12,7 @@ use crate::builder::Builder;
 use crate::bytes::FileBytes;
 use crate::draft::{Count, Draft, DraftError, Edit, Field, Kind as DraftKind};
 use crate::field_dialog;
+use crate::files_view::FilesState;
 use crate::hex_view::{HexState, Selection};
 use crate::keymap::{self, Action, Scope};
 use crate::load::{self, LoadFailure, Loaded};
@@ -136,6 +137,12 @@ pub struct App {
     pub error: Option<DoeError>,
     /// The tree of what was read.
     pub tree: TreeModel,
+    /// The entries as directories and files, when the schema says the file is a file system.
+    pub files: Option<FilesState>,
+    /// Whether the files are shown in the place of the tree of fields (the default when there are some).
+    pub files_wanted: bool,
+    /// The node of the tree that the files were last made to follow.
+    files_followed: Vec<usize>,
     /// Where the tree pane is scrolled to.
     pub view: TreeView,
     /// The bytes of the file, read as they are shown (none if it cannot be opened now).
@@ -274,6 +281,12 @@ impl App {
             type_name: loaded.type_name,
             size: loaded.size,
             error: loaded.error,
+            files: loaded
+                .filesystem
+                .filter(|listing| !listing.entries.is_empty())
+                .map(|listing| FilesState::new(&listing)),
+            files_wanted: true,
+            files_followed: Vec::new(),
             tree: TreeModel::new(loaded.trace, loaded.value),
             view: TreeView::new(),
             quit: false,
@@ -342,6 +355,9 @@ impl App {
                 doe::parser::trace::TraceNode::named(&failure.type_name),
                 None,
             ),
+            files: None,
+            files_wanted: true,
+            files_followed: Vec::new(),
             view: TreeView::new(),
             quit: false,
         }
@@ -387,6 +403,9 @@ impl App {
             type_name: type_name.to_owned(),
             error: None,
             tree: TreeModel::new(doe::parser::trace::TraceNode::named(type_name), None),
+            files: None,
+            files_wanted: true,
+            files_followed: Vec::new(),
             view: TreeView::new(),
             quit: false,
             file,
@@ -485,6 +504,8 @@ impl App {
             tree.take_state_of(&self.tree);
         }
         self.tree = tree;
+        self.files = fresh.files;
+        self.files_followed = Vec::new();
         self.type_name = fresh.type_name;
         self.size = fresh.size;
         self.error = fresh.error;
@@ -1219,6 +1240,7 @@ impl App {
                 }
             }
             Action::ToggleInspector => self.inspector = !self.inspector,
+            Action::Files => self.toggle_files(),
             Action::Help => {
                 self.help_view.reset();
                 self.help = true;
@@ -1296,7 +1318,69 @@ impl App {
         }
     }
 
+    /// Whether the files of an archive are shown in the place of the tree of fields.
+    #[must_use]
+    pub fn files_shown(&self) -> bool {
+        self.files.is_some() && self.files_wanted
+    }
+
+    /// `F`: the files of an archive, or the tree of fields.
+    fn toggle_files(&mut self) {
+        if self.files.is_none() {
+            self.notice =
+                Some("this schema does not say that the file is a file system".to_owned());
+            return;
+        }
+        self.files_wanted = !self.files_wanted;
+        self.focus = Focus::Tree;
+        if self.files_wanted {
+            self.follow_tree_in_files();
+        }
+    }
+
+    /// Select, in the files, the entry that holds the field that is selected in the tree.
+    fn follow_tree_in_files(&mut self) {
+        let path = self.tree.selected_path().to_vec();
+        if path == self.files_followed {
+            return;
+        }
+        if let Some(files) = self.files.as_mut() {
+            files.select_trace(&path);
+        }
+        self.files_followed = path;
+    }
+
+    /// A key for the files: move, open, close; the entry that is selected is selected in the tree and the bytes follow.
+    fn files_action(&mut self, action: Action) {
+        let page = self.view.page();
+        let Some(files) = self.files.as_mut() else {
+            return;
+        };
+        match action {
+            Action::TreeUp => files.up(),
+            Action::TreeDown => files.down(),
+            Action::TreePageUp => files.page_up(page),
+            Action::TreePageDown => files.page_down(page),
+            Action::TreeHome => files.home(),
+            Action::TreeEnd => files.end(),
+            Action::TreeRight => files.right(),
+            Action::TreeLeft => files.left(),
+            Action::TreeToggle => files.toggle(),
+            _ => return,
+        }
+        let Some(path) = files.selected_entry().map(|e| e.trace_path.clone()) else {
+            return;
+        };
+        self.tree.select_path(&path);
+        self.files_followed = path;
+        self.show_selected_field();
+    }
+
     fn tree_action(&mut self, action: Action) {
+        if self.files_shown() {
+            self.files_action(action);
+            return;
+        }
         let tree = &mut self.tree;
         match action {
             Action::TreeUp => tree.up(),

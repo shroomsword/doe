@@ -1098,9 +1098,15 @@ fn an_overlay_clears_its_area_with_the_terminals_background_when_it_is_transpare
     assert_eq!(middle.bg, Color::Reset);
     // and the text under it is not left showing: the box has the help only
     let (plain, _) = drawn_with("nord", Some(true), false);
+    // (the middle cell can be a blank of the help, so the whole middle row is compared)
+    let row = |buffer: &ratatui::buffer::Buffer| -> String {
+        (0..width)
+            .map(|x| buffer[(x, height / 2)].symbol().to_owned())
+            .collect()
+    };
     assert_ne!(
-        plain.backend().buffer()[(width / 2, height / 2)].symbol(),
-        middle.symbol(),
+        row(plain.backend().buffer()),
+        row(buffer),
         "the help is over the screen"
     );
 }

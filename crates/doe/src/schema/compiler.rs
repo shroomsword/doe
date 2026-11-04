@@ -166,6 +166,11 @@ impl Compiler {
                 schema.id
             )));
         }
+        if let Some(filesystem) = &schema.filesystem {
+            self.registry
+                .filesystems
+                .insert(schema.id.clone(), filesystem.clone());
+        }
         // If we have already processed this exact id, check whether it came
         // from the same source.  An id being loaded again via a shared import
         // is fine (idempotent); the same id from a *different* file is an error.

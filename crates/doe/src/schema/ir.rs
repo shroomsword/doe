@@ -36,6 +36,8 @@ pub struct TypeRegistry {
     /// Whether any instance reads from another stream (`io:`), so that the
     /// parser records the stream of every value it parses.
     pub uses_io: bool,
+    /// The `filesystem:` key of each schema that has one, by the id of the schema.
+    pub filesystems: std::collections::HashMap<String, crate::schema::raw::RawFilesystem>,
 }
 
 impl TypeRegistry {

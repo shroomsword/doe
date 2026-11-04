@@ -58,6 +58,32 @@ export interface ParseResponse {
   error: Diagnostic | null;
   /** Strings with bytes that are not valid in their encoding (kind `text`); the parse went on. */
   problems: Diagnostic[];
+  /** The entries of the value, when the schema says that it is a file system (`filesystem:`). */
+  filesystem?: Listing | null;
+}
+
+export type FsKind = 'file' | 'directory' | 'symlink' | 'hardlink' | 'device' | 'fifo' | 'socket';
+
+/** One entry of an archive, as `doe::filesystem` lists it. */
+export interface FsEntry {
+  /** The components of the path. */
+  path: string[];
+  kind: FsKind;
+  size: number | null;
+  mode: number | null;
+  /** Seconds since 1970. */
+  mtime: number | null;
+  link: string | null;
+  /** The children to follow from the root of the trace to the entry's node. */
+  trace_path: number[];
+  /** The bytes of the contents in the input: the first and the byte after the last. */
+  data: [number, number] | null;
+  /** `empty`, `absolute`, `parent` or `repeated`: why the entry cannot be placed as it is. */
+  flags: string[];
+}
+
+export interface Listing {
+  entries: FsEntry[];
 }
 
 export interface ExportResponse {

@@ -172,6 +172,8 @@ pub struct ParseResponse {
     /// The strings that had bytes which are not valid in their encoding (kind `text`); the parse went on, and the value
     /// has the text as far as it could be decoded, with U+FFFD where it could not.
     pub problems: Vec<Diagnostic>,
+    /// The entries of the value, when the schema says that it is a file system (see [`crate::filesystem`]).
+    pub filesystem: Option<crate::filesystem::Listing>,
 }
 
 /// A schema and the compiler that has it.
@@ -518,6 +520,7 @@ fn parse_with<'a>(
         trace: None,
         error: None,
         problems: Vec::new(),
+        filesystem: None,
     };
     let request = match request_from(request) {
         Ok(request) => request,
@@ -552,9 +555,15 @@ fn parse_with<'a>(
         .value
         .as_ref()
         .and_then(|value| serde_json::from_str(&crate::render::json::render(value)).ok());
+    let filesystem = outcome.value.as_ref().and_then(|value| {
+        let schema = type_name.split("::").next().unwrap_or(type_name);
+        let spec = compiled.compiler.registry.filesystems.get(schema)?;
+        crate::filesystem::list(value, &outcome.trace, spec)
+    });
     let mut trace = trace_out(&outcome.trace);
     annotate(&mut trace, outcome.value.as_ref());
     ParseResponse {
+        filesystem,
         ok: outcome.error.is_none(),
         id,
         diagnostics: Vec::new(),

@@ -13,6 +13,23 @@ doc: |
 meta:
   id: tar
   encoding: ASCII
+# The entries as a file system (the Files view of the web IDE and the terminal viewer): the type flag says what an entry is.
+filesystem:
+  entries: entries
+  path: [prefix, name]
+  size: size_value
+  mode: mode_value
+  mtime: mtime_value
+  kind: type_flag
+  kinds:
+    directory: ["5"]
+    symlink: ["2"]
+    hardlink: ["1"]
+    device: ["3", "4"]
+    fifo: ["6"]
+    file: ["0", ""]
+  link: link_name
+  data: contents
 seq:
   - id: entries
     type: entry

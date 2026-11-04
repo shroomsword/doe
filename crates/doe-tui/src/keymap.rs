@@ -13,6 +13,8 @@ pub enum Action {
     ToggleFocus,
     /// Show or hide the inspector.
     ToggleInspector,
+    /// Switch the tree pane between the fields and the files of an archive.
+    Files,
     /// Show the help.
     Help,
     /// Show or hide the message about a parse that failed.
@@ -184,6 +186,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::ToggleInspector,
         help: "show or hide the inspector (the selected bytes as numbers and text)",
+    },
+    Binding {
+        keys: &[ch('F')],
+        scope: Scope::Anywhere,
+        action: Action::Files,
+        help: "switch the tree between the fields and the files of an archive (when the schema says it is a file system)",
     },
     Binding {
         keys: &[ch('/')],

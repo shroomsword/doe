@@ -52,6 +52,11 @@ pub struct RawSchema {
     #[serde(default)]
     pub meta: RawMeta,
 
+    /// Says that a file of this schema is a file system (an archive, a disk image) and which of its fields are the
+    /// entries and their paths, sizes, modes and times, so that a viewer can show it as a directory tree.
+    #[serde(default)]
+    pub filesystem: Option<RawFilesystem>,
+
     /// List of schema names or relative paths to import.
     /// A bare name like `"zlib_block"` is resolved through include paths.
     /// A path starting with `"./"` or `"../"` is resolved relative to this file.
@@ -141,6 +146,68 @@ pub(crate) fn parse_yaml<T: DeserializeOwned>(text: &str) -> Result<T, serde_sap
     // would break field ids and expressions such as `size: n`.
     options.strict_booleans = true;
     serde_saphyr::from_str_with_options(text, options)
+}
+
+// ── Filesystem ───────────────────────────────────────────────────────────────
+
+/// The `filesystem:` key of a schema: where the entries of an archive are and what their fields are called.
+///
+/// Every field is a dotted path of field names from the value of the schema (`entries`) or from an entry
+/// (`header.name`); only `entries` and `path` are required.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawFilesystem {
+    /// The list of entries, from the root of the value.
+    pub entries: String,
+    /// The path of an entry: one field, or several whose texts are joined with `/` (tar's `prefix` and `name`);
+    /// empty ones are skipped.
+    pub path: OneOrMany,
+    /// The size in bytes (a number).
+    #[serde(default)]
+    pub size: Option<String>,
+    /// The mode: the permission bits, and the file type bits (`0o170000`) when the format has them.
+    #[serde(default)]
+    pub mode: Option<String>,
+    /// The modification time, in seconds since 1970.
+    #[serde(default)]
+    pub mtime: Option<String>,
+    /// The field that says what kind of entry it is (tar's type flag), read with `kinds`.
+    #[serde(default)]
+    pub kind: Option<String>,
+    /// For each kind (`directory`, `symlink`, `hardlink`, `device`, `fifo`, `file`) the values of `kind` that mean it.
+    #[serde(default)]
+    pub kinds: IndexMap<String, Vec<serde_json::Value>>,
+    /// The target of a symbolic or hard link (text).
+    #[serde(default)]
+    pub link: Option<String>,
+    /// The bytes of the file's contents, for a preview and for saving it.
+    #[serde(default)]
+    pub data: Option<String>,
+    /// Whether a path that ends in `/` is a directory when nothing else says what the entry is (the default).
+    /// `false` for a format like `ar`, whose names end in `/` as a terminator.
+    #[serde(default)]
+    pub directory_slash: Option<bool>,
+}
+
+/// A field name or several.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum OneOrMany {
+    /// One.
+    One(String),
+    /// Several.
+    Many(Vec<String>),
+}
+
+impl OneOrMany {
+    /// The names, in order.
+    #[must_use]
+    pub fn names(&self) -> Vec<&str> {
+        match self {
+            OneOrMany::One(name) => vec![name.as_str()],
+            OneOrMany::Many(names) => names.iter().map(String::as_str).collect(),
+        }
+    }
 }
 
 // ── Meta ─────────────────────────────────────────────────────────────────────

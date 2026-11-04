@@ -389,10 +389,11 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
             },
         }
     };
-    let hint = if hex_area.is_some() {
-        " q quit · Tab switch pane · i inspector "
-    } else {
-        " q quit · i inspector "
+    let hint = match (hex_area.is_some(), app.files.is_some()) {
+        (true, false) => " q quit · Tab switch pane · i inspector ",
+        (true, true) => " q quit · Tab switch pane · i inspector · F files/fields ",
+        (false, false) => " q quit · i inspector ",
+        (false, true) => " q quit · i inspector · F files/fields ",
     };
     let block = Block::default()
         .borders(Borders::ALL)
@@ -456,6 +457,8 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         // the report, or the message that it is being read, is all there is to see in this pane
     } else if app.inspector && hex_area.is_none() {
         inspector(frame, tree_inner, app, *theme);
+    } else if let Some(files) = app.files.as_ref().filter(|_| app.files_wanted) {
+        crate::files_view::render(frame, tree_inner, files, &mut app.view, theme);
     } else {
         tree_view::render(
             frame,
