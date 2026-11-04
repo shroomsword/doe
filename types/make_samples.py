@@ -326,6 +326,49 @@ def wav_audio() -> bytes:
     return b"RIFF" + struct.pack("<I", len(body)) + body
 
 
+def pdf_classic(extra: bytes = b"", prev: int | None = None, base: bytes = b"") -> bytes:
+    """A classic PDF: a catalog, a page tree, a page with a content stream and a font, an info dictionary (literal
+    and hexadecimal strings), the xref table and the trailer. With `base` and `prev`, an incremental update of it."""
+    if base:
+        out = base + extra
+        objects = [(5, b"<< /Type /Annot /Subtype /Text /Contents (added later) >>")]
+    else:
+        out = b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n"
+        content = b"BT /F1 12 Tf 72 720 Td (Hello) Tj ET"
+        objects = [
+            (1, b"<< /Type /Catalog /Pages 2 0 R >>"),
+            (2, b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>"),
+            (3, b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>"),
+            (4, b"<< /Length %d >>\nstream\n" % len(content) + content + b"\nendstream"),
+            (5, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),
+            (6, b"<< /Title (A sample) /Author <646f65> /Producer (doe tests) /CreationDate (D:20261104120000Z) /Pi 3.14159 /Yes true /Nothing null >>"),
+        ]
+    offsets = {}
+    for number, body in objects:
+        offsets[number] = len(out)
+        out += b"%d 0 obj\n" % number + body + b"\nendobj\n"
+    start = len(out)
+    first = min(offsets) if base else 0
+    entries = b"" if base else b"0000000000 65535 f \n"
+    entries += b"".join(b"%010d 00000 n \n" % offsets[n] for n in sorted(offsets))
+    count = len(offsets) + (0 if base else 1)
+    size = 7
+    trailer = b"<< /Size %d /Root 1 0 R" % size + (b" /Info 6 0 R" if not base else b" /Prev %d" % prev) + b" >>"
+    return out + b"xref\n%d %d\n" % (first, count) + entries + b"trailer\n" + trailer + b"\nstartxref\n%d\n%%%%EOF\n" % start
+
+
+def pdf_xref_stream() -> bytes:
+    """A PDF 1.5 file whose cross-reference is a stream (the bytes are not a real compressed table: the type does not
+    read it, it only has to say so)."""
+    out = b"%PDF-1.5\n%\xe2\xe3\xcf\xd3\n"
+    one = len(out)
+    out += b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+    two = len(out)
+    out += b"2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\n"
+    xref = len(out)
+    table = struct.pack(">BHB", 1, one, 0) + struct.pack(">BHB", 1, two, 0)
+    out += b"3 0 obj\n<< /Type /XRef /Size 4 /W [1 2 1] /Root 1 0 R /Length %d >>\nstream\n" % len(table) + table + b"\nendstream\nendobj\n"
+    return out + b"startxref\n%d\n%%%%EOF\n" % xref
 def mp4_box(kind: bytes, body: bytes = b"") -> bytes:
     return struct.pack(">I", 8 + len(body)) + kind + body
 
@@ -538,5 +581,10 @@ if __name__ == "__main__":
     put("sample.tga", tga_image())
     put("sample.mar", mar_archive())
     put("sample.wav", wav_audio())
+    classic = pdf_classic()
+    put("sample.pdf", classic)
+    put("sample_xrefstream.pdf", pdf_xref_stream())
+    previous = int(classic.rsplit(b"startxref\n", 1)[1].split(b"\n")[0])
+    put("sample_updated.pdf", pdf_classic(prev=previous, base=classic))
     put("sample.mp4", mp4())
     put("sample_fragmented.mp4", mp4_fragmented())
