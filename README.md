@@ -117,6 +117,7 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `woff2` | WOFF 2 web fonts: the header |
 | `flac` | FLAC audio: the metadata blocks (stream info, tags, padding...) and the frames as bytes |
 | `gzip_file` | gzip files: the header of the first member and the trailer; its payload is the gunzipped file (a `.tar.gz` is shown as the tar) |
+| `cpio` | cpio archives: newc and crc (`070701`, `070702`: initramfs, RPM payloads), odc, and the old binary format in both byte orders, with the entries as files and directories |
 | `wav_audio` | WAVE audio (RIFF): the format, the sample bytes and the tags, with the text of the tags read as UTF-8 |
 | `pdf` | PDF: the header, the classic cross-reference table and trailer, and the objects as tokens (no stream data or typed views) |
 | `mp4` | MP4 / ISO base media: the movie and tracks, the sample tables and entries, tags and fragments (the samples are not decoded) |
@@ -1373,7 +1374,9 @@ removed when they are left, and the Bytes pane shows the bytes of that layer.
 
 A schema can say that it describes a file system with a `filesystem:` key, so that the viewers (the Files view of the web
 IDE; the Files view of the terminal viewer, `F`) draw its entries as a directory tree. The key maps fields to columns;
-every value is a dotted path of field names from an entry (or from the root, for `entries`):
+every value is a dotted path of field names from an entry (or from the root, for `entries`), and `size`, `mode`, `mtime`,
+`link` and `data` may be a list of paths, of which the first that an entry has is used (for a format whose entries have more
+than one layout, like cpio's):
 
 ```yaml
 filesystem:
@@ -1389,13 +1392,14 @@ filesystem:
   link: link_name           # the target of a link
   data: contents            # the bytes of the contents (for the preview and for saving)
   directory_slash: false    # a path ending in / is not a directory by itself (ar's names end in /)
+  ignore: ["TRAILER!!!"]    # entries that are not files, left out of the list (cpio's trailer)
 ```
 
 An entry is a directory, symbolic link, hard link, device, fifo, socket or file by `kinds`, else by the type bits of
 `mode`, else by a `/` at the end of its path (unless `directory_slash: false`). The paths are normalised (empty and `.`
 components dropped) but never resolved: an empty name, an absolute path, a `..` and a path that an earlier entry has are
 listed with a flag, so that they show up and cannot hide the others. An entry with no name, no size and no contents (the
-block that ends a tar) is not listed. The library's `tar`, `ar` and `zip_archive` have the key. The list is in the
+block that ends a tar) is not listed. The library's `tar`, `ar`, `zip_archive` and `cpio` have the key. The list is in the
 `filesystem` field of the answer of the library's `parse`, and `doe::filesystem::list` makes it from a parsed value.
 
 ### Detecting the schema

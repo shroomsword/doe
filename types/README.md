@@ -28,6 +28,7 @@ here; the others are left out, with the reason (a format that is in scope and no
 | FLV | none | **library** (`flv`) |
 | tzfile | none | **library** (`tzfile`) |
 | PSD / PSB | none | **library** (`psd`) |
+| cpio | `cpio_old_le` reads the old binary format, little-endian | **library** (`cpio`: newc and crc, odc, and the old binary format in both byte orders, to the first trailer; the gallery's stays) |
 | gzip | `gzip` reads the header and the compressed data as bytes | **library** (`gzip_file`: the same, and it says its payload is the gunzipped file, so `doe file.tar.gz` shows the tar; see "Files inside files" in the README) |
 | bzip2, xz, zstd, lz4 | `gzip` only | **library** (`bzip2`, `xz`, `zstd`, `lz4`: the headers and, where the format has them at byte boundaries, the blocks; the compressed data is bytes) |
 | COFF object files | `microsoft_pe` has a COFF header | **library** (`coff`) |

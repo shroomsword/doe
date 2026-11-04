@@ -211,6 +211,22 @@ test("the type of a file that starts with a signature of doe's own library is fo
   expect(asked).toEqual([]);
 });
 
+test('a cpio archive is found by either of its magic numbers, without the network, and opens as files', async ({ page }) => {
+  const asked = await serveGallery(page);
+  await ready(page);
+  for (const [file, name] of [
+    ['sample.cpio', 'initramfs'],
+    ['sample_bin_be.cpio', 'old.bin'],
+  ] as const) {
+    await page.setInputFiles('#open-input', { name, mimeType: 'application/octet-stream', buffer: readFileSync(join(repo, 'types', 'samples', file)) });
+    await page.click('#detect');
+    await expect(page.locator('#detect-report')).toContainText('cpio parses the file', { timeout: 30_000 });
+    await expect(page.locator('#editing')).toContainText('library/cpio.yaml');
+    await expect(page.locator('#files-list .file-row').first()).toBeVisible();
+  }
+  expect(asked).toEqual([]);
+});
+
 test('a PDF file is found by its header, without the network, and its table and objects are in the tree', async ({ page }) => {
   const asked = await serveGallery(page);
   await ready(page);

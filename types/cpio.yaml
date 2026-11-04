@@ -1,0 +1,384 @@
+id: cpio
+doc: |
+  cpio archive in the formats in use: newc and its CRC variant (070701, 070702), odc (070707), and the old binary format in both byte orders
+# Covers: every entry of the archive up to the `TRAILER!!!` entry that ends it, in
+#   * newc (`070701`, the format of the Linux kernel's initramfs and of RPM payloads) and its CRC variant (`070702`):
+#     the 110-byte header of fourteen fields of eight hexadecimal digits, the name with its NUL, the padding to a
+#     multiple of 4, the data and its padding;
+#   * odc (`070707`, what `cpio -H odc` and POSIX `pax -x cpio` write): the 76-byte header of octal digits, the name
+#     and the data, with no padding;
+#   * the old binary format (magic 070707 octal, 0x71C7) in both byte orders (the byte order is the one of the magic as it is in the
+#     file: c7 71 for little-endian, 71 c7 for big-endian): the 26-byte header of 16-bit words, the 32-bit values as two words with the high one first, the name and
+#     the data padded to an even size.
+#   For each entry the numbers are numbers (`ino_value`, `mode_value`, `filesize_value`, `mtime_value`... in newc and
+#   odc, the header's own fields in the binary format), `file_type` is the kind from the type bits of the mode (regular
+#   file, directory, symbolic link, devices, fifo, socket), `is_trailer` marks the end, and the data is bytes (a symbolic
+#   link's data is its target). The `filesystem:` key lists the entries as files and directories.
+# Limits: only the first archive of a file is read: what comes after its trailer (padding to a block, or another
+#   archive: an initramfs is often an archive of microcode and then the main one) is bytes. The CRC of the CRC variant
+#   is a number: the sum of the bytes of the data is not computed. The hpodc and Solaris variants and the extended
+#   attributes of some vendors are not read. A symbolic link's target is in the entry's data, not in a field that the
+#   file system view can show. Compressed archives are the issue of unwrapping a layer (`gzip_file`).
+# Detection: the first two bytes are the signature: `07` (all three ASCII formats) or 0x71C7 either way round; two ASCII
+#   bytes are a weak signature, so a text file that starts with 07 is tried and does not fit.
+# Specification: cpio(5) of libarchive; POSIX `pax` (the cpio interchange format); Linux
+#   Documentation/driver-api/early-userspace/buffer-format.rst.
+meta:
+  id: cpio
+  file-extension: cpio
+  endian: le
+# (the entries of newc and odc are one level deeper than the binary ones: the first name that an entry has is used)
+filesystem:
+  entries: entries
+  path: [body.body.name, body.name]
+  size: [body.body.filesize_value, body.filesize_value]
+  mode: [body.body.mode_value, body.mode_value]
+  mtime: [body.body.mtime_value, body.mtime_value]
+  data: [body.body.data, body.data]
+  ignore: ["TRAILER!!!"]
+seq:
+  - id: magic
+    type: u2le
+    enum: magic
+instances:
+  entries:
+    pos: 0
+    type: entry
+    repeat: until
+    repeat-until: _.is_end
+enums:
+  magic:
+    0x3730: ascii
+    0xc771: binary_big_endian
+    0x71c7: binary_little_endian
+  file_type:
+    0xc000: socket
+    0xa000: symlink
+    0x8000: regular
+    0x6000: block_device
+    0x4000: directory
+    0x2000: character_device
+    0x1000: fifo
+types:
+  # an entry starts with its magic, whose first two bytes say which format it is in
+  entry:
+    seq:
+      - id: body
+        type:
+          switch-on: lead
+          cases:
+            0x3730: ascii_entry
+            0xc771: binary_big_endian_entry
+            0x71c7: binary_little_endian_entry
+            0: padding
+    instances:
+      lead:
+        pos: _io.pos
+        type: u2le
+      # the archive is over at its trailer, and at the zeros after it
+      is_end:
+        value: lead == 0 or body.is_trailer
+  padding:
+    seq:
+      - id: zeros
+        size-eos: true
+    instances:
+      is_trailer:
+        value: true
+  ascii_entry:
+    seq:
+      - id: body
+        type:
+          switch-on: format
+          cases:
+            '"070701"': newc_entry
+            '"070702"': newc_entry
+            '"070707"': odc_entry
+    instances:
+      format:
+        pos: _io.pos
+        type: str
+        size: 6
+        encoding: ASCII
+      is_trailer:
+        value: body.is_trailer
+  newc_entry:
+    seq:
+      - id: magic
+        type: str
+        size: 6
+        encoding: ASCII
+        valid:
+          any-of: ['"070701"', '"070702"']
+      - id: ino
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: mode
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: uid
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: gid
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: nlink
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: mtime
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: filesize
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: devmajor
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: devminor
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: rdevmajor
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: rdevminor
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: namesize
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: check
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: name
+        type: strz
+        size: namesize_value
+        encoding: UTF-8
+      - id: name_padding
+        size: (4 - (110 + namesize_value) % 4) % 4
+      - id: data
+        size: filesize_value
+      - id: data_padding
+        size: (4 - filesize_value % 4) % 4
+    instances:
+      ino_value:
+        value: ino.to_i(16)
+      mode_value:
+        value: mode.to_i(16)
+      uid_value:
+        value: uid.to_i(16)
+      gid_value:
+        value: gid.to_i(16)
+      nlink_value:
+        value: nlink.to_i(16)
+      mtime_value:
+        value: mtime.to_i(16)
+      filesize_value:
+        value: filesize.to_i(16)
+      namesize_value:
+        value: namesize.to_i(16)
+      check_value:
+        value: check.to_i(16)
+      is_crc:
+        value: magic == "070702"
+      file_type:
+        value: mode_value & 0xf000
+        enum: file_type
+      permissions:
+        value: mode_value & 0xfff
+      is_trailer:
+        value: name == "TRAILER!!!"
+  odc_entry:
+    seq:
+      - id: magic
+        contents: "070707"
+      - id: dev
+        type: str
+        size: 6
+        encoding: ASCII
+      - id: ino
+        type: str
+        size: 6
+        encoding: ASCII
+      - id: mode
+        type: str
+        size: 6
+        encoding: ASCII
+      - id: uid
+        type: str
+        size: 6
+        encoding: ASCII
+      - id: gid
+        type: str
+        size: 6
+        encoding: ASCII
+      - id: nlink
+        type: str
+        size: 6
+        encoding: ASCII
+      - id: rdev
+        type: str
+        size: 6
+        encoding: ASCII
+      - id: mtime
+        type: str
+        size: 11
+        encoding: ASCII
+      - id: namesize
+        type: str
+        size: 6
+        encoding: ASCII
+      - id: filesize
+        type: str
+        size: 11
+        encoding: ASCII
+      - id: name
+        type: strz
+        size: namesize_value
+        encoding: UTF-8
+      - id: data
+        size: filesize_value
+    instances:
+      ino_value:
+        value: ino.to_i(8)
+      mode_value:
+        value: mode.to_i(8)
+      uid_value:
+        value: uid.to_i(8)
+      gid_value:
+        value: gid.to_i(8)
+      nlink_value:
+        value: nlink.to_i(8)
+      mtime_value:
+        value: mtime.to_i(8)
+      filesize_value:
+        value: filesize.to_i(8)
+      namesize_value:
+        value: namesize.to_i(8)
+      file_type:
+        value: mode_value & 0xf000
+        enum: file_type
+      permissions:
+        value: mode_value & 0xfff
+      is_trailer:
+        value: name == "TRAILER!!!"
+  binary_little_endian_entry:
+    meta:
+      endian: le
+    seq:
+      - id: magic
+        contents: [0xc7, 0x71]
+      - id: dev
+        type: u2
+      - id: ino
+        type: u2
+      - id: mode
+        type: u2
+      - id: uid
+        type: u2
+      - id: gid
+        type: u2
+      - id: nlink
+        type: u2
+      - id: rdev
+        type: u2
+      - id: mtime_high
+        type: u2
+      - id: mtime_low
+        type: u2
+      - id: namesize
+        type: u2
+      - id: filesize_high
+        type: u2
+      - id: filesize_low
+        type: u2
+      - id: name
+        type: strz
+        size: namesize
+        encoding: UTF-8
+      - id: name_padding
+        size: namesize % 2
+      - id: data
+        size: filesize_value
+      - id: data_padding
+        size: filesize_value % 2
+    instances:
+      mtime_value:
+        value: (mtime_high << 16) | mtime_low
+      filesize_value:
+        value: (filesize_high << 16) | filesize_low
+      mode_value:
+        value: mode
+      file_type:
+        value: mode & 0xf000
+        enum: file_type
+      permissions:
+        value: mode & 0xfff
+      is_trailer:
+        value: name == "TRAILER!!!"
+  binary_big_endian_entry:
+    meta:
+      endian: be
+    seq:
+      - id: magic
+        contents: [0x71, 0xc7]
+      - id: dev
+        type: u2
+      - id: ino
+        type: u2
+      - id: mode
+        type: u2
+      - id: uid
+        type: u2
+      - id: gid
+        type: u2
+      - id: nlink
+        type: u2
+      - id: rdev
+        type: u2
+      - id: mtime_high
+        type: u2
+      - id: mtime_low
+        type: u2
+      - id: namesize
+        type: u2
+      - id: filesize_high
+        type: u2
+      - id: filesize_low
+        type: u2
+      - id: name
+        type: strz
+        size: namesize
+        encoding: UTF-8
+      - id: name_padding
+        size: namesize % 2
+      - id: data
+        size: filesize_value
+      - id: data_padding
+        size: filesize_value % 2
+    instances:
+      mtime_value:
+        value: (mtime_high << 16) | mtime_low
+      filesize_value:
+        value: (filesize_high << 16) | filesize_low
+      mode_value:
+        value: mode
+      file_type:
+        value: mode & 0xf000
+        enum: file_type
+      permissions:
+        value: mode & 0xfff
+      is_trailer:
+        value: name == "TRAILER!!!"

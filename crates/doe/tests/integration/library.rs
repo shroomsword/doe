@@ -1028,6 +1028,139 @@ fn pdf_reads_the_first_300_objects_and_gives_the_offsets_of_the_rest() {
     );
 }
 
+/// The entries of a `cpio` value as `(name, size, mode, type)`; the entry's own fields are in `body` once or twice.
+fn cpio_rows(v: &Json) -> Vec<(String, u64, u64, String)> {
+    v["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| {
+            let mut body = &entry["body"];
+            if body["body"].is_object() {
+                body = &body["body"];
+            }
+            (
+                body["name"].as_str().unwrap().to_owned(),
+                body["filesize_value"].as_u64().unwrap(),
+                body["mode_value"].as_u64().unwrap(),
+                body["file_type"]["name"].as_str().unwrap_or("").to_owned(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn cpio_reads_every_format_to_the_trailer() {
+    let wanted = vec![
+        ("docs".to_owned(), 0, 0o040_755, "directory".to_owned()),
+        (
+            "docs/hello.txt".to_owned(),
+            6,
+            0o100_644,
+            "regular".to_owned(),
+        ),
+        ("odd".to_owned(), 3, 0o100_600, "regular".to_owned()),
+        ("link".to_owned(), 14, 0o120_777, "symlink".to_owned()),
+        ("TRAILER!!!".to_owned(), 0, 0, String::new()),
+    ];
+    for (file, magic) in [
+        ("sample.cpio", "ascii"),
+        ("sample_crc.cpio", "ascii"),
+        ("sample_odc.cpio", "ascii"),
+        ("sample_bin_le.cpio", "binary_little_endian"),
+        ("sample_bin_be.cpio", "binary_big_endian"),
+    ] {
+        let v = decode("cpio", file);
+        assert_eq!(name_of(&v["magic"]), magic, "{file}");
+        assert_eq!(cpio_rows(&v), wanted, "{file}");
+        let last = v["entries"].as_array().unwrap().last().unwrap();
+        assert_eq!(last["is_end"], true, "{file}");
+    }
+    // the details of each: the header numbers, the padding of newc, the check of crc, the data of a link
+    let newc = decode("cpio", "sample.cpio");
+    let hello = &newc["entries"][1]["body"]["body"];
+    assert_eq!(hello["magic"], "070701");
+    assert_eq!(hello["mtime_value"], 1_700_000_000);
+    assert_eq!(hello["data"]["len"], 6);
+    assert_eq!(hello["data_padding"]["len"], 2);
+    assert_eq!(
+        newc["entries"][3]["body"]["body"]["data"]["hex"],
+        "646f63732f68656c6c6f2e747874"
+    );
+    let crc = decode("cpio", "sample_crc.cpio");
+    let hello = &crc["entries"][1]["body"]["body"];
+    assert_eq!(
+        (hello["is_crc"].as_bool(), hello["check_value"].as_u64()),
+        (
+            Some(true),
+            Some(b"hello\n".iter().map(|b| u64::from(*b)).sum())
+        )
+    );
+    let odc = decode("cpio", "sample_odc.cpio");
+    assert_eq!(odc["entries"][1]["body"]["body"]["nlink_value"], 1);
+    // the zeros after the trailer are not read as entries
+    assert_eq!(newc["entries"].as_array().unwrap().len(), 5);
+}
+
+/// The archives that GNU `cpio` writes, in the four formats it has.
+#[test]
+fn cpio_reads_what_gnu_cpio_writes() {
+    for file in ["gnu_newc", "gnu_crc", "gnu_odc", "gnu_binary"] {
+        let v = decode_real("cpio", &format!("archive/cpio/{file}.bin"));
+        let rows = cpio_rows(&v);
+        let names: Vec<&str> = rows.iter().map(|r| r.0.as_str()).collect();
+        assert_eq!(
+            names,
+            ["b", "dir", "dir/a.txt", "dir/link", "TRAILER!!!"],
+            "{file}"
+        );
+        assert_eq!(rows[0].1, 3, "{file}");
+        assert_eq!(rows[1].3, "directory", "{file}");
+        assert_eq!(rows[2].1, 6, "{file}");
+        assert_eq!(rows[3].3, "symlink", "{file}");
+    }
+}
+
+#[test]
+fn cpio_is_found_by_its_magic_in_every_format_and_lists_files_and_directories() {
+    for file in [
+        "sample.cpio",
+        "sample_crc.cpio",
+        "sample_odc.cpio",
+        "sample_bin_le.cpio",
+        "sample_bin_be.cpio",
+    ] {
+        let found = doe::detect::detect_file(
+            &types().join("samples").join(file),
+            &[types()],
+            &doe::detect::Options::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            found.chosen().map(|a| a.name.as_str()),
+            Some("cpio"),
+            "{file}: {}",
+            found.report()
+        );
+    }
+    // the files of the archive, for the Files view: the trailer is left out
+    let schema = std::fs::read_to_string(types().join("cpio.yaml")).unwrap();
+    let bytes = std::fs::read(types().join("samples/sample.cpio")).unwrap();
+    let request = serde_json::json!({"schema": schema});
+    let response = doe::api::parse(&request.to_string(), &bytes);
+    let listing = response.filesystem.expect("cpio says it is a file system");
+    let names: Vec<String> = listing.entries.iter().map(|e| e.path.join("/")).collect();
+    assert_eq!(names, ["docs", "docs/hello.txt", "odd", "link"]);
+    assert_eq!(listing.entries[0].kind, doe::filesystem::Kind::Directory);
+    assert_eq!(listing.entries[3].kind, doe::filesystem::Kind::Symlink);
+    assert_eq!(listing.entries[1].size, Some(6));
+    let (from, end) = listing.entries[1].data.unwrap();
+    assert_eq!(
+        &bytes[usize::try_from(from).unwrap()..usize::try_from(end).unwrap()],
+        b"hello\n"
+    );
+}
+
 #[test]
 fn wav_audio_reads_the_format_the_samples_and_the_tags_as_utf8() {
     let v = decode("wav_audio", "sample.wav");
