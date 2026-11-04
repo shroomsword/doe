@@ -1865,7 +1865,16 @@ impl<'reg> Engine<'reg> {
         };
         let decoded = encoding::decode_lossy(&bytes, encoding)?;
         if let Some(at) = decoded.invalid_at {
-            ctx.set_pending_text(encoding::name_of(encoding), at, start);
+            // a string read as ASCII that is well-formed UTF-8: say so, the schema is stricter than the file
+            let utf8_char = if matches!(encoding, Encoding::Ascii) {
+                std::str::from_utf8(&bytes)
+                    .ok()
+                    .and_then(|text| text.get(at..))
+                    .and_then(|rest| rest.chars().next())
+            } else {
+                None
+            };
+            ctx.set_pending_text(encoding::name_of(encoding), at, start, utf8_char);
         }
         Ok(Value::Str(decoded.text))
     }

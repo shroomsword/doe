@@ -1,0 +1,182 @@
+id: wav_audio
+doc: |
+  WAVE audio (RIFF): the format, the sample data and the tags, with the text of the tags read as UTF-8
+# Covers: the RIFF header, the chunks in order (each read inside its size, an odd size padded), `fmt ` (the format tag,
+#   channels, sample rate, byte rate, block align, bits per sample, and the extension of an extensible format: valid bits,
+#   channel mask and the sub-format GUID), `data` (the sample bytes), `fact` (the sample count), `LIST` with `INFO`
+#   (the tags: title, artist, comment...) and `bext` (the broadcast extension: description, originator, date, time
+#   reference). Any other chunk (`cue `, `smpl`, `id3 `, `LIST adtl`...) is its id, its size and its bytes.
+# Why not the gallery's `wav`: it reads the text of the INFO tags as ASCII, and the files that people have use UTF-8 in
+#   them (an em dash in a comment is enough), so every such file ends with an error about the text. This type reads
+#   them as UTF-8, which is a superset of ASCII: nothing that was valid ASCII changes.
+# Limits: the sample data is bytes, not decoded; RF64 / `ds64` (files over 4 GiB, which start with `RF64`) and `RIFX` (big
+#   endian) are not read; the size in the RIFF header is not checked against the file; options of the other chunks are bytes.
+# Specification: Microsoft, "Multimedia Programming Interface and Data Specifications 1.0" (RIFF, WAVE) and the
+#   WAVEFORMATEXTENSIBLE documentation; EBU Tech 3285 for `bext`.
+meta:
+  id: wav_audio
+  endian: le
+  file-extension: wav
+seq:
+  - id: riff
+    contents: "RIFF"
+  - id: size
+    type: u4
+  - id: form
+    contents: "WAVE"
+  - id: chunks
+    type: chunk
+    repeat: eos
+enums:
+  format_tag:
+    0x0001: pcm
+    0x0002: adpcm_ms
+    0x0003: ieee_float
+    0x0006: alaw
+    0x0007: mulaw
+    0x0011: adpcm_ima
+    0x0050: mpeg
+    0x0055: mpeg_layer3
+    0xfffe: extensible
+types:
+  chunk:
+    seq:
+      - id: id
+        type: str
+        size: 4
+        encoding: ASCII
+      - id: size
+        type: u4
+      - id: body
+        size: size
+        type:
+          switch-on: id
+          cases:
+            '"fmt "': format
+            '"data"': samples
+            '"fact"': fact
+            '"LIST"': list
+            '"bext"': broadcast
+            _: raw
+      - id: pad
+        size: 1
+        if: size % 2 == 1
+  raw:
+    seq:
+      - id: bytes
+        size-eos: true
+  samples:
+    seq:
+      - id: bytes
+        size-eos: true
+  format:
+    seq:
+      - id: format_tag
+        type: u2
+        enum: format_tag
+      - id: channels
+        type: u2
+      - id: samples_per_sec
+        type: u4
+      - id: bytes_per_sec
+        type: u4
+      - id: block_align
+        type: u2
+      - id: bits_per_sample
+        type: u2
+      - id: extension
+        type: extension_part
+        if: not _io.eof
+  extension_part:
+    seq:
+      - id: size
+        type: u2
+      - id: extensible
+        size: size
+        type: extensible
+        if: size >= 22
+      - id: other
+        size: size
+        if: size < 22
+  extensible:
+    seq:
+      - id: valid_bits_per_sample
+        type: u2
+      - id: channel_mask
+        type: u4
+      - id: sub_format
+        size: 16
+      - id: rest
+        size-eos: true
+  fact:
+    seq:
+      - id: sample_count
+        type: u4
+      - id: rest
+        size-eos: true
+  list:
+    seq:
+      - id: form_type
+        type: str
+        size: 4
+        encoding: ASCII
+      - id: entries
+        repeat: eos
+        type:
+          switch-on: form_type
+          cases:
+            '"INFO"': info_entry
+            _: raw_entry
+  info_entry:
+    seq:
+      - id: id
+        type: str
+        size: 4
+        encoding: ASCII
+      - id: size
+        type: u4
+      - id: text
+        size: size
+        type: text
+      - id: pad
+        size: 1
+        if: size % 2 == 1
+  text:
+    seq:
+      - id: value
+        type: strz
+        encoding: UTF-8
+      - id: rest
+        size-eos: true
+  raw_entry:
+    seq:
+      - id: bytes
+        size-eos: true
+  broadcast:
+    seq:
+      - id: description
+        type: strz
+        size: 256
+        encoding: UTF-8
+      - id: originator
+        type: strz
+        size: 32
+        encoding: UTF-8
+      - id: originator_reference
+        type: strz
+        size: 32
+        encoding: UTF-8
+      - id: origination_date
+        type: str
+        size: 10
+        encoding: ASCII
+      - id: origination_time
+        type: str
+        size: 8
+        encoding: ASCII
+      - id: time_reference
+        type: u8
+      - id: version
+        type: u2
+      - id: rest
+        size-eos: true

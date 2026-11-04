@@ -309,6 +309,23 @@ def tga_image() -> bytes:
     return body + struct.pack("<II", extension_at, developer_at) + b"TRUEVISION-XFILE.\x00"
 
 
+def wav_audio() -> bytes:
+    """PCM format, a few samples, INFO tags (one with a UTF-8 em dash and an odd length, so it is padded) and a bext chunk."""
+
+    def chunk(kind: bytes, body: bytes) -> bytes:
+        return kind + struct.pack("<I", len(body)) + body + (b"\0" if len(body) % 2 else b"")
+
+    fmt = struct.pack("<HHIIHH", 1, 1, 8000, 16000, 2, 16)
+    samples = struct.pack("<8h", 0, 1000, -1000, 2000, -2000, 3000, -3000, 0)
+    info = b"INFO" + chunk(b"INAM", b"Sample\0") + chunk(b"ICMT", "Made by doe — partial".encode() + b"\0")
+    bext = (
+        b"A test recording".ljust(256, b"\0") + b"doe".ljust(32, b"\0") + b"ref-1".ljust(32, b"\0")
+        + b"2026-11-04" + b"12:00:00" + struct.pack("<QH", 480000, 1)
+    )
+    body = b"WAVE" + chunk(b"fmt ", fmt) + chunk(b"fact", struct.pack("<I", 8)) + chunk(b"bext", bext) + chunk(b"data", samples) + chunk(b"LIST", info)
+    return b"RIFF" + struct.pack("<I", len(body)) + body
+
+
 def mar_archive() -> bytes:
     """A MAR file of the newer form: the size of the file, one signature, the product information block, two files
     and the index."""
@@ -399,3 +416,4 @@ if __name__ == "__main__":
     put("sample.zip", zip_archive())
     put("sample.tga", tga_image())
     put("sample.mar", mar_archive())
+    put("sample.wav", wav_audio())

@@ -116,6 +116,7 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `woff` | WOFF web fonts: the header and the table directory |
 | `woff2` | WOFF 2 web fonts: the header |
 | `flac` | FLAC audio: the metadata blocks (stream info, tags, padding...) and the frames as bytes |
+| `wav_audio` | WAVE audio (RIFF): the format, the sample bytes and the tags, with the text of the tags read as UTF-8 |
 | `flv` | Flash Video: the header and the tags with their sizes and times |
 | `tzfile` | time zone files (TZif): the transitions and local time types of the first data block |
 | `psd` | Photoshop documents (PSD and PSB): the header, the image resource blocks, the lengths of the other sections |
