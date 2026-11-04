@@ -116,7 +116,10 @@ export class App {
       text: (entry) => this.entryText(entry),
     });
     this.help = new Help(element<HTMLDialogElement>('help-dialog'), element('help-body'), element('help'), element('help-close'));
-    this.themes = new Themes((theme) => this.editor.setTheme(theme));
+    this.themes = new Themes((theme) => {
+      this.editor.setTheme(theme);
+      this.browser.setTheme(theme);
+    });
     this.radixes = new Radixes(() => {
       this.tree.refresh();
       this.showFieldRadix();

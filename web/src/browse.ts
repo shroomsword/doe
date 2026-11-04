@@ -4,10 +4,13 @@
 // in one list with a filter. The list is made here without the page, and
 // `TypeBrowser` shows it in a dialog.
 
+import type { HighlightStyle } from '@codemirror/language';
 import type { GalleryFormat } from './detect.js';
 import type { DetectWhy, Magic } from './doe.js';
+import { drawHighlighted, highlightStyle } from './highlight.js';
 import type { LocalType } from './local.js';
 import type { Row } from './schemas.js';
+import type { ThemeInfo } from './theme.js';
 
 export type Source = 'open' | 'library' | 'bundled' | 'gallery';
 
@@ -175,6 +178,9 @@ export class TypeBrowser {
   private readonly reader: HTMLElement;
   private readonly readerTitle: HTMLElement;
   private readonly readerText: HTMLElement;
+  /** The text in the reader, to be drawn again when the theme changes; null while it shows a note. */
+  private readerSource: string | null = null;
+  private style: HighlightStyle | null = null;
 
   constructor(
     private readonly dialog: HTMLDialogElement,
@@ -337,14 +343,29 @@ export class TypeBrowser {
 
   private async view(entry: Entry): Promise<void> {
     this.readerTitle.textContent = entry.path;
+    this.readerSource = null;
     this.readerText.textContent = 'reading…';
     this.reader.hidden = false;
     this.list.hidden = true;
     this.filter.disabled = true;
     try {
-      this.readerText.textContent = await this.handlers.text(entry);
+      this.show(await this.handlers.text(entry));
     } catch (error) {
+      this.readerSource = null;
       this.readerText.textContent = `could not read it: ${String(error)}`;
     }
+  }
+
+  /** Put the text of a schema in the reader, with the colours of the theme in use. */
+  private show(text: string): void {
+    this.readerSource = text;
+    if (this.style) drawHighlighted(this.readerText, text, this.style);
+    else this.readerText.textContent = text;
+  }
+
+  /** Draw the text in the colours of a theme, now and the next time it is shown. */
+  setTheme(theme: ThemeInfo): void {
+    this.style = highlightStyle(theme);
+    if (this.readerSource !== null) drawHighlighted(this.readerText, this.readerSource, this.style);
   }
 }
