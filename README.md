@@ -1195,6 +1195,7 @@ the editor for its pane, closes a dialog and closes a search.
 | `i` | Add imports |
 | `d` | Detect the schema of the open file |
 | `s` | Save the parsed value |
+| `F` | Switch the Parsed pane between the files of an archive and the tree of fields |
 | `Tab` | Next pane (from a pane, not from a button or a field) |
 | `Shift+Tab` | Previous pane |
 | `h` | Focus the pane on the left |
@@ -1247,6 +1248,16 @@ shown fill the places in their order, side by side in a wide window, with no hol
 kept with the order of the panes, and Reset (`R`) shows them all. `2`, `3` and `4` show a closed pane and
 focus it, a parse that fails or a detection report shows the Status pane, and `g` shows the Bytes pane, so that
 nothing is lost because a pane is closed.
+
+**Files of an archive.** A schema that says its files are file systems (the `filesystem:` key, see
+[Archives as files](#archives-as-files)) gets a **Files** view in the Parsed pane: the entries nested by path as
+directories and files, with size, mode and time (UTC), in place of the tree of fields. `F` or the **Files** button in
+the title bar of the Parsed pane (it is there only for a file system) switches between the two. Arrows move, `→` and `←`
+open and close a directory (and go to the parent), `Enter` or a double-click toggles it, and a click on a name selects the
+entry in the tree of fields and its bytes in the Bytes pane (and selecting a field or a byte inside an entry selects the
+entry here). A text file has a preview under the list, and **Save** downloads an entry's contents when the page has all
+its bytes. An entry with an empty name, an absolute path, a `..` or the path of an earlier entry has a warning sign and
+is not resolved; a directory shows more than 500 children a page at a time (`N more…`).
 
 **Columns of the Bytes pane.** `c`, or the columns button (an icon of a rectangle in three bands) in the title bar
 of the Bytes pane, opens a dialog in which the number of columns is entered: a column is one byte, so the number is the
@@ -1322,6 +1333,35 @@ stderr. `--completions` and `--man` print and exit; they cannot be combined with
 a file, a type or the options that only matter when parsing (`-I`, `-c`,
 `--json`, `--pretty`, `--no-instances`), but `--color`, `-v`, `-q`, `--log-level`
 and `--log-file` can go with them, as in `doe --completions bash --color never`.
+
+### Archives as files
+
+A schema can say that it describes a file system with a `filesystem:` key, so that the viewers (the Files view of the web
+IDE; the Files view of the terminal viewer, `F`) draw its entries as a directory tree. The key maps fields to columns;
+every value is a dotted path of field names from an entry (or from the root, for `entries`):
+
+```yaml
+filesystem:
+  entries: entries          # the list of entries, from the root of the value (required)
+  path: [prefix, name]      # one field or several, joined with / when they are not empty (required)
+  size: size_value          # bytes
+  mode: mode_value          # permission bits, and the file type bits (0o170000) when the format has them
+  mtime: mtime_value        # seconds since 1970
+  kind: type_flag           # a field that says what the entry is, read with `kinds`
+  kinds:                    # for each kind, the values of `kind` that mean it
+    directory: ["5"]
+    symlink: ["2"]
+  link: link_name           # the target of a link
+  data: contents            # the bytes of the contents (for the preview and for saving)
+  directory_slash: false    # a path ending in / is not a directory by itself (ar's names end in /)
+```
+
+An entry is a directory, symbolic link, hard link, device, fifo, socket or file by `kinds`, else by the type bits of
+`mode`, else by a `/` at the end of its path (unless `directory_slash: false`). The paths are normalised (empty and `.`
+components dropped) but never resolved: an empty name, an absolute path, a `..` and a path that an earlier entry has are
+listed with a flag, so that they show up and cannot hide the others. An entry with no name, no size and no contents (the
+block that ends a tar) is not listed. The library's `tar`, `ar` and `zip_archive` have the key. The list is in the
+`filesystem` field of the answer of the library's `parse`, and `doe::filesystem::list` makes it from a parsed value.
 
 ### Detecting the schema
 
@@ -1467,6 +1507,16 @@ forms it shows a field in: an integer in both byte orders if there are 1, 2, 4 o
 4096) as hex on the clipboard of the terminal with the OSC 52 escape sequence,
 which most terminals support, some only when it is turned on, and also says them
 in the status line. Reading the file again drops the selection.
+
+**Files of an archive.** When the schema says that the file is a file system (a `filesystem:` key, see
+[Archives as files](#archives-as-files): the library's `tar`, `ar` and `zip_archive` have it), the tree pane opens on the
+**files**: the entries nested by path as directories and files, with size, mode and time (UTC), a `▸`/`▾` for a
+directory with the number of entries inside, a warning sign for an entry that cannot be placed safely (an empty name, an absolute
+path, a `..`, a path an earlier entry has), and "N more…" after 500 children. The tree keys move in them (`↑` `↓` `j` `k`,
+`PgUp` `PgDn`, `Home`, `End`, `→` or `l` to open a directory or go into it, `←` or `h` to close it or go to the parent,
+`Enter` or `Space` to toggle), the entry that is selected is selected in the tree of fields too and its bytes in the bytes
+pane (the contents of a file are there, and in the inspector), and `F` switches to the tree of fields and back, with the
+field or entry that was selected. There is no preview or saving of an entry in the terminal.
 
 **Building a schema.** `doe --tui FILE --build OUT.yaml` starts the viewer on an
 empty schema that grows one field at a time from the hex pane, and saves it with

@@ -3,7 +3,7 @@
 // the keys do. No DOM here, except where a function takes the target of an event.
 
 /** What a key needs before it does anything: a file to look at, a parsed value, or a parse that is running. */
-export type Needs = 'file' | 'parsed' | 'running';
+export type Needs = 'file' | 'parsed' | 'running' | 'filesystem';
 
 export type Action =
   | 'help'
@@ -15,6 +15,7 @@ export type Action =
   | 'imports'
   | 'detect'
   | 'save'
+  | 'files'
   | 'next-pane'
   | 'previous-pane'
   | 'pane-left'
@@ -61,6 +62,7 @@ export const KEYS: readonly Key[] = [
   { key: 'i', action: 'imports', label: 'Add imports' },
   { key: 'd', action: 'detect', label: 'Detect the schema of the open file', needs: 'file' },
   { key: 's', action: 'save', label: 'Save the parsed value', needs: 'parsed' },
+  { key: 'F', action: 'files', label: 'Switch the Parsed pane between the files of an archive and the tree of fields', needs: 'filesystem' },
   { key: 'Tab', action: 'next-pane', label: 'Next pane (from a pane, not from a button or a field)' },
   { key: 'Shift+Tab', action: 'previous-pane', label: 'Previous pane' },
   { key: 'h', action: 'pane-left', label: 'Focus the pane on the left' },

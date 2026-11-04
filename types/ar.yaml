@@ -11,6 +11,13 @@ doc: |
 meta:
   id: ar
   encoding: ASCII
+# The members as a file system (the Files view): ar has no directories.
+filesystem:
+  entries: members
+  path: name
+  size: size_value
+  data: data
+  directory_slash: false
 seq:
   - id: magic
     contents: "!<arch>\n"

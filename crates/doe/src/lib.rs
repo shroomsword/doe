@@ -31,6 +31,7 @@ pub mod api;
 pub mod config;
 pub mod detect;
 pub mod error;
+pub mod filesystem;
 pub mod inspect;
 pub mod parser;
 pub mod radix;

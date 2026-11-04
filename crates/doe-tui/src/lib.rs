@@ -18,6 +18,7 @@ pub mod clipboard;
 pub mod config_write;
 pub mod draft;
 pub mod field_dialog;
+pub mod files_view;
 pub mod format;
 pub mod help;
 pub mod hex_view;

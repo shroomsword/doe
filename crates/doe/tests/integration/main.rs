@@ -20,6 +20,7 @@ mod elf_gallery;
 mod encoding;
 mod engine;
 mod expr;
+mod filesystem;
 mod gallery_table;
 mod gallery_update;
 mod ir;
