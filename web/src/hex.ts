@@ -4,7 +4,8 @@
 // scroll bar stands for the whole file but not row for row: a pixel of scroll
 // can be many rows.
 
-export const BYTES_PER_ROW = 16;
+/** The bytes in a row until the person sets another number. */
+export const DEFAULT_BYTES_PER_ROW = 16;
 const ROW_HEIGHT = 20; // px, as --hex-row in style.css
 const MAX_SCROLL_HEIGHT = 8_000_000; // px, below what browsers allow
 const OVERSCAN_ROWS = 4;
@@ -88,6 +89,7 @@ export class HexView {
   private bytes: ByteSource = new MemoryBytes(new Uint8Array(0));
   private selection: HexSelection | null = null;
   private pending = false;
+  private perRow = DEFAULT_BYTES_PER_ROW;
 
   constructor(
     parent: HTMLElement,
@@ -115,7 +117,7 @@ export class HexView {
   }
 
   private get totalRows(): number {
-    return Math.ceil(this.bytes.length / BYTES_PER_ROW);
+    return Math.ceil(this.bytes.length / this.perRow);
   }
 
   private get viewRows(): number {
@@ -133,6 +135,24 @@ export class HexView {
     this.spacer.style.height = `${this.scrollHeight}px`;
     this.scroller.scrollTop = 0;
     this.scroller.dataset.length = String(this.bytes.length);
+    this.render();
+  }
+
+  /** The bytes in a row. */
+  get columns(): number {
+    return this.perRow;
+  }
+
+  /** Show `columns` bytes in a row; the first byte in view stays in view, and the selection stays. */
+  setColumns(columns: number): void {
+    if (columns === this.perRow || columns < 1) return;
+    const topByte = Math.floor(this.firstRow()) * this.perRow;
+    this.perRow = columns;
+    this.spacer.style.height = `${this.scrollHeight}px`;
+    const room = this.totalRows - this.viewRows;
+    const maxScroll = this.scrollHeight - this.scroller.clientHeight;
+    this.scroller.scrollTop = room <= 0 || maxScroll <= 0 ? 0 : Math.min(1, Math.floor(topByte / columns) / room) * maxScroll;
+    this.scroller.dataset.columns = String(columns);
     this.render();
   }
 
@@ -158,7 +178,7 @@ export class HexView {
 
   /** Scroll so that the byte is in view, in the middle when it was not. */
   reveal(byte: number): void {
-    const row = Math.floor(byte / BYTES_PER_ROW);
+    const row = Math.floor(byte / this.perRow);
     const top = this.firstRow();
     if (row >= top + 1 && row < top + this.viewRows - 2) return;
     const room = this.totalRows - this.viewRows;
@@ -191,11 +211,11 @@ export class HexView {
     const first = Math.max(0, Math.floor(top) - OVERSCAN_ROWS);
     const last = Math.min(this.totalRows, Math.floor(top) + Math.ceil(this.viewRows) + OVERSCAN_ROWS + 1);
     const selection = this.selection;
-    this.bytes.want(first * BYTES_PER_ROW, last * BYTES_PER_ROW);
+    this.bytes.want(first * this.perRow, last * this.perRow);
     const parts: string[] = [];
     for (let row = first; row < last; row += 1) {
-      const from = row * BYTES_PER_ROW;
-      const to = Math.min(from + BYTES_PER_ROW, this.bytes.length);
+      const from = row * this.perRow;
+      const to = Math.min(from + this.perRow, this.bytes.length);
       let cells = '';
       let text = '';
       for (let i = from; i < to; i += 1) {

@@ -79,7 +79,7 @@ export const KEYS: readonly Key[] = [
   { key: 'g', action: 'goto', label: 'Go to an offset in the bytes', needs: 'file' },
   { key: 'a', action: 'auto', label: 'Turn automatic detection on or off' },
   { key: 'r', action: 'radix', label: 'Change how integers are shown (decimal, hexadecimal, binary, octal)' },
-  { key: 'c', action: 'columns', label: 'Set the number of columns of the Parsed pane' },
+  { key: 'c', action: 'columns', label: 'Set the number of columns of the Bytes pane' },
   { key: 'C', action: 'cancel', label: 'Cancel the parse that is running', needs: 'running' },
   { key: '1', action: 'pane-schema', label: 'Focus the Schema pane' },
   { key: '2', action: 'pane-parsed', label: 'Focus the Parsed pane (shows it if it is closed)' },
