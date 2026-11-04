@@ -8,7 +8,14 @@ import { expect, test } from '@playwright/test';
 import { type Entry, filterEntries, firstLine, galleryEntries, grouped, hasSignature, libraryEntries, openEntries } from '../src/browse.js';
 import type { GalleryFormat } from '../src/detect.js';
 import type { Row } from '../src/schemas.js';
-import { loadExample } from './fixture.js';
+import { systemTheme } from '../src/theme.js';
+import { EXAMPLE_SCHEMA, loadExample } from './fixture.js';
+
+/** `#rrggbb` as the browser writes a computed colour. */
+function rgb(hex: string): string {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+}
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const hasGallery = existsSync(join(repo, 'conformance', 'kaitai_struct_formats', 'image', 'gif.ksy'));
@@ -102,6 +109,40 @@ test('the dialog lists the open schemas, filters, reads one and parses with a ty
   await expect(dialog).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
+});
+
+test('the viewer draws a schema with the colours of the editor, keeps its text and follows the theme', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/');
+  await page.waitForFunction(() => window.doe?.ready === true);
+  await loadExample(page);
+  await expect(page.locator('#schemas li.schema')).toHaveCount(1);
+  await page.click('#browse');
+  const dialog = page.locator('#browse-dialog');
+  await dialog.locator('li button', { hasText: 'View' }).first().click();
+  const text = page.locator('#browse-reader-text');
+  await expect(text).toContainText('seq');
+  // the text is the schema, unchanged
+  expect(await text.evaluate((pre) => pre.textContent)).toBe(EXAMPLE_SCHEMA);
+  // the colours of the theme for keys and strings, as the editor has them
+  const colour = (needle: string) =>
+    text.evaluate((pre, wanted) => {
+      const span = [...pre.querySelectorAll('span')].find((s) => s.textContent === wanted);
+      return span ? getComputedStyle(span).color : null;
+    }, needle);
+  const dark = systemTheme(true).colors;
+  expect(await colour('seq')).toBe(rgb(dark.type));
+  expect(await colour('"DOE"')).toBe(rgb(dark.string));
+  // the editor draws the same key in the same colour
+  const editorKey = await page.locator('.cm-content .cm-line', { hasText: /^seq:/ }).locator('span').first().evaluate((s) => getComputedStyle(s).color);
+  expect(editorKey).toBe(rgb(dark.type));
+  // the spans are made from the text, never HTML: no element but spans
+  expect(await text.evaluate((pre) => [...pre.querySelectorAll('*')].every((e) => e.tagName === 'SPAN'))).toBe(true);
+  // a change of theme while it is open re-colours it
+  await page.emulateMedia({ colorScheme: 'light' });
+  const light = systemTheme(false).colors;
+  await expect.poll(() => colour('seq')).toBe(rgb(light.type));
+  expect(await text.evaluate((pre) => pre.textContent)).toBe(EXAMPLE_SCHEMA);
 });
 
 test("the dialog lists the types of doe's own library under their own heading, before the Kaitai Struct gallery", async ({ page }) => {

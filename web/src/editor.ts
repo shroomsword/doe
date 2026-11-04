@@ -2,13 +2,13 @@
 // underlined where they are in the text.
 
 import { yaml } from '@codemirror/lang-yaml';
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { syntaxHighlighting } from '@codemirror/language';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
 import { openSearchPanel } from '@codemirror/search';
 import { Compartment, EditorSelection, EditorState, type Extension } from '@codemirror/state';
 import { EditorView, basicSetup } from 'codemirror';
-import { tags } from '@lezer/highlight';
 import type { Diagnostic, Position } from './doe.js';
+import { highlightStyle } from './highlight.js';
 import { editorRange } from './model.js';
 import type { ThemeInfo } from './theme.js';
 
@@ -35,19 +35,7 @@ export function editorTheme(theme: ThemeInfo): Extension {
       },
       { dark: theme.variant === 'dark' },
     ),
-    syntaxHighlighting(
-      HighlightStyle.define([
-        { tag: [tags.comment, tags.lineComment], color: c.muted, fontStyle: 'italic' },
-        { tag: [tags.propertyName, tags.definition(tags.propertyName)], color: c.type },
-        { tag: [tags.string, tags.special(tags.string)], color: c.string },
-        { tag: [tags.number, tags.integer, tags.float], color: c.number },
-        { tag: [tags.bool, tags.null], color: c.boolean },
-        { tag: [tags.keyword, tags.atom], color: c.enum },
-        { tag: [tags.meta, tags.labelName, tags.typeName, tags.tagName, tags.className], color: c.accent },
-        { tag: [tags.punctuation, tags.separator, tags.operator, tags.bracket], color: c.muted },
-        { tag: tags.invalid, color: c.error },
-      ]),
-    ),
+    syntaxHighlighting(highlightStyle(theme)),
   ];
 }
 
