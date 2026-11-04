@@ -82,15 +82,90 @@ fn man(page: Page) -> anyhow::Result<()> {
     write_stdout(&manpage::render(page)?)
 }
 
+/// What a viewer opens for a FILE whose schema is looked for: the file itself, or, when it holds files (a `.tar.gz`),
+/// the layer that is wanted (the innermost by default, `--layer N`, `--no-unwrap`) written to a temporary file named as
+/// the layer would be (`x.tar`), so that the viewers, which read a file by its path, show it. The guard removes the
+/// file when it is dropped.
+#[cfg(any(feature = "tui", feature = "ide"))]
+struct Viewed {
+    /// The file to open.
+    path: PathBuf,
+    /// The type that fits it, when it was looked for.
+    type_name: Option<String>,
+    /// The directory of the temporary file, removed when the viewer is left.
+    _guard: Option<tempfile::TempDir>,
+}
+
+#[cfg(any(feature = "tui", feature = "ide"))]
+fn viewed(cli: &Cli, config: &Config, file: &Path, find_type: bool) -> anyhow::Result<Viewed> {
+    use std::io::Write as _;
+
+    let own = |type_name: Option<String>| Viewed {
+        path: file.to_owned(),
+        type_name,
+        _guard: None,
+    };
+    let layers = detect_layers(cli, config, file)?;
+    for note in &layers.notes {
+        log::info!("{note}");
+    }
+    let Some(inner) = layers.layers.last() else {
+        // nothing fits: the error says what was tried (the viewer cannot look for a type of its own)
+        return if find_type {
+            Ok(own(Some(detect_type(cli, config, file)?)))
+        } else {
+            Ok(own(None))
+        };
+    };
+    if layers.layers.len() == 1 {
+        return Ok(own(Some(inner.type_name.clone())));
+    }
+    let Some(data) = layers.data.last() else {
+        return Ok(own(Some(inner.type_name.clone())));
+    };
+    let mut name = file
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("layer")
+        .to_owned();
+    for _ in 1..layers.layers.len() {
+        name = doe::layers::payload_name(&name);
+    }
+    let dir = tempfile::Builder::new().prefix("doe-layer-").tempdir()?;
+    let path = dir
+        .path()
+        .join(if name.is_empty() { "layer" } else { &name });
+    std::fs::File::create(&path)?.write_all(data)?;
+    let _ = writeln!(
+        io::stderr(),
+        "{} is {}: showing the last layer, from a temporary file {} (--no-unwrap shows the outer layer only)",
+        file.display(),
+        layers.describe(),
+        path.display()
+    );
+    Ok(Viewed {
+        path,
+        type_name: Some(inner.type_name.clone()),
+        _guard: Some(dir),
+    })
+}
+
 #[cfg(feature = "ide")]
 fn ide(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     let include_paths = include_paths(&cli.include_paths, config);
+    // a file that holds files is offered as the layer that is wanted
+    let viewed = cli
+        .file
+        .as_deref()
+        .map(|file| viewed(cli, config, file, false))
+        .transpose()?;
+    let offered = viewed.as_ref().map(|v| v.path.as_path());
     if !crate::ide::BUNDLED {
         log::warn!(
             "this build of doe has no web IDE in it (it was built without web/dist): the page will say so"
         );
     }
-    let local = crate::ide_api::Local::new(&include_paths, cli.file.as_deref())?;
+    let local = crate::ide_api::Local::new(&include_paths, offered)?;
     let requested = cli.port.unwrap_or(crate::cli::DEFAULT_IDE_PORT);
     let (listener, port) = crate::ide::bind(requested)
         .with_context(|| format!("could not listen on 127.0.0.1:{requested}"))?;
@@ -157,12 +232,21 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     let Some(file) = &cli.file else {
         anyhow::bail!("a FILE is required");
     };
+    let mut viewed_file = None;
     let type_or_schema = match (&cli.type_or_schema, &cli.build) {
         (Some(given), _) => given.clone(),
         // the schema is the one that is being built
         (None, Some(_)) => String::new(),
-        (None, None) => detect_type(cli, config, file)?,
+        (None, None) => {
+            let found = viewed(cli, config, file, true)?;
+            let type_name = found.type_name.clone().unwrap_or_default();
+            viewed_file = Some(found);
+            type_name
+        }
     };
+    let file: &Path = viewed_file
+        .as_ref()
+        .map_or(file.as_path(), |v| v.path.as_path());
     // `--color never`, and `NO_COLOR` unless `--color always`, mean no colour.
     let color = match cli.color {
         clap::ColorChoice::Always => true,
@@ -170,7 +254,7 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         clap::ColorChoice::Auto => std::env::var_os("NO_COLOR").is_none_or(|v| v.is_empty()),
     };
     let options = doe_tui::Options {
-        file: file.clone(),
+        file: file.to_owned(),
         type_or_schema,
         include_paths: include_paths(&cli.include_paths, config),
         color,
@@ -582,5 +666,66 @@ mod transparent_tests {
     fn the_flags_need_the_viewer() {
         assert!(Cli::try_parse_from(["doe", "--transparent", "file.bin"]).is_err());
         assert!(Cli::try_parse_from(["doe", "--no-transparent", "file.bin"]).is_err());
+    }
+}
+
+#[cfg(test)]
+#[cfg(any(feature = "tui", feature = "ide"))]
+mod viewed_tests {
+    use clap::Parser;
+
+    use super::viewed;
+    use crate::cli::Cli;
+    use doe::config::Config;
+
+    fn types() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../types")
+    }
+
+    fn cli(file: &std::path::Path, extra: &[&str]) -> Cli {
+        let types = types();
+        let mut all = vec![
+            "doe",
+            "-c",
+            "/nonexistent/doe-config.yaml",
+            "-I",
+            types.to_str().unwrap(),
+        ];
+        all.extend_from_slice(extra);
+        all.push(file.to_str().unwrap());
+        Cli::try_parse_from(all).unwrap()
+    }
+
+    #[test]
+    fn a_viewer_opens_the_innermost_layer_from_a_temporary_file_that_goes_away() {
+        let file = types().join("samples/sample.tar.gz");
+        let found = viewed(&cli(&file, &[]), &Config::default(), &file, true).unwrap();
+        assert_eq!(found.type_name.as_deref(), Some("tar"));
+        assert_eq!(found.path.file_name().unwrap(), "sample.tar");
+        assert_eq!(
+            std::fs::read(&found.path).unwrap(),
+            std::fs::read(types().join("samples/sample.tar")).unwrap()
+        );
+        let dir = found.path.parent().unwrap().to_owned();
+        drop(found);
+        assert!(!dir.exists(), "the temporary file is removed");
+    }
+
+    #[test]
+    fn the_outer_layer_is_opened_as_the_file_itself_with_no_unwrap_or_for_one_layer() {
+        let file = types().join("samples/sample.tar.gz");
+        let found = viewed(
+            &cli(&file, &["--no-unwrap"]),
+            &Config::default(),
+            &file,
+            true,
+        )
+        .unwrap();
+        assert_eq!(found.path, file);
+        assert_eq!(found.type_name.as_deref(), Some("gzip_file"));
+        let plain = types().join("samples/sample.txt.gz");
+        let found = viewed(&cli(&plain, &[]), &Config::default(), &plain, true).unwrap();
+        assert_eq!(found.path, plain);
+        assert_eq!(found.type_name.as_deref(), Some("gzip_file"));
     }
 }

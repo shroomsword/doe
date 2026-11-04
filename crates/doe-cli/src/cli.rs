@@ -45,7 +45,8 @@ pub(crate) struct Cli {
 
     /// Show the outermost layer only: a `.tar.gz` is shown as the gzip file it is, not as the tar it holds.
     /// Without it, when the schema is looked for and the file holds another file (its schema says so with
-    /// `payload:`), that is decoded in memory and its schema found, to a depth of 4.
+    /// `payload:`), that is decoded in memory and its schema found, to a depth of 4; `--tui` and `--ide` open
+    /// the innermost layer from a temporary file that is removed when they are left.
     #[arg(long, conflicts_with_all = ["type_or_schema", "layer"])]
     pub(crate) no_unwrap: bool,
 

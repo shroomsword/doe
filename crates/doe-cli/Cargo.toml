@@ -27,6 +27,7 @@ tui = ["dep:doe-tui"]
 bundled-types = []
 
 [dependencies]
+tempfile.workspace = true
 doe = { version = "0.6.0", path = "../doe" }
 doe-tui = { version = "0.6.0", path = "../doe-tui", optional = true }
 anyhow = { workspace = true, features = ["std"] }
