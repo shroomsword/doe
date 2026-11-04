@@ -549,6 +549,258 @@ fn decode_real(type_name: &str, sample: &str) -> Json {
     serde_json::from_str(&text).unwrap()
 }
 
+/// The first box of a type among `boxes` (the `items` of a container, or the `boxes` of a file).
+fn mp4_box<'a>(boxes: &'a Json, kind: &str) -> &'a Json {
+    boxes
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|b| b["type"] == kind)
+        .unwrap_or_else(|| panic!("no {kind} box in {boxes}"))
+}
+
+#[test]
+fn mp4_has_the_movie_the_tracks_the_sample_tables_and_the_tags() {
+    let v = decode("mp4", "sample.mp4");
+    assert_eq!(v["ftyp"]["body"]["major_brand"], "isom");
+    assert_eq!(v["ftyp"]["body"]["minor_version"], 512);
+    assert_eq!(
+        v["ftyp"]["body"]["compatible_brands"],
+        serde_json::json!(["isom", "iso2", "avc1", "mp41"])
+    );
+    let kinds: Vec<&str> = v["boxes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| b["type"].as_str().unwrap())
+        .collect();
+    assert_eq!(kinds, ["moov", "free", "wide", "uuid", "zzzz", "mdat"]);
+    let moov = &mp4_box(&v["boxes"], "moov")["body"]["items"];
+    let movie = &mp4_box(moov, "mvhd")["body"];
+    assert_eq!(
+        (movie["timescale"].as_u64(), movie["duration"].as_u64()),
+        (Some(1000), Some(5000))
+    );
+    assert_eq!(movie["duration_seconds"], 5.0);
+    assert_eq!(movie["next_track_id"], 3);
+    let tracks: Vec<&Json> = moov
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|b| b["type"] == "trak")
+        .collect();
+    assert_eq!(tracks.len(), 2);
+    // the video track
+    let video = &tracks[0]["body"]["items"];
+    let tkhd = &mp4_box(video, "tkhd")["body"];
+    assert_eq!(
+        (
+            tkhd["track_id"].as_u64(),
+            tkhd["width"].as_f64(),
+            tkhd["height"].as_f64()
+        ),
+        (Some(1), Some(320.0), Some(240.0))
+    );
+    assert_eq!(
+        (tkhd["enabled"].as_bool(), tkhd["in_movie"].as_bool()),
+        (Some(true), Some(true))
+    );
+    let elst = &mp4_box(&mp4_box(video, "edts")["body"]["items"], "elst")["body"];
+    assert_eq!(elst["entries"][0]["segment_duration_v0"], 5000);
+    let mdia = &mp4_box(video, "mdia")["body"]["items"];
+    assert_eq!(mp4_box(mdia, "mdhd")["body"]["duration_seconds"], 5.0);
+    let hdlr = &mp4_box(mdia, "hdlr")["body"];
+    assert_eq!(
+        (hdlr["handler_type"].as_str(), hdlr["name"].as_str()),
+        (Some("vide"), Some("VideoHandler"))
+    );
+    let stbl = &mp4_box(&mp4_box(mdia, "minf")["body"]["items"], "stbl")["body"]["items"];
+    let entry = &mp4_box(stbl, "stsd")["body"]["entries"][0];
+    assert_eq!(entry["format"], "avc1");
+    assert_eq!(
+        (
+            entry["body"]["width"].as_u64(),
+            entry["body"]["height"].as_u64(),
+            entry["body"]["depth"].as_u64()
+        ),
+        (Some(320), Some(240), Some(24))
+    );
+    assert_eq!(entry["body"]["boxes"][0]["type"], "avcC");
+    assert_eq!(
+        mp4_box(stbl, "stts")["body"]["entries"][0]["sample_count"],
+        5
+    );
+    assert_eq!(
+        mp4_box(stbl, "stss")["body"]["sample_numbers"],
+        serde_json::json!([1])
+    );
+    assert_eq!(mp4_box(stbl, "stsz")["body"]["sample_count"], 5);
+    assert_eq!(
+        mp4_box(stbl, "stsz")["body"]["entry_sizes"],
+        serde_json::json!([10, 4, 4, 4, 4])
+    );
+    assert_eq!(
+        mp4_box(stbl, "stsc")["body"]["entries"][0]["samples_per_chunk"],
+        5
+    );
+    // the chunk offset points at the media data, which starts after the 8 bytes of the header of mdat
+    let offset = mp4_box(stbl, "stco")["body"]["chunk_offsets"][0]
+        .as_u64()
+        .unwrap();
+    let mdat = mp4_box(&v["boxes"], "mdat");
+    assert_eq!(mdat["size32"], 66);
+    let data = std::fs::read(types().join("samples/sample.mp4")).unwrap();
+    let at = usize::try_from(offset).unwrap();
+    assert_eq!(&data[at..at + 4], [0, 1, 2, 3]);
+    // the audio track
+    let audio = &tracks[1]["body"]["items"];
+    let mdia = &mp4_box(audio, "mdia")["body"]["items"];
+    assert_eq!(mp4_box(mdia, "hdlr")["body"]["handler_type"], "soun");
+    assert_eq!(mp4_box(mdia, "mdhd")["body"]["timescale"], 44100);
+    let stbl = &mp4_box(&mp4_box(mdia, "minf")["body"]["items"], "stbl")["body"]["items"];
+    let entry = &mp4_box(stbl, "stsd")["body"]["entries"][0];
+    assert_eq!(entry["format"], "mp4a");
+    assert_eq!(
+        (
+            entry["body"]["channel_count"].as_u64(),
+            entry["body"]["sample_size"].as_u64(),
+            entry["body"]["sample_rate"].as_f64()
+        ),
+        (Some(2), Some(16), Some(44100.0))
+    );
+    assert_eq!(entry["body"]["boxes"][0]["type"], "esds");
+    // the tag in udta > meta > ilst > (c)nam > data
+    let meta = &mp4_box(&mp4_box(moov, "udta")["body"]["items"], "meta")["body"]["boxes"];
+    let ilst = &mp4_box(meta, "ilst")["body"]["items"];
+    let name = &mp4_box(ilst, "\u{a9}nam")["body"]["items"];
+    assert_eq!(mp4_box(name, "data")["body"]["value"]["len"], 6);
+    // the odd boxes are read and skipped: a 64-bit size, a uuid, one nobody knows
+    let wide = mp4_box(&v["boxes"], "wide");
+    assert_eq!(
+        (
+            wide["size32"].as_u64(),
+            wide["largesize"].as_u64(),
+            wide["body_len"].as_u64()
+        ),
+        (Some(1), Some(20), Some(4))
+    );
+    let uuid = mp4_box(&v["boxes"], "uuid");
+    assert_eq!(uuid["usertype"]["len"], 16);
+    assert_eq!(uuid["body_len"], 7);
+    assert_eq!(mp4_box(&v["boxes"], "zzzz")["body"]["bytes"]["len"], 7);
+}
+
+#[test]
+fn mp4_reads_the_fragments_of_a_fragmented_file() {
+    let v = decode("mp4", "sample_fragmented.mp4");
+    let kinds: Vec<&str> = v["boxes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| b["type"].as_str().unwrap())
+        .collect();
+    assert_eq!(kinds, ["moov", "moof", "mdat", "mfra"]);
+    let header = &mp4_box(&v["boxes"], "moov")["body"]["items"];
+    let mvex = &mp4_box(header, "mvex")["body"]["items"];
+    assert_eq!(mp4_box(mvex, "mehd")["body"]["fragment_duration_v0"], 4000);
+    assert_eq!(
+        mp4_box(mvex, "trex")["body"]["default_sample_duration"],
+        1000
+    );
+    let moof = &mp4_box(&v["boxes"], "moof")["body"]["items"];
+    assert_eq!(mp4_box(moof, "mfhd")["body"]["sequence_number"], 7);
+    let traf = &mp4_box(moof, "traf")["body"]["items"];
+    let tfhd = &mp4_box(traf, "tfhd")["body"];
+    assert_eq!(
+        (
+            tfhd["track_id"].as_u64(),
+            tfhd["default_sample_duration"].as_u64()
+        ),
+        (Some(1), Some(1000))
+    );
+    assert_eq!(tfhd["default_base_is_moof"], true);
+    assert_eq!(
+        mp4_box(traf, "tfdt")["body"]["base_media_decode_time_v1"],
+        90000
+    );
+    let trun = &mp4_box(traf, "trun")["body"];
+    assert_eq!(trun["sample_count"], 3);
+    let sizes: Vec<u64> = trun["samples"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["size"].as_u64().unwrap())
+        .collect();
+    assert_eq!(sizes, [4, 5, 6]);
+    assert_eq!(
+        mp4_box(&v["boxes"], "mfra")["body"]["items"][0]["type"],
+        "mfro"
+    );
+}
+
+/// Files written by `ffmpeg` are `QuickTime` `.mov` (the gallery's `quicktime_mov` reads them too): the boxes are the same.
+#[test]
+fn mp4_reads_the_quicktime_files_that_ffmpeg_writes() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../conformance/samples/gallery/media/quicktime_mov/ffmpeg_mjpeg.bin");
+    if !path.exists() {
+        return;
+    }
+    let text = parse_file(
+        &path,
+        "mp4",
+        &[types()],
+        Some(Path::new("/nonexistent/config.toml")),
+        OutputFormat::Json,
+    )
+    .unwrap();
+    let v: Json = serde_json::from_str(&text).unwrap();
+    assert_eq!(v["ftyp"]["body"]["major_brand"], "qt  ");
+    let moov = &mp4_box(&v["boxes"], "moov")["body"]["items"];
+    let trak = mp4_box(moov, "trak");
+    let mdia = &mp4_box(&trak["body"]["items"], "mdia")["body"]["items"];
+    assert_eq!(mp4_box(mdia, "hdlr")["body"]["handler_type"], "vide");
+}
+
+#[test]
+fn mp4_is_found_by_ftyp_at_offset_four_and_a_truncated_file_reads_as_far_as_it_goes() {
+    // detection: the signature is the type `ftyp` after the size of the first box
+    let found = doe::detect::detect_file(
+        &types().join("samples/sample.mp4"),
+        &[types()],
+        &doe::detect::Options::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        found.chosen().map(|a| a.name.as_str()),
+        Some("mp4"),
+        "{}",
+        found.report()
+    );
+    // a file cut inside the movie: the boxes before the cut are read
+    let data = std::fs::read(types().join("samples/sample.mp4")).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let cut = dir.path().join("cut.mp4");
+    std::fs::write(&cut, &data[..32 + 8 + 108 + 8 + 92]).unwrap();
+    let text = parse_file(
+        &cut,
+        "mp4",
+        &[types()],
+        Some(Path::new("/nonexistent/config.toml")),
+        OutputFormat::Json,
+    )
+    .unwrap();
+    let v: Json = serde_json::from_str(&text).unwrap();
+    let moov = mp4_box(&v["boxes"], "moov");
+    assert_eq!(moov["size32"], 1143);
+    assert_eq!(moov["body_len"], 108 + 8 + 92);
+    let items = moov["body"]["items"].as_array().unwrap();
+    assert_eq!(items[0]["type"], "mvhd");
+    // the track that is cut is read as far as it goes: its header box
+    assert_eq!(items[1]["type"], "trak");
+    assert_eq!(items[1]["body"]["items"][0]["type"], "tkhd");
+}
+
 #[test]
 fn wav_audio_reads_the_format_the_samples_and_the_tags_as_utf8() {
     let v = decode("wav_audio", "sample.wav");

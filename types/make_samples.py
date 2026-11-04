@@ -326,6 +326,127 @@ def wav_audio() -> bytes:
     return b"RIFF" + struct.pack("<I", len(body)) + body
 
 
+def mp4_box(kind: bytes, body: bytes = b"") -> bytes:
+    return struct.pack(">I", 8 + len(body)) + kind + body
+
+
+def mp4_full(kind: bytes, body: bytes, version: int = 0, flags: int = 0) -> bytes:
+    return mp4_box(kind, bytes([version]) + flags.to_bytes(3, "big") + body)
+
+
+def mp4() -> bytes:
+    """A video track (avc1) and an audio track (mp4a) with their sample tables, a tag, a free box and the media data;
+    a box with a 64-bit size, a uuid box and an unknown box are in it too."""
+    matrix = struct.pack(">9I", 0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000)
+    mvhd = mp4_full(b"mvhd", struct.pack(">IIII", 0, 0, 1000, 5000) + struct.pack(">IH", 0x10000, 0x100) + bytes(10) + matrix + bytes(24) + struct.pack(">I", 3))
+
+    def tkhd(track: int, duration: int, width: int, height: int, volume: int) -> bytes:
+        return mp4_full(
+            b"tkhd",
+            struct.pack(">IIIII", 0, 0, track, 0, duration) + bytes(8) + struct.pack(">HHHH", 0, 0, volume, 0) + matrix + struct.pack(">II", width << 16, height << 16),
+            0,
+            3,
+        )
+
+    def mdhd(timescale: int, duration: int) -> bytes:
+        return mp4_full(b"mdhd", struct.pack(">IIIIHH", 0, 0, timescale, duration, 0x55C4, 0))  # "und"
+
+    def hdlr(kind: bytes, name: bytes) -> bytes:
+        return mp4_full(b"hdlr", struct.pack(">I", 0) + kind + bytes(12) + name + b"\0")
+
+    def stbl(entry: bytes, count: int, delta: int, sizes: list[int], offsets: list[int], sync: list[int] | None) -> bytes:
+        out = mp4_full(b"stsd", struct.pack(">I", 1) + entry)
+        out += mp4_full(b"stts", struct.pack(">III", 1, count, delta))
+        if sync is not None:
+            out += mp4_full(b"stss", struct.pack(">I", len(sync)) + b"".join(struct.pack(">I", n) for n in sync))
+        out += mp4_full(b"stsc", struct.pack(">IIII", 1, 1, count, 1))
+        out += mp4_full(b"stsz", struct.pack(">II", 0, len(sizes)) + b"".join(struct.pack(">I", n) for n in sizes))
+        out += mp4_full(b"stco", struct.pack(">I", len(offsets)) + b"".join(struct.pack(">I", n) for n in offsets))
+        return mp4_box(b"stbl", out)
+
+    avcc = mp4_box(b"avcC", bytes([1, 0x64, 0, 0x1F, 0xFF, 0xE0, 0]))
+    video_entry = mp4_box(
+        b"avc1",
+        bytes(6) + struct.pack(">H", 1) + bytes(16) + struct.pack(">HH", 320, 240) + struct.pack(">II", 0x480000, 0x480000) + bytes(4)
+        + struct.pack(">H", 1) + b"doe".ljust(32, b"\0") + struct.pack(">Hh", 24, -1) + avcc,
+    )
+    esds = mp4_full(b"esds", bytes([3, 3, 0, 0, 0]))
+    audio_entry = mp4_box(
+        b"mp4a", bytes(6) + struct.pack(">H", 1) + bytes(8) + struct.pack(">HHHH", 2, 16, 0, 0) + struct.pack(">I", 44100 << 16) + esds
+    )
+    # the media data comes after the movie: the chunk offsets are filled in once the size of the movie is known
+    def movie(video_at: int, audio_at: int) -> bytes:
+        video = mp4_box(
+            b"trak",
+            tkhd(1, 5000, 320, 240, 0)
+            + mp4_box(b"edts", mp4_full(b"elst", struct.pack(">I", 1) + struct.pack(">IiI", 5000, 0, 0x10000)))
+            + mp4_box(
+                b"mdia",
+                mdhd(25, 125)
+                + hdlr(b"vide", b"VideoHandler")
+                + mp4_box(
+                    b"minf",
+                    mp4_full(b"vmhd", bytes(8), 0, 1)
+                    + mp4_box(b"dinf", mp4_full(b"dref", struct.pack(">I", 1) + mp4_full(b"url ", b"", 0, 1)))
+                    + stbl(video_entry, 5, 5, [10, 4, 4, 4, 4], [video_at], [1]),
+                ),
+            ),
+        )
+        audio = mp4_box(
+            b"trak",
+            tkhd(2, 5000, 0, 0, 0x100)
+            + mp4_box(
+                b"mdia",
+                mdhd(44100, 220500)
+                + hdlr(b"soun", b"SoundHandler")
+                + mp4_box(b"minf", mp4_full(b"smhd", bytes(4)) + stbl(audio_entry, 4, 1024, [8, 8, 8, 8], [audio_at], None)),
+            ),
+        )
+        tags = mp4_box(
+            b"udta",
+            mp4_full(
+                b"meta",
+                mp4_full(b"hdlr", struct.pack(">I", 0) + b"mdir" + bytes(12) + b"\0")
+                + mp4_box(b"ilst", mp4_box(b"\xa9nam", mp4_box(b"data", struct.pack(">II", 1, 0) + b"Sample"))),
+            ),
+        )
+        return mp4_box(b"moov", mvhd + video + audio + tags)
+
+    ftyp = mp4_box(b"ftyp", b"isom" + struct.pack(">I", 512) + b"isomiso2avc1mp41")
+    extras = (
+        mp4_box(b"free", bytes(6))
+        + struct.pack(">I", 1) + b"wide" + struct.pack(">Q", 20) + bytes(4)  # a box with a 64-bit size
+        + mp4_box(b"uuid", bytes(range(16)) + b"payload")
+        + mp4_box(b"zzzz", b"unknown")
+    )
+    size = len(ftyp) + len(movie(0, 0)) + len(extras)
+    video_at = size + 8
+    mdat = mp4_box(b"mdat", bytes(range(26)) + bytes(32))
+    return ftyp + movie(video_at, video_at + 26) + extras + mdat
+
+
+def mp4_fragmented() -> bytes:
+    """A movie with no samples and one fragment: `mvex`, then `moof` with a track fragment and `mdat`, and a `mfra`."""
+    mvhd = mp4_full(b"mvhd", struct.pack(">IIII", 0, 0, 1000, 0) + struct.pack(">IH", 0x10000, 0x100) + bytes(10) + struct.pack(">9I", 0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000) + bytes(24) + struct.pack(">I", 2))
+    mvex = mp4_box(b"mvex", mp4_full(b"mehd", struct.pack(">I", 4000)) + mp4_full(b"trex", struct.pack(">IIIII", 1, 1, 1000, 0, 0)))
+    moov = mp4_box(b"moov", mvhd + mvex)
+    tfhd = mp4_full(b"tfhd", struct.pack(">I", 1), 0, 0x020000 | 0x08)  # default base is the moof, default duration present
+    tfhd = mp4_full(b"tfhd", struct.pack(">II", 1, 1000), 0, 0x020000 | 0x08)
+    tfdt = mp4_full(b"tfdt", struct.pack(">Q", 90000), 1)
+    # data offset present, sample duration and size present: 3 samples
+    trun_body = struct.pack(">Ii", 3, 0) + b"".join(struct.pack(">II", 1000, size) for size in (4, 5, 6))
+    trun = mp4_full(b"trun", trun_body, 0, 0x001 | 0x100 | 0x200)
+    traf_len = 8 + len(tfhd) + len(tfdt) + len(trun)
+    moof_len = 8 + len(mp4_full(b"mfhd", struct.pack(">I", 7))) + traf_len
+    # the data starts after the moof and the 8 bytes of the header of mdat
+    trun = mp4_full(b"trun", struct.pack(">Ii", 3, moof_len + 8) + b"".join(struct.pack(">II", 1000, size) for size in (4, 5, 6)), 0, 0x001 | 0x100 | 0x200)
+    moof = mp4_box(b"moof", mp4_full(b"mfhd", struct.pack(">I", 7)) + mp4_box(b"traf", tfhd + tfdt + trun))
+    mdat = mp4_box(b"mdat", bytes(15))
+    mfra = mp4_box(b"mfra", mp4_full(b"mfro", struct.pack(">I", 16)))
+    ftyp = mp4_box(b"ftyp", b"iso5" + struct.pack(">I", 1) + b"iso5iso6dash")
+    return ftyp + moov + moof + mdat + mfra
+
+
 def mar_archive() -> bytes:
     """A MAR file of the newer form: the size of the file, one signature, the product information block, two files
     and the index."""
@@ -417,3 +538,5 @@ if __name__ == "__main__":
     put("sample.tga", tga_image())
     put("sample.mar", mar_archive())
     put("sample.wav", wav_audio())
+    put("sample.mp4", mp4())
+    put("sample_fragmented.mp4", mp4_fragmented())
