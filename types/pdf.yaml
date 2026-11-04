@@ -1,0 +1,342 @@
+id: pdf
+doc: |
+  PDF document (ISO 32000): the header, the end of the file, the cross-reference table and trailer, and the objects it points to as tokens
+# Covers: the header (`%PDF-x.y`); the end of the file, read from the last 1024 bytes as lines, with the `startxref`
+#   offset and `%%EOF`; the classic cross-reference table at that offset (its subsections and entries: offset, generation,
+#   in use or free) and the `trailer` dictionary; every object that an entry in use points to, found through its offset, as
+#   tokens (numbers, names, strings, hexadecimal strings, arrays, nested dictionaries, keywords); a reference
+#   (`12 0 R`) is the three tokens `12`, `0` and `R`, and the object it names is the entry of the table with that number.
+# Limits: what the schema language cannot do is named here, because a PDF is the file most people want to look inside.
+#   * No search: the language reads at known positions, so the end of the file is read as lines from the last 1024 bytes
+#     (a file with more than 1024 bytes after `startxref`, or lines ended by a lone CR, is not found there).
+#   * No look-up of a key in a dictionary, and no sorting: `/Length` of a stream, `/Root`, `/Prev` and the typed views of
+#     the catalog, the page tree, a page, fonts and the document info (`/Type`, `/Pages`, `/Kids`, `/Title`...) cannot be
+#     computed; the dictionaries are shown as their tokens, in order. So the data of a stream is not read: an object that
+#     has a stream is shown up to the `stream` keyword (its `closing` token is `stream`, not `endobj`).
+#   * Without the length of a stream there is nothing to decompress (the process list has `zlib` for `FlateDecode`), and a
+#     cross-reference stream (PDF 1.5) and object streams are not read: the type says so.
+#   * Only the objects numbered 1 to 300 are read (each character of a token is a node of the tree, so a file with
+#     thousands of objects would take minutes); the entries after that have their offsets, which the Bytes pane can go to.
+#   * An incrementally updated file is read at its last cross-reference section only (the `/Prev` chain is not followed).
+#   * A literal string ends at the first `)`, so a string that has an escaped or a nested parenthesis ends early; an
+#     empty name (`/` alone) is read as the character after it.
+#   * Not read at all: content streams, fonts, images, encrypted contents (the structure is shown, the strings are bytes), a
+#     file with no usable `startxref` (viewers rebuild it by scanning for `N G obj`; a schema cannot).
+# Specification: ISO 32000-1 and -2; the PDF Reference 1.7 is the freely available text.
+meta:
+  id: pdf
+  endian: be
+  file-extension: pdf
+seq:
+  - id: header
+    type: header
+instances:
+  tail:
+    pos: '_io.size > 1024 ? _io.size - 1024 : 0'
+    type: tail
+    size: '_io.size > 1024 ? 1024 : _io.size'
+  # the offset after the startxref line; absent when the end of the file has no such lines (a damaged file)
+  startxref:
+    value: tail.startxref
+    if: tail.has_startxref
+  # the cross-reference table at the offset that startxref gives
+  xref:
+    pos: startxref
+    type: xref_section
+    if: tail.has_startxref and tail.startxref < _io.size
+types:
+  header:
+    seq:
+      - id: magic
+        contents: "%PDF-"
+      - id: version
+        type: str
+        terminator: 10
+        encoding: ISO-8859-1
+  tail:
+    seq:
+      - id: lines
+        type: line
+        repeat: eos
+    instances:
+      count:
+        value: lines.size
+      # the last line is `%%EOF`, with or without a line end after it
+      eof_line:
+        value: 'count > 0 and lines[count - 1].is_eof ? count - 1 : count - 2'
+      startxref_line:
+        value: eof_line - 1
+      # the lines are `startxref`, a number and `%%EOF`
+      has_startxref:
+        value: 'count >= 3 and eof_line >= 2 and lines[eof_line - 2].text.length >= 9 and lines[eof_line - 2].text.substring(0, 9) == "startxref"'
+      startxref_text:
+        value: 'lines[startxref_line].text'
+        if: has_startxref
+      # a line ended by CR LF keeps the CR
+      startxref:
+        if: has_startxref
+        value: 'startxref_text.substring(startxref_text.length - 1, startxref_text.length) == "\r" ? startxref_text.substring(0, startxref_text.length - 1).to_i : startxref_text.to_i'
+  line:
+    seq:
+      - id: text
+        type: str
+        terminator: 10
+        encoding: ISO-8859-1
+        eos-error: false
+    instances:
+      is_eof:
+        value: 'text.length >= 5 and text.substring(0, 5) == "%%EOF"'
+  # ── the cross-reference table and the trailer ──────────────────────────────
+  xref_section:
+    seq:
+      - id: keyword
+        type: str
+        size: 4
+        encoding: ISO-8859-1
+      # a cross-reference stream (PDF 1.5) starts with an object, not with xref: it is compressed and its length is the
+      # value of a key of its dictionary, which the language cannot look up, so it is not read
+      - id: cross_reference_stream_not_read
+        size: 0
+        if: keyword != "xref"
+      - id: subsections
+        type: subsection
+        repeat: until
+        repeat-until: _.is_last
+        if: keyword == "xref"
+      - id: trailer_keyword
+        type: token
+        if: keyword == "xref"
+      - id: trailer
+        type: token
+        if: keyword == "xref"
+  subsection:
+    seq:
+      - id: first
+        type: uint
+      - id: count
+        type: uint
+      - id: entries_start
+        type: ws_run
+      - id: entries
+        type: xref_entry(first.value + _index)
+        repeat: expr
+        repeat-expr: count.value
+    instances:
+      next_byte:
+        pos: _io.pos
+        type: u1
+      # the `trailer` keyword follows the last subsection
+      is_last:
+        value: next_byte == 0x74
+  xref_entry:
+    params:
+      - id: number
+        type: u4
+    seq:
+      - id: offset_text
+        type: str
+        size: 10
+        encoding: ASCII
+      - id: space1
+        size: 1
+      - id: generation_text
+        type: str
+        size: 5
+        encoding: ASCII
+      - id: space2
+        size: 1
+      - id: kind
+        type: str
+        size: 1
+        encoding: ASCII
+      - id: end_of_line
+        size: 2
+    instances:
+      offset:
+        value: offset_text.to_i
+      generation:
+        value: generation_text.to_i
+      in_use:
+        value: kind == "n"
+      # the object, found through its offset; it is read up to a stream, whose data is not read. Only the first 300
+      # objects are read: every character of a token is a node, and a big file would take minutes and gigabytes
+      object:
+        pos: offset
+        type: indirect_object
+        if: kind == "n" and offset > 0 and number <= 300
+  indirect_object:
+    seq:
+      - id: number
+        type: token
+      - id: generation
+        type: token
+      - id: obj_keyword
+        type: token
+      - id: value
+        type: token
+      # `endobj`, or `stream` when the object has a stream: its data is not read
+      - id: closing
+        type: token
+  # ── tokens ─────────────────────────────────────────────────────────────────
+  ws_run:
+    seq:
+      - id: bytes
+        type: ws_byte
+        repeat: until
+        repeat-until: _.last
+  ws_byte:
+    seq:
+      - id: byte
+        type: u1
+    instances:
+      next_byte:
+        pos: _io.pos
+        type: u1
+      last:
+        value: not (next_byte == 0 or next_byte == 9 or next_byte == 10 or next_byte == 12 or next_byte == 13 or next_byte == 32)
+  # a token with the white space before it
+  token:
+    seq:
+      - id: space
+        type: ws_run
+        if: is_space
+      - id: value
+        type:
+          switch-on: first_byte
+          cases:
+            0x3c: angle
+            0x3e: dict_close
+            0x5b: array
+            0x5d: array_close
+            0x28: literal_string
+            0x2f: name
+            0x25: comment
+            _: word
+    instances:
+      start_byte:
+        pos: _io.pos
+        type: u1
+      is_space:
+        value: (start_byte == 0 or start_byte == 9 or start_byte == 10 or start_byte == 12 or start_byte == 13 or start_byte == 32)
+      first_byte:
+        pos: _io.pos
+        type: u1
+      closes_dictionary:
+        value: first_byte == 0x3e
+      closes_array:
+        value: first_byte == 0x5d
+  # `<<` starts a dictionary, `<` a hexadecimal string
+  angle:
+    seq:
+      - id: open
+        contents: "<"
+      - id: second
+        type: u1
+        if: next_byte == 0x3c
+      - id: dictionary
+        type: token
+        repeat: until
+        repeat-until: _.closes_dictionary
+        if: next_byte == 0x3c
+      - id: hex
+        type: str
+        terminator: 62
+        encoding: ISO-8859-1
+        if: next_byte != 0x3c
+    instances:
+      next_byte:
+        pos: _io.pos
+        type: u1
+  dict_close:
+    seq:
+      - id: close
+        contents: ">>"
+  array:
+    seq:
+      - id: open
+        contents: "["
+      - id: items
+        type: token
+        repeat: until
+        repeat-until: _.closes_array
+  array_close:
+    seq:
+      - id: close
+        contents: "]"
+  literal_string:
+    seq:
+      - id: open
+        contents: "("
+      - id: text
+        type: str
+        terminator: 41
+        encoding: ISO-8859-1
+  comment:
+    seq:
+      - id: percent
+        contents: "%"
+      - id: text
+        type: str
+        terminator: 10
+        encoding: ISO-8859-1
+        eos-error: false
+  name:
+    seq:
+      - id: slash
+        contents: "/"
+      - id: chars
+        type: regular_byte
+        repeat: until
+        repeat-until: _.last
+    instances:
+      text:
+        pos: _io.pos - chars.size
+        size: chars.size
+        type: str
+        encoding: ISO-8859-1
+  # numbers, keywords (`obj`, `R`, `true`, `null`...): the characters up to a delimiter or white space
+  word:
+    seq:
+      - id: chars
+        type: regular_byte
+        repeat: until
+        repeat-until: _.last
+    instances:
+      text:
+        pos: _io.pos - chars.size
+        size: chars.size
+        type: str
+        encoding: ISO-8859-1
+  uint:
+    seq:
+      - id: space
+        type: ws_run
+        if: is_space
+      - id: digits
+        type: regular_byte
+        repeat: until
+        repeat-until: _.last
+    instances:
+      start_byte:
+        pos: _io.pos
+        type: u1
+      is_space:
+        value: (start_byte == 0 or start_byte == 9 or start_byte == 10 or start_byte == 12 or start_byte == 13 or start_byte == 32)
+      text:
+        pos: _io.pos - digits.size
+        size: digits.size
+        type: str
+        encoding: ASCII
+      value:
+        value: text.to_i
+  # one character of a word; `last` when the next one is white space or a delimiter
+  regular_byte:
+    seq:
+      - id: byte
+        type: u1
+    instances:
+      next_byte:
+        pos: _io.pos
+        type: u1
+      last:
+        value: next_byte == 0 or next_byte == 9 or next_byte == 10 or next_byte == 12 or next_byte == 13 or next_byte == 32 or next_byte == 40 or next_byte == 41 or next_byte == 60 or next_byte == 62 or next_byte == 91 or next_byte == 93 or next_byte == 123 or next_byte == 125 or next_byte == 47 or next_byte == 37

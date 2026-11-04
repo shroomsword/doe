@@ -211,6 +211,17 @@ test("the type of a file that starts with a signature of doe's own library is fo
   expect(asked).toEqual([]);
 });
 
+test('a PDF file is found by its header, without the network, and its table and objects are in the tree', async ({ page }) => {
+  const asked = await serveGallery(page);
+  await ready(page);
+  await page.setInputFiles('#open-input', { name: 'doc', mimeType: 'application/octet-stream', buffer: readFileSync(join(repo, 'types', 'samples', 'sample.pdf')) });
+  await page.click('#detect');
+  await expect(page.locator('#detect-report')).toContainText('pdf parses the file', { timeout: 30_000 });
+  await expect(page.locator('#editing')).toContainText('library/pdf.yaml');
+  await expect(page.locator('.tree-row').first()).toBeVisible();
+  expect(asked).toEqual([]);
+});
+
 test('an MP4 file is found by ftyp at offset 4, without the network', async ({ page }) => {
   const asked = await serveGallery(page);
   await ready(page);

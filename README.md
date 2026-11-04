@@ -117,6 +117,7 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `woff2` | WOFF 2 web fonts: the header |
 | `flac` | FLAC audio: the metadata blocks (stream info, tags, padding...) and the frames as bytes |
 | `wav_audio` | WAVE audio (RIFF): the format, the sample bytes and the tags, with the text of the tags read as UTF-8 |
+| `pdf` | PDF: the header, the classic cross-reference table and trailer, and the objects as tokens (no stream data or typed views) |
 | `mp4` | MP4 / ISO base media: the movie and tracks, the sample tables and entries, tags and fragments (the samples are not decoded) |
 | `flv` | Flash Video: the header and the tags with their sizes and times |
 | `tzfile` | time zone files (TZif): the transitions and local time types of the first data block |

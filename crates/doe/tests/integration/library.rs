@@ -801,6 +801,233 @@ fn mp4_is_found_by_ftyp_at_offset_four_and_a_truncated_file_reads_as_far_as_it_g
     assert_eq!(items[1]["body"]["items"][0]["type"], "tkhd");
 }
 
+/// The text of a token (a word, a name, a string) of the `pdf` type, or the type of the value when it has none.
+fn pdf_text(token: &Json) -> String {
+    let value = &token["value"];
+    for key in ["text", "hex"] {
+        if let Some(text) = value[key].as_str() {
+            return text.to_owned();
+        }
+    }
+    value["$type"]
+        .as_str()
+        .unwrap()
+        .rsplit("::")
+        .next()
+        .unwrap()
+        .to_owned()
+}
+
+/// The tokens of a dictionary (or an array) in order, as texts.
+fn pdf_dictionary(token: &Json) -> Vec<String> {
+    let value = &token["value"];
+    let items = value["dictionary"]
+        .as_array()
+        .or_else(|| value["items"].as_array())
+        .unwrap();
+    items.iter().map(pdf_text).collect()
+}
+
+#[test]
+fn pdf_has_the_header_the_end_the_table_the_trailer_and_the_objects_as_tokens() {
+    let v = decode("pdf", "sample.pdf");
+    assert_eq!(v["header"]["version"], "1.7");
+    // the end of the file, read from the last 1024 bytes as lines
+    assert_eq!(v["tail"]["startxref"], 551);
+    assert_eq!(v["startxref"], 551);
+    let xref = &v["xref"];
+    assert_eq!(xref["keyword"], "xref");
+    let entries = xref["subsections"][0]["entries"].as_array().unwrap();
+    let rows: Vec<(u64, u64, bool)> = entries
+        .iter()
+        .map(|e| {
+            (
+                e["offset"].as_u64().unwrap(),
+                e["generation"].as_u64().unwrap(),
+                e["in_use"].as_bool().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(rows[0], (0, 65535, false));
+    assert_eq!(rows.len(), 7);
+    assert!(rows[1..].iter().all(|r| r.2 && r.1 == 0));
+    assert_eq!(pdf_text(&xref["trailer_keyword"]), "trailer");
+    assert_eq!(
+        pdf_dictionary(&xref["trailer"]),
+        [
+            "Size",
+            "7",
+            "Root",
+            "1",
+            "0",
+            "R",
+            "Info",
+            "6",
+            "0",
+            "R",
+            "dict_close"
+        ]
+    );
+    // the objects, through the offsets of the table: the number, the generation and obj, then the value
+    for (n, e) in entries.iter().enumerate().skip(1) {
+        let object = &e["object"];
+        assert_eq!(pdf_text(&object["number"]), n.to_string());
+        assert_eq!(pdf_text(&object["obj_keyword"]), "obj");
+    }
+    assert_eq!(
+        pdf_dictionary(&entries[1]["object"]["value"]),
+        ["Type", "Catalog", "Pages", "2", "0", "R", "dict_close"]
+    );
+    assert_eq!(pdf_text(&entries[1]["object"]["closing"]), "endobj");
+    // an array and a nested dictionary of the page
+    let page = pdf_dictionary(&entries[3]["object"]["value"]);
+    assert!(
+        page.starts_with(&["Type".to_owned(), "Page".to_owned()]),
+        "{page:?}"
+    );
+    assert!(
+        page.contains(&"MediaBox".to_owned()) && page.contains(&"array".to_owned()),
+        "{page:?}"
+    );
+    // the object with a stream is read up to the `stream` keyword: its data is not read
+    assert_eq!(pdf_text(&entries[4]["object"]["closing"]), "stream");
+    assert_eq!(
+        pdf_dictionary(&entries[4]["object"]["value"]),
+        ["Length", "36", "dict_close"]
+    );
+    // strings of every kind, numbers and keywords in the info dictionary
+    let info = pdf_dictionary(&entries[6]["object"]["value"]);
+    assert_eq!(
+        info,
+        [
+            "Title",
+            "A sample",
+            "Author",
+            "646f65",
+            "Producer",
+            "doe tests",
+            "CreationDate",
+            "D:20261104120000Z",
+            "Pi",
+            "3.14159",
+            "Yes",
+            "true",
+            "Nothing",
+            "null",
+            "dict_close"
+        ]
+    );
+    let author = &entries[6]["object"]["value"]["value"]["dictionary"][3];
+    assert_eq!(author["value"]["hex"], "646f65");
+}
+
+#[test]
+fn pdf_reads_a_file_whose_cross_reference_is_a_stream_as_far_as_it_can_and_says_so() {
+    let v = decode("pdf", "sample_xrefstream.pdf");
+    assert_eq!(v["header"]["version"], "1.5");
+    assert!(v["startxref"].as_u64().unwrap() > 0);
+    // the section is not an `xref` keyword: it is a stream, which is not read (a note field of size 0)
+    assert_eq!(v["xref"]["keyword"], "3 0 ");
+    assert!(
+        v["xref"].get("cross_reference_stream_not_read").is_some(),
+        "{}",
+        v["xref"]
+    );
+    assert!(v["xref"]["subsections"].is_null() || v["xref"].get("subsections").is_none());
+}
+
+#[test]
+fn pdf_reads_an_updated_file_at_its_last_section_only() {
+    let v = decode("pdf", "sample_updated.pdf");
+    let xref = &v["xref"];
+    let entries = xref["subsections"][0]["entries"].as_array().unwrap();
+    // the update has one object, number 5, and the trailer has /Prev (the chain is not followed)
+    assert_eq!(entries.len(), 1);
+    assert_eq!(pdf_text(&entries[0]["object"]["number"]), "5");
+    assert_eq!(
+        pdf_dictionary(&xref["trailer"]),
+        [
+            "Size",
+            "7",
+            "Root",
+            "1",
+            "0",
+            "R",
+            "Prev",
+            "551",
+            "dict_close"
+        ]
+    );
+}
+
+#[test]
+fn pdf_is_found_by_its_header_and_shows_what_it_can_when_the_end_is_missing() {
+    let found = doe::detect::detect_file(
+        &types().join("samples/sample.pdf"),
+        &[types()],
+        &doe::detect::Options::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        found.chosen().map(|a| a.name.as_str()),
+        Some("pdf"),
+        "{}",
+        found.report()
+    );
+    // a file with only a header: there is no startxref, and what can be read is shown (no table, no error)
+    let dir = tempfile::tempdir().unwrap();
+    let cut = dir.path().join("cut.pdf");
+    std::fs::write(&cut, b"%PDF-1.4\n%binary\n").unwrap();
+    let text = parse_file(
+        &cut,
+        "pdf",
+        &[types()],
+        Some(Path::new("/nonexistent/config.toml")),
+        OutputFormat::Json,
+    )
+    .unwrap();
+    let v: Json = serde_json::from_str(&text).unwrap();
+    assert_eq!(v["header"]["version"], "1.4");
+    assert_eq!(v["tail"]["has_startxref"], false);
+    assert!(v["xref"].is_null() && v["startxref"].is_null(), "{v}");
+}
+
+#[test]
+fn pdf_reads_the_first_300_objects_and_gives_the_offsets_of_the_rest() {
+    let mut out = b"%PDF-1.4\n".to_vec();
+    let mut offsets = Vec::new();
+    for n in 1..=305_u32 {
+        offsets.push(out.len());
+        out.extend(format!("{n} 0 obj\n<< /N {n} >>\nendobj\n").bytes());
+    }
+    let start = out.len();
+    out.extend(b"xref\n0 306\n0000000000 65535 f \n");
+    for offset in &offsets {
+        out.extend(format!("{offset:010} 00000 n \n").bytes());
+    }
+    out.extend(format!("trailer\n<< /Size 306 >>\nstartxref\n{start}\n%%EOF\n").bytes());
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("many.pdf");
+    std::fs::write(&path, out).unwrap();
+    let text = parse_file(
+        &path,
+        "pdf",
+        &[types()],
+        Some(Path::new("/nonexistent/config.toml")),
+        OutputFormat::Json,
+    )
+    .unwrap();
+    let v: Json = serde_json::from_str(&text).unwrap();
+    let entries = v["xref"]["subsections"][0]["entries"].as_array().unwrap();
+    assert_eq!(entries.len(), 306);
+    assert!(!entries[300]["object"].is_null());
+    assert!(entries[301]["object"].is_null());
+    assert_eq!(
+        entries[305]["offset"].as_u64().unwrap(),
+        offsets[304] as u64
+    );
+}
+
 #[test]
 fn wav_audio_reads_the_format_the_samples_and_the_tags_as_utf8() {
     let v = decode("wav_audio", "sample.wav");

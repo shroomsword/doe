@@ -41,7 +41,7 @@ here; the others are left out, with the reason (a format that is in scope and no
 | TIFF | `exif` reads the TIFF structure (header, IFDs) | not needed: use `exif` |
 | HEIF / AVIF / MP4 (ISO base media) | `quicktime_mov` nests the boxes but decodes only `ftyp`, `tkhd` and `mvhd` | **library** (`mp4`: the movie, tracks, sample tables and entries, tags and fragments decoded, the samples not; the gallery's `quicktime_mov` stays for QuickTime `.mov`) |
 | Matroska / WebM | none | out: EBML ids and sizes are variable-length numbers whose width is in their first bits; the schema language has no way to say that without a type per width, which is the `vlq` kind of workaround and not worth it for 100+ element ids |
-| PDF | none | out: a text format with cross-reference tables found by searching from the end; a parser, not a layout |
+| PDF | none | **library** (`pdf`, in layers as far as the language goes: the header, the end of the file read as lines from the last 1024 bytes, the classic cross-reference table and trailer, and the objects it points to as tokens; no stream data, cross-reference streams, `/Prev` chain or typed views, because the language has no search and no look-up of a key in a dictionary; the type's comment lists the limits) |
 | Parquet, Avro, CBOR | none | out: self-describing or schema-driven encodings (Thrift, varints, recursive values); the layout depends on the data |
 | git objects and packs | none | out: zlib-compressed objects and variable-length pack entry headers |
 | Protocol Buffers, MessagePack, BSON | in the gallery | in the gallery |
