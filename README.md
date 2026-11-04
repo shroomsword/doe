@@ -1288,7 +1288,7 @@ Arguments:
 
 Options:
       --detect <WHAT>        When no `TYPE_OR_SCHEMA` is given: `all` also tries the types that have no signature and whose name the file does not carry (slow for a big library). Without it the types whose signature the file starts with, and those named like the file, are tried; `-v` says which [possible values: all]
-      --no-unwrap            Show the outermost layer only: a `.tar.gz` is shown as the gzip file it is, not as the tar it holds. Without it, when the schema is looked for and the file holds another file (its schema says so with `payload:`), that is decoded in memory and its schema found, to a depth of 4
+      --no-unwrap            Show the outermost layer only: a `.tar.gz` is shown as the gzip file it is, not as the tar it holds. Without it, when the schema is looked for and the file holds another file (its schema says so with `payload:`), that is decoded in memory and its schema found, to a depth of 4; `--tui` and `--ide` open the innermost layer from a temporary file that is removed when they are left
       --layer <N>            Show layer N of a file that holds files (1 is the file itself, 2 what it holds...). Without it the innermost layer is shown as text, and every layer as JSON with `--json` or `--pretty`
   -I, --include-path <DIR>   Add a directory to the schema search path (repeatable)
   -c, --config <FILE>        Config file path [default: ~/.config/doe/config.toml]
@@ -1365,7 +1365,9 @@ file itself). With `--json` or `--pretty` every layer is printed, outermost firs
 "value": ...}, {"type": "tar", "value": ...}]}`; with `--layer` it is that layer alone, as the type prints it. A type
 given by name is never unwrapped. If the payload cannot be decoded (a corrupt stream, a bad CRC, more than the limit) or
 fits no schema, the outer layer is shown and `-v` says why. The offsets of an inner layer are in its decoded bytes, not in
-the file. Only the non-interactive command unwraps: `--tui` and `--ide` still open the outermost layer.
+the file. `--tui` and `--ide` open the innermost layer too (or the one `--layer` names; `--no-unwrap` opens the file): the
+viewers read a file by its path, so the layer is written to a temporary file named as it would be (`archive.tar`), which is
+removed when they are left, and the Bytes pane shows the bytes of that layer.
 
 ### Archives as files
 
