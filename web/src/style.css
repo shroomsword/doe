@@ -234,6 +234,9 @@ mark.help-hit.current { background: gold; color: #000; outline: 2px solid var(--
 #browse-count { color: var(--muted); font-size: .85em; }
 #browse-list { overflow: auto; padding: 0 12px 12px; }
 #browse-list h4 { margin: 12px 0 4px; font-size: .85em; color: var(--muted); }
+#browse-list .browse-toggle { all: unset; cursor: pointer; display: inline-block; }
+#browse-list .browse-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#browse-list ul[hidden] { display: none; }
 #browse-list ul { list-style: none; margin: 0; padding: 0; }
 #browse-list li { padding: 4px 6px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 0 8px; }
 #browse-list li.current { background: var(--select); }

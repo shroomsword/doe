@@ -101,6 +101,10 @@ test('the dialog lists the open schemas, filters, reads one and parses with a ty
   await page.fill('#browse-filter', 'no such type anywhere');
   await expect(page.locator('.browse-empty')).toContainText('No type matches the filter');
   await page.fill('#browse-filter', '');
+  // the group of the open schemas is closed again, and is opened by its heading
+  await expect(dialog.locator('#browse-open-list')).toBeHidden();
+  await dialog.getByRole('button', { name: /Open schemas/ }).click();
+  await expect(dialog.locator('#browse-open-list')).toBeVisible();
   // read the text of the first type, then go back (Esc goes back, then closes)
   await dialog.locator('li button', { hasText: 'View' }).first().click();
   await expect(page.locator('#browse-reader-text')).toContainText('seq');
@@ -119,6 +123,7 @@ test('the viewer draws a schema with the colours of the editor, keeps its text a
   await expect(page.locator('#schemas li.schema')).toHaveCount(1);
   await page.click('#browse');
   const dialog = page.locator('#browse-dialog');
+  await dialog.getByRole('button', { name: /Open schemas/ }).click();
   await dialog.locator('li button', { hasText: 'View' }).first().click();
   const text = page.locator('#browse-reader-text');
   await expect(text).toContainText('seq');
@@ -143,6 +148,56 @@ test('the viewer draws a schema with the colours of the editor, keeps its text a
   const light = systemTheme(false).colors;
   await expect.poll(() => colour('seq')).toBe(rgb(light.type));
   expect(await text.evaluate((pre) => pre.textContent)).toBe(EXAMPLE_SCHEMA);
+});
+
+test('the group of the open schemas is closed when the dialog opens, opens by click and keys and by a filter that matches, and is closed the next time', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.doe?.ready === true);
+  await loadExample(page);
+  await expect(page.locator('#schemas li.schema')).toHaveCount(1);
+  await page.click('#browse');
+  const dialog = page.locator('#browse-dialog');
+  const toggle = dialog.getByRole('button', { name: /Open schemas · \d+/ });
+  const list = dialog.locator('#browse-open-list');
+  // closed: the heading with its count and the indicator, the entries out of the page and the tab order; the other groups are open
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(toggle).toHaveAttribute('aria-controls', 'browse-open-list');
+  await expect(list).toBeHidden();
+  await expect(list).toHaveAttribute('hidden', '');
+  await expect(toggle.locator('.browse-chevron')).toHaveText('▸ ');
+  await expect(dialog.locator('h4').nth(1).locator('button')).toHaveCount(0);
+  await expect(dialog.locator('#browse-list ul').nth(1)).toBeVisible();
+  // click opens and closes
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(list).toBeVisible();
+  await expect(toggle.locator('.browse-chevron')).toHaveText('▾ ');
+  await toggle.click();
+  await expect(list).toBeHidden();
+  // Enter and Space on the focused heading
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(list).toBeVisible();
+  await page.keyboard.press('Space');
+  await expect(list).toBeHidden();
+  // a filter that matches an entry of the group opens it, with the right count; one that does not leaves it closed (and the group out)
+  await page.fill('#browse-filter', 'example');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(list).toBeVisible();
+  await expect(toggle).toContainText(/Open schemas · [12]/);
+  await page.fill('#browse-filter', 'zzz');
+  await expect(toggle).toHaveCount(0);
+  // clearing the filter: back to what the person chose (closed)
+  await page.fill('#browse-filter', '');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  // what the person opened is closed again at the next opening
+  await toggle.click();
+  await expect(list).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await page.click('#browse');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(list).toBeHidden();
 });
 
 test("the dialog lists the types of doe's own library under their own heading, before the Kaitai Struct gallery", async ({ page }) => {
