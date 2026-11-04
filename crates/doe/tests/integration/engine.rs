@@ -1057,6 +1057,32 @@ fn decode_ascii_high_byte_goes_on_as_latin1_and_is_reported() {
 }
 
 #[test]
+fn ascii_text_that_is_valid_utf8_is_reported_with_what_it_says() {
+    // an em dash (e2 80 94) in a field the schema reads as ASCII: still a problem, but the message says that the
+    // bytes are valid UTF-8, so the person sees that the schema is stricter than the file (#329)
+    let data = "a\u{2014}b".as_bytes();
+    let (v, problems) = report(&str_schema("ascii", data.len()), "t", data);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert_eq!(problems[0].utf8_char, Some('\u{2014}'));
+    assert!(
+        problems[0]
+            .to_string()
+            .contains("the bytes are valid UTF-8"),
+        "{}",
+        problems[0]
+    );
+    assert!(matches!(get_field(&v, "s"), Value::Str(_)));
+    // bytes that are not UTF-8 either say nothing of it
+    let (_, problems) = report(&str_schema("ascii", 3), "t", &[b'a', 0xff, b'b']);
+    assert_eq!(problems[0].utf8_char, None);
+    assert!(
+        !problems[0].to_string().contains("UTF-8"),
+        "{}",
+        problems[0]
+    );
+}
+
+#[test]
 fn decode_utf8_valid() {
     let s = "héllo";
     let v = parse(&str_schema("utf8", s.len()), "t", s.as_bytes());

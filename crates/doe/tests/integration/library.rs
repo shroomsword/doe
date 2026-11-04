@@ -550,6 +550,33 @@ fn decode_real(type_name: &str, sample: &str) -> Json {
 }
 
 #[test]
+fn wav_audio_reads_the_format_the_samples_and_the_tags_as_utf8() {
+    let v = decode("wav_audio", "sample.wav");
+    let chunks = v["chunks"].as_array().unwrap();
+    let ids: Vec<&str> = chunks.iter().map(|c| c["id"].as_str().unwrap()).collect();
+    assert_eq!(ids, ["fmt ", "fact", "bext", "data", "LIST"]);
+    let format = &chunks[0]["body"];
+    assert_eq!(name_of(&format["format_tag"]), "pcm");
+    assert_eq!(
+        (
+            format["channels"].as_u64(),
+            format["samples_per_sec"].as_u64(),
+            format["bits_per_sample"].as_u64()
+        ),
+        (Some(1), Some(8000), Some(16))
+    );
+    assert_eq!(chunks[1]["body"]["sample_count"], 8);
+    assert_eq!(chunks[2]["body"]["originator"], "doe");
+    assert_eq!(chunks[2]["body"]["origination_date"], "2026-11-04");
+    assert_eq!(chunks[3]["body"]["bytes"]["len"], 16);
+    // the tags: the second has an em dash and an odd size, so it is padded; read as UTF-8 there is no error (#329)
+    let entries = chunks[4]["body"]["entries"].as_array().unwrap();
+    assert_eq!(entries[0]["text"]["value"], "Sample");
+    assert_eq!(entries[1]["text"]["value"], "Made by doe \u{2014} partial");
+    assert_eq!(entries[0]["pad"]["len"], 1);
+}
+
+#[test]
 fn mar_archive_reads_the_form_with_signatures() {
     let v = decode("mar_archive", "sample.mar");
     assert_eq!(v["is_newer_form"], true);

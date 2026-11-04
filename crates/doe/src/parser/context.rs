@@ -31,6 +31,10 @@ pub struct TextProblem {
     pub encoding: String,
     /// The byte of the string where the first data that is not valid starts.
     pub at: usize,
+    /// For a string read as ASCII whose bytes are valid UTF-8: the character there, which tells that the schema's
+    /// encoding is stricter than the file's.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub utf8_char: Option<char>,
 }
 
 impl std::fmt::Display for TextProblem {
@@ -43,7 +47,15 @@ impl std::fmt::Display for TextProblem {
             self.encoding,
             self.at,
             self.offset + u64::try_from(self.at).unwrap_or(0)
-        )
+        )?;
+        match self.utf8_char {
+            Some(c) => write!(
+                f,
+                "; the bytes are valid UTF-8 ({c:?} there), so the file is not wrong: the schema says {}",
+                self.encoding
+            ),
+            None => Ok(()),
+        }
     }
 }
 
@@ -53,6 +65,7 @@ struct PendingText {
     encoding: String,
     at: usize,
     offset: u64,
+    utf8_char: Option<char>,
 }
 
 /// Runtime parse context.
@@ -216,11 +229,18 @@ impl ParseContext {
 
     /// Note that the string that was just read has data that is not valid in `encoding`, `at` bytes into it, and that
     /// it starts at byte `offset` of the input.
-    pub(crate) fn set_pending_text(&mut self, encoding: String, at: usize, offset: u64) {
+    pub(crate) fn set_pending_text(
+        &mut self,
+        encoding: String,
+        at: usize,
+        offset: u64,
+        utf8_char: Option<char>,
+    ) {
         self.pending_text = Some(PendingText {
             encoding,
             at,
             offset,
+            utf8_char,
         });
     }
 
@@ -234,6 +254,7 @@ impl ParseContext {
             offset: pending.offset,
             encoding: pending.encoding,
             at: pending.at,
+            utf8_char: pending.utf8_char,
         };
         let message = problem.to_string();
         if !self.text_problems.contains(&problem) {

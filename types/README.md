@@ -23,6 +23,7 @@ here; the others are left out, with the reason (a format that is in scope and no
 | NumPy `.npy` | none | **library** (`npy`) |
 | ELF | `elf` | not needed: use `elf` |
 | WOFF / WOFF2 | `ttf` for TrueType and OpenType | **library** (`woff`, `woff2`: the headers and, for WOFF, the table directory) |
+| WAV | `wav` (reads the INFO tags as ASCII) | **library** (`wav_audio`: the gallery's `wav` reads the text of the tags as ASCII, and the files that people have use UTF-8 in them, so every such file ends with an error about the text; this type reads it as UTF-8) |
 | FLAC | none | **library** (`flac`) |
 | FLV | none | **library** (`flv`) |
 | tzfile | none | **library** (`tzfile`) |
