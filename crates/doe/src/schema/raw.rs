@@ -57,6 +57,11 @@ pub struct RawSchema {
     #[serde(default)]
     pub filesystem: Option<RawFilesystem>,
 
+    /// Says that the bytes of a file of this schema, from `from`, are another file after a transform (a gzip file
+    /// holds a tar): a viewer or `doe` then goes on to find the schema of the result.
+    #[serde(default)]
+    pub payload: Option<RawPayload>,
+
     /// List of schema names or relative paths to import.
     /// A bare name like `"zlib_block"` is resolved through include paths.
     /// A path starting with `"./"` or `"../"` is resolved relative to this file.
@@ -146,6 +151,25 @@ pub(crate) fn parse_yaml<T: DeserializeOwned>(text: &str) -> Result<T, serde_sap
     // would break field ids and expressions such as `size: n`.
     options.strict_booleans = true;
     serde_saphyr::from_str_with_options(text, options)
+}
+
+// ── Payload ──────────────────────────────────────────────────────────────────
+
+/// The `payload:` key of a schema: what is inside a file of it is another file, once a transform is applied.
+///
+/// ```yaml
+/// payload:
+///   process: gzip   # zlib, deflate or gzip
+///   from: 0         # where the data starts, in bytes (the default is 0)
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawPayload {
+    /// The transform: `zlib`, `deflate` or `gzip`.
+    pub process: String,
+    /// The offset in the file where the data starts.
+    #[serde(default)]
+    pub from: u64,
 }
 
 // ── Filesystem ───────────────────────────────────────────────────────────────

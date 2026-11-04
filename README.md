@@ -116,6 +116,7 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `woff` | WOFF web fonts: the header and the table directory |
 | `woff2` | WOFF 2 web fonts: the header |
 | `flac` | FLAC audio: the metadata blocks (stream info, tags, padding...) and the frames as bytes |
+| `gzip_file` | gzip files: the header of the first member and the trailer; its payload is the gunzipped file (a `.tar.gz` is shown as the tar) |
 | `wav_audio` | WAVE audio (RIFF): the format, the sample bytes and the tags, with the text of the tags read as UTF-8 |
 | `pdf` | PDF: the header, the classic cross-reference table and trailer, and the objects as tokens (no stream data or typed views) |
 | `mp4` | MP4 / ISO base media: the movie and tracks, the sample tables and entries, tags and fragments (the samples are not decoded) |
@@ -303,7 +304,7 @@ it the integer 0 or 1 and names it; the wider ones are unsigned integers. As in 
 | `if:` | Skip the field when the expression is false |
 | `size-eos` | `true` to take the rest of the enclosing window or the input as the size; for `bytes`, `str` and user types |
 | `parent` | `_parent` (or `_parent._parent`): the type the field reads gets the parent of the type the field is in, as its `_parent` (see [Instances](#instances)) |
-| `process` | Transform the bytes of the field's `size` window before they are parsed: `xor(key)` (an integer or a byte sequence, repeated), `rol(n)`, `ror(n)` (rotate each byte) or `zlib`. For `bytes`, `str` and user types that have a `size` or `size-eos`. `zlib` decompresses into memory up to 256 MiB; a larger result, or data that is not zlib data, is an error that names the field |
+| `process` | Transform the bytes of the field's `size` window before they are parsed: `xor(key)` (an integer or a byte sequence, repeated), `rol(n)`, `ror(n)` (rotate each byte), `zlib` (a zlib stream, RFC 1950), `deflate` (a raw deflate stream, RFC 1951) or `gzip` (gzip data, RFC 1952: every member, with its header read and its CRC-32 and size checked). For `bytes`, `str` and user types that have a `size` or `size-eos`. The three decompress into memory up to 256 MiB; a larger result, or data that is not what the process says, is an error that names the field |
 | `pos:` | Read the field at this byte offset instead of the current position; see [Seeking](#seeking) |
 | `valid:` | Fail the parse unless the value read satisfies the rules; see [Validating values](#validating-values) |
 | `enum:` | Map the parsed integer to a named variant. `name` is an enum visible in the type; `type::name` is one declared in another type (a nested path is allowed) |
@@ -1287,6 +1288,8 @@ Arguments:
 
 Options:
       --detect <WHAT>        When no `TYPE_OR_SCHEMA` is given: `all` also tries the types that have no signature and whose name the file does not carry (slow for a big library). Without it the types whose signature the file starts with, and those named like the file, are tried; `-v` says which [possible values: all]
+      --no-unwrap            Show the outermost layer only: a `.tar.gz` is shown as the gzip file it is, not as the tar it holds. Without it, when the schema is looked for and the file holds another file (its schema says so with `payload:`), that is decoded in memory and its schema found, to a depth of 4
+      --layer <N>            Show layer N of a file that holds files (1 is the file itself, 2 what it holds...). Without it the innermost layer is shown as text, and every layer as JSON with `--json` or `--pretty`
   -I, --include-path <DIR>   Add a directory to the schema search path (repeatable)
   -c, --config <FILE>        Config file path [default: ~/.config/doe/config.toml]
       --json                 Emit compact JSON output
@@ -1333,6 +1336,36 @@ stderr. `--completions` and `--man` print and exit; they cannot be combined with
 a file, a type or the options that only matter when parsing (`-I`, `-c`,
 `--json`, `--pretty`, `--no-instances`), but `--color`, `-v`, `-q`, `--log-level`
 and `--log-file` can go with them, as in `doe --completions bash --color never`.
+
+### Files inside files
+
+A schema can say that a file of it holds another file with a `payload:` key:
+
+```yaml
+payload:
+  process: gzip   # zlib, deflate or gzip
+  from: 0         # where the data starts, in bytes (the default is 0)
+```
+
+When `doe` looks for the schema of a file (no `TYPE_OR_SCHEMA`), and the schema it finds has a `payload:`, it decodes the
+payload **in memory** (up to 256 MiB; nothing is written to disk) and looks for the schema of the result, as it did for
+the file: by signature, then by name, which is the name of the file without its last extension (`x.tar.gz` holds `x.tar`,
+and `x.tgz` holds `x.tar` too). That goes on to a depth of four layers. The library's `gzip_file` has the key, so
+`doe archive.tar.gz` shows the tar, and says on stderr what the layers are:
+
+```text
+$ doe archive.tar.gz
+archive.tar.gz is gzip_file > tar (--no-unwrap shows the outer layer only)
+tar
+  entries  [...]
+```
+
+`--no-unwrap` shows the outermost layer alone (a gzip file as a gzip file, as before); `--layer N` shows layer N (1 is the
+file itself). With `--json` or `--pretty` every layer is printed, outermost first, as `{"layers": [{"type": "gzip_file",
+"value": ...}, {"type": "tar", "value": ...}]}`; with `--layer` it is that layer alone, as the type prints it. A type
+given by name is never unwrapped. If the payload cannot be decoded (a corrupt stream, a bad CRC, more than the limit) or
+fits no schema, the outer layer is shown and `-v` says why. The offsets of an inner layer are in its decoded bytes, not in
+the file. Only the non-interactive command unwraps: `--tui` and `--ide` still open the outermost layer.
 
 ### Archives as files
 

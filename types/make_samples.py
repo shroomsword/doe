@@ -490,6 +490,21 @@ def mp4_fragmented() -> bytes:
     return ftyp + moov + moof + mdat + mfra
 
 
+def gzip_file(data: bytes, name: bytes = b"", extra: bytes | None = None) -> bytes:
+    """One gzip member of `data`: the header (with the name and an extra field when given), raw deflate, CRC-32 and size."""
+    import zlib
+
+    flags = (4 if extra is not None else 0) | (8 if name else 0)
+    header = struct.pack("<BBBBIBB", 0x1F, 0x8B, 8, flags, 1_700_000_000, 0, 3)
+    if extra is not None:
+        header += struct.pack("<H", len(extra)) + extra
+    if name:
+        header += name + b"\0"
+    packer = zlib.compressobj(9, zlib.DEFLATED, -15)
+    body = packer.compress(data) + packer.flush()
+    return header + body + struct.pack("<II", zlib.crc32(data), len(data) & 0xFFFFFFFF)
+
+
 def mar_archive() -> bytes:
     """A MAR file of the newer form: the size of the file, one signature, the product information block, two files
     and the index."""
@@ -558,6 +573,8 @@ def zip_archive() -> bytes:
 
 if __name__ == "__main__":
     put("sample.tar", tar())
+    put("sample.tar.gz", gzip_file(tar(), name=b"sample.tar"))
+    put("sample.txt.gz", gzip_file(b"plain text, not an archive\n" * 3, extra=b"XYdata"))
     put("sample.a", ar())
     put("sample.pcapng", pcapng())
     put("sample.wasm", wasm())

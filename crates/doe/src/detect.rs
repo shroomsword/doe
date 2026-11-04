@@ -735,7 +735,6 @@ impl Library {
 
         use crate::error::DoeError;
         use crate::parser::cursor::Cursor;
-        use crate::parser::engine::{Engine, Limits};
 
         let io_error = |source| DoeError::Io {
             path: file.to_owned(),
@@ -747,16 +746,58 @@ impl Library {
             .take(HEAD_BYTES as u64)
             .read_to_end(&mut head)
             .map_err(io_error)?;
+        let file_name = file.file_name().and_then(|n| n.to_str());
+        Ok(self.detect_with(&head, file_name, options, &|| {
+            let handle = std::fs::File::open(file).map_err(io_error)?;
+            Cursor::from_file(handle, file)
+        }))
+    }
+
+    /// Find the schema of data that is in memory (the payload of another file, see [`Library::payload_of`]), by its
+    /// signature and by `name`, the name it would have as a file.
+    ///
+    /// # Errors
+    ///
+    /// Never fails today; a schema that cannot be used, or that does not fit, is part of the result.
+    pub fn detect_bytes(
+        &self,
+        data: &[u8],
+        name: Option<&str>,
+        options: &Options,
+    ) -> crate::Result<Detection> {
+        use crate::parser::cursor::Cursor;
+
+        let head = data.get(..HEAD_BYTES).unwrap_or(data);
+        Ok(self.detect_with(head, name, options, &|| Ok(Cursor::new(data))))
+    }
+
+    /// What the file of the type `name` holds, if the schema says it holds another file (`payload:`).
+    #[must_use]
+    pub fn payload_of(&self, name: &str) -> Option<crate::schema::raw::RawPayload> {
+        let entry = self.loaded.iter().find(|l| l.source.name == name)?;
+        let compiler = entry.compiled.as_ref().ok()?;
+        compiler.registry.payloads.get(&entry.id).cloned()
+    }
+
+    /// The order and the trying of [`detect`](Self::detect), over a head of the data and a way to open it.
+    fn detect_with<'b>(
+        &self,
+        head: &[u8],
+        file_name: Option<&str>,
+        options: &Options,
+        open: &dyn Fn() -> crate::Result<crate::parser::cursor::Cursor<'b>>,
+    ) -> Detection {
+        use crate::error::DoeError;
+        use crate::parser::engine::{Engine, Limits};
 
         let sources = self.sources();
-        let file_name = file.file_name().and_then(|n| n.to_str());
-        let order = rank(&sources, &head, file_name, options.all);
+        let order = rank(&sources, head, file_name, options.all);
         let mut detection = Detection {
             known: self.loaded.len(),
             excluded: self
                 .loaded
                 .iter()
-                .filter(|l| l.source.has_signature() && l.source.starts_like(&head).is_none())
+                .filter(|l| l.source.has_signature() && l.source.starts_like(head).is_none())
                 .count(),
             ..Detection::default()
         };
@@ -773,8 +814,7 @@ impl Library {
                     };
                     // A schema that makes the parser panic is a schema that did not fit.
                     let run = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        let handle = std::fs::File::open(file).map_err(io_error)?;
-                        let mut cursor = Cursor::from_file(handle, file)?;
+                        let mut cursor = open()?;
                         let engine = Engine::new(&compiler.registry).with_limits(limits);
                         engine.parse_type(&entry.id, &mut cursor)?;
                         Ok::<u64, DoeError>(cursor.bit_position() / 8)
@@ -799,7 +839,7 @@ impl Library {
                 break;
             }
         }
-        Ok(detection)
+        detection
     }
 }
 

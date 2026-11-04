@@ -141,6 +141,113 @@ fn a_file_that_no_schema_fits_is_an_error_that_lists_what_was_tried() {
         .stderr(predicate::str::contains("--detect all"));
 }
 
+fn library() -> PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../types")
+}
+
+#[test]
+fn a_tar_gz_is_shown_as_the_tar_it_holds_and_the_layers_are_said() {
+    let file = library().join("samples/sample.tar.gz");
+    doe()
+        .args(["-c", NO_CONFIG, "-I"])
+        .arg(library())
+        .arg(&file)
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with("tar\n"))
+        .stdout(predicate::str::contains("hello.txt"))
+        .stderr(predicate::str::contains("is gzip_file > tar"));
+    // the outer layer only
+    doe()
+        .args(["-c", NO_CONFIG, "--no-unwrap", "-I"])
+        .arg(library())
+        .arg(&file)
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with("gzip_file\n"))
+        .stderr(predicate::str::contains("is gzip_file").not());
+    // a type given by name is not unwrapped
+    doe()
+        .args(["-c", NO_CONFIG, "-I"])
+        .arg(library())
+        .arg(&file)
+        .arg("gzip_file")
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with("gzip_file\n"));
+}
+
+#[test]
+fn a_layer_can_be_chosen_and_json_has_every_layer_outermost_first() {
+    let file = library().join("samples/sample.tar.gz");
+    let json = doe()
+        .args(["-c", NO_CONFIG, "--json", "-I"])
+        .arg(library())
+        .arg(&file)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let value: serde_json::Value = serde_json::from_slice(&json).unwrap();
+    let layers = value["layers"].as_array().unwrap();
+    assert_eq!(layers.len(), 2);
+    assert_eq!(layers[0]["type"], "gzip_file");
+    assert_eq!(layers[0]["value"]["name"], "sample.tar");
+    assert_eq!(layers[1]["type"], "tar");
+    assert_eq!(layers[1]["value"]["entries"][1]["name"], "docs/hello.txt");
+    // one layer is printed as the type alone prints
+    let first = doe()
+        .args(["-c", NO_CONFIG, "--json", "--layer", "1", "-I"])
+        .arg(library())
+        .arg(&file)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let value: serde_json::Value = serde_json::from_slice(&first).unwrap();
+    assert_eq!(value["$type"], "gzip_file");
+    doe()
+        .args(["-c", NO_CONFIG, "--layer", "2", "-I"])
+        .arg(library())
+        .arg(&file)
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with("tar\n"));
+    // more layers than there are is an error that lists them
+    doe()
+        .args(["-c", NO_CONFIG, "--layer", "3", "-I"])
+        .arg(library())
+        .arg(&file)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "has 2 layers (gzip_file > tar), not 3",
+        ));
+    // a layer is for a schema that is looked for
+    doe()
+        .args(["-c", NO_CONFIG, "--layer", "1", "-I"])
+        .arg(library())
+        .arg(&file)
+        .arg("gzip_file")
+        .assert()
+        .failure();
+}
+
+#[test]
+fn a_file_that_holds_what_fits_no_schema_stays_at_its_own_layer_and_v_says_why() {
+    let file = library().join("samples/sample.txt.gz");
+    doe()
+        .args(["-c", NO_CONFIG, "-v", "-I"])
+        .arg(library())
+        .arg(&file)
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with("gzip_file\n"))
+        .stderr(predicate::str::contains("fits no schema"));
+}
+
 #[test]
 fn a_parse_that_fails_on_a_file_with_the_signature_of_another_type_says_which() {
     let dir = TempDir::new().unwrap();

@@ -241,11 +241,160 @@ fn other_start_hint(cli: &Cli, config: &Config, file: &Path, tried: &str) -> Opt
     ))
 }
 
+/// The most bytes of a file that are read to unwrap it (what `process:` allows to be produced).
+const UNWRAP_LIMIT: usize = 256 * 1024 * 1024;
+
+/// The layers of the file: what fits it, and what it holds.
+fn detect_layers(
+    cli: &Cli,
+    config: &Config,
+    file: &Path,
+) -> anyhow::Result<doe::layers::Unwrapped> {
+    let options = doe::detect::Options {
+        all: cli.detect.as_deref() == Some("all"),
+        ..doe::detect::Options::default()
+    };
+    let wanted = if cli.no_unwrap {
+        1
+    } else {
+        cli.layer.map_or(doe::layers::MAX_DEPTH, usize::from)
+    };
+    doe::layers::unwrap(
+        file,
+        &include_paths(&cli.include_paths, config),
+        &options,
+        wanted,
+        UNWRAP_LIMIT,
+    )
+    .with_context(|| format!("could not look for the schema of {}", file.display()))
+}
+
+/// Show a file that holds files: the innermost layer (or layer `--layer`) as text, and every layer as JSON.
+fn run_layers(cli: &Cli, file: &Path, layers: &doe::layers::Unwrapped) -> anyhow::Result<()> {
+    use std::io::Write as _;
+
+    let count = layers.layers.len();
+    if let Some(wanted) = cli.layer
+        && usize::from(wanted) > count
+    {
+        anyhow::bail!(
+            "{} has {count} {} ({}), not {wanted}",
+            file.display(),
+            if count == 1 { "layer" } else { "layers" },
+            layers.describe()
+        );
+    }
+    let _ = writeln!(
+        io::stderr(),
+        "{} is {} (--no-unwrap shows the outer layer only)",
+        file.display(),
+        layers.describe()
+    );
+    let parse = |index: usize, format: OutputFormat| -> anyhow::Result<doe::ParseReport> {
+        let name = layers
+            .layers
+            .get(index)
+            .map_or("", |l| l.type_name.as_str());
+        log::info!(
+            "parsing layer {} of {} as {name}",
+            index + 1,
+            file.display()
+        );
+        let options = doe::ParseOptions {
+            instances: !cli.no_instances,
+        };
+        let report = match index.checked_sub(1).and_then(|i| layers.data.get(i)) {
+            None => doe::parse_file_report(
+                file,
+                name,
+                &cli.include_paths,
+                cli.config.as_deref(),
+                format,
+                &options,
+            ),
+            Some(data) => doe::parse_bytes_report(
+                data,
+                name,
+                &cli.include_paths,
+                cli.config.as_deref(),
+                format,
+                &options,
+            ),
+        };
+        report.with_context(|| {
+            format!(
+                "could not parse layer {} of {} as {name}",
+                index + 1,
+                file.display()
+            )
+        })
+    };
+    let json = cli.json || cli.pretty;
+    let (output, problems) = if json && cli.layer.is_none() {
+        // every layer, outermost first
+        let mut parts = Vec::new();
+        let mut problems = Vec::new();
+        for (index, layer) in layers.layers.iter().enumerate() {
+            let report = parse(index, OutputFormat::Json)?;
+            parts.push(format!(
+                "{{\"type\":{},\"value\":{}}}",
+                serde_json::to_string(&layer.type_name)?,
+                report.output
+            ));
+            problems.extend(report.text_problems);
+        }
+        let text = format!("{{\"layers\":[{}]}}", parts.join(","));
+        let text = if cli.pretty {
+            let value: serde_json::Value = serde_json::from_str(&text)?;
+            serde_json::to_string_pretty(&value)?
+        } else {
+            text
+        };
+        (text, problems)
+    } else {
+        let index = cli.layer.map_or(count, usize::from) - 1;
+        let format = if cli.pretty {
+            OutputFormat::JsonPretty
+        } else if cli.json {
+            OutputFormat::Json
+        } else {
+            OutputFormat::Text {
+                indent: cli.indent.clone(),
+            }
+        };
+        let report = parse(index, format)?;
+        (report.output, report.text_problems)
+    };
+    write_stdout(output.as_bytes())?;
+    if problems.is_empty() {
+        return Ok(());
+    }
+    let list: Vec<String> = problems.iter().map(|p| format!("  {p}")).collect();
+    anyhow::bail!(
+        "{} string{} in {} not valid in {} encoding:\n{}",
+        problems.len(),
+        if problems.len() == 1 { "" } else { "s" },
+        file.display(),
+        if problems.len() == 1 { "its" } else { "their" },
+        list.join("\n")
+    )
+}
+
 fn run(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     let Some(file) = &cli.file else {
         // clap requires it unless `--help`, `--completions` or `--man` was given.
         anyhow::bail!("a FILE is required");
     };
+    if cli.type_or_schema.is_none() {
+        // the schema is looked for, and a file that holds another file is shown as the one it holds
+        let layers = detect_layers(cli, config, file)?;
+        for note in &layers.notes {
+            log::info!("{note}");
+        }
+        if layers.layers.len() > 1 || cli.layer.is_some() {
+            return run_layers(cli, file, &layers);
+        }
+    }
     let type_or_schema = &match &cli.type_or_schema {
         Some(given) => given.clone(),
         None => detect_type(cli, config, file)?,

@@ -24,6 +24,7 @@ mod filesystem;
 mod gallery_table;
 mod gallery_update;
 mod ir;
+mod layers;
 mod library;
 mod locate;
 mod raw;
