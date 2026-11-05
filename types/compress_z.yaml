@@ -1,0 +1,34 @@
+id: compress_z
+doc: |
+  Unix compress file (.Z): the three-byte header (maximum code size, block mode) and the LZW codes as bytes
+# Covers: the magic `1F 9D`, the flags byte - the maximum code size in bits (`maxbits`, 9 to 16), block mode (a CLEAR code
+#   is reserved) and the reserved bits, which must be zero - and the LZW codes up to the end of the file, as bytes.
+# Limits: the codes are packed in bits, their width growing from 9 bits to `maxbits` as the dictionary fills, and in
+#   groups of eight codes that are padded to a byte boundary, so they cannot be read as an array; they are bytes.
+#   Decompress with `uncompress`, `gzip -d` or `compress -d`.
+# Detection: `1F 9D` at offset 0. (The obsolete `pack` format starts with `1F 1E` and is not claimed.)
+# Specification: the `compress(1)` / ncompress sources and the LZW description in them (`LZW.INFO`).
+meta:
+  id: compress_z
+  file-extension: Z
+  endian: le
+seq:
+  - id: magic
+    contents: [0x1f, 0x9d]
+  - id: flags
+    type: u1
+    valid:
+      expr: (_ & 0x60) == 0 and (_ & 0x1f) >= 9 and (_ & 0x1f) <= 16
+    doc: Bit 7 is block mode, bits 5 and 6 are reserved (zero), the low 5 bits are the maximum code size in bits (9 to 16).
+  - id: codes
+    size-eos: true
+    doc: The LZW codes, packed in bits.
+instances:
+  maxbits:
+    value: flags & 0x1f
+  block_mode:
+    value: (flags & 0x80) != 0
+    doc: A CLEAR code (256) resets the dictionary when it is full and the ratio falls; code 256 is not a literal.
+  max_codes:
+    value: 1 << (flags & 0x1f)
+    doc: The size of the dictionary at the maximum code size.

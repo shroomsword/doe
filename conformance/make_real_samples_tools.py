@@ -399,6 +399,32 @@ def make_snappy():
     put("archive/snappy", "cramjam_framed", framed, WITHOUT_REFERENCE)
     put("archive/snappy", "cramjam_framed_small", bytes(cramjam.snappy.compress(TEXT)), WITHOUT_REFERENCE)
     put("archive/snappy", "cramjam_raw_block", bytes(cramjam.snappy.compress_raw(TEXT)), WITHOUT_REFERENCE)
+def make_compress_z():
+    need("compress")
+    # ncompress (or the compress of a BSD): the default 16 bits and 12 bits
+    for sample, bits in (("ncompress_16bits", "16"), ("ncompress_12bits", "12")):
+        out = run(["compress", "-b", bits, "-c"], input=TEXT)
+        put("archive/compress_z", sample, out, WITHOUT_REFERENCE)
+
+
+def make_lzop():
+    need("lzop")
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / "notes.txt"
+        source.write_bytes(TEXT)
+        os.utime(source, (1700000000, 1700000000))
+        # the options pick the method, the level and the checksums of the blocks (-F: none); the name is the input's
+        for sample, args in (
+            ("lzop_default", ["-c", "-3"]),
+            ("lzop_best_crc32", ["-c", "-9", "--crc32"]),
+            ("lzop_fast_no_checksum", ["-c", "-1", "-F"]),
+        ):
+            out = run(["lzop", *args, str(source)])
+            put("archive/lzop", sample, out, WITHOUT_REFERENCE)
+        # two blocks: the input (302 kB of text, which compresses to a few kB) is bigger than the 256 KiB block of lzop
+        big = Path(tmp) / "big.bin"
+        big.write_bytes(TEXT * 120)
+        put("archive/lzop", "lzop_two_blocks", run(["lzop", "-c", str(big)]), WITHOUT_REFERENCE)
 
 
 def make_gpg():
@@ -571,7 +597,7 @@ def make_tls():
 ALL = [
     make_gettext, make_dtb, make_uimage, make_cc65, make_tap, make_xar, make_zchunk, make_zisofs, make_android,
     make_partition_tables, make_gpg, make_msi, make_windres, make_php,
-    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream, make_snappy,
+    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream, make_snappy, make_compress_z, make_lzop,
 ]
 
 # Not made: files that the gallery's definitions cannot read (#278). The functions stay so that they can be run when the

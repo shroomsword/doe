@@ -271,6 +271,17 @@ test('a Snappy framed stream is found by its identifier, without the network', a
   expect(asked).toEqual([]);
 });
 
+test('an lzop file is found by its magic, without the network, and its blocks are in the tree', async ({ page }) => {
+  const asked = await serveGallery(page);
+  await ready(page);
+  await page.setInputFiles('#open-input', { name: 'data', mimeType: 'application/octet-stream', buffer: readFileSync(join(repo, 'types', 'samples', 'sample.lzo')) });
+  await page.click('#detect');
+  await expect(page.locator('#detect-report')).toContainText('lzop parses the file', { timeout: 30_000 });
+  await expect(page.locator('#editing')).toContainText('library/lzop.yaml');
+  await expect(page.locator('.tree-row').first()).toBeVisible();
+  expect(asked).toEqual([]);
+});
+
 test('an lzip file is found by LZIP, without the network, and its trailer is in the tree', async ({ page }) => {
   const asked = await serveGallery(page);
   await ready(page);

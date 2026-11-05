@@ -1,0 +1,179 @@
+id: lzop
+doc: |
+  lzop file (.lzo): the header, with the flags that gate its fields, and every block's header and compressed bytes up to the end block
+# Covers: the magic `89 4C 5A 4F 00 0D 0A 1A 0A` and the header - the versions (lzop, LZO library, needed to extract), the
+#   method (LZO1X-1, LZO1X-1(15), LZO1X-999), the level, the flags (the checksums of the blocks, standard input and
+#   output, a default name, an extra field, a filter, a header CRC-32, and the operating system and character set in
+#   the high bits), the filter (when flagged), the mode, the modification time (low and high words), the name (a length
+#   byte and the bytes), the header checksum (Adler-32, or CRC-32 when `header_has_crc32`) and the extra field (a length,
+#   the bytes and its checksum) when flagged - and then the blocks: for each the size of the uncompressed data, the size
+#   of the compressed data (the same when the block is stored), the checksums that the flags name and the data as bytes,
+#   until the block of uncompressed size 0.
+# Limits: the LZO1X data is not decoded (it is bytes), and the checksums are numbers, not checked. The checksum of the
+#   compressed data is only in a block that is compressed (the compressed size is smaller than the uncompressed one), as
+#   in lzop. A multipart or split file (`F_MULTIPART`; uncompressed size 0xFFFFFFFF) is not followed.
+# Detection: the 9-byte magic at offset 0.
+# Specification: lzop's `doc/lzop.pod`, and the header and block layout of `src/lzop.c` (`read_header`, `write_header`) and
+#   `src/p_lzo.c`.
+meta:
+  id: lzop
+  file-extension: lzo
+  endian: be
+seq:
+  - id: magic
+    contents: [0x89, "LZO", 0x00, 0x0d, 0x0a, 0x1a, 0x0a]
+  - id: version
+    type: u2
+    doc: The version of lzop, as 0xVVVV (0x1040 is 1.04).
+  - id: lib_version
+    type: u2
+    doc: The version of the LZO library that wrote the file.
+  - id: version_needed
+    type: u2
+    if: version >= 0x0940
+    doc: The lowest version of lzop that can extract the file.
+  - id: method
+    type: u1
+    enum: method
+  - id: level
+    type: u1
+    if: version >= 0x0940
+  - id: flags
+    type: u4
+  - id: filter
+    type: u4
+    if: has_filter
+  - id: mode
+    type: u4
+  - id: mtime_low
+    type: u4
+  - id: mtime_high
+    type: u4
+    if: version >= 0x0940
+  - id: name_length
+    type: u1
+  - id: name
+    type: str
+    size: name_length
+    encoding: UTF-8
+  - id: header_checksum
+    type: u4
+    doc: The Adler-32 (or the CRC-32 when `header_has_crc32`) of the header from the version to the name.
+  - id: extra_field
+    type: extra_field
+    if: has_extra_field
+  - id: blocks
+    type: block(flags)
+    repeat: until
+    repeat-until: _.is_last
+instances:
+  has_adler32_data:
+    value: (flags & 0x1) != 0
+  has_adler32_compressed:
+    value: (flags & 0x2) != 0
+  from_stdin:
+    value: (flags & 0x4) != 0
+  to_stdout:
+    value: (flags & 0x8) != 0
+  has_default_name:
+    value: (flags & 0x10) != 0
+  is_dosish:
+    value: (flags & 0x20) != 0
+  has_extra_field:
+    value: (flags & 0x40) != 0
+  has_gmt_diff:
+    value: (flags & 0x80) != 0
+  has_crc32_data:
+    value: (flags & 0x100) != 0
+  has_crc32_compressed:
+    value: (flags & 0x200) != 0
+  is_multipart:
+    value: (flags & 0x400) != 0
+  has_filter:
+    value: (flags & 0x800) != 0
+  header_has_crc32:
+    value: (flags & 0x1000) != 0
+  has_path:
+    value: (flags & 0x2000) != 0
+  os:
+    value: (flags >> 24) & 0xff
+    enum: os
+  charset:
+    value: (flags >> 20) & 0xf
+    enum: charset
+  mtime:
+    value: mtime_low
+    doc: The modification time in seconds since 1970 (the low word; `mtime_high` has the rest).
+enums:
+  method:
+    1: lzo1x_1
+    2: lzo1x_1_15
+    3: lzo1x_999
+  os:
+    0: fat
+    1: amiga
+    2: vms
+    3: unix
+    4: vm_cms
+    5: atari
+    6: os2
+    7: mac9
+    8: z_system
+    9: cpm
+    10: tops20
+    11: ntfs
+    12: qdos
+    13: acorn
+    14: vfat
+    15: mfs
+    16: beos
+    17: tandem
+  charset:
+    0: native
+    1: latin1
+    2: dos
+    3: win32
+    4: win16
+    5: utf8
+types:
+  extra_field:
+    seq:
+      - id: length
+        type: u4
+      - id: data
+        size: length
+      - id: checksum
+        type: u4
+  block:
+    params:
+      - id: flags
+        type: u4
+        doc: The flags of the header, which say which checksums a block has.
+    seq:
+      - id: uncompressed_size
+        type: u4
+        doc: 0 for the block that ends the file.
+      - id: compressed_size
+        type: u4
+        if: not is_last
+        doc: Equal to the uncompressed size when the block is stored.
+      - id: adler32_data
+        type: u4
+        if: not is_last and (flags & 0x1) != 0
+      - id: crc32_data
+        type: u4
+        if: not is_last and (flags & 0x100) != 0
+      - id: adler32_compressed
+        type: u4
+        if: not is_last and is_compressed and (flags & 0x2) != 0
+      - id: crc32_compressed
+        type: u4
+        if: not is_last and is_compressed and (flags & 0x200) != 0
+      - id: data
+        size: compressed_size
+        if: not is_last
+    instances:
+      is_last:
+        value: uncompressed_size == 0
+      is_compressed:
+        value: not is_last and compressed_size < uncompressed_size

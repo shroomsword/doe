@@ -121,6 +121,8 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `ubi` | UBI images (the volume layer under UBIFS on NAND flash): the headers of every eraseblock and the layout volume's table of volumes |
 | `zlib_stream` | zlib streams (RFC 1950): the window size, the level, the dictionary id and the Adler-32, with the inflated data; its payload is the inflated file |
 | `snappy` | Snappy framed streams (`.sz`): the chunks with their CRCs, and each compressed block as its literals and copies; `snappy::snappy_block` reads a raw block |
+| `compress_z` | Unix `compress` files (`.Z`): the flags (maximum code size, block mode); the LZW codes are bytes |
+| `lzop` | lzop files (`.lzo`): the header and its flags, and every block's sizes and checksums; the LZO1X data is bytes |
 | `lzma_alone` | LZMA-alone files (`.lzma`): the properties split into `lc`, `lp` and `pb`, the dictionary size and the size; the compressed data is bytes |
 | `lzip` | lzip files (`.lz`): the header with the dictionary size decoded, the trailer and the last member |
 | `squashfs` | `SquashFS` 4.0 images: the superblock, the id, fragment and export tables, and the root inode and directory (metadata that is stored or a zlib stream) |
