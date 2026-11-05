@@ -445,7 +445,14 @@ fn the_samples_are_the_ones_the_script_makes() {
         .unwrap();
     assert!(run.success());
     // made by the compressors of Python's libraries, whose output can differ between versions of them
-    let compressed = ["sample.bz2", "sample.xz"];
+    let compressed = [
+        "sample.bz2",
+        "sample.xz",
+        "sample.lzma",
+        "sample_sized.lzma",
+        "sample.lz",
+        "sample_two.lz",
+    ];
     for entry in std::fs::read_dir(types().join("samples")).unwrap() {
         let entry = entry.unwrap();
         if compressed.contains(&entry.file_name().to_string_lossy().as_ref()) {
@@ -1621,6 +1628,125 @@ fn real_ubifs_and_ubi_images_made_by_mtd_utils() {
         .as_str()
         .expect("the data of the first block of volume 0");
     assert!(data.starts_with("31181006"), "{data:.16}");
+}
+
+#[test]
+fn lzma_alone_reads_the_header_and_rejects_what_cannot_be_one() {
+    let v = decode("lzma_alone", "sample.lzma");
+    assert_eq!(
+        (
+            v["properties"].as_u64(),
+            v["lc"].as_u64(),
+            v["lp"].as_u64(),
+            v["pb"].as_u64()
+        ),
+        (Some(93), Some(3), Some(0), Some(2))
+    );
+    assert_eq!(v["dictionary_size"], 1 << 20);
+    assert_eq!(
+        (v["has_size"].as_bool(), v["uses_end_marker"].as_bool()),
+        (Some(false), Some(true))
+    );
+    // a file that says its size
+    let sized = decode("lzma_alone", "sample_sized.lzma");
+    assert_eq!(
+        (
+            sized["uncompressed_size"].as_u64(),
+            sized["has_size"].as_bool()
+        ),
+        (Some(480), Some(true))
+    );
+    // what the compressor of the xz tool wrote, with two presets (their dictionaries are 8 MiB and 256 KiB)
+    for (file, dictionary) in [("xz_preset6", 8 << 20), ("xz_preset0", 256 << 10)] {
+        let v = decode_real("lzma_alone", &format!("archive/lzma_alone/{file}.bin"));
+        assert_eq!(v["dictionary_size"], dictionary, "{file}");
+        assert_eq!(
+            (v["lc"].as_u64(), v["lp"].as_u64(), v["pb"].as_u64()),
+            (Some(3), Some(0), Some(2)),
+            "{file}"
+        );
+    }
+    // properties byte 225 or more, a dictionary under 4096: not an LZMA-alone file
+    let mut bad = std::fs::read(types().join("samples/sample.lzma")).unwrap();
+    bad[0] = 225;
+    assert!(lzma_alone_fails(&bad));
+    bad[0] = 93;
+    bad[1..5].copy_from_slice(&100_u32.to_le_bytes());
+    assert!(lzma_alone_fails(&bad));
+}
+
+/// Whether `lzma_alone` does not fit these bytes.
+fn lzma_alone_fails(bytes: &[u8]) -> bool {
+    let schema = std::fs::read_to_string(types().join("lzma.yaml")).unwrap();
+    let request = serde_json::json!({"schema": schema});
+    !doe::api::parse(&request.to_string(), bytes).ok
+}
+
+#[test]
+fn lzip_reads_the_header_the_trailer_and_the_last_member() {
+    let one = decode("lzip", "sample.lz");
+    assert_eq!(
+        (
+            one["header"]["version"].as_u64(),
+            one["header"]["dictionary_size"].as_u64()
+        ),
+        (Some(1), Some(1 << 20))
+    );
+    assert_eq!(one["trailer"]["data_size"], 480);
+    assert_eq!(one["trailer"]["member_size"], 49);
+    assert_eq!(one["has_one_member"], true);
+    assert!(one["last_header"].is_null());
+    // two members: the trailer is the second's, and its header is read where the first ends
+    let two = decode("lzip", "sample_two.lz");
+    assert_eq!(two["header"]["version"], 1);
+    assert_eq!(two["trailer"]["data_size"], 700);
+    assert_eq!(two["trailer"]["member_size"], 57);
+    assert_eq!(two["has_one_member"], false);
+    assert_eq!(two["last_member_start"], 49);
+    assert_eq!(two["last_header"]["dictionary_size"], 1 << 20);
+}
+
+#[test]
+fn lzip_decodes_the_coded_dictionary_size() {
+    let mut bytes = std::fs::read(types().join("samples/sample.lz")).unwrap();
+    // 2^20 less 3/16 of its 1/16ths; 2^12 (the smallest); 2^29 (the largest)
+    let schema = std::fs::read_to_string(types().join("lzip.yaml")).unwrap();
+    let request = |b: &[u8]| {
+        doe::api::parse(&serde_json::json!({"schema": schema}).to_string(), b)
+            .value
+            .unwrap()
+    };
+    bytes[5] = 0x74;
+    assert_eq!(
+        request(&bytes)["header"]["dictionary_size"],
+        (1 << 20) - (1 << 16) * 3
+    );
+    bytes[5] = 12;
+    assert_eq!(request(&bytes)["header"]["dictionary_size"], 4096);
+    bytes[5] = 29;
+    assert_eq!(request(&bytes)["header"]["dictionary_size"], 1 << 29);
+}
+
+#[test]
+fn lzma_alone_is_found_by_its_name_and_lzip_by_its_magic() {
+    for (file, name) in [
+        ("sample.lzma", "lzma_alone"),
+        ("sample.lz", "lzip"),
+        ("sample_two.lz", "lzip"),
+    ] {
+        let found = doe::detect::detect_file(
+            &types().join("samples").join(file),
+            &[types()],
+            &doe::detect::Options::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            found.chosen().map(|a| a.name.as_str()),
+            Some(name),
+            "{file}: {}",
+            found.report()
+        );
+    }
 }
 
 #[test]
