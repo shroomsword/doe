@@ -1,0 +1,130 @@
+id: brotli
+doc: |
+  Brotli stream (RFC 7932, .br): the window size and the meta-blocks up to the first compressed one, with the bytes of uncompressed and metadata blocks
+# Covers: the stream header (WBITS, the window size) and the meta-blocks in order, each with its header - ISLAST,
+#   ISLASTEMPTY, the number of nibbles of the length, the length (MLEN), ISUNCOMPRESSED - and, for the two kinds that have
+#   a length in bytes, their bytes: an uncompressed meta-block's raw bytes and a metadata meta-block's skipped bytes. The
+#   stream is bit-packed, least significant bit first, so every field is a bit field.
+# Limits: this is the part of Brotli that a schema can reach. The first compressed meta-block ends the list: its header is
+#   read, and everything after it (the prefix codes, block types, context maps and the commands) is Huffman-coded and is
+#   `rest`, bytes - the length of a compressed meta-block in the compressed stream is not given anywhere, so the meta-blocks
+#   after it cannot be found without decoding. The bits that the compressed meta-block's header leaves in its last byte
+#   belong to the prefix codes and are in the first byte of `rest`, not shown separately. Decoding needs prefix-code tables,
+#   a sliding window and the 122,784-byte static dictionary and is not possible in a schema; `process: brotli` would be
+#   the way (a host decoder). A stream with the large-window extension (WBITS code 1) is read as far as its header.
+# Detection: there is no signature. The type is tried for a name that ends in `.br`, or it is given; a Brotli body is
+#   usually a layer (a WOFF2 table, an HTTP body), not a file.
+# Specification: RFC 7932, "Brotli Compressed Data Format"; the large-window extension is in the Brotli repository's docs.
+meta:
+  id: brotli
+  file-extension: br
+  bit-endian: le
+  endian: le
+seq:
+  - id: window_first
+    type: b1
+    doc: 0 is a window of 16 bits (WBITS = 16).
+  - id: window_code_1
+    type: b3
+    if: window_first
+  - id: window_code_2
+    type: b3
+    if: window_first and window_code_1 == 0
+  - id: meta_blocks
+    type: meta_block
+    repeat: until
+    repeat-until: _.ends_the_list
+  - id: rest
+    size-eos: true
+instances:
+  window_bits:
+    value: >-
+      not window_first ? 16 :
+      window_code_1 != 0 ? 17 + window_code_1 :
+      window_code_2 == 0 ? 17 :
+      window_code_2 == 1 ? 0 :
+      8 + window_code_2
+    doc: The base-2 logarithm of the window size; 0 for the large-window extension, whose size comes from the next meta-block.
+  window_size:
+    value: (1 << window_bits) - 16
+    if: window_bits != 0
+    doc: The window in bytes (2^WBITS - 16).
+  is_large_window:
+    value: window_first and window_code_1 == 0 and window_code_2 == 1
+types:
+  meta_block:
+    seq:
+      - id: is_last
+        type: b1
+      - id: is_last_empty
+        type: b1
+        if: is_last
+        doc: An empty last meta-block ends the stream.
+      - id: nibbles_code
+        type: b2
+        if: not is_empty_last
+        doc: 0, 1 and 2 are 4, 5 and 6 nibbles of length; 3 is a metadata meta-block.
+      - id: reserved
+        type: b1
+        if: is_metadata
+        doc: Must be zero.
+      - id: skip_bytes
+        type: b2
+        if: is_metadata
+        doc: The number of bytes that MSKIPLEN - 1 takes (0 to 3).
+      - id: skip_length_0
+        type: b8
+        if: is_metadata and skip_bytes >= 1
+      - id: skip_length_1
+        type: b8
+        if: is_metadata and skip_bytes >= 2
+      - id: skip_length_2
+        type: b8
+        if: is_metadata and skip_bytes >= 3
+      - id: length_16
+        type: b16
+        if: has_length and nibbles_code == 0
+      - id: length_20
+        type: b20
+        if: has_length and nibbles_code == 1
+      - id: length_24
+        type: b24
+        if: has_length and nibbles_code == 2
+      - id: is_uncompressed
+        type: b1
+        if: has_length and not is_last
+      - id: skipped
+        size: skip_length
+        if: is_metadata
+        doc: The metadata, ignored by a decoder (byte-aligned, so the bits before it are padding).
+      - id: raw
+        size: length
+        if: has_raw
+        doc: The bytes of an uncompressed meta-block (byte-aligned, so the bits before it are padding).
+    instances:
+      is_empty_last:
+        value: is_last and is_last_empty
+      is_metadata:
+        value: not is_empty_last and nibbles_code == 3
+      has_length:
+        value: not is_empty_last and nibbles_code != 3
+      length:
+        value: >-
+          (nibbles_code == 0 ? length_16 : nibbles_code == 1 ? length_20 : length_24) + 1
+        if: has_length
+        doc: MLEN, the number of uncompressed bytes the meta-block stands for.
+      skip_length:
+        value: >-
+          skip_bytes == 0 ? 0 :
+          skip_bytes == 1 ? skip_length_0 + 1 :
+          skip_bytes == 2 ? skip_length_0 + (skip_length_1 << 8) + 1 :
+          skip_length_0 + (skip_length_1 << 8) + (skip_length_2 << 16) + 1
+        if: is_metadata
+      has_raw:
+        value: has_length and not is_last and is_uncompressed
+      is_compressed:
+        value: has_length and (is_last or not is_uncompressed)
+        doc: A compressed meta-block (the last one may also be, with ISLAST set, and has no ISUNCOMPRESSED bit).
+      ends_the_list:
+        value: is_empty_last or is_compressed
+        doc: The last empty meta-block, or the first compressed one (what follows it cannot be found without decoding).
