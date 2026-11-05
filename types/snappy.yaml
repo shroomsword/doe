@@ -1,0 +1,210 @@
+id: snappy
+doc: |
+  Snappy framing format (.sz, .snappy): the chunks of a stream, each compressed block as its elements; `snappy::snappy_block` is the raw block format
+# Covers: the framing format (Google's `framing_format.txt`) - the stream identifier `sNaPpY` and then chunks, each a
+#   type, a 3-byte length and the data: compressed data (the masked CRC-32C of the uncompressed data and the block), uncompressed
+#   data (the CRC and the bytes), padding, skippable chunks, the identifier of a stream that follows another (a file may
+#   be several streams joined), and the reserved ones. Every compressed block is read as the raw block format
+#   (`format_description.txt`): the length of the uncompressed data as a base-128 varint and then the elements - literals
+#   (their length, in the tag or in 1 to 4 bytes after it, and the bytes) and copies with a 1, 2 or 4-byte offset (their
+#   length and offset). `snappy::snappy_block` is the raw block as a type of this schema, to be given by name for a file
+#   that is one block (`doe FILE snappy::snappy_block`): it has no magic number.
+# Limits: the copies are not expanded - that needs a reference into the output, which the language does not have - so the
+#   uncompressed data is not shown, only the elements and the length that the block says it has. The CRC-32C is a number,
+#   not computed or checked. A chunk of 0x02 to 0x7f (reserved, not skippable) is bytes. The length of a chunk is 24 bits,
+#   a block of at most 65536 uncompressed bytes in a conforming writer, but nothing here checks that. A literal longer
+#   than 2^32 bytes is not possible; a varint of more than five bytes is not read.
+# Detection: the 10 bytes `FF 06 00 00 sNaPpY` at offset 0. A raw block has no magic, so it is not found by content.
+# Specification: the snappy repository's `framing_format.txt` and `format_description.txt`.
+meta:
+  id: snappy
+  file-extension: [sz, snappy]
+  endian: le
+seq:
+  - id: signature
+    contents: [0xff, 0x06, 0x00, 0x00, "sNaPpY"]
+  - id: chunks
+    type: chunk
+    repeat: eos
+enums:
+  chunk_type:
+    0x00: compressed_data
+    0x01: uncompressed_data
+    0xfe: padding
+    0xff: stream_identifier
+  element_kind:
+    0: literal
+    1: copy_1_byte_offset
+    2: copy_2_byte_offset
+    3: copy_4_byte_offset
+types:
+  chunk:
+    seq:
+      - id: type
+        type: u1
+        enum: chunk_type
+      - id: length_low
+        type: u2
+      - id: length_high
+        type: u1
+      - id: body
+        size: length
+        type:
+          switch-on: type
+          cases:
+            chunk_type::compressed_data: compressed_chunk
+            chunk_type::uncompressed_data: uncompressed_chunk
+            chunk_type::stream_identifier: stream_identifier
+            _: other_chunk
+    instances:
+      length:
+        value: length_low + (length_high << 16)
+      is_skippable:
+        value: type.to_i >= 0x80 and type.to_i <= 0xfe
+        doc: A reader ignores these (0xfe is the padding chunk).
+      is_reserved:
+        value: type.to_i >= 0x02 and type.to_i <= 0x7f
+        doc: Reserved and not skippable - a reader must stop with an error.
+  compressed_chunk:
+    seq:
+      - id: crc32c
+        type: u4
+        doc: The CRC-32C of the uncompressed data, rotated right by 15 and added to 0xa282ead8.
+      - id: block
+        type: snappy_block
+        size-eos: true
+  uncompressed_chunk:
+    seq:
+      - id: crc32c
+        type: u4
+      - id: data
+        size-eos: true
+  stream_identifier:
+    seq:
+      - id: name
+        type: str
+        size-eos: true
+        encoding: ASCII
+        doc: '"sNaPpY".'
+  other_chunk:
+    seq:
+      - id: data
+        size-eos: true
+  # the raw block format
+  snappy_block:
+    seq:
+      - id: length
+        type: varint
+        doc: The length of the uncompressed data.
+      - id: elements
+        type: element
+        repeat: eos
+    instances:
+      uncompressed_length:
+        value: length.value
+  varint:
+    doc: A base-128 integer of up to five bytes, the low group first.
+    seq:
+      - id: b0
+        type: u1
+      - id: b1
+        type: u1
+        if: b0 >= 128
+      - id: b2
+        type: u1
+        if: b0 >= 128 and b1 >= 128
+      - id: b3
+        type: u1
+        if: b0 >= 128 and b1 >= 128 and b2 >= 128
+      - id: b4
+        type: u1
+        if: b0 >= 128 and b1 >= 128 and b2 >= 128 and b3 >= 128
+    instances:
+      value:
+        value: >-
+          b0 < 128 ? b0 :
+          b1 < 128 ? (b0 & 127) + (b1 << 7) :
+          b2 < 128 ? (b0 & 127) + ((b1 & 127) << 7) + (b2 << 14) :
+          b3 < 128 ? (b0 & 127) + ((b1 & 127) << 7) + ((b2 & 127) << 14) + (b3 << 21) :
+          (b0 & 127) + ((b1 & 127) << 7) + ((b2 & 127) << 14) + ((b3 & 127) << 21) + (b4 << 28)
+  element:
+    seq:
+      - id: tag
+        type: u1
+      - id: body
+        type:
+          switch-on: tag & 3
+          cases:
+            0: literal(tag)
+            1: copy_1(tag)
+            2: copy_2(tag)
+            3: copy_4(tag)
+    instances:
+      kind:
+        value: tag & 3
+        enum: element_kind
+  literal:
+    params:
+      - id: tag
+        type: u1
+    seq:
+      - id: length_1
+        type: u1
+        if: (tag >> 2) == 60
+      - id: length_2
+        type: u2
+        if: (tag >> 2) == 61
+      - id: length_3_low
+        type: u2
+        if: (tag >> 2) == 62
+      - id: length_3_high
+        type: u1
+        if: (tag >> 2) == 62
+      - id: length_4
+        type: u4
+        if: (tag >> 2) == 63
+      - id: data
+        size: length
+    instances:
+      length:
+        value: >-
+          (tag >> 2) < 60 ? (tag >> 2) + 1 :
+          (tag >> 2) == 60 ? length_1 + 1 :
+          (tag >> 2) == 61 ? length_2 + 1 :
+          (tag >> 2) == 62 ? length_3_low + (length_3_high << 16) + 1 :
+          length_4 + 1
+  copy_1:
+    doc: A copy of 4 to 11 bytes from an offset of up to 2047 bytes back.
+    params:
+      - id: tag
+        type: u1
+    seq:
+      - id: offset_low
+        type: u1
+    instances:
+      length:
+        value: ((tag >> 2) & 7) + 4
+      offset:
+        value: ((tag >> 5) << 8) + offset_low
+  copy_2:
+    doc: A copy of 1 to 64 bytes from an offset of up to 65535 bytes back.
+    params:
+      - id: tag
+        type: u1
+    seq:
+      - id: offset
+        type: u2
+    instances:
+      length:
+        value: (tag >> 2) + 1
+  copy_4:
+    doc: A copy of 1 to 64 bytes from an offset of up to 2^32 - 1 bytes back.
+    params:
+      - id: tag
+        type: u1
+    seq:
+      - id: offset
+        type: u4
+    instances:
+      length:
+        value: (tag >> 2) + 1

@@ -22,6 +22,7 @@ licence: the contents are the words in this script.
 """
 
 import gzip
+import hashlib
 import os
 import shutil
 import ssl
@@ -386,6 +387,20 @@ def make_zlib_stream():
             put("archive/zlib_stream", sample, (Path(tmp) / ".git" / "objects" / oid[:2] / oid[2:]).read_bytes(), WITHOUT_REFERENCE)
 
 
+def make_snappy():
+    try:
+        import cramjam
+    except ImportError:
+        raise Missing("cramjam (pip install cramjam: the Rust snap crate)") from None
+    # a chunk holds at most 64 KiB: the text fills the first, and the bytes of a hash chain, which do not compress, are
+    # most of the second, which is then written as an uncompressed chunk
+    noise = b"".join(hashlib.sha256(bytes([i])).digest() for i in range(100))[:3000]
+    framed = bytes(cramjam.snappy.compress(TEXT * 26 + noise))
+    put("archive/snappy", "cramjam_framed", framed, WITHOUT_REFERENCE)
+    put("archive/snappy", "cramjam_framed_small", bytes(cramjam.snappy.compress(TEXT)), WITHOUT_REFERENCE)
+    put("archive/snappy", "cramjam_raw_block", bytes(cramjam.snappy.compress_raw(TEXT)), WITHOUT_REFERENCE)
+
+
 def make_gpg():
     need("gpg")
     with tempfile.TemporaryDirectory() as tmp:
@@ -556,7 +571,7 @@ def make_tls():
 ALL = [
     make_gettext, make_dtb, make_uimage, make_cc65, make_tap, make_xar, make_zchunk, make_zisofs, make_android,
     make_partition_tables, make_gpg, make_msi, make_windres, make_php,
-    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream,
+    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream, make_snappy,
 ]
 
 # Not made: files that the gallery's definitions cannot read (#278). The functions stay so that they can be run when the
