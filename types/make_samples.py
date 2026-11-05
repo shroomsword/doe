@@ -777,6 +777,51 @@ def snappy_stream() -> bytes:
         + ident
         + chunk(0x01, struct.pack("<I", crc32c_masked(b"second stream\n")) + b"second stream\n")
     )
+def compress_z(maxbits: int = 16, block_mode: bool = True) -> bytes:
+    """A .Z file of a short text: every byte as a literal code of 9 bits (no repeats, so the dictionary is only read, never
+    used), packed least significant bit first, as compress does."""
+    text = b"compress me, abcdefg\n"
+    bits = 0
+    count = 0
+    out = bytearray()
+    for byte in text:
+        bits |= byte << count
+        count += 9
+        while count >= 8:
+            out.append(bits & 255)
+            bits >>= 8
+            count -= 8
+    if count:
+        out.append(bits & 255)
+    return b"\x1f\x9d" + bytes([maxbits | (0x80 if block_mode else 0)]) + bytes(out)
+
+
+def lzop_file(checksum: str = "adler32", name: bytes = b"sample.txt", extra: bytes | None = None, method: int = 1) -> bytes:
+    """An lzop file of version 1.04 with two blocks and the end block: one compressed (an LZO1X stream of a literal run
+    and one copy, written by hand) and one stored, with the checksums that `checksum` names (`adler32` or `crc32`)."""
+    import zlib
+
+    def check(data: bytes) -> int:
+        return zlib.adler32(data) if checksum == "adler32" else zlib.crc32(data)
+
+    flags = 0x03000000 | 0x8 | (0x40 if extra is not None else 0)
+    if checksum == "adler32":
+        flags |= 0x1 | 0x2
+    else:
+        flags |= 0x100 | 0x200 | 0x1000
+    head = struct.pack(">HHHBB", 0x1040, 0x20A0, 0x0940, method, 5 if method == 1 else 9)
+    head += struct.pack(">IIII", flags, 0o100644, 1_700_000_000, 0) + bytes([len(name)]) + name
+    out = bytearray(b"\x89LZO\x00\r\n\x1a\n" + head + struct.pack(">I", check(head)))
+    if extra is not None:
+        field = struct.pack(">I", len(extra)) + extra
+        out += field + struct.pack(">I", check(field))
+    # "abc", then a copy of 8 bytes from 3 bytes back, then the end marker: "abcabcabcab"
+    packed = bytes([17 + 3]) + b"abc" + bytes([0xE8, 0x00]) + bytes([0x11, 0, 0])
+    plain = b"abcabcabcab"
+    stored = b"stored as is\n"
+    first = struct.pack(">II", len(plain), len(packed)) + struct.pack(">I", check(plain)) + struct.pack(">I", check(packed)) + packed
+    second = struct.pack(">II", len(stored), len(stored)) + struct.pack(">I", check(stored)) + stored
+    return bytes(out) + first + second + struct.pack(">I", 0)
 
 
 def mar_archive() -> bytes:
@@ -888,6 +933,10 @@ if __name__ == "__main__":
     put("sample_dictionary.zlib", zlib_stream(6, 15, b"hello zlib"))
     put("sample.sz", snappy_stream())
     put("sample.block", snappy_block()[0])
+    put("sample.Z", compress_z())
+    put("sample_12bits.Z", compress_z(12, block_mode=False))
+    put("sample.lzo", lzop_file())
+    put("sample_crc32.lzo", lzop_file("crc32", b"", extra=b"extra data", method=3))
     put("sample.wav", wav_audio())
     classic = pdf_classic()
     put("sample.pdf", classic)

@@ -2007,6 +2007,183 @@ fn snappy_is_found_by_its_stream_identifier() {
     );
 }
 
+/// Whether `compress_z` fits these bytes.
+fn compress_z_fits(bytes: &[u8]) -> bool {
+    let schema = std::fs::read_to_string(types().join("compress_z.yaml")).unwrap();
+    let request = serde_json::json!({"schema": schema});
+    doe::api::parse(&request.to_string(), bytes).ok
+}
+
+#[test]
+fn compress_z_reads_the_flags_and_rejects_what_cannot_be_one() {
+    let v = decode("compress_z", "sample.Z");
+    assert_eq!(
+        (
+            v["maxbits"].as_u64(),
+            v["block_mode"].as_bool(),
+            v["max_codes"].as_u64()
+        ),
+        (Some(16), Some(true), Some(65_536))
+    );
+    assert_eq!(v["codes"]["len"], 24);
+    let v = decode("compress_z", "sample_12bits.Z");
+    assert_eq!(
+        (v["maxbits"].as_u64(), v["block_mode"].as_bool()),
+        (Some(12), Some(false))
+    );
+    // what ncompress writes: block mode, 16 and 12 bits
+    for (file, bits) in [("ncompress_16bits", 16), ("ncompress_12bits", 12)] {
+        let v = decode_real("compress_z", &format!("archive/compress_z/{file}.bin"));
+        assert_eq!(
+            (v["maxbits"].as_u64(), v["block_mode"].as_bool()),
+            (Some(bits), Some(true)),
+            "{file}"
+        );
+        assert_eq!(v["codes"]["len"], 618, "{file}");
+    }
+    // maxbits 8 and 17, and a reserved bit, do not fit
+    let whole = std::fs::read(types().join("samples/sample.Z")).unwrap();
+    for flags in [0x88, 0x91, 0x90 | 0x20, 0x90 | 0x40] {
+        let mut bad = whole.clone();
+        bad[2] = flags;
+        assert!(!compress_z_fits(&bad), "flags {flags:#x}");
+    }
+    assert!(compress_z_fits(&whole));
+}
+
+#[test]
+fn lzop_reads_the_header_the_flags_and_every_block() {
+    // (file, name, method, level, header checksum is a CRC-32, flags that gate fields)
+    let v = decode("lzop", "sample.lzo");
+    assert_eq!(
+        (
+            v["version"].as_u64(),
+            v["lib_version"].as_u64(),
+            v["version_needed"].as_u64()
+        ),
+        (Some(0x1040), Some(0x20a0), Some(0x0940))
+    );
+    assert_eq!(
+        (
+            name_of(&v["method"]),
+            v["level"].as_u64(),
+            v["name"].as_str()
+        ),
+        ("lzo1x_1", Some(5), Some("sample.txt"))
+    );
+    assert_eq!(
+        (name_of(&v["os"]), v["mtime"].as_u64(), v["mode"].as_u64()),
+        ("unix", Some(1_700_000_000), Some(0o100_644))
+    );
+    assert_eq!(
+        (
+            v["has_adler32_data"].as_bool(),
+            v["has_adler32_compressed"].as_bool(),
+            v["header_has_crc32"].as_bool()
+        ),
+        (Some(true), Some(true), Some(false))
+    );
+    let blocks = v["blocks"].as_array().unwrap();
+    // a compressed block (both checksums), a stored one (the checksum of the data only) and the end block
+    let sizes: Vec<(u64, Option<u64>)> = blocks
+        .iter()
+        .map(|b| {
+            (
+                b["uncompressed_size"].as_u64().unwrap(),
+                b["compressed_size"].as_u64(),
+            )
+        })
+        .collect();
+    assert_eq!(sizes, [(11, Some(9)), (13, Some(13)), (0, None)]);
+    assert!(
+        !blocks[0]["adler32_compressed"].is_null() && blocks[1]["adler32_compressed"].is_null()
+    );
+    assert_eq!(blocks[0]["data"]["len"], 9);
+    // CRC-32 flags, a header CRC-32, an extra field, no name, method LZO1X-999
+    let c = decode("lzop", "sample_crc32.lzo");
+    assert_eq!(
+        (
+            name_of(&c["method"]),
+            c["level"].as_u64(),
+            c["name_length"].as_u64()
+        ),
+        ("lzo1x_999", Some(9), Some(0))
+    );
+    assert_eq!(
+        (
+            c["header_has_crc32"].as_bool(),
+            c["has_extra_field"].as_bool(),
+            c["has_crc32_data"].as_bool()
+        ),
+        (Some(true), Some(true), Some(true))
+    );
+    assert_eq!(c["extra_field"]["length"], 10);
+    let blocks = c["blocks"].as_array().unwrap();
+    assert!(!blocks[0]["crc32_compressed"].is_null() && blocks[1]["crc32_compressed"].is_null());
+    assert_eq!(blocks.len(), 3);
+}
+
+#[test]
+fn lzop_reads_what_the_lzop_tool_writes() {
+    // lzop 1.04: levels 3, 9 and 1 (the methods 1, 3 and 2), with and without checksums, and a file of two blocks
+    for (file, method, level, flags_checksum) in [
+        ("lzop_default", "lzo1x_1", 5, true),
+        ("lzop_best_crc32", "lzo1x_999", 9, true),
+        ("lzop_fast_no_checksum", "lzo1x_1_15", 1, false),
+    ] {
+        let v = decode_real("lzop", &format!("archive/lzop/{file}.bin"));
+        assert_eq!(
+            (
+                name_of(&v["method"]),
+                v["level"].as_u64(),
+                v["name"].as_str()
+            ),
+            (method, Some(level), Some("notes.txt")),
+            "{file}"
+        );
+        let blocks = v["blocks"].as_array().unwrap();
+        assert_eq!(blocks.len(), 2, "{file}");
+        assert_eq!(blocks[0]["uncompressed_size"], 2520, "{file}");
+        assert_eq!(blocks[1]["uncompressed_size"], 0, "{file}");
+        assert_eq!(
+            !blocks[0]["adler32_data"].is_null() || !blocks[0]["crc32_data"].is_null(),
+            flags_checksum,
+            "{file}"
+        );
+    }
+    let two = decode_real("lzop", "archive/lzop/lzop_two_blocks.bin");
+    let sizes: Vec<u64> = two["blocks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| b["uncompressed_size"].as_u64().unwrap())
+        .collect();
+    assert_eq!(sizes, [262_144, 40_256, 0]);
+}
+
+#[test]
+fn compress_z_and_lzop_are_found_by_their_magic() {
+    for (file, name) in [
+        ("sample.Z", "compress_z"),
+        ("sample_12bits.Z", "compress_z"),
+        ("sample.lzo", "lzop"),
+        ("sample_crc32.lzo", "lzop"),
+    ] {
+        let found = doe::detect::detect_file(
+            &types().join("samples").join(file),
+            &[types()],
+            &doe::detect::Options::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            found.chosen().map(|a| a.name.as_str()),
+            Some(name),
+            "{file}: {}",
+            found.report()
+        );
+    }
+}
+
 #[test]
 fn wav_audio_reads_the_format_the_samples_and_the_tags_as_utf8() {
     let v = decode("wav_audio", "sample.wav");
