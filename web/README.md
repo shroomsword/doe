@@ -14,12 +14,12 @@ and the panes come next.
 ## Build
 
 Needs Node.js 20 or later, Rust with the target `wasm32-unknown-unknown`, and
-`wasm-bindgen-cli` **at the version of the `wasm-bindgen` crate** (`=0.2.129`
+`wasm-bindgen-cli` **at the version of the `wasm-bindgen` crate** (`=0.2.130`
 in `crates/doe-wasm/Cargo.toml`; the glue it makes only works with that one):
 
 ```sh
 rustup target add wasm32-unknown-unknown
-cargo install wasm-bindgen-cli --version 0.2.129 --locked
+cargo install wasm-bindgen-cli --version 0.2.130 --locked
 cd web
 npm ci
 npm run build        # dist/: index.html, main.js, doe_wasm_bg.wasm
