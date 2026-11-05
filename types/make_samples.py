@@ -537,6 +537,104 @@ def cpio_archive(kind: str) -> bytes:
     return out + bytes((512 - len(out) % 512) % 512)
 
 
+def squashfs_image(compress: bool = False, extended_root: bool = False) -> bytes:
+    """A SquashFS 4.0 image: a root directory with a directory, a file and a symbolic link (the files' data in one fragment),
+    and the id, fragment and export tables. The metadata blocks are stored, or zlib streams (what `mksquashfs -comp gzip`
+    writes); the root inode is a basic directory inode, or an extended one."""
+    import zlib
+
+    def block(data: bytes) -> bytes:
+        if compress:
+            packed = zlib.compress(data, 9)
+            return struct.pack("<H", len(packed)) + packed
+        return struct.pack("<H", len(data) | 0x8000) + data
+
+    mtime = 1_700_000_000
+    fragment = b"hello squashfs\n" + b"inner file\n"
+
+    def inode(kind: int, permissions: int, number: int, body: bytes) -> bytes:
+        return struct.pack("<HHHHII", kind, permissions, 0, 1, mtime, number) + body
+
+    def entry(offset: int, delta: int, kind: int, name: bytes) -> bytes:
+        return struct.pack("<HhHH", offset, delta, kind, len(name) - 1) + name
+
+    def listing(base: int, entries: list[bytes]) -> bytes:
+        return struct.pack("<III", len(entries) - 1, 0, base) + b"".join(entries)
+
+    # the inodes, in the order of the inode table, each at the offset that the directory entries give
+    hello = inode(2, 0o644, 2, struct.pack("<IIII", 0, 0, 0, 15))
+    link = inode(3, 0o777, 5, struct.pack("<II", 1, 9) + b"hello.txt")
+    inner = inode(2, 0o644, 4, struct.pack("<IIII", 0, 0, 15, 11))
+    at_hello, at_link, at_dir, at_inner = 0, len(hello), len(hello) + len(link), len(hello) + len(link) + 32
+    # the directory table: the root's listing, then the subdirectory's
+    root_listing = listing(
+        3,
+        [
+            entry(at_dir, 0, 1, b"dir"),
+            entry(at_hello, -1, 2, b"hello.txt"),
+            entry(at_link, 2, 3, b"link"),
+        ],
+    )
+    inner_listing = listing(4, [entry(at_inner, 0, 2, b"inner.txt")])
+    # a basic directory inode: block, link count, size + 3, offset in the block, parent
+    subdir = inode(1, 0o755, 3, struct.pack("<IIHHI", 0, 2, len(inner_listing) + 3, len(root_listing), 1))
+    assert len(subdir) == 32
+    inodes = hello + link + subdir + inner
+    at_root = len(inodes)
+    if extended_root:
+        # type 8: link count, size + 3, block, parent, index count, offset, xattr (none)
+        inodes += inode(8, 0o755, 1, struct.pack("<IIIIHHI", 3, len(root_listing) + 3, 0, 6, 0, 0, 0xFFFFFFFF))
+    else:
+        inodes += inode(1, 0o755, 1, struct.pack("<IIHHI", 0, 3, len(root_listing) + 3, 0, 6))
+
+    out = bytearray(96)
+    out += fragment
+    inode_table = len(out)
+    out += block(inodes)
+    directory_table = len(out)
+    out += block(root_listing + inner_listing)
+    # each lookup table: its metadata block, then the index of the blocks' positions
+    entries_at = len(out)
+    out += block(struct.pack("<QII", 96, len(fragment) | 0x1000000, 0))
+    fragment_table = len(out)
+    out += struct.pack("<Q", entries_at)
+    refs = {1: at_root, 2: at_hello, 3: at_dir, 4: at_inner, 5: at_link}
+    refs_at = len(out)
+    out += block(b"".join(struct.pack("<Q", refs[number]) for number in range(1, 6)))
+    export_table = len(out)
+    out += struct.pack("<Q", refs_at)
+    ids_at = len(out)
+    out += block(struct.pack("<II", 0, 1000))
+    id_table = len(out)
+    out += struct.pack("<Q", ids_at)
+
+    # the flags: exportable, no xattrs, and (stored) uncompressed inodes, fragments and ids
+    flags = 0x80 | 0x200 | (0 if compress else 0x1 | 0x8 | 0x800)
+    out[:96] = struct.pack(
+        "<IIIIIHHHHHHQQQQQQQQ",
+        0x73717368,
+        5,
+        mtime,
+        131072,
+        1,
+        1,
+        17,
+        flags,
+        2,
+        4,
+        0,
+        at_root,
+        len(out),
+        id_table,
+        0xFFFFFFFFFFFFFFFF,
+        inode_table,
+        directory_table,
+        fragment_table,
+        export_table,
+    )
+    return bytes(out)
+
+
 def mar_archive() -> bytes:
     """A MAR file of the newer form: the size of the file, one signature, the product information block, two files
     and the index."""
@@ -631,6 +729,9 @@ if __name__ == "__main__":
     put("sample.mar", mar_archive())
     for kind, name in (("newc", "sample.cpio"), ("crc", "sample_crc.cpio"), ("odc", "sample_odc.cpio"), ("bin_le", "sample_bin_le.cpio"), ("bin_be", "sample_bin_be.cpio")):
         put(name, cpio_archive(kind))
+    put("sample.squashfs", squashfs_image())
+    put("sample_gzip.squashfs", squashfs_image(compress=True))
+    put("sample_extended.squashfs", squashfs_image(extended_root=True))
     put("sample.wav", wav_audio())
     classic = pdf_classic()
     put("sample.pdf", classic)

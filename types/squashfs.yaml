@@ -1,0 +1,375 @@
+id: squashfs
+doc: |
+  SquashFS 4.0 image (Linux live images, firmware, snaps): the superblock, the id, fragment and export tables, and the root inode and the root directory
+# Covers: the 96-byte superblock (the magic `hsqs`, the counts, the modification time, the block size, the compression
+#   as an enum, the flags as booleans, the version and the offsets of the root inode and of every table), checked for a
+#   version other than 4.0 (`is_supported`) and for an image cut short (`is_complete`: the bytes used are all there).
+#   The tables are read through their offsets: the id table (the user and group ids), the fragment table (the position,
+#   size and compression of each fragment block) and the export table (the inode reference of each inode number). Each is
+#   an index of positions of metadata blocks, and each metadata block is a 2-byte header (its size and the "stored"
+#   bit) and its bytes. The root inode is read in the inode table at the position of the superblock's reference (a basic
+#   or an extended directory inode), and the root directory in the directory table at the position that the inode gives
+#   (its entries: name, type, inode number and the position of the entry's inode).
+# What is decoded: a metadata block that is stored (`mksquashfs -noI -noD`, and what a few tools write) is shown decoded,
+#   and so is one that is a zlib stream (compression `gzip`, the default of mksquashfs: `process: zlib`). A block of the
+#   other compressions (lzma, lzo, xz, lz4, zstd: the process list has none of them) is its bytes, and then so is
+#   everything that is read from it: the id, fragment and export tables and the root inode and directory are left out
+#   for an image that is compressed that way (the superblock says which, in `compression`).
+# Limits: only the root directory is read (the entries have their inode numbers, types and positions, and the walk of the
+#   tree is not followed: an inode can begin in one metadata block and end in the next, and an error there would be the
+#   error of the whole image), and so the file system view does not list this type. Not read: the inodes of the entries,
+#   the data of files (blocks, fragments), the xattr table, the compressor options block (flag `has_compression_options`),
+#   an extended root inode's directory index, a root directory of more than one metadata block (over 8 KiB of entries) and
+#   versions 1 to 3. An image that is not whole (cut short) or is of another version shows the superblock and nothing
+#   more; `is_supported` and `is_complete` say which.
+# Detection: `hsqs` at offset 0. An image that comes after a header (firmware with a TRX or uImage header, an AppImage's
+#   ELF runtime, a snap) has it at an offset and is found by name, or as a layer.
+# Specification: the SquashFS 4.0 on-disk format, as in the Linux kernel's `fs/squashfs/squashfs_fs.h` and Phillip
+#   Lougher's `squashfs-tools`.
+meta:
+  id: squashfs
+  file-extension: [squashfs, sfs, snap]
+  endian: le
+seq:
+  - id: magic
+    contents: hsqs
+  - id: inode_count
+    type: u4
+  - id: mod_time
+    type: u4
+  - id: block_size
+    type: u4
+  - id: fragment_count
+    type: u4
+  - id: compression
+    type: u2
+    enum: compression
+  - id: block_log
+    type: u2
+  - id: flags
+    type: u2
+  - id: id_count
+    type: u2
+  - id: version_major
+    type: u2
+  - id: version_minor
+    type: u2
+  - id: root_inode
+    type: u8
+    doc: The reference to the root inode - the position of its metadata block in the inode table, shifted left by 16, and the offset in the block.
+  - id: bytes_used
+    type: u8
+  - id: id_table_start
+    type: u8
+  - id: xattr_table_start
+    type: u8
+    doc: All ones when there is no xattr table.
+  - id: inode_table_start
+    type: u8
+  - id: directory_table_start
+    type: u8
+  - id: fragment_table_start
+    type: u8
+  - id: export_table_start
+    type: u8
+    doc: All ones when the image is not exportable.
+instances:
+  is_supported:
+    value: version_major == 4 and version_minor == 0
+  is_complete:
+    value: bytes_used <= _io.size
+  uses_zlib:
+    value: compression == compression::gzip
+  # the metadata is readable when the image is of this version, whole, and compressed with zlib or stored
+  can_read:
+    value: is_supported and is_complete
+  uncompressed_inodes:
+    value: (flags & 0x1) != 0
+  uncompressed_data:
+    value: (flags & 0x2) != 0
+  uncompressed_fragments:
+    value: (flags & 0x8) != 0
+  no_fragments:
+    value: (flags & 0x10) != 0
+  always_fragments:
+    value: (flags & 0x20) != 0
+  duplicates_removed:
+    value: (flags & 0x40) != 0
+  is_exportable:
+    value: (flags & 0x80) != 0
+  uncompressed_xattrs:
+    value: (flags & 0x100) != 0
+  no_xattrs:
+    value: (flags & 0x200) != 0
+  has_compression_options:
+    value: (flags & 0x400) != 0
+  uncompressed_ids:
+    value: (flags & 0x800) != 0
+  root_inode_block:
+    value: root_inode >> 16
+  root_inode_offset:
+    value: root_inode & 0xffff
+  # the index of an id, fragment or export table: one position per metadata block (8 KiB of entries)
+  id_blocks:
+    pos: id_table_start
+    type: lookup(1)
+    repeat: expr
+    repeat-expr: (id_count * 4 + 8191) / 8192
+    if: can_read and id_count > 0
+  fragment_blocks:
+    pos: fragment_table_start
+    type: lookup(2)
+    repeat: expr
+    repeat-expr: (fragment_count * 16 + 8191) / 8192
+    if: can_read and fragment_count > 0
+  export_blocks:
+    pos: export_table_start
+    type: lookup(3)
+    repeat: expr
+    repeat-expr: (inode_count * 8 + 8191) / 8192
+    if: can_read and is_exportable and inode_count > 0
+  root_inode_data:
+    pos: inode_table_start + root_inode_block
+    type: metadata_block(4, root_inode_offset, 0)
+    if: can_read
+  root_inode_value:
+    value: root_inode_data.body.content
+    if: can_read and root_inode_data.is_readable
+  # the root directory, when its inode is a directory and its listing is in one metadata block
+  root_directory_data:
+    pos: directory_table_start + root_inode_value.body.block_start
+    type: metadata_block(5, root_inode_value.body.offset, root_inode_value.body.listing_size)
+    if: can_read and root_inode_data.is_readable and root_inode_value.is_directory and root_inode_value.body.listing_size >= 0 and root_inode_value.body.offset + root_inode_value.body.listing_size <= 8192
+  root_directory:
+    value: root_directory_data.body.content
+    if: can_read and root_inode_data.is_readable and root_inode_value.is_directory and root_inode_value.body.listing_size >= 0 and root_inode_value.body.offset + root_inode_value.body.listing_size <= 8192 and root_directory_data.is_readable
+enums:
+  compression:
+    1: gzip
+    2: lzma
+    3: lzo
+    4: xz
+    5: lz4
+    6: zstd
+  inode_type:
+    1: directory
+    2: file
+    3: symlink
+    4: block_device
+    5: character_device
+    6: fifo
+    7: socket
+    8: extended_directory
+    9: extended_file
+    10: extended_symlink
+    11: extended_block_device
+    12: extended_character_device
+    13: extended_fifo
+    14: extended_socket
+types:
+  # an entry of an index: the position of a metadata block of the table
+  lookup:
+    params:
+      - id: kind
+        type: u1
+    seq:
+      - id: position
+        type: u8
+    instances:
+      block:
+        pos: position
+        io: _root._io
+        type: metadata_block(kind, 0, 0)
+  # what the kind says is in the block: 1 ids, 2 fragments, 3 exports, 4 inodes, 5 a directory
+  metadata_block:
+    params:
+      - id: kind
+        type: u1
+      - id: offset
+        type: u2
+      - id: listing_size
+        type: s4
+    seq:
+      - id: header
+        type: u2
+      - id: stored
+        type: block_body(kind, offset, listing_size)
+        size: compressed_size
+        if: is_stored
+      - id: inflated
+        type: block_body(kind, offset, listing_size)
+        size: compressed_size
+        process: zlib
+        if: not is_stored and _root.uses_zlib
+      - id: packed
+        size: compressed_size
+        if: not is_stored and not _root.uses_zlib
+    instances:
+      is_stored:
+        value: (header & 0x8000) != 0
+      compressed_size:
+        value: header & 0x7fff
+      is_readable:
+        value: is_stored or _root.uses_zlib
+      body:
+        value: "is_stored ? stored : inflated"
+        if: is_readable
+  block_body:
+    params:
+      - id: kind
+        type: u1
+      - id: offset
+        type: u2
+      - id: listing_size
+        type: s4
+    seq:
+      - id: skipped
+        size: offset
+      - id: content
+        type:
+          switch-on: kind
+          cases:
+            1: id_list
+            2: fragment_list
+            3: export_list
+            4: inode
+            5: directory_listing(listing_size)
+  id_list:
+    seq:
+      - id: ids
+        type: u4
+        repeat: eos
+  fragment_list:
+    seq:
+      - id: fragments
+        type: fragment
+        repeat: eos
+  fragment:
+    seq:
+      - id: start
+        type: u8
+        doc: Where the fragment block is in the image.
+      - id: size_field
+        type: u4
+      - id: unused
+        type: u4
+    instances:
+      size:
+        value: size_field & 0xffffff
+      is_stored:
+        value: (size_field & 0x1000000) != 0
+  export_list:
+    seq:
+      - id: inodes
+        type: u8
+        repeat: eos
+        doc: The reference of each inode, by inode number minus one.
+  inode:
+    seq:
+      - id: kind
+        type: u2
+        enum: inode_type
+      - id: permissions
+        type: u2
+      - id: uid_index
+        type: u2
+      - id: gid_index
+        type: u2
+      - id: mtime
+        type: u4
+      - id: inode_number
+        type: u4
+      - id: body
+        type:
+          switch-on: kind
+          cases:
+            inode_type::directory: basic_directory
+            inode_type::extended_directory: extended_directory
+    instances:
+      is_directory:
+        value: kind == inode_type::directory or kind == inode_type::extended_directory
+  basic_directory:
+    seq:
+      - id: block_start
+        type: u4
+        doc: The position of the metadata block of the directory table, from its start.
+      - id: link_count
+        type: u4
+      - id: file_size
+        type: u2
+        doc: The size of the listing plus 3.
+      - id: offset
+        type: u2
+        doc: The offset of the listing in the uncompressed block.
+      - id: parent_inode
+        type: u4
+    instances:
+      listing_size:
+        value: file_size - 3
+  extended_directory:
+    seq:
+      - id: link_count
+        type: u4
+      - id: file_size
+        type: u4
+      - id: block_start
+        type: u4
+      - id: parent_inode
+        type: u4
+      - id: index_count
+        type: u2
+      - id: offset
+        type: u2
+      - id: xattr_index
+        type: u4
+        doc: All ones when there are no xattrs.
+    instances:
+      listing_size:
+        value: file_size - 3
+  directory_listing:
+    params:
+      - id: size
+        type: s4
+    seq:
+      - id: body
+        type: directory_runs
+        size: size
+  directory_runs:
+    seq:
+      - id: runs
+        type: directory_run
+        repeat: eos
+  # a header and the entries that go with it (at most 256, of inodes in one metadata block)
+  directory_run:
+    seq:
+      - id: count_minus_one
+        type: u4
+      - id: inode_block
+        type: u4
+        doc: The position of the metadata block of the inode table that holds the inodes of these entries.
+      - id: base_inode
+        type: u4
+      - id: entries
+        type: directory_entry
+        repeat: expr
+        repeat-expr: count_minus_one + 1
+  directory_entry:
+    seq:
+      - id: inode_offset
+        type: u2
+        doc: Where the inode is in its block.
+      - id: inode_delta
+        type: s2
+        doc: The inode number, relative to the run's base.
+      - id: kind
+        type: u2
+        enum: inode_type
+      - id: name_size_minus_one
+        type: u2
+      - id: name
+        type: str
+        size: name_size_minus_one + 1
+        encoding: UTF-8
+    instances:
+      inode_number:
+        value: _parent.base_inode + inode_delta

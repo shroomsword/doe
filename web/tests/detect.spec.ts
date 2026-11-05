@@ -227,6 +227,17 @@ test('a cpio archive is found by either of its magic numbers, without the networ
   expect(asked).toEqual([]);
 });
 
+test('a SquashFS image is found by hsqs, without the network, and its root directory is in the tree', async ({ page }) => {
+  const asked = await serveGallery(page);
+  await ready(page);
+  await page.setInputFiles('#open-input', { name: 'rootfs', mimeType: 'application/octet-stream', buffer: readFileSync(join(repo, 'types', 'samples', 'sample_gzip.squashfs')) });
+  await page.click('#detect');
+  await expect(page.locator('#detect-report')).toContainText('squashfs parses the file', { timeout: 30_000 });
+  await expect(page.locator('#editing')).toContainText('library/squashfs.yaml');
+  await expect(page.locator('.tree-row').first()).toBeVisible();
+  expect(asked).toEqual([]);
+});
+
 test('a PDF file is found by its header, without the network, and its table and objects are in the tree', async ({ page }) => {
   const asked = await serveGallery(page);
   await ready(page);

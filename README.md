@@ -118,6 +118,7 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `flac` | FLAC audio: the metadata blocks (stream info, tags, padding...) and the frames as bytes |
 | `gzip_file` | gzip files: the header of the first member and the trailer; its payload is the gunzipped file (a `.tar.gz` is shown as the tar) |
 | `cpio` | cpio archives: newc and crc (`070701`, `070702`: initramfs, RPM payloads), odc, and the old binary format in both byte orders, with the entries as files and directories |
+| `squashfs` | SquashFS 4.0 images: the superblock, the id, fragment and export tables, and the root inode and directory (metadata that is stored or a zlib stream) |
 | `wav_audio` | WAVE audio (RIFF): the format, the sample bytes and the tags, with the text of the tags read as UTF-8 |
 | `pdf` | PDF: the header, the classic cross-reference table and trailer, and the objects as tokens (no stream data or typed views) |
 | `mp4` | MP4 / ISO base media: the movie and tracks, the sample tables and entries, tags and fragments (the samples are not decoded) |
