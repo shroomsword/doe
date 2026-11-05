@@ -38,6 +38,15 @@ pub struct Position {
 }
 
 impl Position {
+    fn from_yaml(location: crate::error::YamlLocation) -> Self {
+        Position {
+            line: u32::try_from(location.line).unwrap_or(u32::MAX),
+            column: u32::try_from(location.column).unwrap_or(u32::MAX),
+            offset: location.offset,
+            len: location.len,
+        }
+    }
+
     fn from_location(location: &Location) -> Self {
         let span = location.span();
         Position {
@@ -401,7 +410,7 @@ impl SchemaMap {
                     .find(|(declared, _)| declared == name)
                     .map(|(_, scope)| scope.position)
             }
-            DoeError::Yaml { source, .. } => source.location().map(|l| Position::from_location(&l)),
+            DoeError::Yaml { source, .. } => source.location().map(Position::from_yaml),
             _ => None,
         }
     }
@@ -439,7 +448,7 @@ fn quotes(message: &str) -> impl Iterator<Item = &str> {
 /// in a [`SchemaMap`] of the text.
 pub fn locate_error(text: &str, error: &DoeError) -> Option<Position> {
     if let DoeError::Yaml { source, .. } = error {
-        return source.location().map(|l| Position::from_location(&l));
+        return source.location().map(Position::from_yaml);
     }
     SchemaMap::parse(text)?.locate(error)
 }

@@ -49,7 +49,7 @@ pub enum DoeError {
         path: PathBuf,
         /// The underlying YAML error.
         #[source]
-        source: Box<serde_saphyr::Error>,
+        source: Box<YamlError>,
     },
 
     // ── TOML ─────────────────────────────────────────────────────────────────
@@ -151,3 +151,52 @@ pub enum DoeError {
 ///
 /// Every fallible function in the `doe` library returns this type.
 pub type Result<T> = std::result::Result<T, DoeError>;
+
+/// A YAML file that could not be read: it is not valid YAML, or it does not have the shape of a schema.
+///
+/// This wraps the parser's own error, so that the parser (a dependency) can change without a change of `doe`'s API. Its
+/// message names the line and column and shows the text around them; [`location`](Self::location) gives the position.
+#[derive(Debug)]
+pub struct YamlError(Box<serde_saphyr::Error>);
+
+/// Where in the text of a YAML file an error is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct YamlLocation {
+    /// The line, from 1.
+    pub line: usize,
+    /// The column, from 1.
+    pub column: usize,
+    /// The byte offset of the start of the error in the text, when the parser knows it.
+    pub offset: Option<usize>,
+    /// The length in bytes of the text the error is about, when the parser knows it.
+    pub len: Option<usize>,
+}
+
+impl YamlError {
+    /// Where the error is in the text, if the parser says.
+    #[must_use]
+    pub fn location(&self) -> Option<YamlLocation> {
+        let location = self.0.location()?;
+        let span = location.span();
+        Some(YamlLocation {
+            line: usize::try_from(location.line()).unwrap_or(usize::MAX),
+            column: usize::try_from(location.column()).unwrap_or(usize::MAX),
+            offset: span.byte_offset().and_then(|n| usize::try_from(n).ok()),
+            len: span.byte_len().and_then(|n| usize::try_from(n).ok()),
+        })
+    }
+}
+
+impl std::fmt::Display for YamlError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&*self.0, f)
+    }
+}
+
+impl std::error::Error for YamlError {}
+
+impl From<serde_saphyr::Error> for YamlError {
+    fn from(error: serde_saphyr::Error) -> Self {
+        Self(Box::new(error))
+    }
+}

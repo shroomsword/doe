@@ -156,3 +156,32 @@ fn the_id_may_be_written_either_way() {
     assert_eq!(plain.locate(&error).map(|p| p.line), Some(4));
     assert_eq!(kaitai.locate(&error).map(|p| p.line), Some(5));
 }
+
+#[test]
+fn a_yaml_error_is_the_crates_own_type_with_a_message_and_a_location() {
+    // the error type does not name the parser's: `from_yaml_str` gives a `doe::YamlError`
+    let error: doe::YamlError =
+        doe::schema::raw::RawSchema::from_yaml_str("id: t\nseq: [\n").unwrap_err();
+    let message = error.to_string();
+    assert!(message.contains("line"), "{message}");
+    let location: doe::YamlLocation = error.location().expect("a syntax error has a location");
+    assert!(location.line >= 2 && location.column >= 1, "{location:?}");
+    // and it is the `source` of the error that loading a schema gives
+    let (loaded, _) = locate("id: t\nseq: [\n", &[]);
+    let DoeError::Yaml { source, .. } = loaded else {
+        panic!("not a YAML error: {loaded:?}");
+    };
+    assert_eq!(source.location(), Some(location));
+}
+
+#[test]
+fn a_key_with_no_value_is_not_an_empty_mapping() {
+    // before serde-saphyr 2 a blank `instances:` was an empty mapping; YAML says it is null, which is now an error
+    // (write `instances: {}`), at the line of the key's value
+    let main = "meta:\n  id: t\nseq:\n  - id: a\n    type: u1\ninstances:\n";
+    let (error, position) = locate(main, &[]);
+    assert!(matches!(error, DoeError::Yaml { .. }), "{error:?}");
+    assert_eq!(position.map(|p| p.line), Some(6));
+    let written = "meta:\n  id: t\nseq:\n  - id: a\n    type: u1\ninstances: {}\n";
+    assert!(doe::schema::raw::RawSchema::from_yaml_str(written).is_ok());
+}

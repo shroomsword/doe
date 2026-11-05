@@ -47,7 +47,7 @@ use std::path::PathBuf;
 
 #[cfg(feature = "fs")]
 pub use config::{AvailableType, DuplicateTypeError, discover_types};
-pub use error::{DoeError, Result};
+pub use error::{DoeError, Result, YamlError, YamlLocation};
 pub use parser::context::TextProblem;
 pub use value::Value;
 

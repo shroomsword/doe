@@ -21,6 +21,8 @@ use indexmap::IndexMap;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use crate::error::YamlError;
+
 // ── Top-level schema ─────────────────────────────────────────────────────────
 
 /// A complete schema file, corresponding to one `.yaml` file on disk.
@@ -104,9 +106,9 @@ impl RawSchema {
     ///
     /// # Errors
     ///
-    /// Returns the parser's error, which names the line and column, if the text
+    /// Returns a [`YamlError`], which names the line and column, if the text
     /// is not valid YAML or does not match the schema format.
-    pub fn from_yaml_str(text: &str) -> Result<Self, serde_saphyr::Error> {
+    pub fn from_yaml_str(text: &str) -> Result<Self, YamlError> {
         let mut schema: RawSchema = parse_yaml(text)?;
         if schema.id.is_empty() {
             if let Some(id) = &schema.meta.id {
@@ -145,12 +147,12 @@ fn name_unnamed(seq: &mut [RawField]) {
 }
 
 /// Deserialize YAML with the settings every `doe` YAML file uses.
-pub(crate) fn parse_yaml<T: DeserializeOwned>(text: &str) -> Result<T, serde_saphyr::Error> {
+pub(crate) fn parse_yaml<T: DeserializeOwned>(text: &str) -> Result<T, YamlError> {
     let mut options = serde_saphyr::Options::default();
     // YAML 1.1 reads `y`, `n`, `yes`, `no`, `on` and `off` as booleans, which
     // would break field ids and expressions such as `size: n`.
     options.strict_booleans = true;
-    serde_saphyr::from_str_with_options(text, options)
+    Ok(serde_saphyr::from_str_with_options(text, options)?)
 }
 
 // ── Payload ──────────────────────────────────────────────────────────────────
