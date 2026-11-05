@@ -427,6 +427,96 @@ def make_lzop():
         put("archive/lzop", "lzop_two_blocks", run(["lzop", "-c", str(big)]), WITHOUT_REFERENCE)
 
 
+def make_xz():
+    need("xz")
+    text = TEXT
+    dest = "archive/xz"
+    # the checks, one block; three blocks of 1 KiB (the single-threaded encoder writes no sizes in the block headers); two
+    # threads (the sizes are in the headers); the delta and the x86 filters before LZMA2; two streams joined by `cat`
+    for sample, args in (
+        ("xz_default_crc64", []),
+        ("xz_crc32", ["--check=crc32"]),
+        ("xz_sha256", ["--check=sha256"]),
+        ("xz_no_check", ["--check=none"]),
+        ("xz_blocks", ["--check=crc32", "--block-size=1KiB"]),
+        ("xz_threaded_blocks", ["-T2", "--block-size=1KiB", "--check=crc32"]),
+        ("xz_delta", ["--delta=dist=2", "--lzma2=preset=0,dict=64KiB"]),
+        ("xz_x86", ["--x86", "--lzma2=preset=1"]),
+    ):
+        put(dest, sample, run(["xz", "-c", *args], input=text), WITHOUT_REFERENCE)
+    first = run(["xz", "-c", "--check=crc32"], input=text)
+    second = run(["xz", "-c", "--check=crc64", "--block-size=1KiB"], input=BYTES * 2)
+    put(dest, "xz_two_streams", first + second, WITHOUT_REFERENCE)
+    put(dest, "xz_three_streams", first + second + first, WITHOUT_REFERENCE)
+
+
+def make_zstd():
+    need("zstd")
+    dest = "archive/zstd"
+    big = TEXT * 3
+    for sample, args in (
+        ("zstd_default", []),
+        ("zstd_level19", ["-19"]),
+        ("zstd_no_check", ["--no-check"]),
+        ("zstd_fast", ["--fast=3"]),
+        ("zstd_long_window", ["--long=20", "-19"]),
+        ("zstd_small_blocks", ["-B1024", "-3"]),
+    ):
+        put(dest, sample, run(["zstd", "-q", "-c", *args], input=big), WITHOUT_REFERENCE)
+    # a block that does not compress is stored raw (bytes of a hash chain); a run of one byte is one run-length block
+    noise = b"".join(hashlib.sha256(bytes([i])).digest() for i in range(60))
+    put(dest, "zstd_raw_block", run(["zstd", "-q", "-c"], input=noise), WITHOUT_REFERENCE)
+    put(dest, "zstd_rle_block", run(["zstd", "-q", "-c"], input=b"\0" * 20000), WITHOUT_REFERENCE)
+    first = run(["zstd", "-q", "-c"], input=TEXT)
+    second = run(["zstd", "-q", "-c", "-19"], input=BYTES)
+    put(dest, "zstd_two_frames", first + second, WITHOUT_REFERENCE)
+    # a skippable frame between two data frames (what the application metadata of `zstd --seekable` tools looks like)
+    skippable = b"\x5a\x2a\x4d\x18" + (11).to_bytes(4, "little") + b"application"
+    put(dest, "zstd_skippable_between", first + skippable + second, WITHOUT_REFERENCE)
+
+
+def make_lz4():
+    need("lz4")
+    dest = "archive/lz4"
+    big = TEXT * 30
+    for sample, args in (
+        ("lz4_default", []),
+        ("lz4_high", ["-9"]),
+        ("lz4_block_checksum", ["-BX"]),
+        ("lz4_dependent_blocks", ["-B4", "-BD"]),
+        ("lz4_small_blocks", ["-B4"]),
+        ("lz4_no_checksum", ["--no-frame-crc"]),
+    ):
+        put(dest, sample, run(["lz4", "-q", "-c", *args], input=big), WITHOUT_REFERENCE)
+    put(dest, "lz4_legacy", run(["lz4", "-q", "-c", "-l"], input=big), WITHOUT_REFERENCE)
+    first = run(["lz4", "-q", "-c"], input=TEXT)
+    second = run(["lz4", "-q", "-c", "-l"], input=BYTES)
+    skippable = b"\x51\x2a\x4d\x18" + (4).to_bytes(4, "little") + b"meta"
+    put(dest, "lz4_three_kinds_of_frame", first + second + skippable + first, WITHOUT_REFERENCE)
+
+
+def make_gzip():
+    need("gzip")
+    dest = "archive/gzip"
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / "notes.txt"
+        source.write_bytes(TEXT)
+        os.utime(source, (1700000000, 1700000000))
+        put(dest, "gzip_no_name", run(["gzip", "-n", "-c", str(source)]), WITHOUT_REFERENCE)
+        put(dest, "gzip_name_and_time", run(["gzip", "-9", "-c", str(source)]), WITHOUT_REFERENCE)
+        put(dest, "gzip_fastest", run(["gzip", "-1", "-n", "-c", str(source)]), WITHOUT_REFERENCE)
+        first = run(["gzip", "-n", "-c"], input=TEXT)
+        second = run(["gzip", "-c", "-9"], input=BYTES)
+        put(dest, "gzip_two_members", first + second, WITHOUT_REFERENCE)
+
+
+def make_bzip2():
+    import bz2
+
+    for sample, level, data in (("python_bz2_level1", 1, TEXT), ("python_bz2_level9", 9, TEXT), ("python_bz2_bytes", 5, BYTES)):
+        put("archive/bzip2", sample, bz2.compress(data, level), WITHOUT_REFERENCE)
+
+
 def make_gpg():
     need("gpg")
     with tempfile.TemporaryDirectory() as tmp:
@@ -597,7 +687,7 @@ def make_tls():
 ALL = [
     make_gettext, make_dtb, make_uimage, make_cc65, make_tap, make_xar, make_zchunk, make_zisofs, make_android,
     make_partition_tables, make_gpg, make_msi, make_windres, make_php,
-    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream, make_snappy, make_compress_z, make_lzop,
+    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream, make_snappy, make_compress_z, make_lzop, make_xz, make_zstd, make_lz4, make_gzip, make_bzip2,
 ]
 
 # Not made: files that the gallery's definitions cannot read (#278). The functions stay so that they can be run when the

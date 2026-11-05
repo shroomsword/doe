@@ -132,10 +132,10 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `flv` | Flash Video: the header and the tags with their sizes and times |
 | `tzfile` | time zone files (TZif): the transitions and local time types of the first data block |
 | `psd` | Photoshop documents (PSD and PSB): the header, the image resource blocks, the lengths of the other sections |
-| `bzip2` | bzip2 streams: the header and the first block's magic and CRC |
-| `xz` | xz files: the stream header, and the footer read from the end |
-| `zstd` | Zstandard files: the frames, their headers and the blocks as bytes |
-| `lz4` | LZ4 frames: the descriptor, the blocks with their sizes and the checksums |
+| `bzip2` | bzip2 streams: the header and the first block's magic, CRC, origin pointer and symbol-map ranges (a file of several streams shows the first) |
+| `xz` | xz files: every stream (found from the end), its index and its blocks with their headers and filters; the compressed data is bytes |
+| `zstd` | Zstandard files: data and skippable frames, the window, the blocks, the literals header and sequence count of compressed blocks, and the seekable format's seek table |
+| `lz4` | LZ4 files: standard, legacy and skippable frames, the blocks with their sizes and checksums, and the sequences of a compressed block |
 | `coff` | COFF object files: the header, the sections, and the symbols and string table found from the header |
 | `mpegts` | MPEG transport streams: the 188-byte packets with their headers, adaptation fields and payloads |
 | `mp3` | MPEG audio layer III: the frames with their headers, and bit rate, sample rate and length worked out |

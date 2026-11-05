@@ -202,6 +202,61 @@ def xz() -> bytes:
     return lzma.compress(b"hello hello hello hello\n" * 20, format=lzma.FORMAT_XZ, check=lzma.CHECK_CRC32)
 
 
+def xz_vli(value: int) -> bytes:
+    """An xz variable-length integer: seven bits per byte, low group first."""
+    out = bytearray()
+    while value >= 0x80:
+        out.append(value & 0x7F | 0x80)
+        value >>= 7
+    out.append(value)
+    return bytes(out)
+
+
+def xz_stream(blocks: list[bytes], check: str = "crc32", sizes_in_headers: bool = False, delta: bool = False) -> bytes:
+    """An xz stream built from its parts: one block for each item of `blocks` (LZMA2 by Python's liblzma, with the
+    compressed and uncompressed sizes in the block header when `sizes_in_headers`; with the delta filter first when
+    `delta`), the index, and the footer. `check` is `crc32` or `sha256`."""
+    import hashlib
+    import lzma
+    import zlib
+
+    flags = {"crc32": 1, "sha256": 10}[check]
+
+    def checksum(data: bytes) -> bytes:
+        return struct.pack("<I", zlib.crc32(data)) if check == "crc32" else hashlib.sha256(data).digest()
+
+    header_flags = bytes([0, flags])
+    out = bytearray(b"\xfd7zXZ\x00" + header_flags + struct.pack("<I", zlib.crc32(header_flags)))
+    records = []
+    for data in blocks:
+        filters = ([{"id": lzma.FILTER_DELTA, "dist": 2}] if delta else []) + [{"id": lzma.FILTER_LZMA2, "dict_size": 1 << 20}]
+        packed = lzma.compress(data, format=lzma.FORMAT_RAW, filters=filters)
+        # the header: flags, the sizes when they are given, the filter flags (the LZMA2 dictionary 1 MiB is code 16)
+        body = b""
+        if sizes_in_headers:
+            body += xz_vli(len(packed)) + xz_vli(len(data))
+        if delta:
+            body += xz_vli(0x03) + xz_vli(1) + bytes([1])
+        body += xz_vli(0x21) + xz_vli(1) + bytes([16])
+        block_flags = (len(filters) - 1) | (0xC0 if sizes_in_headers else 0)
+        raw = bytes([block_flags]) + body
+        size = (len(raw) + 1 + 4 + 3) // 4 * 4
+        head = bytes([size // 4 - 1]) + raw
+        head = head.ljust(size - 4, b"\0")
+        head += struct.pack("<I", zlib.crc32(head))
+        pad = bytes((4 - len(packed) % 4) % 4)
+        check_bytes = checksum(data)
+        out += head + packed + pad + check_bytes
+        records.append((len(head) + len(packed) + len(check_bytes), len(data)))
+    index = b"\x00" + xz_vli(len(records)) + b"".join(xz_vli(u) + xz_vli(d) for u, d in records)
+    index += bytes((4 - len(index) % 4) % 4)
+    index += struct.pack("<I", zlib.crc32(index))
+    out += index
+    footer_body = struct.pack("<I", len(index) // 4 - 1) + header_flags
+    out += struct.pack("<I", zlib.crc32(footer_body)) + footer_body + b"YZ"
+    return bytes(out)
+
+
 def zstd() -> bytes:
     """Two frames: a raw block with a size in the header and a checksum, and a run-length block over two bytes
     with a window descriptor and no size."""
@@ -216,6 +271,77 @@ def lz4() -> bytes:
     flg = (1 << 6) | (1 << 5) | (1 << 3) | (1 << 2)
     descriptor = bytes([flg, 0x40]) + struct.pack("<Q", 5) + b"\x9e"
     return b"\x04\x22\x4d\x18" + descriptor + struct.pack("<I", 0x8000_0005) + b"hello" + struct.pack("<I", 0) + struct.pack("<I", 0x1234_5678)
+
+
+def xxh32(data: bytes, seed: int = 0) -> int:
+    """XXH32 of up to a few kilobytes, for the header checksum byte of an LZ4 frame."""
+    p1, p2, p3, p4, p5 = 2654435761, 2246822519, 3266489917, 668265263, 374761393
+    mask = 0xFFFFFFFF
+
+    def rotl(value: int, bits: int) -> int:
+        return ((value << bits) | (value >> (32 - bits))) & mask
+
+    index = 0
+    if len(data) >= 16:
+        v = [(seed + p1 + p2) & mask, (seed + p2) & mask, seed & mask, (seed - p1) & mask]
+        while index + 16 <= len(data):
+            for lane in range(4):
+                word = struct.unpack_from("<I", data, index + lane * 4)[0]
+                v[lane] = (rotl((v[lane] + word * p2) & mask, 13) * p1) & mask
+            index += 16
+        h = (rotl(v[0], 1) + rotl(v[1], 7) + rotl(v[2], 12) + rotl(v[3], 18)) & mask
+    else:
+        h = (seed + p5) & mask
+    h = (h + len(data)) & mask
+    while index + 4 <= len(data):
+        h = (rotl((h + struct.unpack_from("<I", data, index)[0] * p3) & mask, 17) * p4) & mask
+        index += 4
+    while index < len(data):
+        h = (rotl((h + data[index] * p5) & mask, 11) * p1) & mask
+        index += 1
+    h ^= h >> 15
+    h = (h * p2) & mask
+    h ^= h >> 13
+    h = (h * p3) & mask
+    h ^= h >> 16
+    return h
+
+
+def lz4_block_with_matches() -> tuple[bytes, bytes]:
+    """An LZ4 block - a sequence with 6 literals and a match of 24 bytes (its length in the extension byte), then the last
+    sequence with 5 literals - and the data it expands to."""
+    block = bytes([(6 << 4) | 15]) + b"abcdef" + struct.pack("<H", 6) + bytes([24 - 4 - 15]) + bytes([5 << 4]) + b"12345"
+    return block, b"abcdef" * 5 + b"12345"
+
+
+def lz4_frames() -> tuple[bytes, bytes]:
+    """A standard frame with a compressed block and a block stored uncompressed (the header checksum is the real one), and
+    a legacy frame with two blocks: one with a match, one of literals whose length needs an extension byte."""
+    block, _ = lz4_block_with_matches()
+    flg_bd = bytes([0x60, 0x40])
+    header = b"\x04\x22\x4d\x18" + flg_bd + bytes([(xxh32(flg_bd) >> 8) & 255])
+    standard = header + struct.pack("<I", len(block)) + block + struct.pack("<I", 0x8000_0006) + b"stored" + struct.pack("<I", 0)
+    text = b"second legacy block\n"
+    literals_only = bytes([0xF0, len(text) - 15]) + text
+    legacy = b"\x02\x21\x4c\x18" + struct.pack("<I", len(block)) + block + struct.pack("<I", len(literals_only)) + literals_only
+    return standard, legacy
+
+
+def zstd_seekable() -> bytes:
+    """A skippable frame of application data, two data frames (a raw block each) and the seek table of the zstd seekable
+    format with a checksum for each entry (arbitrary numbers: the table's checksums are not checked by readers)."""
+
+    def data_frame(content: bytes) -> bytes:
+        # single segment, no checksum, a one-byte content size; one raw block that is the last
+        return b"\x28\xb5\x2f\xfd" + bytes([0x20, len(content)]) + ((len(content) << 3) | 1).to_bytes(3, "little") + content
+
+    contents = [b"hello zstd seekable\n", b"second frame\n"]
+    frames = [data_frame(c) for c in contents]
+    skippable = b"\x53\x2a\x4d\x18" + struct.pack("<I", 11) + b"application"
+    entries = b"".join(struct.pack("<III", len(f), len(c), 0xC0DE0000 + i) for i, (f, c) in enumerate(zip(frames, contents)))
+    table = entries + struct.pack("<IB", len(frames), 0x80) + bytes([0xB1, 0xEA, 0x92, 0x8F])
+    seek = b"\x5e\x2a\x4d\x18" + struct.pack("<I", len(table)) + table
+    return skippable + frames[0] + frames[1] + seek
 
 
 def coff() -> bytes:
@@ -906,8 +1032,17 @@ if __name__ == "__main__":
     put("sample.psd", psd())
     put("sample.bz2", bzip2())
     put("sample.xz", xz())
+    text = b"hello hello hello hello\n" * 20
+    put("sample_blocks.xz", xz_stream([text, b"second block\n" * 30, b"third\n"], sizes_in_headers=True))
+    put("sample_delta.xz", xz_stream([bytes(range(200)) * 3], delta=True))
+    put("sample_two_streams.xz", xz() + xz_stream([text, text[:100]], check="sha256"))
     put("sample.zst", zstd())
     put("sample.lz4", lz4())
+    standard, legacy = lz4_frames()
+    put("sample_blocks.lz4", standard)
+    put("sample_legacy.lz4", legacy)
+    put("sample_mixed.lz4", b"\x52\x2a\x4d\x18" + struct.pack("<I", 4) + b"meta" + standard + legacy)
+    put("sample_seekable.zst", zstd_seekable())
     put("sample.obj", coff())
     put("sample.ts", mpegts())
     put("sample.mp3", mp3())
