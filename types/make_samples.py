@@ -713,6 +713,72 @@ def zlib_stream(level: int = 6, wbits: int = 15, dictionary: bytes | None = None
     return packer.compress(data) + packer.flush()
 
 
+def crc32c_masked(data: bytes) -> int:
+    """The CRC-32C (Castagnoli) of `data` as the Snappy framing format stores it: rotated right by 15 bits and added to 0xa282ead8."""
+    crc = 0xFFFFFFFF
+    for byte in data:
+        crc ^= byte
+        for _ in range(8):
+            crc = (crc >> 1) ^ (0x82F63B78 if crc & 1 else 0)
+    crc ^= 0xFFFFFFFF
+    return (((crc >> 15) | (crc << 17)) + 0xA282EAD8) & 0xFFFFFFFF
+
+
+def snappy_block() -> tuple[bytes, bytes]:
+    """A raw Snappy block with a literal (short, and one with a length byte) and a copy of each of the three kinds, and the
+    data it expands to."""
+    out = bytearray()
+    elements = b""
+
+    def literal(data: bytes) -> None:
+        nonlocal elements
+        n = len(data) - 1
+        elements += bytes([n << 2]) + data if n < 60 else bytes([60 << 2, n]) + data
+        out.extend(data)
+
+    def copy(kind: int, offset: int, length: int) -> None:
+        nonlocal elements
+        if kind == 1:
+            elements += bytes([1 | (length - 4) << 2 | (offset >> 8) << 5, offset & 255])
+        elif kind == 2:
+            elements += bytes([2 | (length - 1) << 2]) + struct.pack("<H", offset)
+        else:
+            elements += bytes([3 | (length - 1) << 2]) + struct.pack("<I", offset)
+        for _ in range(length):
+            out.append(out[-offset])
+
+    literal(b"hello ")
+    copy(1, 6, 6)
+    literal(b"abcdefghij" * 7)
+    copy(2, 76, 20)
+    copy(3, 100, 10)
+    literal(b"the end\n")
+    length = len(out)
+    varint = bytes([length & 127 | 128, length >> 7]) if length >= 128 else bytes([length])
+    return varint + elements, bytes(out)
+
+
+def snappy_stream() -> bytes:
+    """A framed stream: the identifier, a compressed chunk, an uncompressed one, padding, a skippable chunk, and a second
+    stream (its identifier and an uncompressed chunk)."""
+
+    def chunk(kind: int, body: bytes) -> bytes:
+        return bytes([kind]) + struct.pack("<I", len(body))[:3] + body
+
+    ident = chunk(0xFF, b"sNaPpY")
+    block, data = snappy_block()
+    plain = b"stored as it is\n"
+    return (
+        ident
+        + chunk(0x00, struct.pack("<I", crc32c_masked(data)) + block)
+        + chunk(0x01, struct.pack("<I", crc32c_masked(plain)) + plain)
+        + chunk(0xFE, bytes(5))
+        + chunk(0x85, b"skip")
+        + ident
+        + chunk(0x01, struct.pack("<I", crc32c_masked(b"second stream\n")) + b"second stream\n")
+    )
+
+
 def mar_archive() -> bytes:
     """A MAR file of the newer form: the size of the file, one signature, the product information block, two files
     and the index."""
@@ -820,6 +886,8 @@ if __name__ == "__main__":
     put("sample_fast.zlib", zlib_stream(4))
     put("sample_maximum.zlib", zlib_stream(9, 12))
     put("sample_dictionary.zlib", zlib_stream(6, 15, b"hello zlib"))
+    put("sample.sz", snappy_stream())
+    put("sample.block", snappy_block()[0])
     put("sample.wav", wav_audio())
     classic = pdf_classic()
     put("sample.pdf", classic)

@@ -1901,6 +1901,112 @@ fn zlib_stream_is_found_by_its_first_two_bytes_and_unwrapped() {
     }
 }
 
+/// The elements of a Snappy block as `(kind, length, offset)`; a literal has no offset.
+fn snappy_elements(block: &Json) -> Vec<(String, u64, Option<u64>)> {
+    block["elements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| {
+            (
+                name_of(&e["kind"]).to_owned(),
+                e["body"]["length"].as_u64().unwrap(),
+                e["body"]["offset"].as_u64(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn snappy_reads_the_chunks_and_the_elements_of_a_stream() {
+    let v = decode("snappy", "sample.sz");
+    let chunks = v["chunks"].as_array().unwrap();
+    // after the identifier: compressed, uncompressed, padding, a skippable chunk, the identifier of the next stream,
+    // and that stream's uncompressed chunk
+    let types: Vec<u64> = chunks
+        .iter()
+        .map(|c| c["type"]["value"].as_u64().unwrap())
+        .collect();
+    assert_eq!(types, [0x00, 0x01, 0xfe, 0x85, 0xff, 0x01]);
+    let lengths: Vec<u64> = chunks
+        .iter()
+        .map(|c| c["length"].as_u64().unwrap())
+        .collect();
+    assert_eq!(lengths, [103, 20, 5, 4, 6, 18]);
+    assert_eq!(
+        chunks
+            .iter()
+            .map(|c| c["is_skippable"].as_bool().unwrap())
+            .collect::<Vec<_>>(),
+        [false, false, true, true, false, false]
+    );
+    assert_eq!(chunks[4]["body"]["name"], "sNaPpY");
+    assert_eq!(chunks[1]["body"]["crc32c"], 343_634_046);
+    // the compressed chunk's block: the length and a literal, a copy of each kind, a literal with a length byte
+    let block = &chunks[0]["body"]["block"];
+    assert_eq!(block["uncompressed_length"], 120);
+    assert_eq!(
+        snappy_elements(block),
+        [
+            ("literal".to_owned(), 6, None),
+            ("copy_1_byte_offset".to_owned(), 6, Some(6)),
+            ("literal".to_owned(), 70, None),
+            ("copy_2_byte_offset".to_owned(), 20, Some(76)),
+            ("copy_4_byte_offset".to_owned(), 10, Some(100)),
+            ("literal".to_owned(), 8, None),
+        ]
+    );
+    // the raw block as a file of its own
+    let raw = decode("snappy::snappy_block", "sample.block");
+    assert_eq!(raw["uncompressed_length"], 120);
+    assert_eq!(snappy_elements(&raw), snappy_elements(block));
+}
+
+#[test]
+fn snappy_reads_what_a_real_encoder_writes() {
+    // cramjam (the Rust `snap` crate): 65 KiB of text and noise as a compressed chunk and an uncompressed one
+    let v = decode_real("snappy", "archive/snappy/cramjam_framed.bin");
+    let chunks = v["chunks"].as_array().unwrap();
+    assert_eq!(chunks.len(), 2);
+    assert_eq!(name_of(&chunks[0]["type"]), "compressed_data");
+    assert_eq!(chunks[0]["body"]["block"]["uncompressed_length"], 65_536);
+    assert_eq!(name_of(&chunks[1]["type"]), "uncompressed_data");
+    assert_eq!(chunks[1]["body"]["data"]["len"], 2984);
+    // a chunk of 64 KiB is 1025 elements of text; its literals and copies add up to the length it says
+    let block = &chunks[0]["body"]["block"];
+    let total: u64 = snappy_elements(block).iter().map(|e| e.1).sum();
+    assert_eq!(total, 65_536);
+    let small = decode_real("snappy", "archive/snappy/cramjam_framed_small.bin");
+    assert_eq!(small["chunks"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        small["chunks"][0]["body"]["block"]["uncompressed_length"],
+        2520
+    );
+    let raw = decode_real(
+        "snappy::snappy_block",
+        "archive/snappy/cramjam_raw_block.bin",
+    );
+    assert_eq!(raw["uncompressed_length"], 2520);
+    let total: u64 = snappy_elements(&raw).iter().map(|e| e.1).sum();
+    assert_eq!(total, 2520);
+}
+
+#[test]
+fn snappy_is_found_by_its_stream_identifier() {
+    let found = doe::detect::detect_file(
+        &types().join("samples/sample.sz"),
+        &[types()],
+        &doe::detect::Options::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        found.chosen().map(|a| a.name.as_str()),
+        Some("snappy"),
+        "{}",
+        found.report()
+    );
+}
+
 #[test]
 fn wav_audio_reads_the_format_the_samples_and_the_tags_as_utf8() {
     let v = decode("wav_audio", "sample.wav");
