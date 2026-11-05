@@ -517,6 +517,24 @@ def make_bzip2():
         put("archive/bzip2", sample, bz2.compress(data, level), WITHOUT_REFERENCE)
 
 
+def make_brotli():
+    try:
+        import cramjam
+    except ImportError:
+        raise Missing("cramjam (pip install cramjam: the Rust brotli crate)") from None
+    # the text at the lowest and at the highest quality, bytes that do not compress (a hash chain, so a quality-1 encoder
+    # stores them in an uncompressed meta-block), and an empty input (just the stream header and the empty last meta-block)
+    noise = b"".join(hashlib.sha256(bytes([i])).digest() for i in range(40))
+    for sample, data, quality in (
+        ("cramjam_text_q1", TEXT, 1),
+        ("cramjam_text_q11", TEXT, 11),
+        ("cramjam_noise_q1", noise, 1),
+        ("cramjam_noise_q11", noise, 11),
+        ("cramjam_empty", b"", 5),
+    ):
+        put("archive/brotli", sample, bytes(cramjam.brotli.compress(data, level=quality)), WITHOUT_REFERENCE)
+
+
 def make_gpg():
     need("gpg")
     with tempfile.TemporaryDirectory() as tmp:
@@ -687,7 +705,7 @@ def make_tls():
 ALL = [
     make_gettext, make_dtb, make_uimage, make_cc65, make_tap, make_xar, make_zchunk, make_zisofs, make_android,
     make_partition_tables, make_gpg, make_msi, make_windres, make_php,
-    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream, make_snappy, make_compress_z, make_lzop, make_xz, make_zstd, make_lz4, make_gzip, make_bzip2,
+    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream, make_snappy, make_compress_z, make_lzop, make_brotli, make_xz, make_zstd, make_lz4, make_gzip, make_bzip2,
 ]
 
 # Not made: files that the gallery's definitions cannot read (#278). The functions stay so that they can be run when the

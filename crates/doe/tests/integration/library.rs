@@ -2614,6 +2614,133 @@ fn the_gallerys_gzip_reads_real_gzip_files() {
     assert_eq!(two["len_uncompressed"], 3000);
 }
 
+/// The value of `brotli` for these bytes, as the API gives it.
+fn brotli_of(bytes: &[u8]) -> Json {
+    let schema = std::fs::read_to_string(types().join("brotli.yaml")).unwrap();
+    let request = serde_json::json!({"schema": schema});
+    let response = doe::api::parse(&request.to_string(), bytes);
+    assert!(
+        response.ok,
+        "{:?} {:?}",
+        response.error, response.diagnostics
+    );
+    response.value.expect("a value")
+}
+
+#[test]
+fn brotli_reads_the_window_and_the_meta_blocks_it_can_reach() {
+    let v = decode("brotli", "sample.br");
+    assert_eq!(
+        (v["window_bits"].as_u64(), v["window_size"].as_u64()),
+        (Some(20), Some(1_048_560))
+    );
+    let blocks = v["meta_blocks"].as_array().unwrap();
+    assert_eq!(blocks.len(), 3);
+    // an uncompressed meta-block: its length, the flag and the raw bytes (the bits before them were padding)
+    assert_eq!(
+        (blocks[0]["length"].as_u64(), blocks[0]["has_raw"].as_bool()),
+        (Some(19), Some(true))
+    );
+    assert_eq!(
+        blocks[0]["raw"]["hex"],
+        "62726f746c692c2073746f7265642061732069"
+    );
+    // a metadata meta-block: MSKIPLEN bytes that a decoder ignores
+    assert_eq!(
+        (
+            blocks[1]["is_metadata"].as_bool(),
+            blocks[1]["skip_length"].as_u64()
+        ),
+        (Some(true), Some(5))
+    );
+    assert_eq!(blocks[1]["skipped"]["hex"], "6e6f746573");
+    // the empty last meta-block ends the stream
+    assert_eq!(
+        (
+            blocks[2]["is_empty_last"].as_bool(),
+            blocks[2]["ends_the_list"].as_bool()
+        ),
+        (Some(true), Some(true))
+    );
+    assert_eq!(v["rest"]["len"], 0);
+}
+
+#[test]
+fn brotli_window_codes_and_the_large_window() {
+    // the bytes of a stream that is only a header and an empty last meta-block, with each window code
+    // (first bit, then the code in the next three bits): 0 is 16; 1 + n is 17 + n; 1 + 0 + m is 8 + m, or 17 for m = 0
+    for (bytes, bits, large) in [
+        (&[0b0000_0110_u8][..], 16, false), // 0, ISLAST 1, ISLASTEMPTY 1
+        (&[0b0011_0011], 18, false),        // 1, n = 1 (LSB first: 100), ISLAST, ISLASTEMPTY
+        (&[0b1000_0001, 0b0000_0001][..], 17, false), // 1, n = 0, m = 0, ISLAST, then ISLASTEMPTY
+        (&[0b1001_0001, 0b0000_0001][..], 0, true), // 1, n = 0, m = 1: the large-window extension
+        (&[0b1010_0001, 0b0000_0001][..], 10, false), // 1, n = 0, m = 2 (8 + 2)
+    ] {
+        let v = brotli_of(bytes);
+        assert_eq!(v["window_bits"].as_u64(), Some(bits), "{bytes:?}");
+        assert_eq!(v["is_large_window"], large, "{bytes:?}");
+    }
+}
+
+#[test]
+fn brotli_reads_what_a_real_encoder_writes() {
+    // cramjam (the Rust brotli crate): the window, then an uncompressed meta-block for bytes that do not compress,
+    // and a compressed one (the rest is bytes) for the text; the last one has ISLAST set
+    for file in ["cramjam_noise_q1", "cramjam_noise_q11"] {
+        let v = decode_real("brotli", &format!("archive/brotli/{file}.bin"));
+        assert_eq!(v["window_bits"], 22, "{file}");
+        let blocks = v["meta_blocks"].as_array().unwrap();
+        assert_eq!(blocks.len(), 2, "{file}");
+        assert_eq!(
+            (blocks[0]["length"].as_u64(), blocks[0]["has_raw"].as_bool()),
+            (Some(1280), Some(true)),
+            "{file}"
+        );
+        assert_eq!(blocks[0]["raw"]["len"], 1280, "{file}");
+        assert_eq!(blocks[1]["is_empty_last"], true, "{file}");
+    }
+    let q1 = decode_real("brotli", "archive/brotli/cramjam_text_q1.bin");
+    let blocks = q1["meta_blocks"].as_array().unwrap();
+    assert_eq!(blocks.len(), 1);
+    assert_eq!(
+        (
+            blocks[0]["length"].as_u64(),
+            blocks[0]["is_compressed"].as_bool(),
+            blocks[0]["is_last"].as_bool()
+        ),
+        (Some(2520), Some(true), Some(false))
+    );
+    assert_eq!(q1["rest"]["len"], 75);
+    let q11 = decode_real("brotli", "archive/brotli/cramjam_text_q11.bin");
+    let blocks = q11["meta_blocks"].as_array().unwrap();
+    assert_eq!(
+        (
+            blocks[0]["length"].as_u64(),
+            blocks[0]["is_last"].as_bool(),
+            blocks[0]["is_compressed"].as_bool()
+        ),
+        (Some(2520), Some(true), Some(true))
+    );
+    let empty = decode_real("brotli", "archive/brotli/cramjam_empty.bin");
+    assert_eq!(empty["meta_blocks"][0]["is_empty_last"], true);
+}
+
+#[test]
+fn brotli_is_tried_for_a_br_name_and_not_found_by_content() {
+    let found = doe::detect::detect_file(
+        &types().join("samples/sample.br"),
+        &[types()],
+        &doe::detect::Options::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        found.chosen().map(|a| a.name.as_str()),
+        Some("brotli"),
+        "{}",
+        found.report()
+    );
+}
+
 #[test]
 fn wav_audio_reads_the_format_the_samples_and_the_tags_as_utf8() {
     let v = decode("wav_audio", "sample.wav");

@@ -950,6 +950,56 @@ def lzop_file(checksum: str = "adler32", name: bytes = b"sample.txt", extra: byt
     return bytes(out) + first + second + struct.pack(">I", 0)
 
 
+def brotli_stream(wbits_code: tuple[int, int] = (1, 3)) -> bytes:
+    """A Brotli stream of an uncompressed meta-block, a metadata meta-block and the empty last meta-block, with the bits
+    written least significant first. `wbits_code` is (the first bit, the 3-bit code that follows): (1, 3) is WBITS 20."""
+    bits = 0
+    count = 0
+    out = bytearray()
+
+    def put(value: int, width: int) -> None:
+        nonlocal bits, count
+        bits |= value << count
+        count += width
+        while count >= 8:
+            out.append(bits & 255)
+            bits >>= 8
+            count -= 8
+
+    def align() -> None:
+        nonlocal bits, count
+        if count:
+            out.append(bits & 255)
+            bits = 0
+            count = 0
+
+    first, code = wbits_code
+    put(first, 1)
+    if first:
+        put(code, 3)
+    # an uncompressed meta-block of 19 bytes: ISLAST 0, MNIBBLES 0 (4 nibbles), MLEN - 1, ISUNCOMPRESSED 1
+    raw = b"brotli, stored as is"[:19]
+    put(0, 1)
+    put(0, 2)
+    put(len(raw) - 1, 16)
+    put(1, 1)
+    align()
+    out += raw
+    # a metadata meta-block of 5 bytes: ISLAST 0, MNIBBLES 3, reserved 0, MSKIPBYTES 1, MSKIPLEN - 1
+    put(0, 1)
+    put(3, 2)
+    put(0, 1)
+    put(1, 2)
+    put(4, 8)
+    align()
+    out += b"notes"
+    # the last, empty meta-block: ISLAST 1, ISLASTEMPTY 1
+    put(1, 1)
+    put(1, 1)
+    align()
+    return bytes(out)
+
+
 def mar_archive() -> bytes:
     """A MAR file of the newer form: the size of the file, one signature, the product information block, two files
     and the index."""
@@ -1072,6 +1122,7 @@ if __name__ == "__main__":
     put("sample_12bits.Z", compress_z(12, block_mode=False))
     put("sample.lzo", lzop_file())
     put("sample_crc32.lzo", lzop_file("crc32", b"", extra=b"extra data", method=3))
+    put("sample.br", brotli_stream())
     put("sample.wav", wav_audio())
     classic = pdf_classic()
     put("sample.pdf", classic)
