@@ -32,7 +32,7 @@ filesystem/ext2	none	mke2fs	mke2fs -t ext2 -d dir x.img 1M, a real image, tested
 filesystem/luks	crafted	cryptsetup	truncate -s 16M x.img; cryptsetup luksFormat --type luks1 (and luks2) x.img	apt: cryptsetup-bin	easy
 filesystem/lvm2	none	pvcreate	pvcreate on a loop device, vgcreate, lvcreate	apt: lvm2	blocked	needs root, and the definition reads the descriptors and the checksum wrongly (see the table)
 filesystem/tr_dos_image	crafted	trdtool	trdtool new x.trd, then add files (or save a disk from the Fuse emulator)	zx tools; apt: fuse-emulator-utils	medium
-filesystem/ubifs	none	mkfs.ubifs	mkfs.ubifs -r dir -m 2048 -e 126976 -c 17 -o x.ubifs	apt: mtd-utils	blocked	the smallest image is larger than a committed sample may be: fetched by hash, not committed
+filesystem/ubifs	none	mkfs.ubifs	mkfs.ubifs -r dir -m 512 -e 15360 -c 40 -o x.ubifs	apt: mtd-utils	blocked	the smallest image (13 LEBs of 15360 bytes) is larger than a committed sample may be, and a prefix does not parse; the library test real_ubifs_and_ubi_images_made_by_mtd_utils makes the images and reads them (it is skipped without mtd-utils)
 filesystem/vfat	crafted	mkfs.vfat	truncate -s 4M x.img; mkfs.vfat x.img; mcopy -i x.img files ::	apt: dosfstools, mtools	easy
 filesystem/vmware_vmdk	crafted	qemu-img	qemu-img create -f vmdk x.vmdk 1M (and subformats monolithicSparse, streamOptimized)	apt: qemu-utils	easy
 firmware/andes_firmware	crafted	linux-firmware	mediatek/mt7601u.bin from the linux-firmware package (redistributable)	apt: linux-firmware	easy

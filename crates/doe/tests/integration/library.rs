@@ -1449,6 +1449,178 @@ fn ubi_is_found_by_its_magic() {
     );
 }
 
+/// Whether a command of mtd-utils can be run (the real-image tests below are skipped without them).
+fn has_tool(name: &str) -> bool {
+    std::process::Command::new(name)
+        .arg("--version")
+        .output()
+        .is_ok()
+}
+
+/// Real images made by `mkfs.ubifs` and `ubinize` (mtd-utils; skipped when they are not installed): the gallery's
+/// `ubifs` reads the bare file system image written with each compressor, and `ubi` reads the eraseblocks and the
+/// volume table of an image that `ubinize` wrote with the file system as its volume. An image is about 200 KiB, more
+/// than a committed sample may be (64 KiB), so the test makes them.
+#[test]
+fn real_ubifs_and_ubi_images_made_by_mtd_utils() {
+    if !has_tool("mkfs.ubifs") || !has_tool("ubinize") {
+        // CI runs without mtd-utils unless they are installed there
+        return;
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let tree = tmp.path().join("tree");
+    std::fs::create_dir_all(tree.join("dir")).unwrap();
+    std::fs::write(tree.join("dir/a.txt"), "hello ubifs\n".repeat(50)).unwrap();
+    let bytes: Vec<u8> = (0..3000_u32)
+        .map(|i| u8::try_from(i * 37 % 256).unwrap())
+        .collect();
+    std::fs::write(tree.join("b"), bytes).unwrap();
+    std::os::unix::fs::symlink("a.txt", tree.join("dir/link")).unwrap();
+    let gallery =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../conformance/kaitai_struct_formats");
+    let compressions = [
+        ("none", "no_compression"),
+        ("lzo", "lzo"),
+        ("zlib", "zlib"),
+        ("zstd", "zstd"),
+    ];
+    for (flag, name) in compressions {
+        let image = tmp.path().join(format!("{flag}.ubifs"));
+        let made = std::process::Command::new("mkfs.ubifs")
+            .args([
+                "-r",
+                tree.to_str().unwrap(),
+                "-m",
+                "512",
+                "-e",
+                "15360",
+                "-c",
+                "40",
+                "-x",
+                flag,
+                "-o",
+            ])
+            .arg(&image)
+            .output()
+            .unwrap();
+        assert!(
+            made.status.success(),
+            "{flag}: {}",
+            String::from_utf8_lossy(&made.stderr)
+        );
+        let text = parse_file(
+            &image,
+            "ubifs",
+            std::slice::from_ref(&gallery),
+            Some(Path::new("/nonexistent/config.toml")),
+            OutputFormat::Json,
+        )
+        .unwrap_or_else(|e| panic!("{flag}: {e}"));
+        let v: Json = serde_json::from_str(&text).unwrap();
+        let sb = &v["superblock"]["node_header"];
+        assert_eq!(
+            (
+                sb["min_io_size"].as_u64(),
+                sb["leb_size"].as_u64(),
+                sb["max_num_lebs"].as_u64(),
+                sb["fanout"].as_u64()
+            ),
+            (Some(512), Some(15360), Some(40), Some(8)),
+            "{flag}"
+        );
+        assert_eq!(name_of(&sb["default_compression"]), name, "{flag}");
+        assert_eq!(name_of(&sb["key_hash"]), "r5", "{flag}");
+        // the first master node (the only copy of a new image) knows the tree's inodes: 1 (root) and 4 more
+        assert_eq!(v["master_1"]["node_header"]["highest_inum"], 68, "{flag}");
+        assert_eq!(
+            name_of(&v["master_1"]["header"]["node_type"]),
+            "master",
+            "{flag}"
+        );
+        assert_eq!(
+            name_of(&v["index_root"]["header"]["node_type"]),
+            "index",
+            "{flag}"
+        );
+        assert_eq!(v["len_image"], 13 * 15360, "{flag}");
+    }
+    // the volume inside an image that ubinize wrote
+    let ini = tmp.path().join("ubi.ini");
+    let zlib = tmp.path().join("zlib.ubifs");
+    std::fs::write(
+        &ini,
+        format!(
+            "[rootfs]\nmode=ubi\nimage={}\nvol_id=0\nvol_type=dynamic\nvol_name=rootfs\nvol_alignment=1\nvol_flags=autoresize\n",
+            zlib.display()
+        ),
+    )
+    .unwrap();
+    let image = tmp.path().join("real.ubi");
+    let made = std::process::Command::new("ubinize")
+        .args(["-m", "512", "-p", "16KiB", "-s", "512", "-o"])
+        .arg(&image)
+        .arg(&ini)
+        .output()
+        .unwrap();
+    assert!(
+        made.status.success(),
+        "{}",
+        String::from_utf8_lossy(&made.stderr)
+    );
+    let found =
+        doe::detect::detect_file(&image, &[types()], &doe::detect::Options::default()).unwrap();
+    assert_eq!(
+        found.chosen().map(|a| a.name.as_str()),
+        Some("ubi"),
+        "{}",
+        found.report()
+    );
+    let v = ubi_of(&std::fs::read(&image).unwrap());
+    // 2 blocks for the layout volume, 13 for the file system, and the ones that ubinize leaves free
+    assert_eq!(v["peb_size"], 16384);
+    let blocks: Vec<&Json> = v["pebs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| &p["block"])
+        .collect();
+    assert_eq!(blocks.len(), 15);
+    assert_eq!(
+        (
+            blocks[0]["ec"]["vid_hdr_offset"].as_u64(),
+            blocks[0]["ec"]["data_offset"].as_u64()
+        ),
+        (Some(512), Some(1024))
+    );
+    let ids: Vec<(u64, u64)> = blocks
+        .iter()
+        .map(|b| {
+            (
+                b["vid"]["vol_id"].as_u64().unwrap(),
+                b["vid"]["lnum"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(&ids[..2], [(0x7FFF_EFFF, 0), (0x7FFF_EFFF, 1)]);
+    assert_eq!(ids[2..], (0..13).map(|lnum| (0, lnum)).collect::<Vec<_>>());
+    for b in &blocks[..2] {
+        let record = &b["volume_table"]["records"][0];
+        assert_eq!(
+            (
+                record["name"].as_str(),
+                record["reserved_pebs"].as_u64(),
+                name_of(&record["vol_type"])
+            ),
+            (Some("rootfs"), Some(13), "dynamic")
+        );
+    }
+    // the volume's first block is the file system's superblock node: the UBIFS magic 0x06101831 in the data
+    let data = blocks[2]["data"]["hex"]
+        .as_str()
+        .expect("the data of the first block of volume 0");
+    assert!(data.starts_with("31181006"), "{data:.16}");
+}
+
 #[test]
 fn wav_audio_reads_the_format_the_samples_and_the_tags_as_utf8() {
     let v = decode("wav_audio", "sample.wav");
