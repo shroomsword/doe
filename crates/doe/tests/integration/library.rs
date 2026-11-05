@@ -1161,6 +1161,163 @@ fn cpio_is_found_by_its_magic_in_every_format_and_lists_files_and_directories() 
     );
 }
 
+/// The value of `squashfs` for these bytes, as the API gives it (the parse may stop at an error: what was read is there).
+fn squashfs_of(bytes: &[u8]) -> Json {
+    let schema = std::fs::read_to_string(types().join("squashfs.yaml")).unwrap();
+    let request = serde_json::json!({"schema": schema});
+    let response = doe::api::parse(&request.to_string(), bytes);
+    assert!(
+        response.ok,
+        "{:?} {:?}",
+        response.error, response.diagnostics
+    );
+    response.value.expect("a value")
+}
+
+#[test]
+fn squashfs_reads_the_superblock_the_tables_and_the_root_directory() {
+    for (file, zlib) in [
+        ("sample.squashfs", false),
+        ("sample_gzip.squashfs", true),
+        ("sample_extended.squashfs", false),
+    ] {
+        let v = decode("squashfs", file);
+        assert_eq!(
+            (
+                v["inode_count"].as_u64(),
+                v["block_size"].as_u64(),
+                v["block_log"].as_u64(),
+                v["version_major"].as_u64(),
+                v["version_minor"].as_u64()
+            ),
+            (Some(5), Some(131_072), Some(17), Some(4), Some(0)),
+            "{file}"
+        );
+        assert_eq!(name_of(&v["compression"]), "gzip", "{file}");
+        assert_eq!(
+            (v["is_supported"].as_bool(), v["is_complete"].as_bool()),
+            (Some(true), Some(true)),
+            "{file}"
+        );
+        assert_eq!(v["is_exportable"], true, "{file}");
+        assert_eq!(v["no_xattrs"], true, "{file}");
+        // stored images say so in the flags, zlib ones do not
+        assert_eq!(v["uncompressed_inodes"], !zlib, "{file}");
+        // the id table: two ids, read from a stored or a zlib block
+        let ids = &v["id_blocks"][0]["block"]["body"]["content"]["ids"];
+        assert_eq!(ids, &serde_json::json!([0, 1000]), "{file}");
+        // the fragment table: where the one fragment is, its size and that it is stored
+        let fragment = &v["fragment_blocks"][0]["block"]["body"]["content"]["fragments"][0];
+        assert_eq!(
+            (
+                fragment["start"].as_u64(),
+                fragment["size"].as_u64(),
+                fragment["is_stored"].as_bool()
+            ),
+            (Some(96), Some(26), Some(true)),
+            "{file}"
+        );
+        // the export table: five inode references
+        let exports = &v["export_blocks"][0]["block"]["body"]["content"]["inodes"];
+        assert_eq!(exports.as_array().map(Vec::len), Some(5), "{file}");
+        // the root inode: a directory with three entries and the listing's size
+        let root = &v["root_inode_value"];
+        let directory = if file == "sample_extended.squashfs" {
+            8
+        } else {
+            1
+        };
+        assert_eq!(root["kind"], directory, "{file}");
+        assert_eq!(root["inode_number"], 1, "{file}");
+        assert_eq!(root["body"]["link_count"], 3, "{file}");
+        assert_eq!(root["body"]["listing_size"], 52, "{file}");
+        // the root directory: the names, their types and inode numbers (the numbers are the base plus a signed delta)
+        let run = &v["root_directory"]["body"]["runs"][0];
+        assert_eq!(run["base_inode"], 3, "{file}");
+        let entries: Vec<(String, String, i64)> = run["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| {
+                (
+                    e["name"].as_str().unwrap().to_owned(),
+                    match e["kind"].as_u64().unwrap() {
+                        1 => "directory",
+                        2 => "file",
+                        3 => "symlink",
+                        _ => "other",
+                    }
+                    .to_owned(),
+                    e["inode_number"].as_i64().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            entries,
+            [
+                ("dir".to_owned(), "directory".to_owned(), 3),
+                ("hello.txt".to_owned(), "file".to_owned(), 2),
+                ("link".to_owned(), "symlink".to_owned(), 5),
+            ],
+            "{file}"
+        );
+    }
+}
+
+#[test]
+fn squashfs_of_another_version_or_cut_short_shows_the_superblock_only() {
+    let whole = std::fs::read(types().join("samples/sample.squashfs")).unwrap();
+    // version 3.0: the superblock is read, and nothing that depends on the version 4 layout
+    let mut old = whole.clone();
+    old[28] = 3;
+    let v = squashfs_of(&old);
+    assert_eq!(v["is_supported"], false);
+    assert!(v["id_blocks"].is_null() && v["root_inode_value"].is_null());
+    // the tables are past the end of the file: the bytes used are not all there
+    let v = squashfs_of(&whole[..whole.len() - 20]);
+    assert_eq!(v["is_complete"], false);
+    assert_eq!(v["is_supported"], true);
+    assert_eq!(v["inode_count"], 5);
+    assert!(v["id_blocks"].is_null() && v["root_directory"].is_null());
+}
+
+#[test]
+fn squashfs_of_another_compression_has_its_blocks_as_bytes() {
+    let mut xz = std::fs::read(types().join("samples/sample.squashfs")).unwrap();
+    // compression 4 (xz): the metadata blocks of this image are stored, but the type reads only what it can decode
+    xz[20] = 4;
+    let v = squashfs_of(&xz);
+    assert_eq!(name_of(&v["compression"]), "xz");
+    assert_eq!(v["uses_zlib"], false);
+    // a block with the stored bit is decoded whatever the compression says
+    assert_eq!(
+        v["root_directory"]["body"]["runs"][0]["entries"][0]["name"],
+        "dir"
+    );
+}
+
+#[test]
+fn squashfs_is_found_by_its_magic() {
+    for file in [
+        "sample.squashfs",
+        "sample_gzip.squashfs",
+        "sample_extended.squashfs",
+    ] {
+        let found = doe::detect::detect_file(
+            &types().join("samples").join(file),
+            &[types()],
+            &doe::detect::Options::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            found.chosen().map(|a| a.name.as_str()),
+            Some("squashfs"),
+            "{file}: {}",
+            found.report()
+        );
+    }
+}
+
 #[test]
 fn wav_audio_reads_the_format_the_samples_and_the_tags_as_utf8() {
     let v = decode("wav_audio", "sample.wav");
