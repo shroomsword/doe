@@ -1,11 +1,14 @@
 id: bzip2
 doc: |
-  bzip2 compressed stream: the stream header and the start of the first block
-# Covers: the signature `BZh`, the block size level (1 to 9, in units of 100 kB) and the magic and CRC of the
-#   first block.
-# Limits: the blocks are bit-packed, not byte-aligned, and Huffman- and BWT-coded, so everything after the first
-#   block's CRC is bytes; the end-of-stream marker (0x177245385090) and the stream CRC are inside those bits.
-#   Decompress with `bzip2 -d` to read the content.
+  bzip2 compressed stream: the stream header and the header of the first block
+# Covers: the signature `BZh`, the block size level (1 to 9, in units of 100 kB), the first block's magic and CRC, and the
+#   fields that follow them in bits - the randomised flag, the 24-bit origin pointer of the Burrows-Wheeler transform and the
+#   16-bit map of which 16-byte ranges of byte values the block uses.
+# Limits: everything after that is bit-packed, not byte-aligned, and Huffman- and BWT-coded, so it is bytes (`rest`); the
+#   end-of-stream marker (0x177245385090) and the stream CRC are inside those bits, at a bit position that only decoding
+#   tells. For the same reason a file of several streams (`cat a.bz2 b.bz2`, or the output of pbzip2) shows its first
+#   stream's header only: where the second stream starts is not known without decoding the first, and the language has no
+#   way to search for `BZh9` at an unknown byte. Decompress with `bzip2 -d` to read the content.
 # Specification: the bzip2 format description of the bzip2 1.0.8 sources (`manual`, and Joe Tsai's "bzip2
 #   format" notes); there is no RFC.
 meta:
@@ -24,8 +27,27 @@ seq:
     doc: Pi, in binary-coded decimal (an empty stream has the end-of-stream magic here instead).
   - id: first_block_crc
     type: u4
+  - id: randomised
+    type: b1
+    doc: Set by very old versions of bzip2; a decoder then undoes a pseudo-random permutation.
+  - id: origin_pointer
+    type: b24
+    doc: The position of the original first byte in the sorted block (the Burrows-Wheeler transform's origin).
+  - id: used_ranges
+    type: b16
+    doc: Bit 15 is the first 16-byte range of byte values (0x00 to 0x0f); a set bit says that the block uses a byte from it and has a 16-bit map for it.
+  - id: symbol_map_start
+    type: b7
+    doc: The first seven bits of the first range's map (the bit fields are padded to a byte here; the rest of the block is bytes).
   - id: rest
     size-eos: true
 instances:
   block_size_kb:
     value: level.to_i * 100
+  ranges_used:
+    value: >-
+      ((used_ranges >> 15) & 1) + ((used_ranges >> 14) & 1) + ((used_ranges >> 13) & 1) + ((used_ranges >> 12) & 1) +
+      ((used_ranges >> 11) & 1) + ((used_ranges >> 10) & 1) + ((used_ranges >> 9) & 1) + ((used_ranges >> 8) & 1) +
+      ((used_ranges >> 7) & 1) + ((used_ranges >> 6) & 1) + ((used_ranges >> 5) & 1) + ((used_ranges >> 4) & 1) +
+      ((used_ranges >> 3) & 1) + ((used_ranges >> 2) & 1) + ((used_ranges >> 1) & 1) + (used_ranges & 1)
+    doc: How many of the 16 ranges of byte values the block uses.

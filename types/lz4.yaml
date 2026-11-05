@@ -1,65 +1,185 @@
 id: lz4
 doc: |
-  LZ4 frame (.lz4 files): the frame descriptor and the blocks with their sizes
-# Covers: the magic, the frame descriptor (flags, block size, the size of the content and the dictionary id when
-#   they are given, the header's checksum byte), every block's size and bytes (and whether it is stored
-#   uncompressed), the block checksums when the frame has them, the end mark and the content checksum.
-# Limits: the compressed bytes of a block (LZ4 sequences) are not decoded; legacy frames (magic 0x184C2102) and
-#   skippable frames (0x184D2A5?) are not read.
-# Specification: LZ4 Frame Format Description (github.com/lz4/lz4/blob/dev/doc/lz4_Frame_format.md).
+  LZ4 file (.lz4): the frames - standard, legacy and skippable - with their blocks, and the sequences of a compressed block
+# Covers: every frame in the file. A standard frame (magic 0x184D2204) has the frame descriptor (flags, block size, the size
+#   of the content and the dictionary id when they are given, the header's checksum byte), every block's size and bytes
+#   (and whether it is stored uncompressed), the block checksums when the frame has them, the end mark and the content
+#   checksum. A legacy frame (magic 0x184C2102, what `lz4 -l` writes) is its magic and then blocks, each with its compressed size; the
+#   magic and every block are items of `frames` (kinds 2 and 0), up to the next frame's magic.
+#   A skippable frame (0x184D2A50 to 0x184D2A5F) is its size and bytes. A compressed block is read as LZ4's block format:
+#   the sequences - for each, the token, the literal length (with its extension bytes), the literals, and, but for the last
+#   sequence of a block, the match offset and the match length (with its extension bytes).
+# Limits: the matches are not expanded (that needs a reference into the output, which the language does not have), so the
+#   decompressed data is not shown, only the literals and the offsets and lengths. The checksums are numbers. A legacy
+#   frame has no end mark: its blocks run to the next magic number or the end of the file (a size is at most 8 MiB, so it is
+#   never a magic number).
+# Specification: LZ4 Frame Format Description (github.com/lz4/lz4/blob/dev/doc/lz4_Frame_format.md) and LZ4 Block Format
+#   Description (lz4_Block_format.md).
 meta:
   id: lz4
   endian: le
 seq:
-  - id: magic
-    contents: [0x04, 0x22, 0x4d, 0x18]
-  - id: version
-    type: b2
-  - id: block_independence
-    type: b1
-  - id: has_block_checksum
-    type: b1
-  - id: has_content_size
-    type: b1
-  - id: has_content_checksum
-    type: b1
-  - id: reserved_flg
-    type: b1
-  - id: has_dictionary_id
-    type: b1
-  - id: reserved_bd_high
-    type: b1
-  - id: block_max_size_id
-    type: b3
-    doc: 4 to 7 for blocks of at most 64 KiB, 256 KiB, 1 MiB and 4 MiB.
-  - id: reserved_bd_low
-    type: b4
-  - id: content_size
-    type: u8
-    if: has_content_size
-  - id: dictionary_id
-    type: u4
-    if: has_dictionary_id
-  - id: header_checksum
-    type: u1
-  - id: blocks
-    type: block
-    repeat: until
-    repeat-until: _.size_field == 0
-  - id: content_checksum
-    type: u4
-    if: has_content_checksum
+  - id: frames
+    type: any_frame
+    repeat: eos
 types:
+  # a frame starts with its magic, which says which kind it is
+  any_frame:
+    seq:
+      - id: body
+        type:
+          switch-on: kind
+          cases:
+            1: frame
+            2: legacy_header
+            3: skippable_frame
+            0: legacy_block
+    instances:
+      lead:
+        pos: _io.pos
+        type: u4
+      kind:
+        value: 'lead == 0x184d2204 ? 1 : lead == 0x184c2102 ? 2 : (lead & 0xfffffff0) == 0x184d2a50 ? 3 : 0'
+        doc: 1 for a standard frame, 2 for the magic of a legacy frame, 3 for a skippable frame, and 0 for a block of a legacy frame (whose size, at most 8 MiB, is not a magic).
+  frame:
+    seq:
+      - id: magic
+        contents: [0x04, 0x22, 0x4d, 0x18]
+      - id: version
+        type: b2
+      - id: block_independence
+        type: b1
+      - id: has_block_checksum
+        type: b1
+      - id: has_content_size
+        type: b1
+      - id: has_content_checksum
+        type: b1
+      - id: reserved_flg
+        type: b1
+      - id: has_dictionary_id
+        type: b1
+      - id: reserved_bd_high
+        type: b1
+      - id: block_max_size_id
+        type: b3
+        doc: 4 to 7 for blocks of at most 64 KiB, 256 KiB, 1 MiB and 4 MiB.
+      - id: reserved_bd_low
+        type: b4
+      - id: content_size
+        type: u8
+        if: has_content_size
+      - id: dictionary_id
+        type: u4
+        if: has_dictionary_id
+      - id: header_checksum
+        type: u1
+      - id: blocks
+        type: "block(has_block_checksum)"
+        repeat: until
+        repeat-until: _.size_field == 0
+      - id: content_checksum
+        type: u4
+        if: has_content_checksum
+  # the magic of a legacy frame; its blocks follow in the list of frames, one item each, up to the next frame's magic
+  legacy_header:
+    seq:
+      - id: magic
+        contents: [0x02, 0x21, 0x4c, 0x18]
+  legacy_block:
+    seq:
+      - id: size
+        type: u4
+        doc: The size of the compressed data that follows (a block is at most 8 MiB uncompressed).
+      - id: data
+        size: size
+        type: lz4_block
+  skippable_frame:
+    seq:
+      - id: magic
+        type: u4
+        valid:
+          expr: (_ & 0xfffffff0) == 0x184d2a50
+      - id: size
+        type: u4
+      - id: data
+        size: size
+    instances:
+      number:
+        value: magic & 15
+        doc: The low four bits of the magic, which applications use to tell their frames apart.
   block:
+    params:
+      - id: has_checksum
+        type: bool
     seq:
       - id: size_field
         type: u4
         doc: The size of the block's data; the top bit says it is stored uncompressed. Zero ends the frame.
+      - id: stored
+        size: size_field & 0x7fffffff
+        if: size_field != 0 and (size_field & 0x80000000) != 0
       - id: data
         size: size_field & 0x7fffffff
+        type: lz4_block
+        if: size_field != 0 and (size_field & 0x80000000) == 0
       - id: checksum
         type: u4
-        if: size_field != 0 and _root.has_block_checksum
+        if: size_field != 0 and has_checksum
     instances:
       uncompressed:
         value: (size_field & 0x80000000) != 0
+  # LZ4's block format: sequences, the last of which has only literals
+  lz4_block:
+    seq:
+      - id: sequences
+        type: sequence
+        repeat: eos
+  sequence:
+    seq:
+      - id: token
+        type: u1
+        doc: The literal length in the high four bits and the match length minus four in the low four.
+      - id: literal_extension
+        type: "extension(_index == 0 ? 0 : literal_extension[_index - 1].total)"
+        repeat: until
+        repeat-until: _.last
+        if: (token >> 4) == 15
+      - id: literals
+        size: literal_length
+      - id: match
+        type: "match_part(token)"
+        if: not _io.eof
+        doc: The last sequence of a block has only literals, so no match.
+    instances:
+      literal_length:
+        value: '(token >> 4) == 15 ? 15 + literal_extension.last.total : token >> 4'
+  match_part:
+    params:
+      - id: token
+        type: u1
+    seq:
+      - id: offset
+        type: u2
+        doc: How far back the match starts (1 to 65535).
+      - id: length_extension
+        type: "extension(_index == 0 ? 0 : length_extension[_index - 1].total)"
+        repeat: until
+        repeat-until: _.last
+        if: (token & 15) == 15
+    instances:
+      length:
+        value: '(token & 15) == 15 ? 19 + length_extension.last.total : (token & 15) + 4'
+        doc: The length of the match, four more than the low nibble of the token, plus the extension bytes.
+  extension:
+    params:
+      - id: before
+        type: u4
+    seq:
+      - id: byte
+        type: u1
+    instances:
+      total:
+        value: before + byte
+      last:
+        value: byte != 255

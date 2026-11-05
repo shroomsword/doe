@@ -272,7 +272,12 @@ fn xz_has_the_stream_header_and_the_footer_read_from_the_end() {
 #[test]
 fn zstd_has_the_frames_with_their_flags_and_blocks() {
     let v = decode("zstd", "sample.zst");
-    let frames = v["frames"].as_array().unwrap();
+    let frames: Vec<&Json> = v["frames"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| &f["body"])
+        .collect();
     assert_eq!(frames.len(), 2);
     assert_eq!(frames[0]["single_segment"], true);
     assert_eq!(frames[0]["has_content_checksum"], true);
@@ -292,7 +297,8 @@ fn zstd_has_the_frames_with_their_flags_and_blocks() {
 
 #[test]
 fn lz4_has_the_descriptor_the_blocks_and_the_checksum() {
-    let v = decode("lz4", "sample.lz4");
+    let whole = decode("lz4", "sample.lz4");
+    let v = &whole["frames"][0]["body"];
     assert_eq!(v["version"], 1);
     assert_eq!(v["block_independence"], true);
     assert_eq!(v["has_content_size"], true);
@@ -301,7 +307,7 @@ fn lz4_has_the_descriptor_the_blocks_and_the_checksum() {
     let blocks = v["blocks"].as_array().unwrap();
     assert_eq!(blocks.len(), 2);
     assert_eq!(blocks[0]["uncompressed"], true);
-    assert_eq!(blocks[0]["data"]["hex"], "68656c6c6f");
+    assert_eq!(blocks[0]["stored"]["hex"], "68656c6c6f");
     assert_eq!(blocks[1]["size_field"], 0, "the end mark");
     assert_eq!(v["content_checksum"], 0x1234_5678);
 }
@@ -457,6 +463,9 @@ fn the_samples_are_the_ones_the_script_makes() {
         "sample_sized.lzma",
         "sample.lz",
         "sample_two.lz",
+        "sample_blocks.xz",
+        "sample_delta.xz",
+        "sample_two_streams.xz",
     ];
     for entry in std::fs::read_dir(types().join("samples")).unwrap() {
         let entry = entry.unwrap();
@@ -2182,6 +2191,427 @@ fn compress_z_and_lzop_are_found_by_their_magic() {
             found.report()
         );
     }
+}
+
+/// The streams of an `xz` value, oldest first: `last_stream` and the chain of `previous`.
+fn xz_streams(v: &Json) -> Vec<&Json> {
+    let mut chain = Vec::new();
+    let mut next = Some(&v["last_stream"]);
+    while let Some(stream) = next.filter(|s| !s.is_null()) {
+        chain.push(stream);
+        next = Some(&stream["previous"]);
+    }
+    chain.reverse();
+    chain
+}
+
+/// A stream's blocks as `(header size, compressed size from the header, filters, compressed bytes)`.
+fn xz_blocks(stream: &Json) -> Vec<(u64, Option<u64>, Vec<String>, u64)> {
+    stream["blocks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|b| {
+            let filters = b["header"]["filters"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|f| name_of(&f["filter"]).to_owned())
+                .collect();
+            (
+                b["header_size"].as_u64().unwrap(),
+                b["header"]["compressed_size"]["value"].as_u64(),
+                filters,
+                b["compressed"]["len"].as_u64().unwrap(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn xz_reads_the_index_the_blocks_their_filters_and_every_stream() {
+    // three blocks with their sizes in the headers; the index's records place them
+    let v = decode("xz", "sample_blocks.xz");
+    let streams = xz_streams(&v);
+    assert_eq!(streams.len(), 1);
+    let records: Vec<(u64, u64)> = streams[0]["index"]["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            (
+                r["unpadded_size"]["value"].as_u64().unwrap(),
+                r["uncompressed_size"]["value"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(records, [(41, 480), (46, 390), (26, 6)]);
+    assert_eq!(streams[0]["start"], 0);
+    let blocks = xz_blocks(streams[0]);
+    assert_eq!(blocks.iter().map(|b| b.3).collect::<Vec<_>>(), [25, 30, 10]);
+    assert_eq!(blocks[0], (12, Some(25), vec!["lzma2".to_owned()], 25));
+    assert_eq!(
+        streams[0]["blocks"][0]["header"]["filters"][0]["lzma2_dictionary_size"],
+        1 << 20
+    );
+    // the delta filter before LZMA2, and no sizes in the header (what Python's liblzma writes)
+    let v = decode("xz", "sample_delta.xz");
+    let blocks = xz_blocks(xz_streams(&v)[0]);
+    assert_eq!(blocks[0].1, None);
+    assert_eq!(blocks[0].2, ["delta", "lzma2"]);
+    // two streams: the first (CRC-32) is found from the second (SHA-256) by walking back
+    let v = decode("xz", "sample_two_streams.xz");
+    let streams = xz_streams(&v);
+    assert_eq!(streams.len(), 2);
+    assert_eq!(
+        (streams[0]["start"].as_u64(), streams[1]["start"].as_u64()),
+        (Some(0), Some(80))
+    );
+    assert_eq!(
+        (
+            streams[0]["header"]["check_size"].as_u64(),
+            streams[1]["header"]["check_size"].as_u64()
+        ),
+        (Some(4), Some(32))
+    );
+    assert_eq!(
+        (xz_blocks(streams[0]).len(), xz_blocks(streams[1]).len()),
+        (1, 2)
+    );
+    // the header, the footer and the check name of the top level are as before
+    assert_eq!(v["check_name"], "crc32");
+}
+
+#[test]
+fn xz_reads_what_the_xz_tool_writes() {
+    let read = |file: &str| decode_real("xz", &format!("archive/xz/{file}.bin"));
+    // the checks (the stream flags), and the blocks of one stream: 3 for a block size of 1 KiB, with and without threads
+    for (file, check) in [
+        ("xz_default_crc64", 4),
+        ("xz_crc32", 1),
+        ("xz_sha256", 10),
+        ("xz_no_check", 0),
+    ] {
+        let v = read(file);
+        let streams = xz_streams(&v);
+        assert_eq!(streams.len(), 1, "{file}");
+        assert_eq!(streams[0]["header"]["check_type"], check, "{file}");
+        assert_eq!(xz_blocks(streams[0]).len(), 1, "{file}");
+    }
+    for file in ["xz_blocks", "xz_threaded_blocks"] {
+        let v = read(file);
+        let blocks = xz_blocks(xz_streams(&v)[0]);
+        assert_eq!(blocks.len(), 3, "{file}");
+        assert!(
+            blocks.iter().all(|b| b.2 == ["lzma2"] && b.1.is_some()),
+            "{file}: the sizes are in the headers"
+        );
+    }
+    // the filters before LZMA2
+    assert_eq!(
+        xz_blocks(xz_streams(&read("xz_delta"))[0])[0].2,
+        ["delta", "lzma2"]
+    );
+    assert_eq!(
+        xz_blocks(xz_streams(&read("xz_x86"))[0])[0].2,
+        ["x86", "lzma2"]
+    );
+    // two and three streams joined by `cat`
+    let two = read("xz_two_streams");
+    let streams = xz_streams(&two);
+    assert_eq!(streams.len(), 2);
+    assert_eq!(
+        (streams[0]["start"].as_u64(), streams[1]["start"].as_u64()),
+        (Some(0), Some(148))
+    );
+    assert_eq!(
+        (xz_blocks(streams[0]).len(), xz_blocks(streams[1]).len()),
+        (1, 6)
+    );
+    let three = read("xz_three_streams");
+    let starts: Vec<u64> = xz_streams(&three)
+        .iter()
+        .map(|s| s["start"].as_u64().unwrap())
+        .collect();
+    assert_eq!(starts, [0, 148, 2268]);
+}
+
+/// The frames of a `zstd` value, as `(kind, body)`.
+fn zstd_frames(v: &Json) -> Vec<(u64, &Json)> {
+    v["frames"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| (f["kind"].as_u64().unwrap(), &f["body"]))
+        .collect()
+}
+
+#[test]
+fn zstd_tells_skippable_frames_and_reads_the_seek_table() {
+    let v = decode("zstd", "sample_seekable.zst");
+    let frames = zstd_frames(&v);
+    assert_eq!(frames.iter().map(|f| f.0).collect::<Vec<_>>(), [2, 1, 1, 2]);
+    // an application's skippable frame: its low nibble and its bytes
+    assert_eq!(
+        (
+            frames[0].1["number"].as_u64(),
+            frames[0].1["data"]["bytes"]["len"].as_u64()
+        ),
+        (Some(3), Some(11))
+    );
+    assert_eq!(frames[0].1["magic"], 0x184d_2a53_u64);
+    // the seek table (0x184D2A5E): one entry for each frame, with the checksum that the descriptor says is there
+    let table = &frames[3].1["data"];
+    assert_eq!(table["footer"]["number_of_frames"], 2);
+    assert_eq!(table["footer"]["descriptor"], 0x80);
+    assert_eq!(table["has_checksums"], true);
+    let entries: Vec<(u64, u64, u64)> = table["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| {
+            (
+                e["compressed_size"].as_u64().unwrap(),
+                e["decompressed_size"].as_u64().unwrap(),
+                e["checksum"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(entries, [(29, 20, 0xC0DE_0000), (22, 13, 0xC0DE_0001)]);
+}
+
+#[test]
+fn zstd_decodes_the_window_and_the_literals_of_what_the_zstd_tool_writes() {
+    // (file, window of the first frame): -19 has a window of 8 MiB, the default 2 MiB, --fast=3 512 KiB, --long=20 1 MiB
+    for (file, window) in [
+        ("zstd_default", 2_097_152),
+        ("zstd_level19", 8_388_608),
+        ("zstd_fast", 524_288),
+        ("zstd_long_window", 1_048_576),
+    ] {
+        let v = decode_real("zstd", &format!("archive/zstd/{file}.bin"));
+        let frames = zstd_frames(&v);
+        assert_eq!(frames.len(), 1, "{file}");
+        assert_eq!(frames[0].1["window_size"], window, "{file}");
+        assert_eq!(
+            frames[0].1["has_content_checksum"],
+            file != "zstd_no_check",
+            "{file}"
+        );
+        let block = &frames[0].1["blocks"][0];
+        assert_eq!(name_of(&block["kind"]), "compressed", "{file}");
+        // the text is 63 bytes repeated: a literals section of those 63 bytes (or their Huffman coding at -19)
+        let literals = &block["data"]["literals"];
+        assert_eq!(literals["regenerated_size"], 63, "{file}");
+        assert_eq!(block["data"]["number_of_sequences"]["value"], 1, "{file}");
+    }
+    let level19 = decode_real("zstd", "archive/zstd/zstd_level19.bin");
+    let literals = &zstd_frames(&level19)[0].1["blocks"][0]["data"]["literals"];
+    assert_eq!(name_of(&literals["block_type"]), "compressed");
+    assert_eq!(
+        (literals["len_data"].as_u64(), literals["streams"].as_u64()),
+        (Some(50), Some(1))
+    );
+    // incompressible bytes are a raw block
+    let raw = decode_real("zstd", "archive/zstd/zstd_raw_block.bin");
+    assert_eq!(name_of(&zstd_frames(&raw)[0].1["blocks"][0]["kind"]), "raw");
+    // two frames, and a skippable frame between two
+    let two = decode_real("zstd", "archive/zstd/zstd_two_frames.bin");
+    assert_eq!(
+        zstd_frames(&two).iter().map(|f| f.0).collect::<Vec<_>>(),
+        [1, 1]
+    );
+    let between = decode_real("zstd", "archive/zstd/zstd_skippable_between.bin");
+    assert_eq!(
+        zstd_frames(&between)
+            .iter()
+            .map(|f| f.0)
+            .collect::<Vec<_>>(),
+        [1, 2, 1]
+    );
+    assert_eq!(zstd_frames(&between)[1].1["number"], 10);
+}
+
+/// The sequences of an LZ4 compressed block as `(literals, offset, match length)`.
+fn lz4_sequences(block: &Json) -> Vec<(u64, Option<u64>, Option<u64>)> {
+    block["data"]["sequences"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| {
+            (
+                s["literals"]["len"].as_u64().unwrap(),
+                s["match"]["offset"].as_u64(),
+                s["match"]["length"].as_u64(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn lz4_reads_standard_legacy_and_skippable_frames_and_the_sequences_of_a_block() {
+    let v = decode("lz4", "sample_mixed.lz4");
+    let kinds: Vec<u64> = v["frames"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["kind"].as_u64().unwrap())
+        .collect();
+    // skippable, standard, the magic of a legacy frame and its two blocks
+    assert_eq!(kinds, [3, 1, 2, 0, 0]);
+    let frames = v["frames"].as_array().unwrap();
+    assert_eq!(frames[0]["body"]["number"], 2);
+    assert_eq!(frames[0]["body"]["data"]["len"], 4);
+    // the standard frame: a compressed block (6 literals, a match of 24 from 6 back, 5 literals) and a stored one
+    let blocks = frames[1]["body"]["blocks"].as_array().unwrap();
+    assert_eq!(
+        lz4_sequences(&blocks[0]),
+        [(6, Some(6), Some(24)), (5, None, None)]
+    );
+    assert_eq!(
+        blocks[0]["data"]["sequences"][0]["match"]["length_extension"][0]["byte"],
+        5
+    );
+    assert_eq!(
+        (
+            blocks[1]["uncompressed"].as_bool(),
+            blocks[1]["stored"]["len"].as_u64()
+        ),
+        (Some(true), Some(6))
+    );
+    // the legacy blocks: the same one, and one of literals whose length needs an extension byte
+    assert_eq!(
+        lz4_sequences(&frames[3]["body"]),
+        [(6, Some(6), Some(24)), (5, None, None)]
+    );
+    let second = lz4_sequences(&frames[4]["body"]);
+    assert_eq!(second, [(20, None, None)]);
+    assert_eq!(
+        frames[4]["body"]["data"]["sequences"][0]["literal_extension"][0]["byte"],
+        5
+    );
+}
+
+#[test]
+fn lz4_reads_what_the_lz4_tool_writes() {
+    let read = |file: &str| decode_real("lz4", &format!("archive/lz4/{file}.bin"));
+    // (file, blocks, independent, block checksums, maximum block id)
+    for (file, blocks, independent, checksums, size_id) in [
+        ("lz4_default", 1, true, false, 5),
+        ("lz4_high", 1, true, false, 5),
+        ("lz4_block_checksum", 1, true, true, 5),
+        ("lz4_dependent_blocks", 2, false, false, 4),
+        ("lz4_small_blocks", 2, true, false, 4),
+    ] {
+        let v = read(file);
+        let frame = &v["frames"][0]["body"];
+        // the end mark is a block of size 0 too
+        assert_eq!(
+            frame["blocks"].as_array().unwrap().len(),
+            blocks + 1,
+            "{file}"
+        );
+        assert_eq!(frame["block_independence"], independent, "{file}");
+        assert_eq!(frame["has_block_checksum"], checksums, "{file}");
+        assert_eq!(frame["block_max_size_id"], size_id, "{file}");
+        let sequences = lz4_sequences(&frame["blocks"][0]);
+        assert!(
+            sequences.last().unwrap().1.is_none(),
+            "{file}: the last sequence has literals only"
+        );
+        assert!(sequences.len() > 1, "{file}");
+    }
+    assert_eq!(
+        read("lz4_no_checksum")["frames"][0]["body"]["has_content_checksum"],
+        false
+    );
+    assert_eq!(
+        read("lz4_default")["frames"][0]["body"]["has_content_checksum"],
+        true
+    );
+    // a legacy frame (lz4 -l), and the three kinds of frame in one file
+    let legacy = read("lz4_legacy");
+    let kinds: Vec<u64> = legacy["frames"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["kind"].as_u64().unwrap())
+        .collect();
+    assert_eq!(kinds, [2, 0]);
+    let mixed = read("lz4_three_kinds_of_frame");
+    let kinds: Vec<u64> = mixed["frames"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["kind"].as_u64().unwrap())
+        .collect();
+    assert_eq!(kinds, [1, 2, 0, 3, 1]);
+}
+
+#[test]
+fn bzip2_reads_the_first_block_header_in_bits() {
+    let v = decode("bzip2", "sample.bz2");
+    assert_eq!(
+        (v["randomised"].as_bool(), v["origin_pointer"].as_u64()),
+        (Some(false), Some(226))
+    );
+    // the bytes of "hello\n" are in the ranges 0x00-0x0f, 0x20-0x2f and 0x60-0x6f
+    assert_eq!(
+        (v["used_ranges"].as_u64(), v["ranges_used"].as_u64()),
+        (Some(0xA200), Some(3))
+    );
+    for (file, level, origin, ranges) in [
+        ("python_bz2_level1", "1", 833, 3),
+        ("python_bz2_level9", "9", 833, 3),
+        ("python_bz2_bytes", "5", 6, 16),
+    ] {
+        let v = decode_real("bzip2", &format!("archive/bzip2/{file}.bin"));
+        assert_eq!(v["level"], level, "{file}");
+        assert_eq!(v["origin_pointer"], origin, "{file}");
+        assert_eq!(v["ranges_used"], ranges, "{file}");
+    }
+}
+
+/// The gallery's `gzip` on the files that `gzip` writes: it reads the header, the name, the compressed data and the
+/// trailer of one member, and for several members the first header with the last trailer.
+#[test]
+fn the_gallerys_gzip_reads_real_gzip_files() {
+    let gallery =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../conformance/kaitai_struct_formats");
+    let read = |file: &str| -> Json {
+        let text = parse_file(
+            &Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../conformance/samples_without_reference/archive/gzip")
+                .join(format!("{file}.bin")),
+            "gzip",
+            std::slice::from_ref(&gallery),
+            Some(Path::new("/nonexistent/config.toml")),
+            OutputFormat::Json,
+        )
+        .unwrap_or_else(|e| panic!("{file}: {e}"));
+        serde_json::from_str(&text).unwrap()
+    };
+    // 63 bytes of text, 40 times: 2520 bytes
+    for (file, name) in [
+        ("gzip_no_name", false),
+        ("gzip_name_and_time", true),
+        ("gzip_fastest", false),
+    ] {
+        let v = read(file);
+        assert_eq!(name_of(&v["compression_method"]), "deflate", "{file}");
+        assert_eq!(v["flags"]["has_name"], name, "{file}");
+        assert_eq!(v["len_uncompressed"], 2520, "{file}");
+        assert_eq!(name_of(&v["os"]), "unix", "{file}");
+    }
+    assert_eq!(
+        read("gzip_name_and_time")["name"]["len"],
+        9,
+        "notes.txt is named with its NUL left out"
+    );
+    // two members: one header, and the trailer at the end of the file (the second member's), with the second member
+    // inside the compressed bytes of the first
+    let two = read("gzip_two_members");
+    assert_eq!(two["len_uncompressed"], 3000);
 }
 
 #[test]

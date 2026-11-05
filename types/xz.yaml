@@ -1,11 +1,18 @@
 id: xz
 doc: |
-  xz compressed file: the stream header and the stream footer
-# Covers: the stream header (the check type that the blocks use, the header's CRC32) and, read from the end of the
-#   file, the stream footer (the CRC32, the size of the index, the flags and the closing `YZ`).
-# Limits: the blocks and the index between them are bytes: the blocks hold LZMA2 data and variable-length
-#   integers. Several streams in one file (concatenated, or with padding) show the first stream's header and the
-#   last one's footer.
+  xz compressed file: the stream header and footer, the index, and every block's header, filters and sizes, in every stream
+# Covers: the stream header (the check type that the blocks use, the header's CRC32); the stream footer, read from the end
+#   of the file; the index, found by the footer's backward size (the number of records and each block's unpadded and
+#   uncompressed sizes as xz variable-length integers, the padding and the CRC32); and the blocks, placed by the
+#   index's sizes - each block's header (its size, flags, the compressed and uncompressed sizes when they are in the
+#   header, the filter flags - the filter id, with LZMA2's dictionary size decoded - the padding and the header's
+#   CRC32), the compressed data as bytes, the block padding and the check. A file of several streams (`cat a.xz b.xz`) is
+#   read from the end: `last_stream` is the last one and its `previous` is the one before it, and so on to the first.
+# Limits: the LZMA2 (or other filter) data of a block is bytes. The streams are found by walking back from the end of the
+#   file, each ending where the next one starts, so a stream padding (zeros in multiples of four bytes between streams)
+#   ends the walk: the streams before it are not shown. Variable-length integers of more than five bytes (values of 2^35 or
+#   more) are not read. The top-level `stream_flags`, `header_crc32`, `body` and `footer` are those of the first stream
+#   and the last.
 # Specification: "The .xz File Format" (tukaani.org/xz/xz-file-format.txt).
 meta:
   id: xz
@@ -28,6 +35,17 @@ enums:
     1: crc32
     4: crc64
     10: sha256
+  filter:
+    0x03: delta
+    0x04: x86
+    0x05: powerpc
+    0x06: ia64
+    0x07: arm
+    0x08: arm_thumb
+    0x09: sparc
+    0x0a: arm64
+    0x0b: riscv
+    0x21: lzma2
 instances:
   check_type:
     value: stream_flags & 15
@@ -36,6 +54,9 @@ instances:
   footer:
     pos: _io.size - 12
     type: footer
+  last_stream:
+    type: stream(_io.size)
+    doc: The last stream of the file (the only one for most files), with the stream before it in `previous`.
 types:
   footer:
     seq:
@@ -53,3 +74,174 @@ types:
     instances:
       index_size:
         value: (backward_size + 1) * 4
+  # a stream that ends at `end` (the offset just after its footer): found from its footer, backwards
+  stream:
+    params:
+      - id: end
+        type: u8
+    instances:
+      footer:
+        pos: end - 12
+        io: _root._io
+        type: footer
+      index_start:
+        value: end - 12 - footer.index_size
+      index:
+        pos: index_start
+        io: _root._io
+        size: footer.index_size
+        type: index
+      start:
+        value: index_start - index.last_end - 12
+        doc: Where the stream begins - its header - from the sizes of its blocks.
+      header:
+        pos: start
+        io: _root._io
+        type: stream_header
+      blocks:
+        pos: start + 12
+        io: _root._io
+        type: "block(header.check_size, index.records[_index].unpadded_size.value)"
+        repeat: expr
+        repeat-expr: index.number_of_records.value
+      has_previous:
+        value: start >= 24
+        doc: There is room for a stream before this one.
+      previous:
+        type: stream(start)
+        if: has_previous and previous_footer_magic == 23129
+        doc: The stream before this one (their footer ends where this stream's header starts).
+      previous_footer_magic:
+        pos: start - 2
+        io: _root._io
+        type: u2le
+        if: has_previous
+  stream_header:
+    seq:
+      - id: magic
+        contents: [0xfd, "7zXZ", 0x00]
+      - id: stream_flags_reserved
+        type: u1
+      - id: stream_flags
+        type: u1
+      - id: crc32
+        type: u4
+    instances:
+      check_type:
+        value: stream_flags & 15
+      check_size:
+        value: 'check_type == 0 ? 0 : check_type == 1 ? 4 : check_type == 4 ? 8 : check_type == 10 ? 32 : 0'
+  index:
+    seq:
+      - id: indicator
+        contents: [0x00]
+      - id: number_of_records
+        type: vli
+      - id: records
+        type: "record(_index == 0 ? 0 : records[_index - 1].padded_end)"
+        repeat: expr
+        repeat-expr: number_of_records.value
+      - id: padding
+        size: _io.size - _io.pos - 4
+      - id: crc32
+        type: u4
+    instances:
+      last_end:
+        value: 'number_of_records.value == 0 ? 0 : records[number_of_records.value - 1].padded_end'
+        doc: The size of all the blocks, each padded to a multiple of four bytes.
+  record:
+    params:
+      - id: before
+        type: u8
+    seq:
+      - id: unpadded_size
+        type: vli
+        doc: The size of the block without its padding - header, compressed data and check.
+      - id: uncompressed_size
+        type: vli
+    instances:
+      padded_end:
+        value: before + ((unpadded_size.value + 3) / 4) * 4
+  block:
+    params:
+      - id: check_size
+        type: u4
+      - id: unpadded_size
+        type: u8
+    seq:
+      - id: header_size_byte
+        type: u1
+        doc: The size of the header, in units of four bytes, minus one.
+      - id: header
+        size: header_size - 1
+        type: block_header
+      - id: compressed
+        size: unpadded_size - header_size - check_size
+        doc: The filters' output, for LZMA2 a series of chunks.
+      - id: padding
+        size: (4 - unpadded_size % 4) % 4
+      - id: check
+        size: check_size
+    instances:
+      header_size:
+        value: (header_size_byte + 1) * 4
+  block_header:
+    seq:
+      - id: flags
+        type: u1
+        doc: Bits 0 and 1 are the number of filters minus one; bit 6 says the compressed size is here, bit 7 the uncompressed size.
+      - id: compressed_size
+        type: vli
+        if: (flags & 0x40) != 0
+      - id: uncompressed_size
+        type: vli
+        if: (flags & 0x80) != 0
+      - id: filters
+        type: filter_flags
+        repeat: expr
+        repeat-expr: (flags & 3) + 1
+      - id: padding
+        size: _io.size - _io.pos - 4
+      - id: crc32
+        type: u4
+  filter_flags:
+    seq:
+      - id: id
+        type: vli
+      - id: properties_size
+        type: vli
+      - id: properties
+        size: properties_size.value
+    instances:
+      filter:
+        value: id.value
+        enum: filter
+      lzma2_dictionary_size:
+        value: 'properties[0] == 40 ? 4294967295 : (2 | (properties[0] & 1)) << ((properties[0] / 2) + 11)'
+        if: id.value == 33 and properties_size.value == 1
+        doc: LZMA2's one property byte, decoded to the dictionary size in bytes.
+  vli:
+    doc: An xz variable-length integer - seven bits per byte, low group first, the top bit says another byte follows. At most five bytes are read.
+    seq:
+      - id: b0
+        type: u1
+      - id: b1
+        type: u1
+        if: b0 >= 128
+      - id: b2
+        type: u1
+        if: b0 >= 128 and b1 >= 128
+      - id: b3
+        type: u1
+        if: b0 >= 128 and b1 >= 128 and b2 >= 128
+      - id: b4
+        type: u1
+        if: b0 >= 128 and b1 >= 128 and b2 >= 128 and b3 >= 128
+    instances:
+      value:
+        value: >-
+          b0 < 128 ? b0 :
+          b1 < 128 ? (b0 & 127) + (b1 << 7) :
+          b2 < 128 ? (b0 & 127) + ((b1 & 127) << 7) + (b2 << 14) :
+          b3 < 128 ? (b0 & 127) + ((b1 & 127) << 7) + ((b2 & 127) << 14) + (b3 << 21) :
+          (b0 & 127) + ((b1 & 127) << 7) + ((b2 & 127) << 14) + ((b3 & 127) << 21) + (b4 << 28)
