@@ -17,7 +17,7 @@ doe = { version = "0.6.0", path = "../doe", default-features = false }
 serde = { workspace = true, features = ["std", "derive"] }
 serde_json = { workspace = true, features = ["std"] }
 # The version must be the one of the wasm-bindgen CLI that makes the glue (web/README.md).
-wasm-bindgen = "=0.2.129"
+wasm-bindgen = "=0.2.130"
 
 [lints]
 workspace = true
