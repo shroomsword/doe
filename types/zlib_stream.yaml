@@ -1,0 +1,99 @@
+id: zlib_stream
+doc: |
+  zlib stream (RFC 1950): the two-byte header, the deflate data and the Adler-32; its payload is the uncompressed data
+# Covers: the header - the compression method, the window size (`2^(CINFO + 8)`), the check bits (the type's `valid`:
+#   `CMF * 256 + FLG` is a multiple of 31), the preset-dictionary flag and the compression level the compressor says it
+#   used - the dictionary id (the Adler-32 of the dictionary) when there is one, the compressed data as bytes and the
+#   Adler-32 of the uncompressed data, read from the last four bytes. `decoded` is the uncompressed data (`process:
+#   zlib`, up to 256 MiB), shown as bytes, so a stream that does not inflate does not fit: the parse stops at `decoded`
+#   and says so. The `payload:` key says the file holds another file once it is inflated, so `doe FILE` goes on to find
+#   the schema of the result.
+# Limits: the Adler-32 is a number, not checked against `decoded` (the language cannot compute it; `process: zlib`
+#   itself checks it while it inflates, so a stream with a wrong one does not fit). A stream with a preset dictionary
+#   (`has_dictionary`) cannot be inflated without the dictionary, so `decoded` is left out for it. A zlib stream inside
+#   another format (a PNG chunk, a PDF stream, a Git object that is read from a pack) is the field's own `process: zlib`.
+# Detection: there is no magic number. The first two bytes are one of 21 values, the ones that compressors write (a
+#   window of 4 to 32 KiB at every level, and a 32 KiB window with a dictionary): `78 9c`, `78 da`, `78 01`, `78 5e`
+#   and the rest, so about one file in 3000 that is random starts as one. The type is found for those, and a file that
+#   starts that way and does not inflate does not fit (`decoded`), so a false match costs a failed parse and not a wrong
+#   result. A stream with a smaller window than 4 KiB or a dictionary with another window is found by name (`.zlib`) or
+#   given as the type.
+# Specification: RFC 1950, "ZLIB Compressed Data Format Specification version 3.3"; RFC 1951 for the deflate data.
+meta:
+  id: zlib_stream
+  file-extension: zlib
+  endian: be
+payload:
+  process: zlib
+seq:
+  - id: magic
+    type: u2
+    enum: magic
+    doc: CMF and FLG as one number; the enum names the values that compressors write.
+  - id: dictionary_id
+    type: u4
+    if: has_dictionary
+  - id: compressed
+    size: _io.size - _io.pos - 4
+  - id: adler32
+    type: u4
+instances:
+  cmf:
+    value: magic >> 8
+  flg:
+    value: magic & 255
+  method:
+    value: cmf & 15
+    enum: method
+    doc: 8 is deflate, the only one defined.
+  window_bits:
+    value: (cmf >> 4) + 8
+    doc: The base-2 logarithm of the window size (15 at most).
+  window_size:
+    value: 1 << ((cmf >> 4) + 8)
+  check_bits:
+    value: flg & 31
+  header_is_valid:
+    value: method == method::deflate and (cmf >> 4) <= 7 and (magic % 31) == 0
+    doc: The method is deflate, the window is at most 32 KiB, and CMF * 256 + FLG is a multiple of 31.
+  has_dictionary:
+    value: (flg & 32) != 0
+  level:
+    value: flg >> 6
+    enum: level
+  decoded:
+    pos: 0
+    size-eos: true
+    process: zlib
+    if: header_is_valid and not has_dictionary
+    doc: The uncompressed data.
+enums:
+  method:
+    8: deflate
+  level:
+    0: fastest
+    1: fast
+    2: default
+    3: maximum
+  magic:
+    0x480d: window_4k_fastest
+    0x484b: window_4k_fast
+    0x4889: window_4k_default
+    0x48c7: window_4k_maximum
+    0x5809: window_8k_fastest
+    0x5847: window_8k_fast
+    0x5885: window_8k_default
+    0x58c3: window_8k_maximum
+    0x6805: window_16k_fastest
+    0x6843: window_16k_fast
+    0x6881: window_16k_default
+    0x68de: window_16k_maximum
+    0x7801: window_32k_fastest
+    0x785e: window_32k_fast
+    0x789c: window_32k_default
+    0x78da: window_32k_maximum
+    0x7820: window_32k_fastest_dictionary
+    0x783f: window_32k_fastest_dictionary_check31
+    0x787d: window_32k_fast_dictionary
+    0x78bb: window_32k_default_dictionary
+    0x78f9: window_32k_maximum_dictionary
