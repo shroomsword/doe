@@ -168,6 +168,7 @@ select { font: inherit; color: inherit; background: var(--panel); border: 1px so
 #types-box, #theme-box, #radix-box, #field-radix-box { display: inline-flex; gap: 4px; align-items: center; }
 #save:disabled { opacity: .5; cursor: default; }
 .pane-actions button.icon { display: inline-flex; align-items: center; padding: 2px 6px; }
+.pane-actions button.icon[aria-pressed="true"] { border-color: var(--accent); background: var(--select); }
 [hidden] { display: none !important; }
 header select { max-width: 14rem; text-overflow: ellipsis; }
 header label { display: inline-flex; gap: 4px; align-items: center; max-width: 100%; }

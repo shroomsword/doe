@@ -89,6 +89,10 @@ test('a tar opens as directories and files, F switches to the tree of fields and
   const button = page.locator('#files-toggle');
   await expect(button).toBeVisible();
   await expect(button).toHaveAttribute('aria-pressed', 'true');
+  // an icon with a name, and no text
+  await expect(button).toHaveAccessibleName('Files');
+  await expect(button.locator('svg')).toBeVisible();
+  expect((await button.textContent())?.trim()).toBe('');
   // the directories first: docs, then data.bin; the folder is closed until it is opened
   const names = () => page.locator('#files-list .file-row .file-name').allTextContents();
   expect((await names()).map((n) => n.replace(/\s+\d+$/, ''))).toEqual(['docs', 'data.bin']);
