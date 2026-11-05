@@ -119,6 +119,7 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `gzip_file` | gzip files: the header of the first member and the trailer; its payload is the gunzipped file (a `.tar.gz` is shown as the tar) |
 | `cpio` | cpio archives: newc and crc (`070701`, `070702`: initramfs, RPM payloads), odc, and the old binary format in both byte orders, with the entries as files and directories |
 | `ubi` | UBI images (the volume layer under UBIFS on NAND flash): the headers of every eraseblock and the layout volume's table of volumes |
+| `zlib_stream` | zlib streams (RFC 1950): the window size, the level, the dictionary id and the Adler-32, with the inflated data; its payload is the inflated file |
 | `lzma_alone` | LZMA-alone files (`.lzma`): the properties split into `lc`, `lp` and `pb`, the dictionary size and the size; the compressed data is bytes |
 | `lzip` | lzip files (`.lz`): the header with the dictionary size decoded, the trailer and the last member |
 | `squashfs` | `SquashFS` 4.0 images: the superblock, the id, fragment and export tables, and the root inode and directory (metadata that is stored or a zlib stream) |

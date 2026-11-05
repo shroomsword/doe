@@ -449,6 +449,11 @@ fn the_samples_are_the_ones_the_script_makes() {
         "sample.bz2",
         "sample.xz",
         "sample.lzma",
+        "sample.zlib",
+        "sample_fastest.zlib",
+        "sample_fast.zlib",
+        "sample_maximum.zlib",
+        "sample_dictionary.zlib",
         "sample_sized.lzma",
         "sample.lz",
         "sample_two.lz",
@@ -1767,6 +1772,129 @@ fn lzma_alone_is_found_by_its_name_and_lzip_by_its_magic() {
         assert_eq!(
             found.chosen().map(|a| a.name.as_str()),
             Some(name),
+            "{file}: {}",
+            found.report()
+        );
+    }
+}
+
+/// Whether `zlib_stream` fits these bytes, with the API's answer.
+fn zlib_stream_of(bytes: &[u8]) -> doe::api::ParseResponse {
+    let schema = std::fs::read_to_string(types().join("zlib_stream.yaml")).unwrap();
+    let request = serde_json::json!({"schema": schema});
+    doe::api::parse(&request.to_string(), bytes)
+}
+
+#[test]
+fn zlib_stream_reads_the_header_the_level_and_the_decoded_data() {
+    // (file, window, level, enum name of the first two bytes)
+    for (file, window, level, name) in [
+        ("sample.zlib", 32768, "default", "window_32k_default"),
+        (
+            "sample_fastest.zlib",
+            32768,
+            "fastest",
+            "window_32k_fastest",
+        ),
+        ("sample_fast.zlib", 32768, "fast", "window_32k_fast"),
+        ("sample_maximum.zlib", 4096, "maximum", "window_4k_maximum"),
+    ] {
+        let v = decode("zlib_stream", file);
+        assert_eq!(name_of(&v["magic"]), name, "{file}");
+        assert_eq!(
+            (v["window_size"].as_u64(), name_of(&v["level"])),
+            (Some(window), level),
+            "{file}"
+        );
+        assert_eq!(name_of(&v["method"]), "deflate", "{file}");
+        assert_eq!(
+            (
+                v["header_is_valid"].as_bool(),
+                v["has_dictionary"].as_bool()
+            ),
+            (Some(true), Some(false)),
+            "{file}"
+        );
+        // the Adler-32 of the 990 bytes of text, the same for every level
+        assert_eq!(v["adler32"], 226_715_454, "{file}");
+        assert_eq!(v["decoded"]["len"], 990, "{file}");
+    }
+    // a preset dictionary: its id is read, and the data is not decoded (it cannot be without the dictionary)
+    let v = decode("zlib_stream", "sample_dictionary.zlib");
+    assert_eq!(v["has_dictionary"], true);
+    assert_eq!(v["dictionary_id"], 362_087_398);
+    assert!(v["decoded"].is_null());
+    assert_eq!(name_of(&v["magic"]), "window_32k_default_dictionary");
+}
+
+#[test]
+fn zlib_stream_reads_what_git_writes() {
+    // a loose object is "blob SIZE", a NUL and the content, deflated at the level of core.looseCompression
+    for (file, level) in [
+        ("git_blob", "default"),
+        ("git_blob_level1", "fastest"),
+        ("git_blob_level9", "maximum"),
+    ] {
+        let v = decode_real("zlib_stream", &format!("archive/zlib_stream/{file}.bin"));
+        assert_eq!(name_of(&v["level"]), level, "{file}");
+        assert_eq!(v["window_size"], 32768, "{file}");
+        assert!(v["decoded"]["len"].as_u64().unwrap() > 2000, "{file}");
+        assert!(
+            v["decoded"]["hex"]
+                .as_str()
+                .unwrap()
+                .starts_with("626c6f622032"),
+            "{file}: not `blob 2`"
+        );
+    }
+}
+
+#[test]
+fn zlib_stream_that_does_not_inflate_or_has_a_bad_header_is_not_a_valid_one() {
+    let whole = std::fs::read(types().join("samples/sample.zlib")).unwrap();
+    // cut: the Adler-32 and the end of the data are missing, so it does not inflate
+    let cut = zlib_stream_of(&whole[..whole.len() - 8]);
+    assert!(!cut.ok);
+    assert!(
+        cut.error.unwrap().message.contains("decoded"),
+        "the field is named"
+    );
+    // a wrong Adler-32 is caught while inflating
+    let mut bad = whole.clone();
+    let last = bad.len() - 1;
+    bad[last] ^= 0xFF;
+    assert!(!zlib_stream_of(&bad).ok);
+    // check bits that fail (the second byte is one more than the right one), and a method that is not deflate
+    let mut header = whole.clone();
+    header[1] = 0x9d;
+    let v = zlib_stream_of(&header).value.unwrap();
+    assert_eq!(v["header_is_valid"], false);
+    assert!(v["decoded"].is_null());
+    let mut method = whole;
+    method[0] = 0x79;
+    method[1] = 0x18; // 0x7918 is a multiple of 31, so only the method (9) is wrong
+    let v = zlib_stream_of(&method).value.unwrap();
+    assert_eq!(v["header_is_valid"], false);
+}
+
+#[test]
+fn zlib_stream_is_found_by_its_first_two_bytes_and_unwrapped() {
+    for file in [
+        "sample.zlib",
+        "sample_fastest.zlib",
+        "sample_fast.zlib",
+        "sample_maximum.zlib",
+        "sample_dictionary.zlib",
+    ] {
+        let found = doe::detect::detect_file(
+            &types().join("samples").join(file),
+            &[types()],
+            &doe::detect::Options::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            found.chosen().map(|a| a.name.as_str()),
+            Some("zlib_stream"),
             "{file}: {}",
             found.report()
         );

@@ -702,6 +702,17 @@ def lzip_member(data: bytes) -> bytes:
     return member + struct.pack("<IQQ", zlib.crc32(data), len(data), len(member) + 20)
 
 
+def zlib_stream(level: int = 6, wbits: int = 15, dictionary: bytes | None = None) -> bytes:
+    """A zlib stream of a short text, as Python's zlib writes it at a level and window size, optionally with a preset dictionary."""
+    import zlib
+
+    data = b"hello zlib hello zlib hello zlib\n" * 30
+    if dictionary is None:
+        return zlib.compress(data, level, wbits)
+    packer = zlib.compressobj(level, zlib.DEFLATED, wbits, zdict=dictionary)
+    return packer.compress(data) + packer.flush()
+
+
 def mar_archive() -> bytes:
     """A MAR file of the newer form: the size of the file, one signature, the product information block, two files
     and the index."""
@@ -804,6 +815,11 @@ if __name__ == "__main__":
     put("sample_sized.lzma", lzma_alone(sized=True))
     put("sample.lz", lzip_member(b"hello hello hello hello\n" * 20))
     put("sample_two.lz", lzip_member(b"hello hello hello hello\n" * 20) + lzip_member(b"second member\n" * 50))
+    put("sample.zlib", zlib_stream())
+    put("sample_fastest.zlib", zlib_stream(1))
+    put("sample_fast.zlib", zlib_stream(4))
+    put("sample_maximum.zlib", zlib_stream(9, 12))
+    put("sample_dictionary.zlib", zlib_stream(6, 15, b"hello zlib"))
     put("sample.wav", wav_audio())
     classic = pdf_classic()
     put("sample.pdf", classic)

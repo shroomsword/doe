@@ -249,6 +249,17 @@ test('a UBI image is found by UBI#, without the network, and its eraseblocks are
   expect(asked).toEqual([]);
 });
 
+test('a zlib stream is found by its first two bytes, without the network', async ({ page }) => {
+  const asked = await serveGallery(page);
+  await ready(page);
+  await page.setInputFiles('#open-input', { name: 'blob', mimeType: 'application/octet-stream', buffer: readFileSync(join(repo, 'types', 'samples', 'sample.zlib')) });
+  await page.click('#detect');
+  await expect(page.locator('#detect-report')).toContainText('zlib_stream parses the file', { timeout: 30_000 });
+  await expect(page.locator('#editing')).toContainText('library/zlib_stream.yaml');
+  await expect(page.locator('.tree-row').first()).toBeVisible();
+  expect(asked).toEqual([]);
+});
+
 test('an lzip file is found by LZIP, without the network, and its trailer is in the tree', async ({ page }) => {
   const asked = await serveGallery(page);
   await ready(page);

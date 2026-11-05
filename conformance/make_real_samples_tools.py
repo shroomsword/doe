@@ -376,6 +376,16 @@ def make_lzip():
     put("archive/lzip", "lzip_two_members", both, WITHOUT_REFERENCE)
 
 
+def make_zlib_stream():
+    need("git")
+    # (each level gets other content: git does not write an object that it has) a loose object of a git repository is a zlib stream ("blob SIZE", a NUL and the content), whatever the level
+    with tempfile.TemporaryDirectory() as tmp:
+        run(["git", "init", "-q", tmp])
+        for sample, level in (("git_blob", "-1"), ("git_blob_level1", "1"), ("git_blob_level9", "9")):
+            oid = run(["git", "-C", tmp, "-c", f"core.looseCompression={level}", "hash-object", "-w", "--stdin"], input=level.encode() + TEXT).decode().strip()
+            put("archive/zlib_stream", sample, (Path(tmp) / ".git" / "objects" / oid[:2] / oid[2:]).read_bytes(), WITHOUT_REFERENCE)
+
+
 def make_gpg():
     need("gpg")
     with tempfile.TemporaryDirectory() as tmp:
@@ -546,7 +556,7 @@ def make_tls():
 ALL = [
     make_gettext, make_dtb, make_uimage, make_cc65, make_tap, make_xar, make_zchunk, make_zisofs, make_android,
     make_partition_tables, make_gpg, make_msi, make_windres, make_php,
-    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip,
+    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream,
 ]
 
 # Not made: files that the gallery's definitions cannot read (#278). The functions stay so that they can be run when the
