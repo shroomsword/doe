@@ -1257,8 +1257,8 @@ nothing is lost because a pane is closed.
 
 **Files of an archive.** A schema that says its files are file systems (the `filesystem:` key, see
 [Archives as files](#archives-as-files)) gets a **Files** view in the Parsed pane: the entries nested by path as
-directories and files, with size, mode and time (UTC), in place of the tree of fields. `F` or the **Files** button in
-the title bar of the Parsed pane (it is there only for a file system) switches between the two. Arrows move, `→` and `←`
+directories and files, with size, mode and time (UTC), in place of the tree of fields. `F` or the Files button (the
+file-tree icon) in the title bar of the Parsed pane (it is there only for a file system) switches between the two. Arrows move, `→` and `←`
 open and close a directory (and go to the parent), `Enter` or a double-click toggles it, and a click on a name selects the
 entry in the tree of fields and its bytes in the Bytes pane (and selecting a field or a byte inside an entry selects the
 entry here). A text file has a preview under the list, and **Save** downloads an entry's contents when the page has all
