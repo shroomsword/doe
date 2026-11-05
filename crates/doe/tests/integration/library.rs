@@ -1318,6 +1318,137 @@ fn squashfs_is_found_by_its_magic() {
     }
 }
 
+/// The value of `ubi` for these bytes, as the API gives it.
+fn ubi_of(bytes: &[u8]) -> Json {
+    let schema = std::fs::read_to_string(types().join("ubi.yaml")).unwrap();
+    let request = serde_json::json!({"schema": schema});
+    let response = doe::api::parse(&request.to_string(), bytes);
+    assert!(
+        response.ok,
+        "{:?} {:?}",
+        response.error, response.diagnostics
+    );
+    response.value.expect("a value")
+}
+
+#[test]
+fn ubi_reads_every_eraseblock_and_the_layout_volume() {
+    let v = decode("ubi", "sample.ubi");
+    assert_eq!(
+        (v["peb_size"].as_u64(), v["peb_count"].as_u64()),
+        (Some(16384), Some(4))
+    );
+    let blocks: Vec<&Json> = v["pebs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| &p["block"])
+        .collect();
+    assert_eq!(blocks.len(), 4);
+    // the erase counters and the image sequence number
+    let counters: Vec<u64> = blocks
+        .iter()
+        .map(|b| b["ec"]["erase_counter"].as_u64().unwrap())
+        .collect();
+    assert_eq!(counters, [2, 3, 7, 1]);
+    assert_eq!(blocks[0]["ec"]["image_seq"], 0x1234_ABCD_u64);
+    assert_eq!(
+        (
+            blocks[0]["ec"]["vid_hdr_offset"].as_u64(),
+            blocks[0]["ec"]["data_offset"].as_u64()
+        ),
+        (Some(64), Some(128))
+    );
+    // the volume ids and the logical eraseblock numbers: two copies of the layout volume, a block of volume 0, a free one
+    let ids: Vec<(Option<u64>, Option<u64>)> = blocks
+        .iter()
+        .map(|b| (b["vid"]["vol_id"].as_u64(), b["vid"]["lnum"].as_u64()))
+        .collect();
+    assert_eq!(
+        ids,
+        [
+            (Some(0x7FFF_EFFF), Some(0)),
+            (Some(0x7FFF_EFFF), Some(1)),
+            (Some(0), Some(0)),
+            (None, None)
+        ]
+    );
+    assert_eq!(name_of(&blocks[2]["vid"]["vol_type"]), "dynamic");
+    assert_eq!(name_of(&blocks[0]["vid"]["compat"]), "reject");
+    assert_eq!(
+        (
+            blocks[2]["vid"]["data_size"].as_u64(),
+            blocks[2]["vid"]["sqnum"].as_u64()
+        ),
+        (Some(96), Some(3))
+    );
+    assert_eq!(blocks[3]["has_vid"], false);
+    // the layout volume: the table of volumes, in both copies, up to the empty record
+    for b in &blocks[..2] {
+        assert_eq!(b["is_layout"], true);
+        let records = b["volume_table"]["records"].as_array().unwrap();
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0]["name"], "rootfs");
+        assert_eq!(
+            (
+                records[0]["reserved_pebs"].as_u64(),
+                name_of(&records[0]["vol_type"])
+            ),
+            (Some(3), "dynamic")
+        );
+        assert_eq!(records[1]["is_empty"], true);
+    }
+    assert!(blocks[2]["volume_table"].is_null());
+}
+
+#[test]
+fn ubi_finds_the_eraseblock_size_and_survives_erased_and_cut_blocks() {
+    let whole = std::fs::read(types().join("samples/sample.ubi")).unwrap();
+    // eraseblocks of 32 KiB: the 16 KiB blocks padded with erased flash
+    let mut wide = Vec::new();
+    for chunk in whole.chunks(16384) {
+        wide.extend_from_slice(chunk);
+        wide.extend(std::iter::repeat_n(0xFF_u8, 16384));
+    }
+    let v = ubi_of(&wide);
+    assert_eq!(
+        (v["peb_size"].as_u64(), v["peb_count"].as_u64()),
+        (Some(32768), Some(4))
+    );
+    // a block that is erased (all 0xFF) has no headers
+    let mut erased = whole.clone();
+    erased[16384 * 3..].fill(0xFF);
+    let v = ubi_of(&erased);
+    assert_eq!(v["pebs"][3]["block"]["has_ec"], false);
+    assert!(v["pebs"][3]["block"]["ec"].is_null());
+    assert_eq!(v["pebs"][2]["block"]["ec"]["erase_counter"], 7);
+    // cut in the middle of the last block: the whole ones are shown
+    let v = ubi_of(&whole[..16384 * 3 + 5000]);
+    assert_eq!(v["peb_count"], 3);
+    // one block only (nothing at a later multiple): its size is the file's
+    let v = ubi_of(&whole[..16384]);
+    assert_eq!(
+        (v["peb_size"].as_u64(), v["peb_count"].as_u64()),
+        (Some(16384), Some(1))
+    );
+}
+
+#[test]
+fn ubi_is_found_by_its_magic() {
+    let found = doe::detect::detect_file(
+        &types().join("samples/sample.ubi"),
+        &[types()],
+        &doe::detect::Options::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        found.chosen().map(|a| a.name.as_str()),
+        Some("ubi"),
+        "{}",
+        found.report()
+    );
+}
+
 #[test]
 fn wav_audio_reads_the_format_the_samples_and_the_tags_as_utf8() {
     let v = decode("wav_audio", "sample.wav");

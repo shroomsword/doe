@@ -238,6 +238,17 @@ test('a SquashFS image is found by hsqs, without the network, and its root direc
   expect(asked).toEqual([]);
 });
 
+test('a UBI image is found by UBI#, without the network, and its eraseblocks are in the tree', async ({ page }) => {
+  const asked = await serveGallery(page);
+  await ready(page);
+  await page.setInputFiles('#open-input', { name: 'nand.img', mimeType: 'application/octet-stream', buffer: readFileSync(join(repo, 'types', 'samples', 'sample.ubi')) });
+  await page.click('#detect');
+  await expect(page.locator('#detect-report')).toContainText('ubi parses the file', { timeout: 30_000 });
+  await expect(page.locator('#editing')).toContainText('library/ubi.yaml');
+  await expect(page.locator('.tree-row').first()).toBeVisible();
+  expect(asked).toEqual([]);
+});
+
 test('a PDF file is found by its header, without the network, and its table and objects are in the tree', async ({ page }) => {
   const asked = await serveGallery(page);
   await ready(page);
