@@ -1,0 +1,211 @@
+id: ubi
+doc: |
+  UBI image (the volume layer on raw NAND flash under UBIFS): the headers of every physical eraseblock, and the layout volume's table of volumes
+# Covers: the image as a list of physical eraseblocks (PEBs) of one size. For each PEB: the erase counter header (`UBI#`:
+#   version, erase counter, the offsets of the volume identifier header and of the data, the image sequence number and the
+#   header's CRC-32), the volume identifier header at its offset when the PEB is in use (`UBI!`: volume type, copy flag,
+#   compatibility, volume id, logical eraseblock number `lnum`, data size, used LEBs, padding, data CRC-32, sequence
+#   number and the header's CRC-32), and the data after it as bytes. A PEB of the layout volume (volume id 0x7FFFEFFF,
+#   two copies in LEBs 0 and 1) has its table of volumes read: one record each (reserved PEBs, alignment, padding, type,
+#   update marker, name, flags and the record's CRC-32), up to the first empty one.
+# The PEB size is found, not given: it is the smallest of 16 KiB to 1 MiB (powers of two) at which the next erase counter
+#   header begins, or the size of the file when there is none (a file of one PEB). An image of a PEB size that is not a
+#   power of two, or whose first PEB is not an erase counter header, is not found by this.
+# Limits: the CRC-32s are numbers; they are not computed. The LEBs of a volume are not joined in the order of `lnum` (the
+#   schema language has no sort): each PEB says its `vol_id` and `lnum` in `vid`, and the data of a volume is the data of
+#   those PEBs in that order. A UBIFS volume inside the image is therefore not parsed; take its LEBs out and give the
+#   result to the `ubifs` definition. The fastmap (superblock and pool PEBs) is bytes. A PEB that is erased (all 0xFF),
+#   or whose erase counter header does not begin with `UBI#`, has no headers. An image whose size is not a whole number
+#   of PEBs shows the whole ones.
+# Detection: `UBI#` at offset 0.
+# Specification: the Linux kernel's `drivers/mtd/ubi/ubi-media.h`, and the UBI documentation of the MTD site.
+meta:
+  id: ubi
+  file-extension: ubi
+  endian: be
+seq:
+  - id: magic
+    contents: UBI#
+instances:
+  # the PEB size: the first power of two (16 KiB to 1 MiB) at which an erase counter header begins
+  at_16k:
+    pos: 16384
+    type: u4
+    if: _io.size >= 16388
+  at_32k:
+    pos: 32768
+    type: u4
+    if: _io.size >= 32772
+  at_64k:
+    pos: 65536
+    type: u4
+    if: _io.size >= 65540
+  at_128k:
+    pos: 131072
+    type: u4
+    if: _io.size >= 131076
+  at_256k:
+    pos: 262144
+    type: u4
+    if: _io.size >= 262148
+  at_512k:
+    pos: 524288
+    type: u4
+    if: _io.size >= 524292
+  at_1m:
+    pos: 1048576
+    type: u4
+    if: _io.size >= 1048580
+  peb_size:
+    value: "(_io.size >= 16388 and at_16k == 0x55424923) ? 16384 : (_io.size >= 32772 and at_32k == 0x55424923) ? 32768 : (_io.size >= 65540 and at_64k == 0x55424923) ? 65536 : (_io.size >= 131076 and at_128k == 0x55424923) ? 131072 : (_io.size >= 262148 and at_256k == 0x55424923) ? 262144 : (_io.size >= 524292 and at_512k == 0x55424923) ? 524288 : (_io.size >= 1048580 and at_1m == 0x55424923) ? 1048576 : _io.size"
+  peb_count:
+    value: _io.size / peb_size
+  pebs:
+    pos: 0
+    type: peb(peb_size)
+    repeat: expr
+    repeat-expr: peb_count
+enums:
+  volume_type:
+    1: dynamic
+    2: static
+  compat:
+    0: delete
+    1: read_only
+    2: preserve
+    4: reject
+types:
+  peb:
+    params:
+      - id: size
+        type: u4
+    seq:
+      - id: block
+        size: size
+        type: peb_body
+  peb_body:
+    instances:
+      magic:
+        pos: 0
+        type: u4
+      has_ec:
+        value: magic == 0x55424923
+      ec:
+        pos: 0
+        type: ec_header
+        if: has_ec
+      vid_magic:
+        pos: ec.vid_hdr_offset
+        type: u4
+        if: has_ec and ec.vid_hdr_offset + 64 <= _io.size
+      has_vid:
+        value: has_ec and ec.vid_hdr_offset + 64 <= _io.size and vid_magic == 0x55424921
+      vid:
+        pos: ec.vid_hdr_offset
+        type: vid_header
+        if: has_vid
+      data:
+        pos: ec.data_offset
+        size-eos: true
+        if: has_ec and ec.data_offset <= _io.size
+      is_layout:
+        value: has_vid and vid.vol_id == 0x7fffefff
+      volume_table:
+        pos: ec.data_offset
+        type: volume_table
+        if: is_layout and ec.data_offset + 172 <= _io.size
+  ec_header:
+    seq:
+      - id: magic
+        contents: UBI#
+      - id: version
+        type: u1
+      - id: padding1
+        size: 3
+      - id: erase_counter
+        type: u8
+      - id: vid_hdr_offset
+        type: u4
+      - id: data_offset
+        type: u4
+      - id: image_seq
+        type: u4
+      - id: padding2
+        size: 32
+      - id: hdr_crc
+        type: u4
+  vid_header:
+    seq:
+      - id: magic
+        contents: UBI!
+      - id: version
+        type: u1
+      - id: vol_type
+        type: u1
+        enum: volume_type
+      - id: copy_flag
+        type: u1
+      - id: compat
+        type: u1
+        enum: compat
+      - id: vol_id
+        type: u4
+      - id: lnum
+        type: u4
+      - id: padding1
+        size: 4
+      - id: data_size
+        type: u4
+      - id: used_ebs
+        type: u4
+      - id: data_pad
+        type: u4
+      - id: data_crc
+        type: u4
+      - id: padding2
+        size: 4
+      - id: sqnum
+        type: u8
+      - id: padding3
+        size: 12
+      - id: hdr_crc
+        type: u4
+    instances:
+      is_layout:
+        value: vol_id == 0x7fffefff
+      is_internal:
+        value: vol_id >= 0x7fffefff
+  volume_table:
+    seq:
+      - id: records
+        type: volume_record
+        repeat: until
+        repeat-until: _.is_empty or _io.eof
+  volume_record:
+    seq:
+      - id: reserved_pebs
+        type: u4
+      - id: alignment
+        type: u4
+      - id: data_pad
+        type: u4
+      - id: vol_type
+        type: u1
+        enum: volume_type
+      - id: upd_marker
+        type: u1
+      - id: name_len
+        type: u2
+      - id: name
+        type: strz
+        size: 128
+        encoding: UTF-8
+      - id: flags
+        type: u1
+      - id: padding
+        size: 23
+      - id: crc
+        type: u4
+    instances:
+      is_empty:
+        value: reserved_pebs == 0

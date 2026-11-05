@@ -635,6 +635,50 @@ def squashfs_image(compress: bool = False, extended_root: bool = False) -> bytes
     return bytes(out)
 
 
+def ubi_image() -> bytes:
+    """A UBI image of four 16 KiB eraseblocks: the two copies of the layout volume, one block of volume 0 (a dynamic volume
+    "rootfs") and one that is free (an erase counter header and nothing else)."""
+    import zlib
+
+    size = 16384
+    image_seq = 0x1234ABCD
+
+    def crc(data: bytes) -> int:
+        # UBI's CRC-32 starts at all ones and is not inverted at the end
+        return zlib.crc32(data) ^ 0xFFFFFFFF
+
+    def erase_counter(counter: int) -> bytes:
+        head = b"UBI#" + struct.pack(">B3xQIII32x", 1, counter, 64, 128, image_seq)
+        return head + struct.pack(">I", crc(head))
+
+    def volume_id(vol_type: int, vol_id: int, lnum: int, sqnum: int, compat: int = 0, data: bytes = b"") -> bytes:
+        head = b"UBI!" + struct.pack(">BBBBII4xIII", 1, vol_type, 0, compat, vol_id, lnum, len(data), 0, 0)
+        head += struct.pack(">I4xQ12x", zlib.crc32(data) ^ 0xFFFFFFFF if data else 0, sqnum)
+        return head + struct.pack(">I", crc(head))
+
+    def record(blocks: int, kind: int, name: bytes) -> bytes:
+        body = struct.pack(">IIIBBH", blocks, 0, 0, kind, 0, len(name)) + name.ljust(128, b"\0") + b"\0" + bytes(23)
+        return body + struct.pack(">I", crc(body))
+
+    table = record(3, 1, b"rootfs") + record(0, 0, b"")
+    table = table.ljust(172 * 94, b"\xff")
+
+    def block(counter: int, header: bytes | None, data: bytes = b"") -> bytes:
+        out = erase_counter(counter).ljust(64, b"\xff")
+        if header is not None:
+            out = out.ljust(64) + header
+            out = out.ljust(128, b"\xff") + data
+        return out.ljust(size, b"\xff")
+
+    payload = b"UBIFS data of the volume" * 4
+    return (
+        block(2, volume_id(1, 0x7FFFEFFF, 0, 1, compat=4), table)
+        + block(3, volume_id(1, 0x7FFFEFFF, 1, 2, compat=4), table)
+        + block(7, volume_id(1, 0, 0, 3, data=payload), payload)
+        + block(1, None)
+    )
+
+
 def mar_archive() -> bytes:
     """A MAR file of the newer form: the size of the file, one signature, the product information block, two files
     and the index."""
@@ -732,6 +776,7 @@ if __name__ == "__main__":
     put("sample.squashfs", squashfs_image())
     put("sample_gzip.squashfs", squashfs_image(compress=True))
     put("sample_extended.squashfs", squashfs_image(extended_root=True))
+    put("sample.ubi", ubi_image())
     put("sample.wav", wav_audio())
     classic = pdf_classic()
     put("sample.pdf", classic)
