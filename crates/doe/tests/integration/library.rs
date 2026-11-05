@@ -1706,6 +1706,30 @@ fn lzip_reads_the_header_the_trailer_and_the_last_member() {
     assert_eq!(two["last_header"]["dictionary_size"], 1 << 20);
 }
 
+/// What the `lzip` tool (1.25) writes: the dictionary codes (one with a fraction), the CRC-32 and sizes of the data, and
+/// the last of two members joined as `cat` does.
+#[test]
+fn lzip_reads_what_the_lzip_tool_writes() {
+    for (file, dictionary) in [("lzip_dict64k", 65_536), ("lzip_dict100000", 106_496)] {
+        let v = decode_real("lzip", &format!("archive/lzip/{file}.bin"));
+        assert_eq!(v["header"]["version"], 1, "{file}");
+        assert_eq!(v["header"]["dictionary_size"], dictionary, "{file}");
+        // 126000 bytes of text whose CRC-32 is Python's zlib.crc32 of it
+        assert_eq!(v["trailer"]["data_size"], 126_000, "{file}");
+        assert_eq!(v["trailer"]["crc32"], 2_131_640_147_u64, "{file}");
+        assert_eq!(v["trailer"]["member_size"], 181, "{file}");
+        assert_eq!(v["has_one_member"], true, "{file}");
+    }
+    let two = decode_real("lzip", "archive/lzip/lzip_two_members.bin");
+    assert_eq!(two["header"]["dictionary_size"], 131_072);
+    assert_eq!(two["trailer"]["data_size"], 3000);
+    assert_eq!(two["trailer"]["crc32"], 2_636_929_009_u64);
+    assert_eq!(two["trailer"]["member_size"], 440);
+    assert_eq!(two["has_one_member"], false);
+    assert_eq!(two["last_member_start"], 181);
+    assert_eq!(two["last_header"]["dictionary_size"], 4096);
+}
+
 #[test]
 fn lzip_decodes_the_coded_dictionary_size() {
     let mut bytes = std::fs::read(types().join("samples/sample.lz")).unwrap();

@@ -364,6 +364,18 @@ def make_lzma_alone():
         put("archive/lzma_alone", sample, out, WITHOUT_REFERENCE)
 
 
+def make_lzip():
+    need("lzip")
+    # lzip shrinks the dictionary to the size of the data, so the input is 126 kB of the text (a member of about 180
+    # bytes): the dictionary of 64 KiB, one of 100000 bytes (coded as 2^17 less three sixteenths of an eighth of it),
+    # and two members joined as `cat` does (the second of other data and the smallest dictionary)
+    big = TEXT * 50
+    put("archive/lzip", "lzip_dict64k", run(["lzip", "-c", "-s", "64KiB"], input=big), WITHOUT_REFERENCE)
+    put("archive/lzip", "lzip_dict100000", run(["lzip", "-c", "-s", "100000"], input=big), WITHOUT_REFERENCE)
+    both = run(["lzip", "-c", "-9"], input=big) + run(["lzip", "-c", "-0"], input=BYTES)
+    put("archive/lzip", "lzip_two_members", both, WITHOUT_REFERENCE)
+
+
 def make_gpg():
     need("gpg")
     with tempfile.TemporaryDirectory() as tmp:
@@ -534,7 +546,7 @@ def make_tls():
 ALL = [
     make_gettext, make_dtb, make_uimage, make_cc65, make_tap, make_xar, make_zchunk, make_zisofs, make_android,
     make_partition_tables, make_gpg, make_msi, make_windres, make_php,
-    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone,
+    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip,
 ]
 
 # Not made: files that the gallery's definitions cannot read (#278). The functions stay so that they can be run when the
