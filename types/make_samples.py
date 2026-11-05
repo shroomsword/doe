@@ -679,6 +679,29 @@ def ubi_image() -> bytes:
     )
 
 
+def lzma_alone(sized: bool = False) -> bytes:
+    """A .lzma file as liblzma writes it (the size field is all ones, the stream ends with a marker); with `sized`, the
+    size field says the real size, as a file written by a tool that knew it does."""
+    import lzma
+
+    data = b"hello hello hello hello\n" * 20
+    out = lzma.compress(data, format=lzma.FORMAT_ALONE, filters=[{"id": lzma.FILTER_LZMA1, "preset": 6, "dict_size": 1 << 20}])
+    if sized:
+        out = out[:5] + struct.pack("<Q", len(data)) + out[13:]
+    return out
+
+
+def lzip_member(data: bytes) -> bytes:
+    """One lzip member (version 1) of `data`: an LZMA stream with lc=3, lp=0, pb=2 and an end marker, as lzip writes it."""
+    import lzma
+    import zlib
+
+    filters = [{"id": lzma.FILTER_LZMA1, "lc": 3, "lp": 0, "pb": 2, "dict_size": 1 << 20}]
+    stream = lzma.compress(data, format=lzma.FORMAT_RAW, filters=filters)
+    member = b"LZIP" + bytes([1, 20]) + stream
+    return member + struct.pack("<IQQ", zlib.crc32(data), len(data), len(member) + 20)
+
+
 def mar_archive() -> bytes:
     """A MAR file of the newer form: the size of the file, one signature, the product information block, two files
     and the index."""
@@ -777,6 +800,10 @@ if __name__ == "__main__":
     put("sample_gzip.squashfs", squashfs_image(compress=True))
     put("sample_extended.squashfs", squashfs_image(extended_root=True))
     put("sample.ubi", ubi_image())
+    put("sample.lzma", lzma_alone())
+    put("sample_sized.lzma", lzma_alone(sized=True))
+    put("sample.lz", lzip_member(b"hello hello hello hello\n" * 20))
+    put("sample_two.lz", lzip_member(b"hello hello hello hello\n" * 20) + lzip_member(b"second member\n" * 50))
     put("sample.wav", wav_audio())
     classic = pdf_classic()
     put("sample.pdf", classic)

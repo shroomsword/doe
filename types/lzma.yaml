@@ -1,0 +1,49 @@
+id: lzma_alone
+doc: |
+  LZMA-alone (.lzma, the legacy format of the LZMA SDK): the 13-byte header and the compressed data
+# Covers: the header - the properties byte (split into `lc`, `lp` and `pb`), the dictionary size and the uncompressed
+#   size (or that it is not known) - and the compressed data, as bytes, to the end of the file.
+# Limits: the LZMA stream is range-coded, so it is bytes (decompress with `xz -dc --format=lzma` or `lzma -d`). When the
+#   size is not known (all ones: what `xz --format=lzma` and `lzma` write when they read a pipe or a file in one pass)
+#   the stream ends with an end marker, which is in the bytes. A file with bytes after the stream is not noticed.
+# Detection: the format has no magic number. The type is tried for a name that ends in `.lzma`, and for any other file the
+#   properties byte must be under 225, the dictionary size at least 4096, and the size either unknown or under 2^56, so
+#   that a file that is not one does not fit by accident; use `--detect all` or name it.
+# Specification: the LZMA SDK's `lzma-file-format.txt` (Igor Pavlov).
+meta:
+  id: lzma_alone
+  file-extension: lzma
+  endian: le
+seq:
+  - id: properties
+    type: u1
+    valid:
+      max: 224
+    doc: pb * 45 + lp * 9 + lc.
+  - id: dictionary_size
+    type: u4
+    valid:
+      min: 4096
+    doc: Usually 2^n or 2^n + 2^(n-1); the decoder may use at least this much memory.
+  - id: uncompressed_size
+    type: u8
+    valid:
+      expr: _ == 0xffffffffffffffff or _ < 0x100000000000000
+    doc: All ones when the size is not known (the stream then ends with an end marker).
+  - id: compressed
+    size-eos: true
+instances:
+  lc:
+    value: properties % 9
+    doc: The number of high bits of the previous byte used as context for literals.
+  lp:
+    value: (properties / 9) % 5
+    doc: The number of low bits of the position used as context for literals.
+  pb:
+    value: properties / 45
+    doc: The number of low bits of the position used as context for the match types.
+  has_size:
+    value: uncompressed_size != 0xffffffffffffffff
+  uses_end_marker:
+    value: uncompressed_size == 0xffffffffffffffff
+    doc: A stream of unknown size ends with an end marker (a stream of known size may have one too).

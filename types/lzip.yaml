@@ -1,0 +1,69 @@
+id: lzip
+doc: |
+  lzip file (.lz): the header of the first member, and the trailer and the position of the last member
+# Covers: the member header (the magic `LZIP`, the version and the coded dictionary size, decoded to bytes), the LZMA stream
+#   as bytes, and, read from the end of the file, the trailer of the last member (version 1: the CRC-32 of the data, the
+#   size of the data and the size of the member). The last member's start is the end of the file minus its member
+#   size, and `last_header` is the header there; `has_one_member` says whether that is the first member.
+# Limits: the LZMA stream is range-coded, so it is bytes (`lzip -d`, or `xz -dc --format=lzip`, decompresses it). Only
+#   the first and the last member are shown: reaching the ones between would walk back from the end through trailers,
+#   each at a position that the one after it gives, which the schema language cannot loop over. The trailer of version 0
+#   (12 bytes, 32-bit sizes; the format before 1.0) is not read, and the CRC-32 is a number, not checked. Bytes after the last
+#   member (lzip ignores trailing data) would be read as its trailer, so a file with some does not show a trailer that fits.
+# Detection: `LZIP` at offset 0.
+# Specification: "The lzip file format" in the lzip manual (`lzip.texi`).
+meta:
+  id: lzip
+  file-extension: [lz, lzip]
+  endian: le
+seq:
+  - id: header
+    type: header
+  - id: compressed
+    doc: The LZMA stream of the first member (and, when there are several members, the rest of the file up to the last trailer).
+    size: _io.size - 6 - 20
+    if: header.version == 1 and _io.size >= 26
+  - id: rest
+    size-eos: true
+    if: header.version != 1 or _io.size < 26
+instances:
+  trailer:
+    pos: _io.size - 20
+    type: trailer
+    if: header.version == 1 and _io.size >= 26
+  last_member_start:
+    value: _io.size - trailer.member_size
+    if: header.version == 1 and _io.size >= 26 and trailer.member_size >= 26 and trailer.member_size <= _io.size
+  has_one_member:
+    value: trailer.member_size == _io.size
+    if: header.version == 1 and _io.size >= 26
+  last_header:
+    pos: last_member_start
+    type: header
+    if: header.version == 1 and _io.size >= 26 and trailer.member_size >= 26 and trailer.member_size <= _io.size and not has_one_member
+types:
+  header:
+    seq:
+      - id: magic
+        contents: LZIP
+      - id: version
+        type: u1
+        valid:
+          any-of: [0, 1]
+      - id: dictionary_code
+        type: u1
+        doc: The base-2 logarithm of the base size in the low 5 bits (12 to 29), and the number of sixteenths of it to take away in the high 3 bits.
+    instances:
+      dictionary_size:
+        value: (1 << (dictionary_code & 31)) - ((1 << (dictionary_code & 31)) / 16) * (dictionary_code >> 5)
+  trailer:
+    seq:
+      - id: crc32
+        type: u4
+        doc: The CRC-32 of the uncompressed data.
+      - id: data_size
+        type: u8
+        doc: The size of the uncompressed data of the member.
+      - id: member_size
+        type: u8
+        doc: The size of the member, header and trailer included.

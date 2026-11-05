@@ -357,6 +357,13 @@ def make_cpio():
             put("archive/cpio", sample, out, WITHOUT_REFERENCE)
 
 
+def make_lzma_alone():
+    need("xz")
+    for sample, preset in (("xz_preset6", "-6"), ("xz_preset0", "-0")):
+        out = run(["xz", "--format=lzma", "-c", preset], input=TEXT)
+        put("archive/lzma_alone", sample, out, WITHOUT_REFERENCE)
+
+
 def make_gpg():
     need("gpg")
     with tempfile.TemporaryDirectory() as tmp:
@@ -527,7 +534,7 @@ def make_tls():
 ALL = [
     make_gettext, make_dtb, make_uimage, make_cc65, make_tap, make_xar, make_zchunk, make_zisofs, make_android,
     make_partition_tables, make_gpg, make_msi, make_windres, make_php,
-    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio,
+    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone,
 ]
 
 # Not made: files that the gallery's definitions cannot read (#278). The functions stay so that they can be run when the
