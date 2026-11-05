@@ -1450,6 +1450,7 @@ fn ubi_is_found_by_its_magic() {
 }
 
 /// Whether a command of mtd-utils can be run (the real-image tests below are skipped without them).
+#[cfg(unix)]
 fn has_tool(name: &str) -> bool {
     std::process::Command::new(name)
         .arg("--version")
@@ -1462,6 +1463,7 @@ fn has_tool(name: &str) -> bool {
 /// volume table of an image that `ubinize` wrote with the file system as its volume. An image is about 200 KiB, more
 /// than a committed sample may be (64 KiB), so the test makes them.
 #[test]
+#[cfg(unix)]
 fn real_ubifs_and_ubi_images_made_by_mtd_utils() {
     if !has_tool("mkfs.ubifs") || !has_tool("ubinize") {
         // CI runs without mtd-utils unless they are installed there
