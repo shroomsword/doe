@@ -402,7 +402,7 @@ fn a_tar_whose_numbers_end_in_spaces_as_bsdtar_writes_them_reads_the_same() {
     let mut put =
         |at: usize, text: &str| header[at..at + text.len()].copy_from_slice(text.as_bytes());
     put(0, "a.txt");
-    put(100, "0000644 ");
+    put(100, "000644  ");
     put(108, "0000000 ");
     put(116, "0000000 ");
     put(124, "00000000005 ");
