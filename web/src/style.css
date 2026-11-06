@@ -327,7 +327,8 @@ body.pane-dragging, body.pane-dragging * { cursor: grabbing !important; user-sel
 #files-preview-text { margin: 0; padding: 4px 8px; overflow: auto; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* the separators between the panes (resize.ts): in the gutters, over the grid */
-#splitters { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+/* clipped to main, so a separator that has not been moved yet after the window got narrower cannot make the page scroll sideways */
+#splitters { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
 main.has-max > #splitters { display: none; }
 .splitter { --splitter: 16px; position: absolute; pointer-events: auto; touch-action: none; user-select: none; outline: none; }
 @media (pointer: coarse) { .splitter { --splitter: 24px; } }
