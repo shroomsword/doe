@@ -3,8 +3,8 @@ doc: |
   tar archive (POSIX ustar and the older V7 layout): the blocks of 512 bytes, each header with its entry's bytes
 # Covers: every entry's header fields (name, mode, ids, size, times, checksum, type flag, link name, the ustar
 #   magic and version, owner names, device numbers, name prefix) and the bytes of its contents, up to the zeroed
-#   blocks that end the archive. The numbers of a header are text in octal, ended by a NUL or by spaces (GNU tar
-#   writes the first, bsdtar of macOS the second); `size_value`, `mtime_value`... are the numbers.
+#   blocks that end the archive. The numbers of a header are text in octal, ended by a NUL, a space or both (GNU tar
+#   writes the first, bsdtar of macOS the other two: a size of "00000000000 " with no NUL, a mode of "000644 " and a NUL); `size_value`, `mtime_value`... are the numbers.
 # Limits: GNU and pax extension headers (long names, sparse files, extended attributes) are entries of type
 #   `L`, `K`, `x` or `g` whose contents are not decoded; base-256 sizes (files over 8 GiB, marked by a top bit in
 #   the size field) are not read; contents are kept as bytes, so a large archive shows its entries and
@@ -49,7 +49,6 @@ types:
         type: str
         size: 8
         terminator: 0
-        pad-right: 0x20
       - id: uid
         type: str
         size: 8
@@ -62,12 +61,10 @@ types:
         type: str
         size: 12
         terminator: 0
-        pad-right: 0x20
       - id: mtime
         type: str
         size: 12
         terminator: 0
-        pad-right: 0x20
       - id: checksum
         type: str
         size: 8
@@ -114,12 +111,21 @@ types:
         size: (512 - size_value % 512) % 512
         if: name != ""
     instances:
+      size_digits:
+        value: 'size.length > 0 and size.substring(size.length - 1, size.length) == " " ? size.substring(0, size.length - 1) : size'
+        if: name != ""
       size_value:
-        value: size.to_i(8)
+        value: size_digits.to_i(8)
+        if: name != ""
+      mtime_digits:
+        value: 'mtime.length > 0 and mtime.substring(mtime.length - 1, mtime.length) == " " ? mtime.substring(0, mtime.length - 1) : mtime'
         if: name != ""
       mtime_value:
-        value: mtime.to_i(8)
+        value: mtime_digits.to_i(8)
+        if: name != ""
+      mode_digits:
+        value: 'mode.length > 0 and mode.substring(mode.length - 1, mode.length) == " " ? mode.substring(0, mode.length - 1) : mode'
         if: name != ""
       mode_value:
-        value: mode.to_i(8)
+        value: mode_digits.to_i(8)
         if: name != ""
