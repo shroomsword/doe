@@ -33,6 +33,7 @@ pulldown-cmark = { version = "0.13", default-features = false }
 clap-verbosity-flag = { version = "3", default-features = false }
 indexmap = { version = "2", default-features = false }
 flate2 = { version = "1", default-features = false }
+md-5 = { version = "0.11", default-features = false }
 encoding_rs = { version = "0.8", default-features = false }
 assert_cmd = "2"
 indoc = "2"

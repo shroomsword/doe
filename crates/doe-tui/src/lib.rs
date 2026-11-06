@@ -14,6 +14,7 @@
 pub mod app;
 pub mod builder;
 pub mod bytes;
+pub mod checksums;
 pub mod clipboard;
 pub mod code;
 pub mod config_write;
@@ -263,6 +264,10 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
             dirty = true;
         } else if app.working() {
             app.work_step();
+            dirty = true;
+        }
+        // The checksums that the thread has finished are shown.
+        if app.poll_checksums() {
             dirty = true;
         }
         // The parse is done: the tree takes the place of the message. (If the thread

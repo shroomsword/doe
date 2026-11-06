@@ -11,6 +11,7 @@ export type ToWorker =
   | { op: 'inspect'; id: number; request: Request }
   | { op: 'signature'; id: number; request: Request }
   | { op: 'order'; id: number; sources: DetectSource[]; name: string | null; all: boolean }
+  | { op: 'digest'; id: number; algorithm: string; ranges: [number, number][] }
   | { op: 'parse'; id: number; request: Request }
   | { op: 'export'; id: number; request: Request; format: ExportFormat };
 
@@ -20,6 +21,7 @@ export type FromWorker =
   | { op: 'inspected'; id: number; response: InspectResponse }
   | { op: 'signed'; id: number; response: SignatureResponse }
   | { op: 'ordered'; id: number; response: OrderResponse }
+  | { op: 'digested'; id: number; digests: (string | null)[] }
   | { op: 'parsed'; id: number; response: ParseResponse }
   | { op: 'exported'; id: number; response: ExportResponse }
   | { op: 'failed'; id: number; message: string };
@@ -157,6 +159,27 @@ export class DoeClient {
     });
   }
 
+  /**
+   * The checksums of ranges of the input (`null` for a range that is not inside it), computed in the worker from the
+   * bytes it holds. Like `order`, it does not end the running call; the worker does it when it is free, and a replaced
+   * worker rejects it.
+   */
+  async digest(algorithm: string, ranges: [number, number][]): Promise<(string | null)[]> {
+    await this.start();
+    const worker = this.worker;
+    if (!worker) throw new CallEnded('failed', 'doe is not running');
+    if (!this.inputSent) {
+      const copy = this.input.slice().buffer;
+      worker.postMessage({ op: 'input', bytes: copy } satisfies ToWorker, [copy]);
+      this.inputSent = true;
+    }
+    const id = this.next++;
+    return new Promise<(string | null)[]>((resolve, reject) => {
+      this.inspecting.set(id, { resolve, reject });
+      worker.postMessage({ op: 'digest', id, algorithm, ranges } satisfies ToWorker);
+    });
+  }
+
   /** End the call that is running, if there is one. */
   cancel(): void {
     this.end(new CallEnded('cancelled', 'the parse was cancelled'));
@@ -189,6 +212,11 @@ export class DoeClient {
   }
 
   private answer(message: FromWorker): void {
+    if (message.op === 'digested') {
+      this.inspecting.get(message.id)?.resolve(message.digests as never);
+      this.inspecting.delete(message.id);
+      return;
+    }
     if (message.op === 'inspected' || message.op === 'ordered' || message.op === 'signed') {
       this.inspecting.get(message.id)?.resolve(message.response as never);
       this.inspecting.delete(message.id);

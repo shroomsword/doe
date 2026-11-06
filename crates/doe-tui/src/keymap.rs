@@ -15,6 +15,10 @@ pub enum Action {
     ToggleInspector,
     /// Switch the tree pane between the fields and the files of an archive.
     Files,
+    /// Files: show or hide the checksum (MD5) of each file.
+    Checksums,
+    /// Files: copy the checksum of the selected file.
+    CopyChecksum,
     /// Files: preview the selected file, as text with its syntax coloured.
     Preview,
     /// Show the help.
@@ -356,6 +360,18 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Tree,
         action: Action::TreeToggle,
         help: "open or close a node (in the files: Enter on a file previews it)",
+    },
+    Binding {
+        keys: &[ch('m')],
+        scope: Scope::Tree,
+        action: Action::Checksums,
+        help: "in the files: show or hide the MD5 of each file (a checksum for comparing files, not a security measure; … while it is made, — for a file that has none)",
+    },
+    Binding {
+        keys: &[ch('y')],
+        scope: Scope::Tree,
+        action: Action::CopyChecksum,
+        help: "in the files: copy the checksum of the selected file to the clipboard of the terminal, where it allows it",
     },
     Binding {
         keys: &[ch('p')],

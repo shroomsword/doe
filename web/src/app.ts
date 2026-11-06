@@ -139,6 +139,9 @@ export class App {
       select: (path) => this.select(path, 'files'),
       read: (from, to) => this.readInput(from, to),
       save: (entry) => this.saveEntry(entry),
+      // only when the page has the input in memory: a file that stays on the machine is not in the worker
+      hash: (algorithm, ranges) => (this.bytes && !this.serverInput ? this.client.digest(algorithm, ranges) : null),
+      download: (name, text) => this.downloadText(name, text),
     });
     element<HTMLSelectElement>('radix').value = this.radixes.global;
     this.hex = new HexView(element('hex'), (byte) => this.pickByte(byte));
@@ -608,6 +611,7 @@ export class App {
   private useServerInput(local: LocalApi, input: { name: string; size: number }): void {
     element<HTMLButtonElement>('detect').disabled = false;
     this.serverInput = input;
+    this.archive.resetChecksums();
     this.bytes = null;
     this.inputName = input.name;
     this.selection = null;
@@ -617,6 +621,7 @@ export class App {
 
   private setInput(bytes: Uint8Array, name: string): void {
     this.serverInput = null;
+    this.archive.resetChecksums();
     this.lastInputName = null;
     this.bytes = bytes;
     this.inputName = name;
@@ -654,6 +659,7 @@ export class App {
     this.layoutSetup();
     this.columnsSetup();
     element('files-toggle').addEventListener('click', () => this.toggleFiles());
+    element('hash-toggle').addEventListener('click', () => this.toggleChecksums());
     const buttons: Record<string, Action> = {
       'open-input': 'open-file',
       'open-schema': 'open-schema',
@@ -752,7 +758,29 @@ export class App {
   private showArchive(listing: Listing | null | undefined): void {
     this.archive.setListing(listing);
     element('files-toggle').hidden = !this.archive.has;
+    element('hash-toggle').hidden = !this.archive.has;
     this.drawFilesMode();
+  }
+
+  /** Show or hide the checksum column of the Files view (the key m and the button). */
+  private toggleChecksums(): void {
+    if (!this.archive.has) return;
+    this.archive.setChecksums(!this.archive.hashing);
+    element('hash-toggle').setAttribute('aria-pressed', String(this.archive.hashing));
+    // the column is in the Files view
+    if (this.archive.hashing && !this.filesShown()) this.toggleFiles();
+  }
+
+  /** Download a text as a file. */
+  private downloadText(name: string, text: string): void {
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+    link.href = url;
+    link.download = name;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
 
   private drawFilesMode(): void {
@@ -1196,6 +1224,9 @@ export class App {
         break;
       case 'files':
         this.toggleFiles();
+        break;
+      case 'checksums':
+        this.toggleChecksums();
         break;
       case 'next-pane':
         this.cyclePane(1);

@@ -40,6 +40,9 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
       case 'order':
         send({ op: 'ordered', id: message.id, response: need().detectOrder(message.sources, input.subarray(0, HEAD_BYTES), message.name, message.all) });
         break;
+      case 'digest':
+        send({ op: 'digested', id: message.id, digests: need().digest(message.algorithm, input, message.ranges) });
+        break;
       case 'export':
         send({ op: 'exported', id: message.id, response: need().export(message.request, input, message.format) });
         break;

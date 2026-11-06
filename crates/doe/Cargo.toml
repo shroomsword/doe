@@ -28,6 +28,8 @@ toml = { workspace = true, optional = true, features = ["std", "parse", "serde"]
 indexmap = { workspace = true, features = ["std", "serde"] }
 encoding_rs = { workspace = true, features = ["alloc"] }
 flate2 = { workspace = true, features = ["rust_backend"] }
+# The checksum column of the Files view (pure Rust, so it builds for WebAssembly).
+md-5.workspace = true
 
 # The tests read files, the configuration and file-backed input.
 [[test]]
