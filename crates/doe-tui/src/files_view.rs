@@ -14,6 +14,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
+use crate::checksums::{Checksums, Digest, Range};
 use crate::format;
 use crate::theme::compare_names;
 use crate::tree_view::TreeView;
@@ -74,6 +75,10 @@ pub struct FilesState {
     selected: usize,
     /// Whether the directories come before the files (the default).
     pub directories_first: bool,
+    /// The checksums of the files, made on a thread; the column shows them when [`FilesState::show_checksums`] is on.
+    pub checksums: Checksums,
+    /// Whether the checksum column is shown (`m`).
+    pub show_checksums: bool,
 }
 
 impl FilesState {
@@ -125,6 +130,8 @@ impl FilesState {
             rows: Vec::new(),
             selected: 0,
             directories_first: true,
+            checksums: Checksums::default(),
+            show_checksums: false,
         };
         state.rebuild();
         state
@@ -211,6 +218,61 @@ impl FilesState {
     #[must_use]
     pub fn selected_entry(&self) -> Option<&Entry> {
         self.nodes.get(self.selected_node()?)?.entry.as_ref()
+    }
+
+    /// The range of an entry that its checksum is of: its data, or nothing for a file that has none and is empty. None:
+    /// the entry has no checksum (not a file, or its data are not the file).
+    #[must_use]
+    pub fn checksum_range(entry: &Entry) -> Option<Range> {
+        if entry.kind != Kind::File || !entry.data_is_file {
+            return None;
+        }
+        match entry.data {
+            Some(data) => Some(data),
+            None if entry.size == Some(0) => Some((0, 0)),
+            None => None,
+        }
+    }
+
+    /// The ranges of every file that has a checksum, in the order of the archive.
+    #[must_use]
+    pub fn checksum_ranges(&self) -> Vec<Range> {
+        self.nodes
+            .iter()
+            .filter_map(|n| n.entry.as_ref().and_then(Self::checksum_range))
+            .collect()
+    }
+
+    /// The checksum of the selected entry, if it is done.
+    #[must_use]
+    pub fn selected_checksum(&self) -> Option<String> {
+        let range = Self::checksum_range(self.selected_entry()?)?;
+        match self.checksums.get(range)? {
+            Digest::Done(digits) => Some(digits.clone()),
+            Digest::Failed => None,
+        }
+    }
+
+    /// Why the selected entry has no checksum, when the column is on and it is a file without one.
+    #[must_use]
+    pub fn checksum_note(&self) -> Option<String> {
+        if !self.show_checksums {
+            return None;
+        }
+        let entry = self.selected_entry()?;
+        if entry.kind != Kind::File {
+            return None;
+        }
+        if !entry.data_is_file {
+            return Some("no checksum: the stored bytes are compressed, not the file".to_owned());
+        }
+        let Some(range) = Self::checksum_range(entry) else {
+            return Some(
+                "no checksum: the schema does not give the contents of this entry".to_owned(),
+            );
+        };
+        matches!(self.checksums.get(range), Some(Digest::Failed))
+            .then(|| "no checksum: the bytes could not be read (the file changed?)".to_owned())
     }
 
     /// The path of the selected row, as text.
@@ -474,7 +536,10 @@ pub fn time_text(seconds: i64) -> String {
 }
 
 /// The cells of a row's columns, before the name: the size, mode and time, right of the name.
-fn columns(entry: Option<&Entry>, directory: bool) -> String {
+/// The room that a name keeps when the checksum column is on: the time and then the mode are left out before the name.
+const NAME_ROOM: usize = 24;
+
+fn columns(entry: Option<&Entry>, directory: bool, files: &FilesState, width: usize) -> String {
     let Some(entry) = entry else {
         return String::new();
     };
@@ -484,10 +549,34 @@ fn columns(entry: Option<&Entry>, directory: bool) -> String {
         entry.size.map(size_text).unwrap_or_default()
     };
     let time = entry.mtime.map(time_text).unwrap_or_default();
-    format!(
-        "{size:>9}  {:<10}  {time}",
-        mode_text(entry.mode, entry.kind)
-    )
+    let mode = mode_text(entry.mode, entry.kind);
+    if files.show_checksums {
+        let hash = checksum_cell(entry, files);
+        let room = width.saturating_sub(NAME_ROOM);
+        let full = format!("{size:>9}  {hash:<32}  {mode:<10}  {time}");
+        if format::width(&full) <= room {
+            return full;
+        }
+        let without_time = format!("{size:>9}  {hash:<32}  {mode:<10}");
+        if format::width(&without_time) <= room {
+            return without_time;
+        }
+        return format!("{size:>9}  {hash:<32}");
+    }
+    format!("{size:>9}  {mode:<10}  {time}")
+}
+
+/// The checksum column of an entry: nothing for what is not a file, `…` while it is made, `—` for a file with none.
+fn checksum_cell(entry: &Entry, files: &FilesState) -> String {
+    if entry.kind != Kind::File {
+        return String::new();
+    }
+    match FilesState::checksum_range(entry).and_then(|range| files.checksums.get(range)) {
+        Some(Digest::Done(digits)) => digits.clone(),
+        Some(Digest::Failed) => "—".to_owned(),
+        None if FilesState::checksum_range(entry).is_none() => "—".to_owned(),
+        None => "…".to_owned(),
+    }
 }
 
 /// Draw the rows that are in view in `area`, the selected one marked.
@@ -566,7 +655,7 @@ fn row_line(
                 } else {
                     Style::default()
                 },
-                columns(node.entry.as_ref(), directory),
+                columns(node.entry.as_ref(), directory, files, width),
             )
         }
     };

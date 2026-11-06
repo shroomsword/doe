@@ -511,7 +511,14 @@ impl App {
             tree.take_state_of(&self.tree);
         }
         self.tree = tree;
+        let checksums_on = self.files.as_ref().is_some_and(|f| f.show_checksums);
         self.files = fresh.files;
+        // the column stays on across a reload, with the checksums made again from the file as it is now
+        if checksums_on && let Some(files) = self.files.as_mut() {
+            files.show_checksums = true;
+            let ranges = files.checksum_ranges();
+            files.checksums.start(&self.file, &ranges);
+        }
         self.files_followed = Vec::new();
         // the entries may be somewhere else now
         self.preview = None;
@@ -1366,6 +1373,11 @@ impl App {
 
     /// A key for the files: move, open, close; the entry that is selected is selected in the tree and the bytes follow.
     fn files_action(&mut self, action: Action) {
+        match action {
+            Action::Checksums => return self.toggle_checksums(),
+            Action::CopyChecksum => return self.copy_checksum(),
+            _ => {}
+        }
         if matches!(action, Action::TreeToggle | Action::Preview) {
             let entry = self
                 .files
@@ -1407,6 +1419,57 @@ impl App {
         self.tree.select_path(&path);
         self.files_followed = path;
         self.show_selected_field();
+        // a file with no checksum says why on the status line
+        if let Some(note) = self.files.as_ref().and_then(FilesState::checksum_note) {
+            self.notice = Some(note);
+        }
+    }
+
+    /// `m`: show or hide the checksum column. Showing it starts the thread that makes the checksums.
+    fn toggle_checksums(&mut self) {
+        let Some(files) = self.files.as_mut() else {
+            return;
+        };
+        files.show_checksums = !files.show_checksums;
+        if files.show_checksums {
+            let ranges = files.checksum_ranges();
+            files.checksums.start(&self.file, &ranges);
+            self.notice = Some(
+                "MD5 of each file: a checksum for comparing files, not a security measure"
+                    .to_owned(),
+            );
+        } else {
+            files.checksums.stop();
+        }
+        if let Some(note) = self.files.as_ref().and_then(FilesState::checksum_note) {
+            self.notice = Some(note);
+        }
+    }
+
+    /// `y` in the files: the checksum of the selected file goes to the clipboard of the terminal.
+    fn copy_checksum(&mut self) {
+        match self
+            .files
+            .as_ref()
+            .map(|f| (f.show_checksums, f.selected_checksum()))
+        {
+            Some((true, Some(digits))) => {
+                self.notice = Some(format!("copied the MD5 {digits}"));
+                self.clipboard = Some(digits);
+            }
+            Some((true, None)) => {
+                self.notice =
+                    Some("this entry has no checksum yet (… or — in the column)".to_owned());
+            }
+            _ => self.notice = Some("the checksums are not shown: press m".to_owned()),
+        }
+    }
+
+    /// Take the checksums that the thread has finished. True when the screen should be drawn again.
+    pub fn poll_checksums(&mut self) -> bool {
+        self.files
+            .as_mut()
+            .is_some_and(|files| files.checksums.poll())
     }
 
     fn tree_action(&mut self, action: Action) {
@@ -1442,6 +1505,9 @@ impl App {
             Action::TreeToggle => tree.toggle(),
             Action::NextSibling => tree.next_sibling(),
             Action::PreviousSibling => tree.prev_sibling(),
+            Action::Checksums | Action::CopyChecksum => {
+                self.notice = Some("the checksums are a column of the files: press F".to_owned());
+            }
             Action::Preview => {
                 self.notice = Some(if self.files.is_some() {
                     "the preview is of a file in the files: press F".to_owned()

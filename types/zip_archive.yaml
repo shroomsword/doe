@@ -23,12 +23,16 @@ meta:
   id: zip_archive
   file-extension: [zip, jar, war, apk, docx, xlsx, pptx, odt, epub]
   endian: le
-# The entries as a file system (the Files view). The contents are compressed, so the view has no preview of them.
+# The entries as a file system (the Files view). `data` is the stored bytes of the entry, which are the file's own bytes
+# only when the method is "stored" (0): a deflated entry's data are compressed, so `data_is_file` is false for it and the
+# viewers show no preview, save or checksum of the compressed stream as if it were the file.
 filesystem:
   entries: entries
   path: name
   size: len_uncompressed
   mode: unix_mode
+  data: data
+  data_is_file: is_stored
 instances:
   end_of_central_directory:
     pos: _io.size - 22
@@ -133,6 +137,8 @@ types:
         value: (flags & 8) != 0
       is_encrypted:
         value: (flags & 1) != 0
+      is_stored:
+        value: method.to_i == 0 and not is_encrypted
       unix_mode:
         value: (external_attributes >> 16) & 0xffff
       local_header:

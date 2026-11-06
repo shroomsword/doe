@@ -70,6 +70,47 @@ pub fn render(request: &str, bytes: &[u8], format: &str) -> String {
     to_json(&api::export(request, bytes, format))
 }
 
+/// A checksum that is computed as bytes come: `new Hasher("md5")`, `update(chunk)` for each piece, `finish()` for the
+/// lower case hex digits. The worker keeps the input, and feeds this from it a few MiB at a time, so a file of any
+/// size is hashed without a copy of it and without holding the worker.
+#[wasm_bindgen]
+#[derive(Debug)]
+pub struct Hasher {
+    inner: Option<doe::filesystem::Hasher>,
+}
+
+#[wasm_bindgen]
+impl Hasher {
+    /// A checksum of the algorithm `algorithm` (`md5`); an error for a name that is not one.
+    ///
+    /// # Errors
+    ///
+    /// The name is not an algorithm.
+    #[wasm_bindgen(constructor)]
+    pub fn new(algorithm: &str) -> Result<Hasher, String> {
+        let algorithm = doe::filesystem::Algorithm::from_name(algorithm)
+            .ok_or_else(|| format!("{algorithm} is not a checksum algorithm"))?;
+        Ok(Hasher {
+            inner: Some(doe::filesystem::Hasher::new(algorithm)),
+        })
+    }
+
+    /// The next bytes.
+    pub fn update(&mut self, bytes: &[u8]) {
+        if let Some(inner) = self.inner.as_mut() {
+            inner.update(bytes);
+        }
+    }
+
+    /// The digits of the checksum of everything given to `update`; empty if it was finished already.
+    pub fn finish(&mut self) -> String {
+        self.inner
+            .take()
+            .map(doe::filesystem::Hasher::finish)
+            .unwrap_or_default()
+    }
+}
+
 /// The version of doe in this module.
 #[wasm_bindgen]
 pub fn version() -> String {

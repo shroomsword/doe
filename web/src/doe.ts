@@ -78,6 +78,8 @@ export interface FsEntry {
   trace_path: number[];
   /** The bytes of the contents in the input: the first and the byte after the last. */
   data: [number, number] | null;
+  /** Whether `data` is the file's own bytes (false for a deflated zip entry: a checksum of it would mislead). */
+  data_is_file?: boolean;
   /** `empty`, `absolute`, `parent` or `repeated`: why the entry cannot be placed as it is. */
   flags: string[];
 }
@@ -170,7 +172,12 @@ export interface Doe {
   export(request: Request, bytes: Uint8Array, format: ExportFormat): ExportResponse;
   /** The order in which to try schemas on a file that starts with `head`. */
   detectOrder(sources: DetectSource[], head: Uint8Array, name: string | null, all: boolean): OrderResponse;
+  /** The checksums (lower case hex) of ranges of `bytes`, each fed to the algorithm in pieces; null for a range outside. */
+  digest(algorithm: string, bytes: Uint8Array, ranges: [number, number][]): (string | null)[];
 }
+
+/** How much of a range is given to the checksum at once. */
+const DIGEST_CHUNK = 4 * 1024 * 1024;
 
 /** Load the WebAssembly module and return the calls. */
 export async function loadDoe(wasmUrl: URL | string): Promise<Doe> {
@@ -186,5 +193,16 @@ export async function loadDoe(wasmUrl: URL | string): Promise<Doe> {
       JSON.parse(wasm.render(JSON.stringify(request), bytes, format)) as ExportResponse,
     detectOrder: (sources, head, name, all) =>
       JSON.parse(wasm.detect_order(JSON.stringify({ sources, name, all }), head)) as OrderResponse,
+    digest: (algorithm, bytes, ranges) =>
+      ranges.map(([from, to]) => {
+        if (from < 0 || from > to || to > bytes.length) return null;
+        const hasher = new wasm.Hasher(algorithm);
+        try {
+          for (let at = from; at < to; at += DIGEST_CHUNK) hasher.update(bytes.subarray(at, Math.min(to, at + DIGEST_CHUNK)));
+          return hasher.finish();
+        } finally {
+          hasher.free();
+        }
+      }),
   };
 }

@@ -48,6 +48,10 @@ pub mod flag {
     pub const REPEATED: &str = "repeated";
 }
 
+fn yes() -> bool {
+    true
+}
+
 /// One entry of the list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -68,6 +72,10 @@ pub struct Entry {
     pub trace_path: Vec<usize>,
     /// The bytes of the contents in the input: first, and the byte after the last.
     pub data: Option<(u64, u64)>,
+    /// Whether `data` is the file's own bytes. False when the schema's `data_is_file` says the range holds them
+    /// changed (a zip entry that is deflated): a preview, a saved file or a checksum of those bytes would mislead.
+    #[serde(default = "yes")]
+    pub data_is_file: bool,
     /// Why the entry cannot be placed as it is, from [`flag`].
     pub flags: Vec<String>,
 }
@@ -187,6 +195,104 @@ fn kind_of(spec: &RawFilesystem, entry: &Value, mode: Option<u32>, trailing_slas
     }
 }
 
+/// A checksum algorithm for the files of a listing. Only MD5 for now; the others come as variants (`Sha1`, `Sha256`),
+/// so a viewer that asks for one by name does not change.
+///
+/// MD5 is a checksum for comparing files, not a security measure: it is broken for that.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum Algorithm {
+    /// MD5, 32 hex digits, as `md5sum` writes.
+    Md5,
+}
+
+impl Algorithm {
+    /// Every algorithm, in the order a viewer offers them.
+    pub const ALL: &'static [Algorithm] = &[Algorithm::Md5];
+
+    /// The name as a person and `--` options write it: `md5`.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        match self {
+            Algorithm::Md5 => "md5",
+        }
+    }
+
+    /// The algorithm of a name (`md5`, in any case).
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Algorithm> {
+        Algorithm::ALL
+            .iter()
+            .copied()
+            .find(|a| a.name().eq_ignore_ascii_case(name))
+    }
+}
+
+/// A checksum that is computed as bytes come, so that a file of any size needs a chunk of memory and no more.
+#[derive(Debug, Clone)]
+pub struct Hasher {
+    state: HasherState,
+}
+
+#[derive(Debug, Clone)]
+enum HasherState {
+    Md5(md5::Md5),
+}
+
+impl Hasher {
+    /// A new checksum of `algorithm`.
+    #[must_use]
+    pub fn new(algorithm: Algorithm) -> Hasher {
+        use md5::Digest;
+        match algorithm {
+            Algorithm::Md5 => Hasher {
+                state: HasherState::Md5(md5::Md5::new()),
+            },
+        }
+    }
+
+    /// The next bytes.
+    pub fn update(&mut self, bytes: &[u8]) {
+        use md5::Digest;
+        match &mut self.state {
+            HasherState::Md5(state) => state.update(bytes),
+        }
+    }
+
+    /// The checksum as lower case hex digits.
+    #[must_use]
+    pub fn finish(self) -> String {
+        use md5::Digest;
+        use std::fmt::Write;
+        match self.state {
+            HasherState::Md5(state) => {
+                let mut out = String::with_capacity(32);
+                for byte in state.finalize() {
+                    // writing to a String cannot fail
+                    let _ = write!(out, "{byte:02x}");
+                }
+                out
+            }
+        }
+    }
+}
+
+/// The checksum of the bytes of `input` in `range` (first, and the byte after the last), or None when the range is not
+/// inside `input`.
+#[must_use]
+pub fn digest_of(algorithm: Algorithm, input: &[u8], range: (u64, u64)) -> Option<String> {
+    let bytes = input.get(usize::try_from(range.0).ok()?..usize::try_from(range.1).ok()?)?;
+    let mut hasher = Hasher::new(algorithm);
+    hasher.update(bytes);
+    Some(hasher.finish())
+}
+
+/// The MD5 of the bytes of `input` in `range`: [`digest_of`] with `Algorithm::Md5`.
+#[must_use]
+pub fn md5_of(input: &[u8], range: (u64, u64)) -> Option<String> {
+    digest_of(Algorithm::Md5, input, range)
+}
+
 /// The entries of `value`, as the `filesystem:` key `spec` says, with the trace of the parse that made it. None when
 /// the value has no list at the path (a parse that stopped before it).
 #[must_use]
@@ -255,6 +361,12 @@ pub fn list(value: &Value, trace: &TraceNode, spec: &RawFilesystem) -> Option<Li
             .and_then(|(_, n)| n.span)
             .filter(|s| !s.is_empty())
             .map(|s| (s.start_byte(), s.end_byte()));
+        // a value that is false, 0 or absent-with-the-key-present means the range is not the file; no key: it is
+        let data_is_file = spec.data_is_file.is_none()
+            || first(&spec.data_is_file).is_some_and(|v| match plain(v) {
+                Value::Bool(b) => *b,
+                other => number_of(other).is_some_and(|n| n != 0),
+            });
         let size = number(&spec.size).and_then(|n| u64::try_from(n).ok());
         // the block that ends a tar archive is an entry with no name, no size and no contents
         if path.is_empty() && size.unwrap_or(0) == 0 && data.is_none() {
@@ -276,6 +388,7 @@ pub fn list(value: &Value, trace: &TraceNode, spec: &RawFilesystem) -> Option<Li
             path,
             trace_path,
             data,
+            data_is_file,
             flags,
         });
     }

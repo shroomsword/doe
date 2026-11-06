@@ -319,6 +319,11 @@ body.pane-dragging, body.pane-dragging * { cursor: grabbing !important; user-sel
 .file-link, .file-count { color: var(--muted); }
 .file-flag { color: var(--bad); cursor: help; }
 .file-size { min-width: 7ch; text-align: right; color: var(--number); }
+.file-hash { color: var(--muted); min-width: 32ch; text-align: right; }
+#files-hash-bar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 2px 8px; font-size: .85em; border-bottom: 1px solid var(--line); }
+#files-hash-bar[hidden], #files-hash-value[hidden] { display: none; }
+#files-hash-head { font-family: var(--mono); color: var(--muted); cursor: help; }
+#files-hash-value { font-family: var(--mono); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .file-mode { color: var(--muted); }
 .file-time { color: var(--muted); }
 .file-more { color: var(--muted); font-style: italic; }

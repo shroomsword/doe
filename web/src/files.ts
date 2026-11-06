@@ -120,6 +120,37 @@ export function textOf(bytes: Uint8Array): string | null {
   }
 }
 
+/** The checksum algorithm of the column. Only MD5 for now; the follow-ups (SHA-1, SHA-256) add to this. */
+export const ALGORITHM = 'md5';
+/** Ranges are sent to be hashed in batches of about this many bytes (and at most `HASH_BATCH_ENTRIES` entries). */
+export const HASH_BATCH_BYTES = 16 * 1024 * 1024;
+export const HASH_BATCH_ENTRIES = 200;
+
+/** The line of `md5sum` for a file: the digest, two spaces, the path; a name with a backslash or a new line is escaped as `md5sum` does. */
+export function checksumLine(digest: string, path: string): string {
+  if (!path.includes('\\') && !path.includes('\n')) return `${digest}  ${path}\n`;
+  return `\\${digest}  ${path.replaceAll('\\', '\\\\').replaceAll('\n', '\\n')}\n`;
+}
+
+/** Cut `items` (with the bytes each one hashes) into batches of at most `bytes` bytes and `count` items; an item over the limit is a batch alone. */
+export function batchesOf<T>(items: readonly T[], size: (item: T) => number, bytes = HASH_BATCH_BYTES, count = HASH_BATCH_ENTRIES): T[][] {
+  const out: T[][] = [];
+  let batch: T[] = [];
+  let used = 0;
+  for (const item of items) {
+    const n = size(item);
+    if (batch.length > 0 && (used + n > bytes || batch.length >= count)) {
+      out.push(batch);
+      batch = [];
+      used = 0;
+    }
+    batch.push(item);
+    used += n;
+  }
+  if (batch.length > 0) out.push(batch);
+  return out;
+}
+
 /** The most children of a directory drawn at first, and each time "more" is asked. */
 export const CHUNK = 500;
 /** The most bytes of an entry that the preview reads: more is cut, with a mark. */
@@ -164,6 +195,13 @@ export interface FilesHandlers {
   read(from: number, to: number): Uint8Array | undefined;
   /** Save the contents of an entry as a file. */
   save(entry: FsEntry): void;
+  /**
+   * The checksums of ranges of the input, or null when the page does not have the input in memory (a file that stays
+   * on the machine of `doe --ide`): then the column says so. A rejection leaves `—` for the batch.
+   */
+  hash(algorithm: string, ranges: [number, number][]): Promise<(string | null)[]> | null;
+  /** Save a text as a file of that name. */
+  download(name: string, text: string): void;
 }
 
 export class FilesView {
@@ -173,6 +211,20 @@ export class FilesView {
   private readonly previewText: HTMLElement;
   private readonly saveButton: HTMLButtonElement;
   private readonly language: HTMLSelectElement;
+  private readonly hashValue: HTMLElement;
+  private readonly hashCopy: HTMLButtonElement;
+  private readonly hashBar: HTMLElement;
+  private readonly hashSave: HTMLButtonElement;
+  /** Whether the checksum column is on. */
+  private checksums = false;
+  /** The checksums by the range they are of (`from-to`): valid for the input they were made from. */
+  private readonly digests = new Map<string, string>();
+  /** The ranges the worker could not give (the input does not hold them, or the call failed). */
+  private readonly failed = new Set<string>();
+  /** Whether the page has no input in memory to hash. */
+  private noInput = false;
+  /** Counts the runs of the hashing, so that one that was overtaken (the listing or the input changed) stops. */
+  private hashRun = 0;
   private style: HighlightStyle | null = null;
   /** The language chosen in the badge for the entry that is shown (by its key); none when the guess is used. */
   private chosen: { entry: string; language: string } | null = null;
@@ -196,6 +248,15 @@ export class FilesView {
     this.previewText = parent.querySelector<HTMLElement>('#files-preview-text') ?? document.createElement('pre');
     this.saveButton = parent.querySelector<HTMLButtonElement>('#files-save') ?? document.createElement('button');
     this.language = parent.querySelector<HTMLSelectElement>('#files-language') ?? document.createElement('select');
+    this.hashValue = parent.querySelector<HTMLElement>('#files-hash-value') ?? document.createElement('code');
+    this.hashCopy = parent.querySelector<HTMLButtonElement>('#files-hash-copy') ?? document.createElement('button');
+    this.hashBar = parent.querySelector<HTMLElement>('#files-hash-bar') ?? document.createElement('div');
+    this.hashSave = parent.querySelector<HTMLButtonElement>('#files-hash-save') ?? document.createElement('button');
+    this.hashCopy.addEventListener('click', () => {
+      const digest = this.hashValue.dataset.digest ?? '';
+      if (digest) void navigator.clipboard?.writeText(digest).catch(() => undefined);
+    });
+    this.hashSave.addEventListener('click', () => this.saveChecksums());
     this.language.addEventListener('change', () => {
       this.chosen = this.selected === null || this.language.value === '' ? null : { entry: this.selected, language: this.language.value };
       this.showPreview();
@@ -242,6 +303,7 @@ export class FilesView {
     // a first listing opens the top level; a later one keeps what was open
     if (this.open.size === 0) this.open.add('');
     this.render();
+    if (this.checksums) void this.computeChecksums();
   }
 
   private selectedNode(): FsNode | null {
@@ -349,6 +411,14 @@ export class FilesView {
     const size = document.createElement('span');
     size.className = 'file-size';
     size.textContent = dir ? '' : sizeText(entry?.size ?? null);
+    const cells: HTMLElement[] = [size];
+    if (this.checksums) {
+      const hash = document.createElement('span');
+      hash.className = 'file-hash';
+      hash.dataset.k = key(node);
+      this.paintCell(hash, entry);
+      cells.push(hash);
+    }
     const mode = document.createElement('span');
     mode.className = 'file-mode';
     mode.textContent = entry ? modeText(entry.mode, entry.kind) : '';
@@ -356,7 +426,7 @@ export class FilesView {
     time.className = 'file-time';
     time.textContent = timeText(entry?.mtime ?? null);
     time.title = 'UTC';
-    el.append(size, mode, time);
+    el.append(...cells, mode, time);
     return el;
   }
 
@@ -366,6 +436,8 @@ export class FilesView {
     this.preview.hidden = entry === null;
     this.saveButton.hidden = true;
     this.language.hidden = true;
+    this.hashValue.hidden = true;
+    this.hashCopy.hidden = true;
     this.drawn += 1;
     this.previewText.textContent = '';
     delete this.previewText.dataset.language;
@@ -375,8 +447,13 @@ export class FilesView {
       this.previewText.textContent = entry.kind === 'file' ? '(no contents: the schema does not give them, or they are empty)' : '';
       return;
     }
+    if (entry.data_is_file === false) {
+      this.previewText.textContent = '(the stored bytes are compressed or otherwise changed, not the file: the schema says so, so there is no preview or Save of them; see them in the Bytes pane)';
+      return;
+    }
     const [from, end] = entry.data;
     this.saveButton.hidden = false;
+    this.showDigest(entry);
     const cut = end - from > PREVIEW_BYTES;
     const bytes = this.handlers.read(from, Math.min(end, from + PREVIEW_BYTES));
     if (!bytes) {
@@ -423,6 +500,151 @@ export class FilesView {
   setTheme(style: HighlightStyle): void {
     this.style = style;
     if (this.root) this.showPreview();
+  }
+
+  // ── checksums ───────────────────────────────────────────────────────────────
+
+  /** Whether the checksum column is on. */
+  get hashing(): boolean {
+    return this.checksums;
+  }
+
+  /** Turn the checksum column on or off. On, the checksums are computed (in the worker, a batch at a time) and fill in. */
+  setChecksums(on: boolean): void {
+    if (on === this.checksums) return;
+    this.checksums = on;
+    this.hashRun += 1;
+    this.hashBar.hidden = !on;
+    this.render();
+    if (on) void this.computeChecksums();
+  }
+
+  /** The input is another one: what was computed is of the old bytes. */
+  resetChecksums(): void {
+    this.digests.clear();
+    this.failed.clear();
+    this.noInput = false;
+    this.hashRun += 1;
+  }
+
+  /** The key of a range in the cache. */
+  private rangeKey(range: readonly [number, number]): string {
+    return `${range[0]}-${range[1]}`;
+  }
+
+  /** The range a file entry's checksum is of: its data, or nothing for a file that has none and is empty. Null: no checksum. */
+  private rangeOf(entry: FsEntry): [number, number] | null {
+    if (entry.kind !== 'file' || entry.data_is_file === false) return null;
+    if (entry.data) return [entry.data[0], entry.data[1]];
+    return entry.size === 0 ? [0, 0] : null;
+  }
+
+  /** The text and the explanation of the cell of an entry. */
+  private cellOf(entry: FsEntry | null): { text: string; title: string } {
+    if (!entry || entry.kind !== 'file') return { text: '', title: '' };
+    if (entry.data_is_file === false) return { text: '—', title: 'the schema says that the stored bytes are not the file (they are compressed): a checksum of them would not be that of the file' };
+    const range = this.rangeOf(entry);
+    if (!range) return { text: '—', title: 'the schema does not give the contents of this entry' };
+    const digest = this.digests.get(this.rangeKey(range));
+    if (digest) return { text: digest, title: `${ALGORITHM.toUpperCase()} of the contents` };
+    if (this.noInput) return { text: '—', title: 'the bytes of the file are not loaded in the page; use doe --ide with the file on that machine' };
+    if (this.failed.has(this.rangeKey(range))) return { text: '—', title: 'the checksum could not be computed (the bytes are not all there)' };
+    return { text: '…', title: 'being computed' };
+  }
+
+  private paintCell(cell: HTMLElement, entry: FsEntry | null): void {
+    const { text, title } = this.cellOf(entry);
+    cell.textContent = text;
+    cell.title = title;
+  }
+
+  /** Write what is known into the cells that are on the page (not the whole list again). */
+  private paintChecksums(): void {
+    for (const cell of this.list.querySelectorAll<HTMLElement>('.file-hash')) {
+      const row = this.rows.find((r) => !r.more && key(r.node) === cell.dataset.k);
+      this.paintCell(cell, row?.node.entry ?? null);
+    }
+    const node = this.selectedNode();
+    if (node?.entry) this.showDigest(node.entry);
+    this.hashSave.disabled = !this.checksumsDone();
+  }
+
+  /** The digest of the selected entry in the preview bar, with the copy button. */
+  private showDigest(entry: FsEntry): void {
+    const range = this.checksums ? this.rangeOf(entry) : null;
+    const digest = range ? this.digests.get(this.rangeKey(range)) : undefined;
+    this.hashValue.hidden = !digest;
+    this.hashCopy.hidden = !digest;
+    this.hashValue.textContent = digest ? `${ALGORITHM.toUpperCase()} ${digest}` : '';
+    this.hashValue.dataset.digest = digest ?? '';
+  }
+
+  /** The entries of the listing that have a checksum to compute. */
+  private hashable(): FsEntry[] {
+    const out: FsEntry[] = [];
+    const walk = (node: FsNode): void => {
+      if (node.entry && this.rangeOf(node.entry)) out.push(node.entry);
+      node.children.forEach(walk);
+    };
+    if (this.root) walk(this.root);
+    return out;
+  }
+
+  /** Whether every entry that can have a checksum has its (or has failed). */
+  private checksumsDone(): boolean {
+    if (this.noInput) return false;
+    return this.hashable().every((e) => {
+      const k = this.rangeKey(this.rangeOf(e) ?? [0, 0]);
+      return this.digests.has(k) || this.failed.has(k);
+    });
+  }
+
+  /** Compute the checksums that are missing, a batch at a time; stops when the run is overtaken. */
+  private async computeChecksums(): Promise<void> {
+    const run = ++this.hashRun;
+    const todo = new Map<string, [number, number]>();
+    for (const entry of this.hashable()) {
+      const range = this.rangeOf(entry);
+      if (range && !this.digests.has(this.rangeKey(range)) && !this.failed.has(this.rangeKey(range))) todo.set(this.rangeKey(range), range);
+    }
+    this.paintChecksums();
+    for (const batch of batchesOf([...todo.values()], (r) => r[1] - r[0])) {
+      if (run !== this.hashRun) return;
+      const pending = this.handlers.hash(ALGORITHM, batch);
+      if (pending === null) {
+        this.noInput = true;
+        this.paintChecksums();
+        return;
+      }
+      let digests: (string | null)[];
+      try {
+        digests = await pending;
+      } catch {
+        digests = batch.map(() => null);
+      }
+      if (run !== this.hashRun) return;
+      batch.forEach((range, i) => {
+        const digest = digests[i];
+        if (digest) this.digests.set(this.rangeKey(range), digest);
+        else this.failed.add(this.rangeKey(range));
+      });
+      this.paintChecksums();
+    }
+  }
+
+  /** Save the checksums of every file as `md5sum` writes them (so that `md5sum -c` reads them in the folder the archive is extracted to). */
+  private saveChecksums(): void {
+    let text = '';
+    const walk = (node: FsNode): void => {
+      const entry = node.entry;
+      const range = entry ? this.rangeOf(entry) : null;
+      const digest = range ? this.digests.get(this.rangeKey(range)) : undefined;
+      // an entry that cannot be placed safely is not written: `md5sum -c` would read outside the folder
+      if (entry && digest && entry.flags.length === 0) text += checksumLine(digest, entry.path.join('/'));
+      node.children.forEach(walk);
+    };
+    if (this.root) walk(this.root);
+    if (text) this.handlers.download(`${ALGORITHM}sums.txt`, text);
   }
 
   private rowOf(target: EventTarget | null): Row | null {

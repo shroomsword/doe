@@ -210,6 +210,11 @@ pub struct RawFilesystem {
     /// The bytes of the file's contents, for a preview and for saving it.
     #[serde(default)]
     pub data: Option<OneOrMany>,
+    /// Whether `data` is the file's own bytes: a field (or a list of them, the first an entry has) that is true,
+    /// or a number other than 0, when it is. Absent: it always is. A zip's data is the compressed stream of a
+    /// deflated entry, so the viewers show no preview or checksum for it.
+    #[serde(default)]
+    pub data_is_file: Option<OneOrMany>,
     /// Whether a path that ends in `/` is a directory when nothing else says what the entry is (the default).
     /// `false` for a format like `ar`, whose names end in `/` as a terminator.
     #[serde(default)]

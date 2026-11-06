@@ -1,6 +1,6 @@
 # The calls of doe-wasm
 
-Seven functions, exported to JavaScript by `wasm-bindgen`. Requests and answers
+Seven functions and one class, exported to JavaScript by `wasm-bindgen`. Requests and answers
 are **JSON strings**, so the page, a worker and the tests all call them the same
 way. The Rust side is `src/api.rs`; the tests in `tests/api.rs` check every
 shape below.
@@ -14,6 +14,11 @@ signature(request: string): string      // SignatureResponse as JSON: what the s
 detect_order(request: string, head: Uint8Array): string   // OrderResponse as JSON: which schemas to try on a file, in what order
 version(): string
 ```
+
+The class `Hasher` is the one thing here that is not JSON: a checksum that is fed as bytes come, so that a file of any
+size is hashed without a copy of it in WebAssembly memory. `new Hasher("md5")` (an error for a name that is not an
+algorithm), `update(bytes: Uint8Array)` for each piece, `finish(): string` for the lower case hex digits (empty if called
+again), and `free()` as for any class of `wasm-bindgen`. The Files view's checksum column is made with it in the worker.
 
 ## Request
 
