@@ -1,7 +1,7 @@
 // The page served by `doe --ide`: the types of the machine, and a file too
 // large for the browser that stays where it is. (local-server.mjs starts it.)
 
-import { saveAs, useType, withSavePicker } from './fixture.js';
+import { saveAs, tarOf, useType, withSavePicker } from './fixture.js';
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
@@ -65,4 +65,21 @@ test('the gallery is allowed by the page policy, and saving works on the file th
   const download = await saveAs(page, 'json');
   const text = readFileSync((await download.path()) ?? '', 'utf8');
   expect(JSON.parse(text)).toMatchObject({ a: 1 });
+});
+
+test('the parsers of the preview of an archive come from the chunks the binary carries', async ({ page }) => {
+  const chunks: string[] = [];
+  page.on('response', (response) => {
+    if (response.url().includes('/chunks/')) chunks.push(`${response.status()} ${response.headers()['content-type'] ?? ''}`);
+  });
+  await page.setInputFiles('#open-input', { name: 'sample.tar', mimeType: 'application/x-tar', buffer: tarOf({ 'main.rs': 'fn main() { let n = 42; }\n' }) });
+  await expect(page.locator('#detect')).toBeEnabled();
+  await page.click('#detect');
+  await expect(page.locator('#detect-report')).toContainText('tar parses the file', { timeout: 30_000 });
+  await page.locator('#files-list .file-row', { hasText: 'main.rs' }).click();
+  await expect(page.locator('#files-preview-text')).toHaveAttribute('data-language', 'rust');
+  await expect(page.locator('#files-preview-text span').first()).toBeVisible();
+  // every chunk was served, as JavaScript
+  expect(chunks.length).toBeGreaterThan(0);
+  expect(chunks.every((c) => c.startsWith('200 text/javascript'))).toBe(true);
 });

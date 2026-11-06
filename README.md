@@ -1287,8 +1287,13 @@ directories and files, with size, mode and time (UTC), in place of the tree of f
 file-tree icon) in the title bar of the Parsed pane (it is there only for a file system) switches between the two. Arrows move, `→` and `←`
 open and close a directory (and go to the parent), `Enter` or a double-click toggles it, and a click on a name selects the
 entry in the tree of fields and its bytes in the Bytes pane (and selecting a field or a byte inside an entry selects the
-entry here). A text file has a preview under the list, and **Save** downloads an entry's contents when the page has all
-its bytes. An entry with an empty name, an absolute path, a `..` or the path of an earlier entry has a warning sign and
+entry here). A text file has a preview under the list (the first 100,000 bytes, highlighted in the colours of the theme),
+and **Save** downloads an entry's contents when the page has all its bytes. The language of the preview comes from the
+name of the entry (`main.rs`, `Makefile`, `Dockerfile`, `*.json`…) or, when the name does not say, from a `#!` first line;
+the **language list** next to Save shows the guess (`Auto: Rust`) and lets you choose another language or plain text for
+that entry. The parsers (JSON, YAML, Markdown, HTML, XML, CSS, JavaScript and TypeScript, Python, Rust, C and C++, shell,
+TOML, INI, Dockerfile, SQL, Diff) are loaded the first time a file of the language is shown. A line of more than 2000
+characters is cut with `…`, and so is an entry of more than 100,000 bytes. An entry with an empty name, an absolute path, a `..` or the path of an earlier entry has a warning sign and
 is not resolved; a directory shows more than 500 children a page at a time (`N more…`).
 
 **Columns of the Bytes pane.** `c`, or the columns button (an icon of a rectangle in three bands) in the title bar
@@ -1585,7 +1590,16 @@ path, a `..`, a path an earlier entry has), and "N more…" after 500 children. 
 `PgUp` `PgDn`, `Home`, `End`, `→` or `l` to open a directory or go into it, `←` or `h` to close it or go to the parent,
 `Enter` or `Space` to toggle), the entry that is selected is selected in the tree of fields too and its bytes in the bytes
 pane (the contents of a file are there, and in the inspector), and `F` switches to the tree of fields and back, with the
-field or entry that was selected. There is no preview or saving of an entry in the terminal.
+field or entry that was selected.
+
+`Enter` (or `p`) on a file **previews** it: the first 100,000 bytes of the entry, if they are text, over the viewer with
+line numbers, highlighted in the colours of the viewer's theme (also in the 16-colour themes, and plain with no colour). The
+language comes from the name (`main.rs`, `Makefile`, `Dockerfile`, `*.json`…) and, when the name does not say, from a `#!`
+first line (`#!/usr/bin/env python3`); a file of an unknown type is shown plain, as are TOML, INI and Dockerfiles, which the
+grammars the viewer carries do not have (TypeScript is read with the JavaScript grammar). `↑` `↓` `j` `k`, `PgUp` `PgDn`,
+`Home` and `End` scroll; a line of more than 2000 characters is cut with `…`, and an entry of more than 100,000 bytes ends with
+`…`. `s` asks for a file name (starting with the entry's name) and saves the **whole** entry there, never over a file that
+exists; `Esc` or `q` goes back to the files. An entry that is not text says `N bytes (not text)`.
 
 **Building a schema.** `doe --tui FILE --build OUT.yaml` starts the viewer on an
 empty schema that grows one field at a time from the hex pane, and saves it with

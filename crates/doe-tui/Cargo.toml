@@ -16,6 +16,9 @@ toml = { workspace = true, features = ["std", "parse", "serde"] }
 log.workspace = true
 ratatui = { workspace = true, features = ["crossterm"] }
 crossterm = { workspace = true, features = ["events", "bracketed-paste"] }
+# The preview of a file of an archive: the grammars that come with it, read with its regex engine in Rust (no C library).
+# Its colour themes are not used: the scopes are mapped onto the colours of the viewer's own theme.
+syntect = { workspace = true, features = ["default-syntaxes", "regex-fancy"] }
 unicode-width.workspace = true
 unicode-segmentation.workspace = true
 # The schema that --build makes is written to a temporary directory for the viewer to parse with.

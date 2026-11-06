@@ -23,6 +23,7 @@ import { type Layout, type Mode, type PaneName, type Sizes, PANE_NAMES, applyLay
 import { Splitters } from './resize.js';
 import { PaneDrag } from './drag.js';
 import { FilesView } from './files.js';
+import { highlightStyle } from './highlight.js';
 import type { FsEntry, Listing } from './doe.js';
 import { columnsError, loadColumns, parseColumns, saveColumns, DEFAULT_COLUMNS } from './columns.js';
 import type { EditorSelection } from '@codemirror/state';
@@ -123,6 +124,7 @@ export class App {
     this.themes = new Themes((theme) => {
       this.editor.setTheme(theme);
       this.browser.setTheme(theme);
+      this.archive.setTheme(highlightStyle(theme));
     });
     this.radixes = new Radixes(() => {
       this.tree.refresh();

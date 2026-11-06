@@ -15,6 +15,8 @@ pub enum Action {
     ToggleInspector,
     /// Switch the tree pane between the fields and the files of an archive.
     Files,
+    /// Files: preview the selected file, as text with its syntax coloured.
+    Preview,
     /// Show the help.
     Help,
     /// Show or hide the message about a parse that failed.
@@ -353,7 +355,13 @@ pub const BINDINGS: &[Binding] = &[
         keys: &[plain(KeyCode::Enter), ch(' ')],
         scope: Scope::Tree,
         action: Action::TreeToggle,
-        help: "open or close a node",
+        help: "open or close a node (in the files: Enter on a file previews it)",
+    },
+    Binding {
+        keys: &[ch('p')],
+        scope: Scope::Tree,
+        action: Action::Preview,
+        help: "in the files: preview the selected file as text with its syntax coloured (↑↓ PgUp PgDn scroll, s saves the entry, Esc goes back)",
     },
     Binding {
         keys: &[ch(']')],

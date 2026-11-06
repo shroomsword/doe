@@ -13,9 +13,11 @@ use crate::bytes::FileBytes;
 use crate::draft::{Count, Draft, DraftError, Edit, Field, Kind as DraftKind};
 use crate::field_dialog;
 use crate::files_view::FilesState;
+use crate::format;
 use crate::hex_view::{HexState, Selection};
 use crate::keymap::{self, Action, Scope};
 use crate::load::{self, LoadFailure, Loaded};
+use crate::preview::{Outcome as PreviewOutcome, PREVIEW_BYTES, Preview};
 use crate::prompt::{Kind, LineEditor, Outcome as PromptOutcome};
 use crate::radixes::Radixes;
 use crate::report::Report;
@@ -143,6 +145,8 @@ pub struct App {
     pub files_wanted: bool,
     /// The node of the tree that the files were last made to follow.
     files_followed: Vec<usize>,
+    /// The preview of a file of the archive, while it is open.
+    pub preview: Option<Preview>,
     /// Where the tree pane is scrolled to.
     pub view: TreeView,
     /// The bytes of the file, read as they are shown (none if it cannot be opened now).
@@ -287,6 +291,7 @@ impl App {
                 .map(|listing| FilesState::new(&listing)),
             files_wanted: true,
             files_followed: Vec::new(),
+            preview: None,
             tree: TreeModel::new(loaded.trace, loaded.value),
             view: TreeView::new(),
             quit: false,
@@ -358,6 +363,7 @@ impl App {
             files: None,
             files_wanted: true,
             files_followed: Vec::new(),
+            preview: None,
             view: TreeView::new(),
             quit: false,
         }
@@ -406,6 +412,7 @@ impl App {
             files: None,
             files_wanted: true,
             files_followed: Vec::new(),
+            preview: None,
             view: TreeView::new(),
             quit: false,
             file,
@@ -506,6 +513,8 @@ impl App {
         self.tree = tree;
         self.files = fresh.files;
         self.files_followed = Vec::new();
+        // the entries may be somewhere else now
+        self.preview = None;
         self.type_name = fresh.type_name;
         self.size = fresh.size;
         self.error = fresh.error;
@@ -621,6 +630,10 @@ impl App {
         }
         if self.prompt.is_some() {
             self.prompt_key(&key);
+            return;
+        }
+        if self.preview.is_some() {
+            self.preview_key(&key);
             return;
         }
         let pane = match self.focus {
@@ -1122,6 +1135,7 @@ impl App {
                 match prompt.kind {
                     Kind::Search => self.start_search(prompt.line.text(), true),
                     Kind::Goto => self.goto(prompt.line.text()),
+                    Kind::SaveEntry => self.save_entry(prompt.line.text()),
                     field => self.field_step(field, prompt.line.text()),
                 }
             }
@@ -1352,6 +1366,25 @@ impl App {
 
     /// A key for the files: move, open, close; the entry that is selected is selected in the tree and the bytes follow.
     fn files_action(&mut self, action: Action) {
+        if matches!(action, Action::TreeToggle | Action::Preview) {
+            let entry = self
+                .files
+                .as_ref()
+                .and_then(FilesState::selected_entry)
+                .filter(|entry| entry.kind != doe::filesystem::Kind::Directory)
+                .cloned();
+            match entry {
+                Some(entry) => {
+                    self.open_preview(&entry);
+                    return;
+                }
+                None if action == Action::Preview => {
+                    self.notice = Some("a directory has no preview: select a file".to_owned());
+                    return;
+                }
+                None => {}
+            }
+        }
         let page = self.view.page();
         let Some(files) = self.files.as_mut() else {
             return;
@@ -1409,8 +1442,102 @@ impl App {
             Action::TreeToggle => tree.toggle(),
             Action::NextSibling => tree.next_sibling(),
             Action::PreviousSibling => tree.prev_sibling(),
+            Action::Preview => {
+                self.notice = Some(if self.files.is_some() {
+                    "the preview is of a file in the files: press F".to_owned()
+                } else {
+                    "there are no files to preview: the schema does not say this is a file system"
+                        .to_owned()
+                });
+            }
             _ => {}
         }
+    }
+
+    /// Open the preview of an entry: its first bytes as text, highlighted. Says why if it cannot.
+    fn open_preview(&mut self, entry: &doe::filesystem::Entry) {
+        let Some((first, end)) = entry.data else {
+            self.notice = Some(
+                "this entry has no contents: the schema does not give them, or they are empty"
+                    .to_owned(),
+            );
+            return;
+        };
+        let Some(bytes) = self.bytes.as_mut() else {
+            self.notice = Some("the file cannot be read now".to_owned());
+            return;
+        };
+        let want = usize::try_from(end.saturating_sub(first))
+            .unwrap_or(usize::MAX)
+            .min(PREVIEW_BYTES);
+        let window = bytes.window(first, want).to_vec();
+        if window.len() < want {
+            self.notice = Some(
+                "the bytes of this entry cannot be read (the file is shorter than the entry says)"
+                    .to_owned(),
+            );
+            return;
+        }
+        let path = entry.path.join("/");
+        let name = entry.path.last().cloned().unwrap_or_default();
+        match Preview::new(path, name, (first, end), &window) {
+            Ok(preview) => self.preview = Some(preview),
+            Err(message) => self.notice = Some(message),
+        }
+    }
+
+    /// A key while the preview is open: scroll it, close it, or ask where to save the entry.
+    fn preview_key(&mut self, key: &KeyEvent) {
+        let Some(preview) = self.preview.as_mut() else {
+            return;
+        };
+        match preview.key(key) {
+            PreviewOutcome::Keep => {}
+            PreviewOutcome::Close => self.preview = None,
+            PreviewOutcome::Save => {
+                // a name that is only the entry's last component, never a path out of the folder
+                let name = match preview.name.as_str() {
+                    "" | "." | ".." => "entry".to_owned(),
+                    name => name.replace(['/', '\\'], "_"),
+                };
+                self.open_prompt_with(Kind::SaveEntry, &name);
+            }
+        }
+    }
+
+    /// Write the contents of the entry that is previewed to the file `path` (not over a file that is there).
+    fn save_entry(&mut self, path: &str) {
+        let Some((first, end)) = self.preview.as_ref().map(|p| p.data) else {
+            return;
+        };
+        if path.trim().is_empty() {
+            self.notice = Some("nothing saved: no file name".to_owned());
+            return;
+        }
+        let result = (|| -> std::io::Result<u64> {
+            use std::io::{Read, Seek, SeekFrom};
+            let mut input = std::fs::File::open(&self.file)?;
+            input.seek(SeekFrom::Start(first))?;
+            let mut out = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)?;
+            let copied = std::io::copy(&mut input.take(end.saturating_sub(first)), &mut out)?;
+            if copied != end.saturating_sub(first) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "the file is shorter than the entry says",
+                ));
+            }
+            Ok(copied)
+        })();
+        self.notice = Some(match result {
+            Ok(count) => format!("saved {count} bytes to {}", format::safe(path)),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                format!("not saved: {} is there already", format::safe(path))
+            }
+            Err(error) => format!("not saved: {}", format::safe(&error.to_string())),
+        });
     }
 
     fn hex_action(&mut self, action: Action) {
@@ -1822,7 +1949,7 @@ impl App {
                 }
                 return;
             }
-            Kind::Search | Kind::Goto => return,
+            Kind::Search | Kind::Goto | Kind::SaveEntry => return,
         }
         match field_dialog::next(&dialog.kind, step) {
             Some(next) => {

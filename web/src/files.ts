@@ -2,7 +2,10 @@
 // schema, `doe::filesystem`); this nests them by path, orders them, and draws the rows. The tree building and the text
 // of the columns need no DOM and are tested alone; `FilesView` is the DOM part.
 
+import type { HighlightStyle } from '@codemirror/language';
 import type { FsEntry, FsKind, Listing } from './doe.js';
+import { drawHighlighted } from './highlight.js';
+import { detectLanguage, LANGUAGES, loadParser } from './languages.js';
 import type { Path } from './model.js';
 
 export interface FsNode {
@@ -119,7 +122,33 @@ export function textOf(bytes: Uint8Array): string | null {
 
 /** The most children of a directory drawn at first, and each time "more" is asked. */
 export const CHUNK = 500;
-const PREVIEW_BYTES = 4096;
+/** The most bytes of an entry that the preview reads: more is cut, with a mark. */
+export const PREVIEW_BYTES = 100_000;
+/** The longest line the preview draws (a longer one is cut, with a mark): a minified file is one line of megabytes. */
+export const LINE_LIMIT = 2000;
+
+/** The text of the bytes of a preview that was cut at `PREVIEW_BYTES`: the cut may be inside a character, which is dropped. */
+export function textOfCut(bytes: Uint8Array): string | null {
+  for (let drop = 0; drop <= 3 && drop < bytes.length; drop += 1) {
+    const text = textOf(drop === 0 ? bytes : bytes.subarray(0, bytes.length - drop));
+    if (text !== null) return text;
+  }
+  return null;
+}
+
+/** `text` with each line of more than `limit` characters cut to it and ended by `…`. */
+export function cutLines(text: string, limit: number = LINE_LIMIT): string {
+  if (text.length <= limit) return text;
+  return text
+    .split('\n')
+    .map((line) => {
+      if (line.length <= limit) return line;
+      // not between the two halves of a character outside the BMP
+      const high = line.charCodeAt(limit - 1) >= 0xd800 && line.charCodeAt(limit - 1) < 0xdc00;
+      return `${line.slice(0, high ? limit - 1 : limit)}…`;
+    })
+    .join('\n');
+}
 
 interface Row {
   node: FsNode;
@@ -143,6 +172,12 @@ export class FilesView {
   private readonly previewName: HTMLElement;
   private readonly previewText: HTMLElement;
   private readonly saveButton: HTMLButtonElement;
+  private readonly language: HTMLSelectElement;
+  private style: HighlightStyle | null = null;
+  /** The language chosen in the badge for the entry that is shown (by its key); none when the guess is used. */
+  private chosen: { entry: string; language: string } | null = null;
+  /** Counts the previews, so that a parser that arrives late for an entry that is no longer shown is dropped. */
+  private drawn = 0;
   private root: FsNode | null = null;
   private byTrace = new Map<string, FsNode>();
   private readonly open = new Set<string>();
@@ -160,6 +195,11 @@ export class FilesView {
     this.previewName = parent.querySelector<HTMLElement>('#files-preview-name') ?? document.createElement('span');
     this.previewText = parent.querySelector<HTMLElement>('#files-preview-text') ?? document.createElement('pre');
     this.saveButton = parent.querySelector<HTMLButtonElement>('#files-save') ?? document.createElement('button');
+    this.language = parent.querySelector<HTMLSelectElement>('#files-language') ?? document.createElement('select');
+    this.language.addEventListener('change', () => {
+      this.chosen = this.selected === null || this.language.value === '' ? null : { entry: this.selected, language: this.language.value };
+      this.showPreview();
+    });
     this.list.addEventListener('click', (event) => this.click(event));
     this.list.addEventListener('dblclick', (event) => {
       const row = this.rowOf(event.target);
@@ -325,7 +365,10 @@ export class FilesView {
     const entry = node?.entry ?? null;
     this.preview.hidden = entry === null;
     this.saveButton.hidden = true;
+    this.language.hidden = true;
+    this.drawn += 1;
     this.previewText.textContent = '';
+    delete this.previewText.dataset.language;
     if (!node || !entry) return;
     this.previewName.textContent = `${node.path.join('/')}${entry.link ? ` -> ${entry.link}` : ''}`;
     if (!entry.data) {
@@ -334,13 +377,52 @@ export class FilesView {
     }
     const [from, end] = entry.data;
     this.saveButton.hidden = false;
+    const cut = end - from > PREVIEW_BYTES;
     const bytes = this.handlers.read(from, Math.min(end, from + PREVIEW_BYTES));
     if (!bytes) {
       this.previewText.textContent = '(the bytes are not loaded here: select the entry and look in the Bytes pane)';
       return;
     }
-    const text = textOf(bytes);
-    this.previewText.textContent = text === null ? `${end - from} bytes (not text)` : text + (end - from > PREVIEW_BYTES ? '\n…' : '');
+    const text = cut ? textOfCut(bytes) : textOf(bytes);
+    if (text === null) {
+      this.previewText.textContent = `${end - from} bytes (not text)`;
+      return;
+    }
+    const shown = cutLines(text) + (cut ? '\n…' : '');
+    const guess = detectLanguage(node.name, text);
+    this.drawLanguage(guess);
+    const wanted = this.chosen?.entry === this.selected ? this.chosen.language : '';
+    const id = wanted === '' ? guess : wanted === 'plain' ? null : wanted;
+    this.previewText.textContent = shown;
+    this.previewText.dataset.language = id ?? 'plain';
+    if (id === null || !this.style) return;
+    // the parser comes in its own chunk the first time: the text is on the page (plain) meanwhile
+    const mine = ++this.drawn;
+    const style = this.style;
+    loadParser(id).then(
+      (parser) => {
+        if (mine === this.drawn) drawHighlighted(this.previewText, shown, style, parser);
+      },
+      () => {
+        // the parser could not be loaded (offline, say): the text stays plain
+      },
+    );
+  }
+
+  /** Fill the badge: the guess first, then the choices; the choice for this entry stays selected. */
+  private drawLanguage(guess: string | null): void {
+    const name = (id: string | null): string => LANGUAGES.find((l) => l.id === id)?.name ?? 'plain';
+    const auto = new Option(`Auto: ${name(guess)}`, '');
+    const options = [auto, new Option('Plain', 'plain'), ...LANGUAGES.map((l) => new Option(l.name, l.id))];
+    this.language.replaceChildren(...options);
+    this.language.value = this.chosen?.entry === this.selected ? this.chosen.language : '';
+    this.language.hidden = false;
+  }
+
+  /** The colours of the preview: those of a theme. */
+  setTheme(style: HighlightStyle): void {
+    this.style = style;
+    if (this.root) this.showPreview();
   }
 
   private rowOf(target: EventTarget | null): Row | null {

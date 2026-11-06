@@ -9,11 +9,13 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 
 use crate::app::{App, Focus, Prompt};
+use crate::code::Token;
 use crate::format;
 use crate::hex_view;
 use crate::highlight::Kind;
 use crate::inspect;
 use crate::keymap;
+use crate::preview::Preview;
 use crate::report::Report;
 use crate::schemas::{self, Pager, Row as SchemaRow, SchemaList};
 use crate::status;
@@ -215,6 +217,28 @@ impl Theme {
                     Style::default()
                 }
             }
+        }
+    }
+
+    /// A piece of code in the preview of a file of an archive, by what it is: the theme's colours, as for a schema. With
+    /// the terminal's own colours it is the terminal's ANSI colours, and with none it is plain.
+    #[must_use]
+    pub fn code(self, token: Token) -> Style {
+        match token {
+            Token::Comment | Token::Punct => {
+                if self.color {
+                    self.dim()
+                } else {
+                    Style::default()
+                }
+            }
+            Token::String => self.pick(|p| p.string, Color::Green),
+            Token::Number => self.pick(|p| p.number, Color::Yellow),
+            Token::Keyword => self.pick(|p| p.enum_, Color::Magenta),
+            Token::Type => self.pick(|p| p.type_, Color::Blue),
+            Token::Function => self.pick(|p| p.accent, Color::Cyan),
+            Token::Constant => self.pick(|p| p.boolean, Color::Cyan),
+            Token::Invalid => self.pick(|p| p.error, Color::Red),
         }
     }
 
@@ -563,6 +587,13 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     }
     if let Some(browser) = &app.themes {
         themes_overlay(frame, browser, *theme);
+    }
+    if let Some(preview) = app.preview.as_mut() {
+        preview_overlay(frame, preview, *theme);
+        // the prompt that asks where to save is over the preview
+        if let Some(prompt) = &app.prompt {
+            prompt_line(frame, prompt, *theme);
+        }
     }
     if app.help {
         help(frame, app, *theme);
@@ -1089,6 +1120,100 @@ fn schema_text(frame: &mut Frame<'_>, area: Rect, pager: &Pager, theme: Theme) {
         )));
     }
     frame.render_widget(Paragraph::new(lines), inner);
+}
+
+/// The preview of a file of an archive, over the viewer: line numbers, the lines coloured as the language says, and the
+/// keys at the bottom.
+fn preview_overlay(frame: &mut Frame<'_>, preview: &mut Preview, theme: Theme) {
+    let screen = frame.area();
+    if screen.width < 24 || screen.height < 5 {
+        return;
+    }
+    let area = big_box(screen);
+    clear(frame, area, theme);
+    let title = format!(
+        " {} · {} ",
+        format::truncate(&format::safe(&preview.path), usize::from(area.width / 2)),
+        preview.language_name()
+    );
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(theme.border(true))
+        .title(Span::styled(title, theme.title()))
+        .title_bottom(Line::from(Span::styled(
+            " ↑↓ PgUp PgDn Home End scroll · s saves the entry · Esc goes back (read-only) ",
+            theme.dim(),
+        )));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    let rows = usize::from(inner.height);
+    preview.rows = rows;
+    preview.top = preview
+        .top
+        .min(preview.lines.len().saturating_sub(rows.max(1)));
+    let digits = preview.lines.len().max(1).to_string().len();
+    let width = usize::from(inner.width).saturating_sub(digits + 3);
+    let lines: Vec<Line<'static>> = preview
+        .lines
+        .iter()
+        .zip(&preview.marks)
+        .enumerate()
+        .skip(preview.top)
+        .take(rows)
+        .map(|(index, (text, marks))| {
+            let number = if preview.cut && index + 1 == preview.lines.len() {
+                format!("{:>digits$} ", "")
+            } else {
+                format!("{:>digits$} ", index + 1)
+            };
+            let mut spans = vec![
+                Span::styled(number, theme.dim()),
+                Span::styled("│ ", theme.dim()),
+            ];
+            spans.extend(coded(text, marks, width, theme));
+            Line::from(spans)
+        })
+        .collect();
+    frame.render_widget(Paragraph::new(lines), inner);
+}
+
+/// A line of code cut to `width` and coloured by its `marks`, like [`highlighted`] for a schema.
+fn coded(
+    text: &str,
+    marks: &[(Range<usize>, Token)],
+    width: usize,
+    theme: Theme,
+) -> Vec<Span<'static>> {
+    let shown = format::truncate(text, width);
+    let cut = if shown == text {
+        text.len()
+    } else {
+        shown.len().saturating_sub('…'.len_utf8())
+    };
+    let mut spans = Vec::new();
+    let mut at = 0;
+    for (range, token) in marks {
+        if range.start >= cut {
+            break;
+        }
+        let end = range.end.min(cut);
+        if range.start > at {
+            spans.push(Span::raw(
+                text.get(at..range.start).unwrap_or_default().to_owned(),
+            ));
+        }
+        if let Some(piece) = text.get(range.start.max(at)..end) {
+            spans.push(Span::styled(piece.to_owned(), theme.code(*token)));
+        }
+        at = end;
+    }
+    if at < cut {
+        spans.push(Span::raw(text.get(at..cut).unwrap_or_default().to_owned()));
+    }
+    if cut < text.len() || shown != text {
+        spans.push(Span::styled("…", theme.dim()));
+    }
+    spans
 }
 
 /// A line of a schema cut to `width` and coloured by its `marks`: the marks are
