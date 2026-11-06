@@ -394,3 +394,39 @@ world
     // tar is on every machine this runs on; the others are skipped when their program is not
     assert!(checked >= 5, "only {checked} files were compared");
 }
+
+#[test]
+fn a_tar_whose_numbers_end_in_spaces_as_bsdtar_writes_them_reads_the_same() {
+    // one file "a.txt" with "hello"; the size, mode and time are octal text ended by a space, with no NUL
+    let mut header = [0_u8; 512];
+    let mut put =
+        |at: usize, text: &str| header[at..at + text.len()].copy_from_slice(text.as_bytes());
+    put(0, "a.txt");
+    put(100, "0000644 ");
+    put(108, "0000000 ");
+    put(116, "0000000 ");
+    put(124, "00000000005 ");
+    put(136, "14524770400 ");
+    put(148, "        ");
+    put(156, "0");
+    put(257, "ustar ");
+    put(263, "00");
+    let sum: u32 = header.iter().map(|b| u32::from(*b)).sum();
+    header[148..156].copy_from_slice(format!("{sum:06o}  ").as_bytes());
+    let mut archive = header.to_vec();
+    archive.extend_from_slice(b"hello");
+    archive.resize(1024, 0);
+    archive.resize(2048, 0);
+    let request = serde_json::json!({"schema": std::fs::read_to_string(types().join("tar.yaml")).unwrap(), "path": "tar.yaml"});
+    let response = doe::api::parse(&request.to_string(), &archive);
+    assert!(response.ok, "{:?}", response.error);
+    let list = response.filesystem.unwrap();
+    assert_eq!(list.entries.len(), 1);
+    assert_eq!(list.entries[0].size, Some(5));
+    assert_eq!(list.entries[0].mode, Some(0o644));
+    assert_eq!(list.entries[0].mtime, Some(0o14_524_770_400));
+    assert_eq!(
+        doe::filesystem::md5_of(&archive, list.entries[0].data.unwrap()).as_deref(),
+        Some("5d41402abc4b2a76b9719d911017c592")
+    );
+}
