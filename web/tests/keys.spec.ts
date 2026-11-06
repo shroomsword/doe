@@ -208,7 +208,14 @@ test.describe('in the page', () => {
 
   test('F6 no longer moves between the panes', async ({ page }) => {
     await page.locator('#pane-tree').focus();
-    await page.keyboard.press('F6');
+    // A synthetic key event, so that only the page's own handlers see it: the page has no F6 handler, and a real F6
+    // press in Firefox 159 (Playwright 1.65) takes the focus out of the page (the active element becomes the body).
+    const handled = await page.evaluate(() => {
+      const event = new KeyboardEvent('keydown', { key: 'F6', code: 'F6', bubbles: true, cancelable: true });
+      document.activeElement?.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    expect(handled).toBe(false);
     expect(await focused(page)).toBe('pane-tree');
   });
 
