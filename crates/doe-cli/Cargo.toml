@@ -1,6 +1,6 @@
 [package]
 name = "doe-cli"
-version = "0.6.0"
+version = "0.7.0"
 description = "doe — binary file parser"
 edition.workspace = true
 rust-version.workspace = true
@@ -28,8 +28,8 @@ bundled-types = []
 
 [dependencies]
 tempfile.workspace = true
-doe = { version = "0.6.0", path = "../doe" }
-doe-tui = { version = "0.6.0", path = "../doe-tui", optional = true }
+doe = { version = "0.7.0", path = "../doe" }
+doe-tui = { version = "0.7.0", path = "../doe-tui", optional = true }
 anyhow = { workspace = true, features = ["std"] }
 anstream = { workspace = true, features = ["auto", "wincon"] }
 anstyle = { workspace = true, features = ["std"] }
