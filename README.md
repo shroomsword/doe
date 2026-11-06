@@ -1217,7 +1217,7 @@ the editor for its pane, closes a dialog and closes a search.
 | `Alt+Shift+j` | Move the pane down |
 | `Alt+Shift+k` | Move the pane up |
 | `Alt+Shift+l` | Move the pane to the right |
-| `R` | Put the panes back in their places, all shown |
+| `R` | Put the panes back in their places, all shown, at their default sizes |
 | `x` | Close the focused pane (the Schema pane has its X button) |
 | `p` | Choose the panes that are shown |
 | `f` | Maximize the focused pane, or restore it (Esc restores too) |
@@ -1251,6 +1251,27 @@ the focus with the one next to it in that direction (the move is announced to a 
 kept in the browser's local storage and applied when the page loads; if the browser has no storage the page
 starts with the default layout. Once the layout is not the default, a button in the header and the key `R` put
 the panes back.
+
+**Resizing the panes.** There is a separator in the gutter between each two neighbouring panes (a thin bar that
+turns blue under the pointer and when it has the focus). Drag it to make one pane wider (or taller) and its
+neighbour narrower (or shorter) by as much; each keeps room for its title bar and buttons (12 rem wide, 6 rem high)
+and the drag stops there. `Esc` during a drag puts the sizes back, and a double-click on a separator puts that split
+back to the default. A separator can be focused (`Tab` reaches them after the panes) and works as the window
+splitter of the ARIA practices does: the arrow keys along the separator (`←` `→` for a vertical one, `↑` `↓` for a
+horizontal one) move it by 5% of the room of its two panes (`Shift` by 20%), `Home` and `End` give the room to one
+side as far as the minimums allow, and `Enter` puts the split back to the default; the new sizes are announced to a
+screen reader ("Schema 40%, Parsed 60%") and the separator has its share in `aria-valuenow`, with `aria-valuemin`
+and `aria-valuemax`. A finger or a pen drags a separator too (it is at least 24 px to hit on a touch screen).
+In the wide window the separators between the side-by-side panes set their widths, and the one above the low pane
+shares the height of the window with it; in the medium window the one between the columns sets their widths and
+the ones between the rows set the height of the row above (the page gets longer or shorter, as it scrolls); in the
+narrow window each sets the height of the pane above it. The sizes are proportions, not pixels, and **the three
+layouts have their own**: what is set in the wide window is not used in the narrow one. They belong to the places,
+not to the panes (the pane in the second place has the second column's width), so a closed pane's room goes to the
+panes that are left and comes back when it is shown again. They are kept in the browser's local storage with the
+order and the closed panes (version 3 of the layout record; an older record has the default sizes, and sizes that
+are not valid are ignored without losing the rest), and Reset (`R`) puts the default sizes back with the order. A
+maximized pane hides the separators.
 
 **Closing panes.** Every pane has an X at the right of its title bar, and `x` closes the focused
 pane (except Schema, whose X button must be clicked). `p` (or the panes button in the header) opens a list of the four panes with a box

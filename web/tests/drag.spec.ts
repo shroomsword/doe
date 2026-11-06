@@ -21,7 +21,7 @@ test('moving a pane takes it out and puts it before or after another one', () =>
   expect(moved(start, 'status', 'schema', false).order).toEqual(['status', 'schema', 'parsed', 'bytes']);
   expect(moved(start, 'parsed', 'parsed', true)).toBe(start);
   // a closed pane keeps its place in the order
-  expect(moved({ order: ['schema', 'parsed', 'bytes', 'status'], hidden: ['parsed'] }, 'status', 'schema', true)).toEqual({ order: ['schema', 'status', 'parsed', 'bytes'], hidden: ['parsed'] });
+  expect(moved({ order: ['schema', 'parsed', 'bytes', 'status'], hidden: ['parsed'], sizes: {} }, 'status', 'schema', true)).toEqual({ order: ['schema', 'status', 'parsed', 'bytes'], hidden: ['parsed'], sizes: {} });
 });
 
 test.describe('wide window', () => {

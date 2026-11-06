@@ -73,7 +73,7 @@ export const KEYS: readonly Key[] = [
   { key: 'Alt+Shift+j', action: 'move-down', label: 'Move the pane down', inFields: true },
   { key: 'Alt+Shift+k', action: 'move-up', label: 'Move the pane up', inFields: true },
   { key: 'Alt+Shift+l', action: 'move-right', label: 'Move the pane to the right', inFields: true },
-  { key: 'R', action: 'reset-layout', label: 'Put the panes back in their places, all shown' },
+  { key: 'R', action: 'reset-layout', label: 'Put the panes back in their places, all shown, at their default sizes' },
   { key: 'x', action: 'close-pane', label: 'Close the focused pane (the Schema pane has its X button)' },
   { key: 'p', action: 'panes', label: 'Choose the panes that are shown' },
   { key: 'f', action: 'maximize', label: 'Maximize the focused pane, or restore it (Esc restores too)' },
