@@ -22,7 +22,7 @@ rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --version 0.2.130 --locked
 cd web
 npm ci
-npm run build        # dist/: index.html, main.js, doe_wasm_bg.wasm
+npm run build        # dist/: index.html, main.js, chunks/ (the parsers of the preview), doe_wasm_bg.wasm
 npm run serve        # http://127.0.0.1:4173/
 ```
 

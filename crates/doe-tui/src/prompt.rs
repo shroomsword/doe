@@ -29,6 +29,8 @@ pub enum Kind {
     FieldRepeat,
     /// Its name.
     FieldName,
+    /// The file to save the entry of an archive that is previewed to.
+    SaveEntry,
 }
 
 impl Kind {
@@ -45,6 +47,7 @@ impl Kind {
             Kind::FieldMagic => "signature bytes in hex (7f 45 4c 46): ",
             Kind::FieldRepeat => "repeat (a number, a field name, eos; Enter for once): ",
             Kind::FieldName => "field name: ",
+            Kind::SaveEntry => "save the entry as (a file that is not there yet): ",
         }
     }
 }

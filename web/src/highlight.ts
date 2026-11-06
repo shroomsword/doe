@@ -3,6 +3,7 @@
 
 import { yaml } from '@codemirror/lang-yaml';
 import { HighlightStyle } from '@codemirror/language';
+import type { Parser } from '@lezer/common';
 import { highlightTree, tags } from '@lezer/highlight';
 import type { ThemeInfo } from './theme.js';
 
@@ -19,6 +20,15 @@ export function highlightStyle(theme: ThemeInfo): HighlightStyle {
     { tag: [tags.meta, tags.labelName, tags.typeName, tags.tagName, tags.className], color: c.accent },
     { tag: [tags.punctuation, tags.separator, tags.operator, tags.bracket], color: c.muted },
     { tag: tags.invalid, color: c.error },
+    // what the languages of the preview of a file add: names of functions, attributes, regular expressions, markup
+    { tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.macroName], color: c.instance },
+    { tag: [tags.attributeName, tags.namespace, tags.escape, tags.regexp], color: c.bytes },
+    { tag: [tags.heading, tags.strong], color: c.accent, fontWeight: 'bold' },
+    { tag: tags.emphasis, fontStyle: 'italic' },
+    { tag: [tags.link, tags.url], color: c.offset, textDecoration: 'underline' },
+    { tag: [tags.inserted], color: c.string },
+    { tag: [tags.deleted], color: c.error },
+    { tag: tags.blockComment, color: c.muted, fontStyle: 'italic' },
   ]);
 }
 
@@ -39,9 +49,10 @@ function mount(style: HighlightStyle): void {
 /**
  * Show `text` in `target` with the colours of `style`: text nodes and `<span class>` made with DOM calls, never HTML
  * from the text, so that the text of the element is the text, unchanged. A text that is too long, or that does not parse,
- * is shown plain (whatever was highlighted before the parser stopped stays).
+ * is shown plain (whatever was highlighted before the parser stopped stays). `parser` is that of the language of the text
+ * (YAML, the language of a schema, when it is not given).
  */
-export function drawHighlighted(target: HTMLElement, text: string, style: HighlightStyle): void {
+export function drawHighlighted(target: HTMLElement, text: string, style: HighlightStyle, parser?: Parser): void {
   target.replaceChildren();
   if (text.length > HIGHLIGHT_LIMIT) {
     target.append(document.createTextNode(text));
@@ -55,7 +66,7 @@ export function drawHighlighted(target: HTMLElement, text: string, style: Highli
     at = Math.max(at, to);
   };
   try {
-    const tree = yaml().language.parser.parse(text);
+    const tree = (parser ?? yaml().language.parser).parse(text);
     highlightTree(tree, style, (from, to, classes) => {
       if (from < at) return;
       plain(from);

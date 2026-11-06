@@ -37,6 +37,9 @@ await build({
   entryPoints: [join(web, 'src', 'main.ts'), join(web, 'src', 'worker.ts')],
   outdir: dist,
   bundle: true,
+  // the parsers of the languages of the preview of a file are chunks of their own, loaded when a file of the language is shown
+  splitting: true,
+  chunkNames: 'chunks/[name]-[hash]',
   format: 'esm',
   target: 'es2022',
   minify: true,

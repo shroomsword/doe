@@ -105,3 +105,29 @@ export async function saveAs(page: Page, format: 'text' | 'json', name?: string)
   const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#save-go').click()]);
   return download;
 }
+
+/** A tar (ustar) of regular files, made here so that each test says which files are in the archive. */
+export function tarOf(files: Record<string, string | Uint8Array>): Buffer {
+  const encoder = new TextEncoder();
+  const blocks: Uint8Array[] = [];
+  for (const [name, content] of Object.entries(files)) {
+    const data = typeof content === 'string' ? encoder.encode(content) : content;
+    const header = new Uint8Array(512);
+    const put = (at: number, value: string): void => header.set(encoder.encode(value), at);
+    put(0, name);
+    put(100, '0000644\0');
+    put(108, '0000000\0');
+    put(116, '0000000\0');
+    put(124, `${data.length.toString(8).padStart(11, '0')}\0`);
+    put(136, '00000000000\0');
+    put(148, '        ');
+    put(156, '0');
+    put(257, 'ustar\0');
+    put(263, '00');
+    const sum = header.reduce((a, b) => a + b, 0);
+    put(148, `${sum.toString(8).padStart(6, '0')}\0 `);
+    blocks.push(header, data, new Uint8Array((512 - (data.length % 512)) % 512));
+  }
+  blocks.push(new Uint8Array(1024));
+  return Buffer.concat(blocks);
+}
