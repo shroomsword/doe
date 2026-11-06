@@ -37,7 +37,7 @@ test.describe('wide window', () => {
     await close.click();
     await expect(page.locator('#pane-hex')).toBeHidden();
     expect(await visible(page)).toEqual(['pane-editor', 'pane-tree', 'pane-status']);
-    expect(parseLayout(await stored(page))).toEqual({ order: ['schema', 'parsed', 'bytes', 'status'], hidden: ['bytes'] });
+    expect(parseLayout(await stored(page))).toEqual({ order: ['schema', 'parsed', 'bytes', 'status'], hidden: ['bytes'], sizes: {} });
     await expect(page.locator('#layout-live')).toHaveText('The Bytes pane is closed');
     await expect(page.locator('#layout-reset')).toBeVisible();
   });

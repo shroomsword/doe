@@ -19,7 +19,8 @@ import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { RADIXES, Radixes, isRadix } from './radix.js';
 import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
 import { TreeView } from './tree.js';
-import { type Layout, type PaneName, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, moved, saveLayout, shown, swapped, withVisible } from './layout.js';
+import { type Layout, type Mode, type PaneName, type Sizes, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, moved, saveLayout, shown, swapped, withSizes, withVisible } from './layout.js';
+import { Splitters } from './resize.js';
 import { PaneDrag } from './drag.js';
 import { FilesView } from './files.js';
 import type { FsEntry, Listing } from './doe.js';
@@ -627,8 +628,10 @@ export class App {
   private lastPane: PaneName = 'parsed';
   /** The scroll offsets that a change of the layout must not lose (keep.ts). */
   private readonly positions = new Positions();
-  /** The order of the panes in the places of the page, and the ones that are closed (layout.ts). */
+  /** The order of the panes in the places of the page, the ones that are closed, and the sizes (layout.ts). */
   private layout: Layout = loadLayout();
+  /** The separators between the panes (resize.ts). */
+  private splitters: Splitters | null = null;
   /** Where the last search of the bytes found its match. */
   private byteFound: number | null = null;
   private searches: Record<'parsed' | 'bytes' | 'status', PaneSearch> | null = null;
@@ -836,7 +839,16 @@ export class App {
 
   /** Put the panes where they were left, and make them draggable by their titles. */
   private layoutSetup(): void {
-    applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, this.layout);
+    const main = document.querySelector('main') as HTMLElement;
+    applyLayout(main, PANE_IDS, this.layout);
+    this.splitters = new Splitters({
+      main,
+      host: element('splitters'),
+      layout: () => this.layout,
+      name: (place) => NAMES[shown(this.layout)[place - 1] ?? 'schema'],
+      change: (mode, sizes, message) => this.setSizes(mode, sizes, message),
+    });
+    this.splitters.sync();
     this.layoutChanged(false);
     element('layout-reset').addEventListener('click', () => this.resetLayout());
     element('panes-button').addEventListener('click', () => this.perform('panes'));
@@ -891,6 +903,7 @@ export class App {
     this.layout = layout;
     applyLayout(document.querySelector('main') as HTMLElement, PANE_IDS, layout);
     saveLayout(layout);
+    this.splitters?.sync();
     this.layoutChanged(true, message);
     // what moving the elements took away comes back: the focus with the caret or selection, and then the scroll
     // offsets (giving the focus back can scroll the caret into view, which is not where the user had left the pane)
@@ -949,6 +962,13 @@ export class App {
   private resetLayout(): void {
     if (isDefault(this.layout)) return;
     this.commit(defaultLayout(), 'The panes are back in their places');
+  }
+
+  /** The sizes of a mode were set by a separator (or put back to the default): keep them, and say what they are. */
+  private setSizes(mode: Mode, sizes: Sizes | undefined, message: string): void {
+    this.layout = withSizes(this.layout, mode, sizes);
+    saveLayout(this.layout);
+    this.layoutChanged(true, message);
   }
 
   /** Show the reset button when the layout is not the default, and say what happened to a screen reader. */
@@ -1016,6 +1036,7 @@ export class App {
     this.maximized = was === name ? null : name;
     const main = document.querySelector('main') as HTMLElement;
     main.classList.toggle('has-max', this.maximized !== null);
+    this.splitters?.sync();
     for (const pane of PANES) {
       element(PANE_IDS[pane]).classList.toggle('maximized', this.maximized === pane);
       this.maximizeButton(pane);

@@ -2,15 +2,15 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { dragPane } from './pane-drag.js';
-import { LAYOUT_KEY, defaultLayout, isDefault, layoutText, parseLayout, shown, swapped, withVisible } from '../src/layout.js';
+import { LAYOUT_KEY, defaultLayout, isDefault, layoutText, parseLayout, shown, swapped, withSizes, withVisible } from '../src/layout.js';
 
 test('a saved layout is read only when it is four different panes of this version', () => {
   const order = ['parsed', 'schema', 'bytes', 'status'] as const;
-  expect(parseLayout(layoutText({ order: [...order], hidden: ['bytes'] }))).toEqual({ order: [...order], hidden: ['bytes'] });
+  expect(parseLayout(layoutText({ order: [...order], hidden: ['bytes'], sizes: {} }))).toEqual({ order: [...order], hidden: ['bytes'], sizes: {} });
   // a record of version 1 has the order only: all the panes are shown
-  expect(parseLayout(JSON.stringify({ v: 1, order }))).toEqual({ order: [...order], hidden: [] });
+  expect(parseLayout(JSON.stringify({ v: 1, order }))).toEqual({ order: [...order], hidden: [], sizes: {} });
   // a pane cannot be closed twice or be unknown
-  expect(parseLayout(JSON.stringify({ v: 2, order, hidden: ['schema'] }))).toEqual({ order: [...order], hidden: ['schema'] });
+  expect(parseLayout(JSON.stringify({ v: 2, order, hidden: ['schema'] }))).toEqual({ order: [...order], hidden: ['schema'], sizes: {} });
   expect(parseLayout(JSON.stringify({ v: 2, order, hidden: ['bytes', 'bytes'] }))).toBeNull();
   expect(parseLayout(JSON.stringify({ v: 2, order, hidden: ['nothing'] }))).toBeNull();
   expect(parseLayout(JSON.stringify({ v: 2, order, hidden: 'bytes' }))).toBeNull();
@@ -18,10 +18,32 @@ test('a saved layout is read only when it is four different panes of this versio
   expect(parseLayout('not json')).toBeNull();
   expect(parseLayout('42')).toBeNull();
   expect(parseLayout('null')).toBeNull();
-  expect(parseLayout(JSON.stringify({ v: 3, order }))).toBeNull();
+  expect(parseLayout(JSON.stringify({ v: 0, order }))).toBeNull();
+  expect(parseLayout(JSON.stringify({ v: '3', order }))).toBeNull();
   expect(parseLayout(JSON.stringify({ v: 1, order: ['parsed', 'parsed', 'bytes', 'status'] }))).toBeNull();
   expect(parseLayout(JSON.stringify({ v: 1, order: ['parsed', 'schema', 'bytes'] }))).toBeNull();
   expect(parseLayout(JSON.stringify({ v: 1, order: ['parsed', 'schema', 'bytes', 'nothing'] }))).toBeNull();
+});
+
+test('the sizes of a layout are read when they are valid, and only the sizes are lost when they are not', () => {
+  const order = ['schema', 'parsed', 'bytes', 'status'];
+  const sizes = { wide: { cols: [1.5, 1, 0.5], rows: [0.7, 0.3] }, narrow: { rows: [null, 0.4, null, 0.2] } };
+  expect(parseLayout(JSON.stringify({ v: 3, order, hidden: [], sizes }))).toEqual({ order, hidden: [], sizes });
+  // a record of version 1 or 2 has no sizes
+  expect(parseLayout(JSON.stringify({ v: 2, order, hidden: [], sizes }))?.sizes).toEqual({});
+  // a mode with junk loses its sizes, the others stay; so does everything when sizes are not an object
+  const junk = { wide: { cols: [1, 'x', 1] }, medium: { cols: [1, 1], rows: [0.5, null] }, narrow: { cols: [0], rows: 7 } };
+  expect(parseLayout(JSON.stringify({ v: 3, order, hidden: ['bytes'], sizes: junk }))).toEqual({ order, hidden: ['bytes'], sizes: { medium: { cols: [1, 1], rows: [0.5, null] } } });
+  for (const bad of [null, 5, 'wide', [1, 2], { wide: null }, { wide: { cols: [1e9] } }, { wide: { cols: [] } }, { wide: { cols: [1, 1, 1, 1] } }, { narrow: { rows: [null, null] } }, { other: { cols: [1] } }]) {
+    expect(parseLayout(JSON.stringify({ v: 3, order, hidden: [], sizes: bad }))).toEqual({ order, hidden: [], sizes: {} });
+  }
+  // a newer version is read as far as it is understood
+  expect(parseLayout(JSON.stringify({ v: 4, order, hidden: ['status'], sizes, extra: true }))).toEqual({ order, hidden: ['status'], sizes });
+  // sizes make the layout not the default, and withSizes sets or clears one mode
+  const sized = withSizes(defaultLayout(), 'wide', { cols: [2, 1, 1] });
+  expect(isDefault(sized)).toBe(false);
+  expect(isDefault(withSizes(sized, 'wide', undefined))).toBe(true);
+  expect(isDefault(withSizes(sized, 'wide', {}))).toBe(true);
 });
 
 test('two panes swap places, and the default is the order the panes are written in', () => {

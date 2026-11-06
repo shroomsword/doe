@@ -10,18 +10,76 @@ export type PaneName = 'schema' | 'parsed' | 'bytes' | 'status';
 export const PANE_NAMES: readonly PaneName[] = ['schema', 'parsed', 'bytes', 'status'];
 export const DEFAULT_ORDER: readonly PaneName[] = PANE_NAMES;
 
+/** The three layouts the style sheet has (see `--mode` there): wide (three columns and a row), medium (two columns) and narrow (one). */
+export type Mode = 'wide' | 'medium' | 'narrow';
+export const MODES: readonly Mode[] = ['wide', 'medium', 'narrow'];
+
+/**
+ * The sizes of the places in one mode. They belong to the places (the columns and rows of the grid), not to the panes: the
+ * pane in the second place has the second column's width whichever pane that is, and a closed pane's share goes to the
+ * ones that are left. Missing is the default size.
+ */
+export interface Sizes {
+  /** The weights of the columns (1 is the default): up to three in the wide mode, two in the medium one. */
+  cols?: number[];
+  /**
+   * Wide: the weights of the top row and of the row under it. Medium and narrow: the heights of the places 1 to 4 (the
+   * rows in the medium mode are those of places 1, 3 and 4), as a fraction of the height of the window; null is the default.
+   */
+  rows?: (number | null)[];
+}
+
+export type SizeMap = Partial<Record<Mode, Sizes>>;
+
 export interface Layout {
   /** All four panes, in the order of the places. */
   order: PaneName[];
   /** The panes that are closed. */
   hidden: PaneName[];
+  /** The sizes the user set, for each mode that has some. */
+  sizes: SizeMap;
 }
 
 export const LAYOUT_KEY = 'doe.layout';
-/** Version 1 had the order only; version 2 has the closed panes too. */
-const VERSION = 2;
+/** Version 1 had the order only; version 2 has the closed panes too; version 3 has the sizes. */
+const VERSION = 3;
 
-export const defaultLayout = (): Layout => ({ order: [...DEFAULT_ORDER], hidden: [] });
+export const defaultLayout = (): Layout => ({ order: [...DEFAULT_ORDER], hidden: [], sizes: {} });
+
+const isWeight = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0.05 && n <= 20;
+const isFraction = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0.05 && n <= 5;
+
+/** The sizes of a mode in a stored value: what is valid, and nothing for what is not (junk loses only the sizes). */
+export function cleanSizes(value: unknown): Sizes | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { cols, rows } = value as { cols?: unknown; rows?: unknown };
+  const out: Sizes = {};
+  if (Array.isArray(cols) && cols.length > 0 && cols.length <= 3 && cols.every(isWeight)) out.cols = [...cols];
+  if (Array.isArray(rows) && rows.length > 0 && rows.length <= 4 && rows.every((n) => n === null || isFraction(n)) && rows.some((n) => n !== null)) {
+    out.rows = [...rows] as (number | null)[];
+  }
+  return out.cols || out.rows ? out : undefined;
+}
+
+/** The sizes in a stored value. */
+function parseSizes(value: unknown): SizeMap {
+  const out: SizeMap = {};
+  if (typeof value !== 'object' || value === null) return out;
+  for (const mode of MODES) {
+    const sizes = cleanSizes((value as Record<string, unknown>)[mode]);
+    if (sizes) out[mode] = sizes;
+  }
+  return out;
+}
+
+/** The layout with the sizes of one mode set (undefined puts the default back). */
+export function withSizes(layout: Layout, mode: Mode, sizes: Sizes | undefined): Layout {
+  const next: SizeMap = { ...layout.sizes };
+  const clean = cleanSizes(sizes);
+  if (clean) next[mode] = clean;
+  else delete next[mode];
+  return { ...layout, sizes: next };
+}
 
 const isPane = (name: unknown): name is PaneName => PANE_NAMES.includes(name as PaneName);
 
@@ -31,21 +89,22 @@ export function parseLayout(text: string | null): Layout | null {
   try {
     const value: unknown = JSON.parse(text);
     if (typeof value !== 'object' || value === null) return null;
-    const { v, order, hidden } = value as { v?: unknown; order?: unknown; hidden?: unknown };
-    if ((v !== 1 && v !== 2) || !Array.isArray(order) || order.length !== PANE_NAMES.length) return null;
+    const { v, order, hidden, sizes } = value as { v?: unknown; order?: unknown; hidden?: unknown; sizes?: unknown };
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || !Array.isArray(order) || order.length !== PANE_NAMES.length) return null;
     const names = order.filter(isPane);
     if (names.length !== PANE_NAMES.length || new Set(names).size !== PANE_NAMES.length) return null;
     // a record of version 1 has all the panes shown
     const closed = v === 1 || hidden === undefined ? [] : hidden;
     if (!Array.isArray(closed) || !closed.every(isPane) || new Set(closed).size !== closed.length) return null;
-    return { order: names, hidden: closed };
+    // a newer version is read as far as it is understood: the order and the closed panes, and sizes if they are valid
+    return { order: names, hidden: closed, sizes: v >= 3 ? parseSizes(sizes) : {} };
   } catch {
     return null;
   }
 }
 
 export function layoutText(layout: Layout): string {
-  return JSON.stringify({ v: VERSION, order: layout.order, hidden: layout.hidden });
+  return JSON.stringify({ v: VERSION, order: layout.order, hidden: layout.hidden, sizes: layout.sizes });
 }
 
 /** The layout with two panes in each other's places. */
@@ -66,7 +125,7 @@ export function withVisible(layout: Layout, pane: PaneName, visible: boolean): L
 }
 
 export function isDefault(layout: Layout): boolean {
-  return layout.hidden.length === 0 && layout.order.every((name, i) => name === DEFAULT_ORDER[i]);
+  return layout.hidden.length === 0 && layout.order.every((name, i) => name === DEFAULT_ORDER[i]) && Object.keys(layout.sizes).length === 0;
 }
 
 /** The saved layout, or the default one. Storage can be missing or blocked: then the default. */
@@ -97,7 +156,8 @@ export function applyLayout(main: HTMLElement, ids: Record<PaneName, string>, la
   const open = shown(layout);
   main.dataset.count = String(open.length);
   // moving an element takes the focus out of it, so only the order that changed is applied
-  const inOrder = layout.order.every((name, i) => main.children[i]?.id === ids[name]);
+  const sections = [...main.children].filter((child) => child.tagName === 'SECTION');
+  const inOrder = layout.order.every((name, i) => sections[i]?.id === ids[name]);
   layout.order.forEach((name) => {
     const section = document.getElementById(ids[name]);
     if (!section) return;
