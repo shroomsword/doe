@@ -31,6 +31,7 @@ flate2 = { workspace = true, features = ["rust_backend"] }
 # The checksum column of the Files view (pure Rust, so it builds for WebAssembly).
 md-5.workspace = true
 sha1.workspace = true
+sha2.workspace = true
 
 # The tests read files, the configuration and file-backed input.
 [[test]]

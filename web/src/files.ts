@@ -130,13 +130,23 @@ export interface ChecksumAlgorithm {
   weak: boolean;
 }
 
-/** The algorithms, in the order the menu lists them and `m` goes through them. SHA-256 comes after SHA-1. */
+/** The algorithms, in the order the menu lists them and `m` goes through them. */
 export const ALGORITHMS: readonly ChecksumAlgorithm[] = [
   { id: 'md5', label: 'MD5', digits: 32, weak: true },
   { id: 'sha1', label: 'SHA-1', digits: 40, weak: true },
+  { id: 'sha256', label: 'SHA-256', digits: 64, weak: false },
 ];
 
-/** The algorithm that comes `step` places on from `current` (null: off) in the cycle off, MD5, SHA-1, off. */
+/** An algorithm with more digits than this is shown cut to `SHORT_DIGITS` in a pane too narrow for the row, with the whole in the tooltip. */
+export const LONG_DIGITS = 40;
+export const SHORT_DIGITS = 16;
+
+/** The text of a digest in the column: the whole, or its first `SHORT_DIGITS` and an ellipsis when `compact` and the algorithm is a long one. */
+export function shownDigest(digest: string, compact: boolean): string {
+  return compact && digest.length > LONG_DIGITS ? `${digest.slice(0, SHORT_DIGITS)}…` : digest;
+}
+
+/** The algorithm that comes `step` places on from `current` (null: off) in the cycle off, MD5, SHA-1, SHA-256, off. */
 export function cycleAlgorithm(current: string | null, step: 1 | -1): string | null {
   const at = current === null ? 0 : ALGORITHMS.findIndex((a) => a.id === current) + 1;
   const next = (at + step + ALGORITHMS.length + 1) % (ALGORITHMS.length + 1);
@@ -236,6 +246,8 @@ export class FilesView {
   private readonly hashBar: HTMLElement;
   private readonly hashSave: HTMLButtonElement;
   private readonly hashHead: HTMLElement;
+  /** Whether the list is too narrow for the whole of a long digest in its row (a pane the size of a phone's, a small window). */
+  private compact = false;
   /** The algorithm of the checksum column, or null when the column is off. */
   private algorithm: string | null = null;
   /** The checksums by the algorithm and the range they are of (`md5:from-to`): valid for the input they were made from. */
@@ -279,6 +291,7 @@ export class FilesView {
       if (digest) void navigator.clipboard?.writeText(digest).catch(() => undefined);
     });
     this.hashSave.addEventListener('click', () => this.saveChecksums());
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.fit()).observe(this.list);
     this.language.addEventListener('change', () => {
       this.chosen = this.selected === null || this.language.value === '' ? null : { entry: this.selected, language: this.language.value };
       this.showPreview();
@@ -547,12 +560,25 @@ export class FilesView {
     const info = this.info();
     this.hashBar.hidden = info === null;
     if (info) {
-      this.list.style.setProperty('--hash-width', `${info.digits}ch`);
+      this.fit();
+      this.list.style.setProperty('--hash-width', `${this.compact && info.digits > LONG_DIGITS ? SHORT_DIGITS + 1 : info.digits}ch`);
       this.hashHead.textContent = info.label;
-      this.hashHead.title = info.weak ? `${info.label} is a checksum for comparing files, not a security measure (it has known collisions)` : `${info.label} checksum of the contents`;
+      this.hashHead.title = info.weak ? `${info.label} is a checksum for comparing files, not a security measure (it has known collisions)` : `${info.label} checksum of the contents, to compare with a published one`;
     }
     this.render();
     if (info) void this.computeChecksums();
+  }
+
+  /** The list changed size: a long digest is cut when the row has no room for all of it (the name keeps 20 characters). */
+  private fit(): void {
+    const info = this.info();
+    const size = Number.parseFloat(getComputedStyle(this.list).fontSize) || 13;
+    // size, mode, time, the gaps and a name, in characters of the monospace font (about 0.6 of its size)
+    const compact = info !== null && info.digits > LONG_DIGITS && this.list.clientWidth < (info.digits + 62) * size * 0.6;
+    if (compact === this.compact) return;
+    this.compact = compact;
+    if (info) this.list.style.setProperty('--hash-width', `${compact ? SHORT_DIGITS + 1 : info.digits}ch`);
+    this.paintChecksums();
   }
 
   /** The input is another one: what was computed is of the old bytes. */
@@ -582,7 +608,7 @@ export class FilesView {
     const range = this.rangeOf(entry);
     if (!range) return { text: '—', title: 'the schema does not give the contents of this entry' };
     const digest = this.digests.get(this.rangeKey(range));
-    if (digest) return { text: digest, title: `${this.info()?.label ?? ''} of the contents` };
+    if (digest) return { text: shownDigest(digest, this.compact), title: `${this.info()?.label ?? ''} ${digest}` };
     if (this.noInput) return { text: '—', title: 'the bytes of the file are not loaded in the page; use doe --ide with the file on that machine' };
     if (this.failed.has(this.rangeKey(range))) return { text: '—', title: 'the checksum could not be computed (the bytes are not all there)' };
     return { text: '…', title: 'being computed' };
@@ -670,8 +696,8 @@ export class FilesView {
     }
   }
 
-  /** Save the checksums of every file as `md5sum` and `sha1sum` write them (so that `md5sum -c` or `sha1sum -c` reads them in the folder the archive is extracted to). */
-  private saveChecksums(): void {
+  /** The checksums of every file as `md5sum`, `sha1sum` and `sha256sum` write them: `<digits>  <path>` lines in the order of the archive. */
+  private checksumText(): string {
     let text = '';
     const walk = (node: FsNode): void => {
       const entry = node.entry;
@@ -682,7 +708,28 @@ export class FilesView {
       node.children.forEach(walk);
     };
     if (this.root) walk(this.root);
+    return text;
+  }
+
+  /** Save the list (so that `md5sum -c`, `sha1sum -c` or `sha256sum -c` reads it in the folder the archive is extracted to). */
+  private saveChecksums(): void {
+    const text = this.checksumText();
     if (text) this.handlers.download(`checksums.${this.algorithm ?? 'md5'}`, text);
+  }
+
+  /** Put the list on the clipboard (the key S). What it says is for the status line; null: there is no list to copy. */
+  async copyChecksums(): Promise<string | null> {
+    const info = this.info();
+    if (!info) return null;
+    if (!this.checksumsDone()) return `the ${info.label} checksums are still being made`;
+    const text = this.checksumText();
+    if (!text) return `no ${info.label} checksum to copy`;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      return 'the clipboard cannot be written here';
+    }
+    return `copied the ${info.label} checksums of ${text.split('\n').length - 1} files`;
   }
 
   private rowOf(target: EventTarget | null): Row | null {

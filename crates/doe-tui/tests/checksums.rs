@@ -217,8 +217,8 @@ fn in_a_narrow_pane_the_time_and_the_mode_go_before_the_name_does() {
     key(&mut app, 'm');
     finish(&mut app);
     press(&mut app, KeyCode::Right);
-    // 150 columns: the tree pane has 45% of them
-    let mut terminal = Terminal::new(TestBackend::new(150, 16)).unwrap();
+    // 170 columns: the tree pane has 45% of them
+    let mut terminal = Terminal::new(TestBackend::new(170, 16)).unwrap();
     terminal
         .draw(|f| draw(f, &mut app, &Theme::new(false)))
         .unwrap();
@@ -289,7 +289,83 @@ fn m_goes_from_md5_to_sha1_to_off_and_m_shifted_goes_back_with_the_digests_of_ea
     assert_eq!(algorithm(&app), None);
     assert!(!row_of(&screen(&mut app), "hello.txt").contains("b1946"));
     key(&mut app, 'M');
+    assert_eq!(algorithm(&app), Some(Algorithm::Sha256));
+    key(&mut app, 'M');
     assert_eq!(algorithm(&app), Some(Algorithm::Sha1));
     key(&mut app, 'm');
+    key(&mut app, 'm');
     assert_eq!(algorithm(&app), None);
+}
+
+#[test]
+fn sha256_has_64_digits_and_a_narrow_pane_shows_the_first_16_of_them() {
+    let mut app = sample("tar", "sample.tar");
+    key(&mut app, 'm');
+    key(&mut app, 'm');
+    key(&mut app, 'm');
+    assert_eq!(
+        app.files.as_ref().unwrap().algorithm,
+        Some(Algorithm::Sha256)
+    );
+    assert!(
+        app.notice
+            .as_deref()
+            .unwrap()
+            .contains("SHA-256 of each file"),
+        "{:?}",
+        app.notice
+    );
+    finish(&mut app);
+    press(&mut app, KeyCode::Right);
+    // wide: the whole digest, 64 digits (the tree pane has 45% of the screen)
+    let mut wide = Terminal::new(TestBackend::new(270, 16)).unwrap();
+    wide.draw(|f| draw(f, &mut app, &Theme::new(false)))
+        .unwrap();
+    let buffer = wide.backend().buffer().clone();
+    let lines: Vec<String> = (0..buffer.area.height)
+        .map(|y| {
+            (0..buffer.area.width)
+                .map(|x| buffer[(x, y)].symbol())
+                .collect::<String>()
+        })
+        .collect();
+    let hello = row_of(&lines, "hello.txt");
+    assert!(
+        hello.contains("5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03"),
+        "{hello}"
+    );
+    assert!(lines.iter().any(|l| l.contains("m SHA-256")), "{lines:#?}");
+    // 150 columns: the tree pane has 45% of them, 67, too narrow for 64 digits: the first 16 and an ellipsis
+    let mut terminal = Terminal::new(TestBackend::new(150, 16)).unwrap();
+    terminal
+        .draw(|f| draw(f, &mut app, &Theme::new(false)))
+        .unwrap();
+    let buffer = terminal.backend().buffer().clone();
+    let narrow: Vec<String> = (0..buffer.area.height)
+        .map(|y| {
+            (0..buffer.area.width)
+                .map(|x| buffer[(x, y)].symbol())
+                .collect::<String>()
+        })
+        .collect();
+    let hello = row_of(&narrow, "hello.txt");
+    assert!(hello.contains("5891b5b522d5df08…"), "{hello}");
+    assert!(!hello.contains("5891b5b522d5df086"), "{hello}");
+    // y copies the whole digest, whatever is shown
+    press(&mut app, KeyCode::Down);
+    key(&mut app, 'y');
+    assert_eq!(
+        app.take_clipboard().as_deref(),
+        Some("5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03")
+    );
+    // the cycle: SHA-256 is followed by none, and M goes back to SHA-1
+    key(&mut app, 'm');
+    assert_eq!(app.files.as_ref().unwrap().algorithm, None);
+    key(&mut app, 'M');
+    assert_eq!(
+        app.files.as_ref().unwrap().algorithm,
+        Some(Algorithm::Sha256)
+    );
+    key(&mut app, 'M');
+    assert_eq!(app.files.as_ref().unwrap().algorithm, Some(Algorithm::Sha1));
 }
