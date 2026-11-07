@@ -15,8 +15,10 @@ pub enum Action {
     ToggleInspector,
     /// Switch the tree pane between the fields and the files of an archive.
     Files,
-    /// Files: show or hide the checksum (MD5) of each file.
+    /// Files: the next algorithm of the checksum column (MD5, SHA-1, off).
     Checksums,
+    /// Files: the previous algorithm of the checksum column.
+    ChecksumsBack,
     /// Files: copy the checksum of the selected file.
     CopyChecksum,
     /// Files: preview the selected file, as text with its syntax coloured.
@@ -365,7 +367,13 @@ pub const BINDINGS: &[Binding] = &[
         keys: &[ch('m')],
         scope: Scope::Tree,
         action: Action::Checksums,
-        help: "in the files: show or hide the MD5 of each file (a checksum for comparing files, not a security measure; … while it is made, — for a file that has none)",
+        help: "in the files: show the MD5 of each file, then the SHA-1, then hide them (checksums for comparing files, not a security measure; … while it is made, — for a file that has none)",
+    },
+    Binding {
+        keys: &[ch('M')],
+        scope: Scope::Tree,
+        action: Action::ChecksumsBack,
+        help: "in the files: the previous algorithm of the checksums (SHA-1, MD5, off)",
     },
     Binding {
         keys: &[ch('y')],

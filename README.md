@@ -1207,7 +1207,8 @@ the editor for its pane, closes a dialog and closes a search.
 | `d` | Detect the schema of the open file |
 | `s` | Save the parsed value |
 | `F` | Switch the Parsed pane between the files of an archive and the tree of fields |
-| `m` | Show or hide the MD5 of each file in the Files view |
+| `m` | Show the MD5 of each file in the Files view, then the SHA-1, then hide them |
+| `M` | The previous checksum of the Files view (SHA-1, MD5, none) |
 | `Tab` | Next pane (from a pane, not from a button or a field) |
 | `Shift+Tab` | Previous pane |
 | `h` | Focus the pane on the left |
@@ -1297,18 +1298,22 @@ TOML, INI, Dockerfile, SQL, Diff) are loaded the first time a file of the langua
 characters is cut with `…`, and so is an entry of more than 100,000 bytes. An entry with an empty name, an absolute path, a `..` or the path of an earlier entry has a warning sign and
 is not resolved; a directory shows more than 500 children a page at a time (`N more…`).
 
-**Checksums of the files.** `m`, or the hash button next to the Files button, adds an **MD5 column** to the Files view: the
-32 digits after the size of every file (a directory, a link and the other kinds have none). The MD5 is for comparing a
-file of an archive with a directory or another archive without extracting anything, and it is **not a security measure**
-(the header says so). The checksums are made by the worker, a few megabytes at a time, so the page stays usable: `…` shows
-until a file's digits arrive, they are kept for the input, and opening another input drops them. A file whose entry the
-schema gives no contents for shows `—`, and so does a file whose stored bytes are not the file: a **deflated zip entry**
-has the compressed stream there, and a checksum of that would be wrong (the tooltip says so; a stored zip entry has its
-MD5). An empty file has the MD5 of nothing, `d41d8cd98f00b204e9800998ecf8427e`. The input must be in the page: a file that
-stays on the machine of `doe --ide` shows `—` (its bytes are not loaded here). The preview bar shows the digits of the
-selected file with a **Copy** button, and **Save checksums** writes `md5sums.txt` in the format of `md5sum` (`<digits>
-<path>`, two spaces, one line for each file in the order of the archive), which `md5sum -c md5sums.txt` checks in the
-folder the archive is extracted to; an entry that cannot be placed safely is left out of it.
+**Checksums of the files.** The hash button next to the Files button opens a menu of the checksums (**MD5**, **SHA-1** and
+None, the one in use marked); `m` goes through them from the keyboard (MD5, SHA-1, none) and `M` goes back. The checksum is
+a column of the Files view after the size, 32 digits for MD5 and 40 for SHA-1, for every file (a directory, a link and the
+other kinds have none), and the header of the column names it. It is for comparing a file of an archive with a directory
+or another archive without extracting anything, and it is **not a security measure**: both have known collisions (the
+header's tooltip says so). The choice is remembered in the browser and put on the first archive that is opened. The
+checksums are made by the worker, a few megabytes at a time, so the page stays usable: `…` shows until a file's digits
+arrive, they are kept for the input **for each algorithm** (going back to one is at once), and opening another input drops
+them. A file whose entry the schema gives no contents for shows `—`, and so does a file whose stored bytes are not the file:
+a **deflated zip entry** has the compressed stream there, and a checksum of that would be wrong (the tooltip says so; a stored
+zip entry has its checksum). An empty file has the checksum of nothing. The input must be in the page: a file that stays
+on the machine of `doe --ide` shows `—` (its bytes are not loaded here). The preview bar shows the digits of the selected
+file with a **Copy** button, and **Save checksums** writes `checksums.md5` or `checksums.sha1` in the format of `md5sum` and
+`sha1sum` (`<digits>  <path>`, two spaces, one line for each file in the order of the archive), which `md5sum -c
+checksums.md5` or `sha1sum -c checksums.sha1` checks in the folder the archive is extracted to; an entry that cannot be
+placed safely is left out of it.
 
 **Columns of the Bytes pane.** `c`, or the columns button (an icon of a rectangle in three bands) in the title bar
 of the Bytes pane, opens a dialog in which the number of columns is entered: a column is one byte, so the number is the
@@ -1610,12 +1615,14 @@ path, a `..`, a path an earlier entry has), and "N more…" after 500 children. 
 pane (the contents of a file are there, and in the inspector), and `F` switches to the tree of fields and back, with the
 field or entry that was selected.
 
-`m` adds a column of **MD5 checksums** to the files, after the size: `…` while a thread reads the file and makes them
-(the screen stays alive and shows each as it comes), `—` for a file with none (the schema gives no contents, or the stored
-bytes are not the file, as for a deflated zip entry; the status line says why when you move onto it), nothing for a directory.
-On a narrow pane the time and then the mode are left out before the name is. `y` copies the digits of the selected file to
-the clipboard of the terminal where it allows it. `m` again hides the column. The MD5 is a checksum for comparing files,
-not a security measure.
+`m` adds a column of **checksums** to the files, after the size: the MD5 (32 digits), and pressed again the SHA-1 (40 digits),
+and once more it goes away; `M` goes the other way. The algorithm is named in the hint at the bottom of the pane and on the
+status line. `…` shows while a thread reads the file and makes them (the screen stays alive and shows each as it comes), `—`
+for a file with none (the schema gives no contents, or the stored bytes are not the file, as for a deflated zip entry; the
+status line says why when you move onto it), nothing for a directory. The digests made for one algorithm are kept, so going
+back to it is at once. On a narrow pane the time and then the mode are left out before the name is. `y` copies the digits of
+the selected file to the clipboard of the terminal where it allows it. MD5 and SHA-1 are checksums for comparing files, not
+security measures.
 
 `Enter` (or `p`) on a file **previews** it: the first 100,000 bytes of the entry, if they are text, over the viewer with
 line numbers, highlighted in the colours of the viewer's theme (also in the 16-colour themes, and plain with no colour). The

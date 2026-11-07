@@ -195,36 +195,63 @@ fn kind_of(spec: &RawFilesystem, entry: &Value, mode: Option<u32>, trailing_slas
     }
 }
 
-/// A checksum algorithm for the files of a listing. Only MD5 for now; the others come as variants (`Sha1`, `Sha256`),
-/// so a viewer that asks for one by name does not change.
+/// A checksum algorithm for the files of a listing. MD5 and SHA-1; SHA-256 comes as a variant too, so a viewer that
+/// asks for one by name, and lists them with [`Algorithm::ALL`], does not change.
 ///
-/// MD5 is a checksum for comparing files, not a security measure: it is broken for that.
+/// MD5 and SHA-1 are checksums for comparing files, not security measures: both have known collisions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Algorithm {
     /// MD5, 32 hex digits, as `md5sum` writes.
     Md5,
+    /// SHA-1, 40 hex digits, as `sha1sum` writes.
+    Sha1,
 }
 
 impl Algorithm {
-    /// Every algorithm, in the order a viewer offers them.
-    pub const ALL: &'static [Algorithm] = &[Algorithm::Md5];
+    /// Every algorithm, in the order a viewer offers and cycles them.
+    pub const ALL: &'static [Algorithm] = &[Algorithm::Md5, Algorithm::Sha1];
 
-    /// The name as a person and `--` options write it: `md5`.
+    /// The name as a person and `--` options write it: `md5`, `sha1`.
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             Algorithm::Md5 => "md5",
+            Algorithm::Sha1 => "sha1",
         }
     }
 
-    /// The algorithm of a name (`md5`, in any case).
+    /// The name as a header shows it: `MD5`, `SHA-1`.
+    #[must_use]
+    pub fn label(self) -> &'static str {
+        match self {
+            Algorithm::Md5 => "MD5",
+            Algorithm::Sha1 => "SHA-1",
+        }
+    }
+
+    /// How many hex digits a checksum has.
+    #[must_use]
+    pub fn hex_len(self) -> usize {
+        match self {
+            Algorithm::Md5 => 32,
+            Algorithm::Sha1 => 40,
+        }
+    }
+
+    /// The name of the file that a list of checksums is saved to: `checksums.md5`, `checksums.sha1`.
+    #[must_use]
+    pub fn file_name(self) -> String {
+        format!("checksums.{}", self.name())
+    }
+
+    /// The algorithm of a name (`md5`, `sha1`, `sha-1`, in any case).
     #[must_use]
     pub fn from_name(name: &str) -> Option<Algorithm> {
         Algorithm::ALL
             .iter()
             .copied()
-            .find(|a| a.name().eq_ignore_ascii_case(name))
+            .find(|a| a.name().eq_ignore_ascii_case(name) || a.label().eq_ignore_ascii_case(name))
     }
 }
 
@@ -237,6 +264,7 @@ pub struct Hasher {
 #[derive(Debug, Clone)]
 enum HasherState {
     Md5(md5::Md5),
+    Sha1(sha1::Sha1),
 }
 
 impl Hasher {
@@ -244,11 +272,11 @@ impl Hasher {
     #[must_use]
     pub fn new(algorithm: Algorithm) -> Hasher {
         use md5::Digest;
-        match algorithm {
-            Algorithm::Md5 => Hasher {
-                state: HasherState::Md5(md5::Md5::new()),
-            },
-        }
+        let state = match algorithm {
+            Algorithm::Md5 => HasherState::Md5(md5::Md5::new()),
+            Algorithm::Sha1 => HasherState::Sha1(sha1::Sha1::new()),
+        };
+        Hasher { state }
     }
 
     /// The next bytes.
@@ -256,6 +284,7 @@ impl Hasher {
         use md5::Digest;
         match &mut self.state {
             HasherState::Md5(state) => state.update(bytes),
+            HasherState::Sha1(state) => state.update(bytes),
         }
     }
 
@@ -263,18 +292,21 @@ impl Hasher {
     #[must_use]
     pub fn finish(self) -> String {
         use md5::Digest;
-        use std::fmt::Write;
         match self.state {
-            HasherState::Md5(state) => {
-                let mut out = String::with_capacity(32);
-                for byte in state.finalize() {
-                    // writing to a String cannot fail
-                    let _ = write!(out, "{byte:02x}");
-                }
-                out
-            }
+            HasherState::Md5(state) => hex(&state.finalize()),
+            HasherState::Sha1(state) => hex(&state.finalize()),
         }
     }
+}
+
+fn hex(bytes: &[u8]) -> String {
+    use std::fmt::Write;
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        // writing to a String cannot fail
+        let _ = write!(out, "{byte:02x}");
+    }
+    out
 }
 
 /// The checksum of the bytes of `input` in `range` (first, and the byte after the last), or None when the range is not

@@ -22,7 +22,7 @@ import { TreeView } from './tree.js';
 import { type Layout, type Mode, type PaneName, type Sizes, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, moved, saveLayout, shown, swapped, withSizes, withVisible } from './layout.js';
 import { Splitters } from './resize.js';
 import { PaneDrag } from './drag.js';
-import { FilesView } from './files.js';
+import { ALGORITHMS, FilesView, cycleAlgorithm } from './files.js';
 import { highlightStyle } from './highlight.js';
 import type { FsEntry, Listing } from './doe.js';
 import { columnsError, loadColumns, parseColumns, saveColumns, DEFAULT_COLUMNS } from './columns.js';
@@ -659,7 +659,8 @@ export class App {
     this.layoutSetup();
     this.columnsSetup();
     element('files-toggle').addEventListener('click', () => this.toggleFiles());
-    element('hash-toggle').addEventListener('click', () => this.toggleChecksums());
+    element('hash-toggle').addEventListener('click', () => this.openHashMenu());
+    this.wireHashMenu();
     const buttons: Record<string, Action> = {
       'open-input': 'open-file',
       'open-schema': 'open-schema',
@@ -759,16 +760,114 @@ export class App {
     this.archive.setListing(listing);
     element('files-toggle').hidden = !this.archive.has;
     element('hash-toggle').hidden = !this.archive.has;
+    // the choice of the last time is put on the first archive that is opened
+    if (this.archive.has && !this.checksumRestored) {
+      this.checksumRestored = true;
+      const remembered = this.rememberedChecksum();
+      if (remembered !== null) this.setChecksum(remembered, false);
+    }
     this.drawFilesMode();
   }
 
-  /** Show or hide the checksum column of the Files view (the key m and the button). */
-  private toggleChecksums(): void {
+  /** Whether the remembered checksum has been put on the Files view (once, for the first archive). */
+  private checksumRestored = false;
+
+  /** The checksum that was chosen last time, from the browser's storage. */
+  private rememberedChecksum(): string | null {
+    try {
+      const id = localStorage.getItem('doe.checksum');
+      return ALGORITHMS.some((a) => a.id === id) ? id : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Show the checksum of an algorithm (null: none) in the Files view, and remember the choice. */
+  private setChecksum(id: string | null, remember = true): void {
     if (!this.archive.has) return;
-    this.archive.setChecksums(!this.archive.hashing);
-    element('hash-toggle').setAttribute('aria-pressed', String(this.archive.hashing));
+    this.archive.setChecksums(id);
+    const on = this.archive.checksumAlgorithm !== null;
+    element('hash-toggle').setAttribute('aria-pressed', String(on));
+    if (remember) {
+      try {
+        if (id === null) localStorage.removeItem('doe.checksum');
+        else localStorage.setItem('doe.checksum', id);
+      } catch {
+        // the choice is for this page only
+      }
+    }
     // the column is in the Files view
-    if (this.archive.hashing && !this.filesShown()) this.toggleFiles();
+    if (on && !this.filesShown()) this.toggleFiles();
+  }
+
+  /** The key m (step 1) and M (step -1): the next algorithm, off after the last. */
+  private cycleChecksum(step: 1 | -1): void {
+    if (!this.archive.has) return;
+    this.setChecksum(cycleAlgorithm(this.archive.checksumAlgorithm, step));
+  }
+
+  /** The menu of the hash button: the algorithms, the one in use marked, and none. */
+  private openHashMenu(): void {
+    const menu = element('hash-menu');
+    const button = element('hash-toggle');
+    if (!menu.hidden) {
+      this.closeHashMenu();
+      return;
+    }
+    const current = this.archive.checksumAlgorithm;
+    menu.replaceChildren();
+    const item = (id: string | null, text: string): HTMLButtonElement => {
+      const entry = document.createElement('button');
+      entry.type = 'button';
+      entry.setAttribute('role', 'menuitemradio');
+      entry.setAttribute('aria-checked', String(id === current));
+      entry.dataset.algorithm = id ?? '';
+      entry.textContent = text;
+      entry.addEventListener('click', () => {
+        this.setChecksum(id);
+        this.closeHashMenu();
+      });
+      menu.append(entry);
+      return entry;
+    };
+    for (const algorithm of ALGORITHMS) item(algorithm.id, algorithm.label);
+    item(null, 'None');
+    const box = button.getBoundingClientRect();
+    menu.style.top = `${box.bottom + 2}px`;
+    menu.style.left = `${Math.max(4, Math.min(box.left, window.innerWidth - 150))}px`;
+    menu.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    (menu.querySelector<HTMLElement>('[aria-checked="true"]') ?? menu.querySelector<HTMLElement>('button'))?.focus();
+  }
+
+  private closeHashMenu(focusButton = true): void {
+    const menu = element('hash-menu');
+    if (menu.hidden) return;
+    menu.hidden = true;
+    element('hash-toggle').setAttribute('aria-expanded', 'false');
+    if (focusButton) element('hash-toggle').focus();
+  }
+
+  /** The keys of the open menu, and a click elsewhere closes it. */
+  private wireHashMenu(): void {
+    const menu = element('hash-menu');
+    menu.addEventListener('keydown', (event) => {
+      const items = [...menu.querySelectorAll<HTMLElement>('button')];
+      const at = items.indexOf(document.activeElement as HTMLElement);
+      if (event.key === 'Escape') this.closeHashMenu();
+      else if (event.key === 'ArrowDown') items[(at + 1) % items.length]?.focus();
+      else if (event.key === 'ArrowUp') items[(at - 1 + items.length) % items.length]?.focus();
+      else if (event.key === 'Home') items[0]?.focus();
+      else if (event.key === 'End') items[items.length - 1]?.focus();
+      else if (event.key === 'Tab') this.closeHashMenu(false);
+      else return;
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    document.addEventListener('pointerdown', (event) => {
+      const target = event.target as Node;
+      if (!menu.hidden && !menu.contains(target) && !element('hash-toggle').contains(target)) this.closeHashMenu(false);
+    });
   }
 
   /** Download a text as a file. */
@@ -1226,7 +1325,10 @@ export class App {
         this.toggleFiles();
         break;
       case 'checksums':
-        this.toggleChecksums();
+        this.cycleChecksum(1);
+        break;
+      case 'checksums-back':
+        this.cycleChecksum(-1);
         break;
       case 'next-pane':
         this.cyclePane(1);

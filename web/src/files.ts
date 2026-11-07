@@ -120,8 +120,28 @@ export function textOf(bytes: Uint8Array): string | null {
   }
 }
 
-/** The checksum algorithm of the column. Only MD5 for now; the follow-ups (SHA-1, SHA-256) add to this. */
-export const ALGORITHM = 'md5';
+/** A checksum algorithm of the column: the name `doe::filesystem::Algorithm` and `md5sum`-like tools use, the label of the header and the width. */
+export interface ChecksumAlgorithm {
+  id: string;
+  label: string;
+  /** How many hex digits. */
+  digits: number;
+  /** Whether the header says it is for comparing files, not a security measure (MD5 and SHA-1 have known collisions). */
+  weak: boolean;
+}
+
+/** The algorithms, in the order the menu lists them and `m` goes through them. SHA-256 comes after SHA-1. */
+export const ALGORITHMS: readonly ChecksumAlgorithm[] = [
+  { id: 'md5', label: 'MD5', digits: 32, weak: true },
+  { id: 'sha1', label: 'SHA-1', digits: 40, weak: true },
+];
+
+/** The algorithm that comes `step` places on from `current` (null: off) in the cycle off, MD5, SHA-1, off. */
+export function cycleAlgorithm(current: string | null, step: 1 | -1): string | null {
+  const at = current === null ? 0 : ALGORITHMS.findIndex((a) => a.id === current) + 1;
+  const next = (at + step + ALGORITHMS.length + 1) % (ALGORITHMS.length + 1);
+  return next === 0 ? null : (ALGORITHMS[next - 1]?.id ?? null);
+}
 /** Ranges are sent to be hashed in batches of about this many bytes (and at most `HASH_BATCH_ENTRIES` entries). */
 export const HASH_BATCH_BYTES = 16 * 1024 * 1024;
 export const HASH_BATCH_ENTRIES = 200;
@@ -215,9 +235,10 @@ export class FilesView {
   private readonly hashCopy: HTMLButtonElement;
   private readonly hashBar: HTMLElement;
   private readonly hashSave: HTMLButtonElement;
-  /** Whether the checksum column is on. */
-  private checksums = false;
-  /** The checksums by the range they are of (`from-to`): valid for the input they were made from. */
+  private readonly hashHead: HTMLElement;
+  /** The algorithm of the checksum column, or null when the column is off. */
+  private algorithm: string | null = null;
+  /** The checksums by the algorithm and the range they are of (`md5:from-to`): valid for the input they were made from. */
   private readonly digests = new Map<string, string>();
   /** The ranges the worker could not give (the input does not hold them, or the call failed). */
   private readonly failed = new Set<string>();
@@ -252,6 +273,7 @@ export class FilesView {
     this.hashCopy = parent.querySelector<HTMLButtonElement>('#files-hash-copy') ?? document.createElement('button');
     this.hashBar = parent.querySelector<HTMLElement>('#files-hash-bar') ?? document.createElement('div');
     this.hashSave = parent.querySelector<HTMLButtonElement>('#files-hash-save') ?? document.createElement('button');
+    this.hashHead = parent.querySelector<HTMLElement>('#files-hash-head') ?? document.createElement('span');
     this.hashCopy.addEventListener('click', () => {
       const digest = this.hashValue.dataset.digest ?? '';
       if (digest) void navigator.clipboard?.writeText(digest).catch(() => undefined);
@@ -303,7 +325,7 @@ export class FilesView {
     // a first listing opens the top level; a later one keeps what was open
     if (this.open.size === 0) this.open.add('');
     this.render();
-    if (this.checksums) void this.computeChecksums();
+    if (this.algorithm !== null) void this.computeChecksums();
   }
 
   private selectedNode(): FsNode | null {
@@ -412,7 +434,7 @@ export class FilesView {
     size.className = 'file-size';
     size.textContent = dir ? '' : sizeText(entry?.size ?? null);
     const cells: HTMLElement[] = [size];
-    if (this.checksums) {
+    if (this.algorithm !== null) {
       const hash = document.createElement('span');
       hash.className = 'file-hash';
       hash.dataset.k = key(node);
@@ -504,19 +526,33 @@ export class FilesView {
 
   // ── checksums ───────────────────────────────────────────────────────────────
 
-  /** Whether the checksum column is on. */
-  get hashing(): boolean {
-    return this.checksums;
+  /** The algorithm of the checksum column, or null when it is off. */
+  get checksumAlgorithm(): string | null {
+    return this.algorithm;
   }
 
-  /** Turn the checksum column on or off. On, the checksums are computed (in the worker, a batch at a time) and fill in. */
-  setChecksums(on: boolean): void {
-    if (on === this.checksums) return;
-    this.checksums = on;
+  private info(): ChecksumAlgorithm | null {
+    return ALGORITHMS.find((a) => a.id === this.algorithm) ?? null;
+  }
+
+  /**
+   * Show the column with the checksums of an algorithm, or hide it (null). The checksums computed for the other
+   * algorithms are kept for this input, so that going back to one is at once; only the missing ones are computed.
+   */
+  setChecksums(id: string | null): void {
+    const wanted = ALGORITHMS.some((a) => a.id === id) ? id : null;
+    if (wanted === this.algorithm) return;
+    this.algorithm = wanted;
     this.hashRun += 1;
-    this.hashBar.hidden = !on;
+    const info = this.info();
+    this.hashBar.hidden = info === null;
+    if (info) {
+      this.list.style.setProperty('--hash-width', `${info.digits}ch`);
+      this.hashHead.textContent = info.label;
+      this.hashHead.title = info.weak ? `${info.label} is a checksum for comparing files, not a security measure (it has known collisions)` : `${info.label} checksum of the contents`;
+    }
     this.render();
-    if (on) void this.computeChecksums();
+    if (info) void this.computeChecksums();
   }
 
   /** The input is another one: what was computed is of the old bytes. */
@@ -529,7 +565,7 @@ export class FilesView {
 
   /** The key of a range in the cache. */
   private rangeKey(range: readonly [number, number]): string {
-    return `${range[0]}-${range[1]}`;
+    return `${this.algorithm ?? ''}:${range[0]}-${range[1]}`;
   }
 
   /** The range a file entry's checksum is of: its data, or nothing for a file that has none and is empty. Null: no checksum. */
@@ -546,7 +582,7 @@ export class FilesView {
     const range = this.rangeOf(entry);
     if (!range) return { text: '—', title: 'the schema does not give the contents of this entry' };
     const digest = this.digests.get(this.rangeKey(range));
-    if (digest) return { text: digest, title: `${ALGORITHM.toUpperCase()} of the contents` };
+    if (digest) return { text: digest, title: `${this.info()?.label ?? ''} of the contents` };
     if (this.noInput) return { text: '—', title: 'the bytes of the file are not loaded in the page; use doe --ide with the file on that machine' };
     if (this.failed.has(this.rangeKey(range))) return { text: '—', title: 'the checksum could not be computed (the bytes are not all there)' };
     return { text: '…', title: 'being computed' };
@@ -571,11 +607,11 @@ export class FilesView {
 
   /** The digest of the selected entry in the preview bar, with the copy button. */
   private showDigest(entry: FsEntry): void {
-    const range = this.checksums ? this.rangeOf(entry) : null;
+    const range = this.algorithm !== null ? this.rangeOf(entry) : null;
     const digest = range ? this.digests.get(this.rangeKey(range)) : undefined;
     this.hashValue.hidden = !digest;
     this.hashCopy.hidden = !digest;
-    this.hashValue.textContent = digest ? `${ALGORITHM.toUpperCase()} ${digest}` : '';
+    this.hashValue.textContent = digest ? `${this.info()?.label ?? ''} ${digest}` : '';
     this.hashValue.dataset.digest = digest ?? '';
   }
 
@@ -602,6 +638,8 @@ export class FilesView {
   /** Compute the checksums that are missing, a batch at a time; stops when the run is overtaken. */
   private async computeChecksums(): Promise<void> {
     const run = ++this.hashRun;
+    const algorithm = this.algorithm;
+    if (algorithm === null) return;
     const todo = new Map<string, [number, number]>();
     for (const entry of this.hashable()) {
       const range = this.rangeOf(entry);
@@ -610,7 +648,7 @@ export class FilesView {
     this.paintChecksums();
     for (const batch of batchesOf([...todo.values()], (r) => r[1] - r[0])) {
       if (run !== this.hashRun) return;
-      const pending = this.handlers.hash(ALGORITHM, batch);
+      const pending = this.handlers.hash(algorithm, batch);
       if (pending === null) {
         this.noInput = true;
         this.paintChecksums();
@@ -632,7 +670,7 @@ export class FilesView {
     }
   }
 
-  /** Save the checksums of every file as `md5sum` writes them (so that `md5sum -c` reads them in the folder the archive is extracted to). */
+  /** Save the checksums of every file as `md5sum` and `sha1sum` write them (so that `md5sum -c` or `sha1sum -c` reads them in the folder the archive is extracted to). */
   private saveChecksums(): void {
     let text = '';
     const walk = (node: FsNode): void => {
@@ -644,7 +682,7 @@ export class FilesView {
       node.children.forEach(walk);
     };
     if (this.root) walk(this.root);
-    if (text) this.handlers.download(`${ALGORITHM}sums.txt`, text);
+    if (text) this.handlers.download(`checksums.${this.algorithm ?? 'md5'}`, text);
   }
 
   private rowOf(target: EventTarget | null): Row | null {
