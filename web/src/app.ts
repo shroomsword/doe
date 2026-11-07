@@ -22,6 +22,7 @@ import { TreeView } from './tree.js';
 import { type Layout, type Mode, type PaneName, type Sizes, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, moved, saveLayout, shown, swapped, withSizes, withVisible } from './layout.js';
 import { Splitters } from './resize.js';
 import { PaneDrag } from './drag.js';
+import { buildByteKinds } from './kinds.js';
 import { ALGORITHMS, FilesView, cycleAlgorithm } from './files.js';
 import { highlightStyle } from './highlight.js';
 import type { FsEntry, Listing } from './doe.js';
@@ -1196,6 +1197,12 @@ export class App {
     const dialog = element<HTMLDialogElement>('columns-dialog');
     const input = element<HTMLInputElement>('columns-input');
     element('columns-button').addEventListener('click', () => this.openColumns());
+    element('byte-colours').addEventListener('click', () => this.toggleByteColours());
+    try {
+      if (localStorage.getItem('doe.byte-colours') === 'off') this.toggleByteColours(false);
+    } catch {
+      // the colours are on
+    }
     element('columns-close').addEventListener('click', () => dialog.close());
     element('columns-cancel').addEventListener('click', () => dialog.close());
     element('columns-reset').addEventListener('click', () => {
@@ -1233,6 +1240,31 @@ export class App {
       input.removeAttribute('aria-invalid');
       element('columns-error').hidden = true;
     });
+  }
+
+  /** The index of which field owns each byte is made after the tree is shown, so that a big parse is not slowed by it. */
+  private indexByteKinds(trace: TraceNode | null): void {
+    const token = ++this.kindsRun;
+    this.hex.setKinds(null);
+    if (!trace) return;
+    setTimeout(() => {
+      if (token === this.kindsRun) this.hex.setKinds(buildByteKinds(trace));
+    }, 0);
+  }
+
+  private kindsRun = 0;
+
+  /** The key b and the button of the Bytes pane: colour the bytes by the fields they belong to, or not. Remembered. */
+  private toggleByteColours(on?: boolean): void {
+    const next = on ?? element('byte-colours').getAttribute('aria-pressed') !== 'true';
+    element('byte-colours').setAttribute('aria-pressed', String(next));
+    this.hex.setColoured(next);
+    try {
+      if (next) localStorage.removeItem('doe.byte-colours');
+      else localStorage.setItem('doe.byte-colours', 'off');
+    } catch {
+      // for this page only
+    }
   }
 
   private openColumns(): void {
@@ -1424,6 +1456,9 @@ export class App {
         break;
       case 'columns':
         this.openColumns();
+        break;
+      case 'byte-colours':
+        this.toggleByteColours();
         break;
       case 'panes':
         this.panesList();
@@ -1913,6 +1948,7 @@ export class App {
     if (!response.ok || response.error) this.reveal('status');
     this.trace = response.trace;
     this.tree.setTrace(response.trace);
+    this.indexByteKinds(response.trace);
     this.showArchive(response.filesystem);
     // The selection stays on a node that is still there with the same name.
     if (this.selection && this.trace) {

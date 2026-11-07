@@ -9,6 +9,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
 use crate::bytes::FileBytes;
+use crate::kinds::ByteKinds;
 use crate::tree::Row;
 use crate::ui::Theme;
 
@@ -326,7 +327,7 @@ pub fn hex_line(
     theme: &Theme,
 ) -> Line<'static> {
     hex_line_with(
-        offset, data, per_line, digits, selection, cursor, false, None, theme,
+        offset, data, per_line, digits, selection, cursor, false, None, None, theme,
     )
 }
 
@@ -345,8 +346,20 @@ pub fn hex_line_with(
     cursor: Option<u64>,
     by_bits: bool,
     range: Option<(u64, u64)>,
+    kinds: Option<&ByteKinds>,
     theme: &Theme,
 ) -> Line<'static> {
+    // the colour of the field a byte belongs to; the cursor and the range of `v` keep their own styles over it
+    let kind_style = |index: usize, here: Cover| -> Style {
+        let at = offset + index as u64;
+        let kind = kinds.and_then(|k| k.kind_at(at));
+        let special =
+            cursor == Some(at) || range.is_some_and(|(first, last)| (first..=last).contains(&at));
+        match kind {
+            Some(kind) if !special => theme.byte_kind(kind, here),
+            _ => Style::default(),
+        }
+    };
     let cover = |index: usize| -> Cover {
         let at = offset + index as u64;
         selection.map_or(Cover::No, |s| s.cover(at))
@@ -360,7 +373,7 @@ pub fn hex_line_with(
         let at = offset + index as u64;
         let here = cover(index);
         let on_cursor = cursor == Some(at) && byte.is_some();
-        let mut style = byte_style(here, on_cursor, *theme);
+        let mut style = byte_style(here, on_cursor, *theme).patch(kind_style(index, here));
         if range.is_some_and(|(first, last)| (first..=last).contains(&at)) && byte.is_some() {
             style = style.patch(theme.hex_range());
         }
@@ -389,7 +402,8 @@ pub fn hex_line_with(
         match data.get(index) {
             Some(&b) => {
                 let at = offset + index as u64;
-                let mut style = byte_style(cover(index), cursor == Some(at), *theme);
+                let mut style = byte_style(cover(index), cursor == Some(at), *theme)
+                    .patch(kind_style(index, cover(index)));
                 if range.is_some_and(|(first, last)| (first..=last).contains(&at)) {
                     style = style.patch(theme.hex_range());
                 }
@@ -402,6 +416,10 @@ pub fn hex_line_with(
 }
 
 /// Draw the lines that are in `area`, reading only their bytes from `bytes`.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the parts of one pane; grouping them would only move them"
+)]
 pub fn render(
     frame: &mut Frame<'_>,
     area: Rect,
@@ -409,6 +427,7 @@ pub fn render(
     state: &mut HexState,
     selected: Option<&Row>,
     focused: bool,
+    kinds: Option<&ByteKinds>,
     theme: &Theme,
 ) {
     let size = bytes.size();
@@ -440,6 +459,7 @@ pub fn render(
             focused.then_some(state.cursor),
             state.bit.is_some(),
             state.selected_range(),
+            kinds,
             theme,
         ));
     }
@@ -526,7 +546,18 @@ mod tests {
     ) -> Buffer {
         let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
         terminal
-            .draw(|f| render(f, f.area(), bytes, state, row, focused, &Theme::new(false)))
+            .draw(|f| {
+                render(
+                    f,
+                    f.area(),
+                    bytes,
+                    state,
+                    row,
+                    focused,
+                    None,
+                    &Theme::new(false),
+                );
+            })
             .unwrap();
         terminal.backend().buffer().clone()
     }

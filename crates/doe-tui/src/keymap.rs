@@ -23,6 +23,8 @@ pub enum Action {
     CopyChecksum,
     /// Files: preview the selected file, as text with its syntax coloured.
     Preview,
+    /// Colour the bytes by the field they belong to, or not.
+    ByteColours,
     /// Show the help.
     Help,
     /// Show or hide the message about a parse that failed.
@@ -200,6 +202,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::Files,
         help: "switch the tree between the fields and the files of an archive (when the schema says it is a file system)",
+    },
+    Binding {
+        keys: &[ch('B')],
+        scope: Scope::Anywhere,
+        action: Action::ByteColours,
+        help: "colour the bytes by the field they belong to, in the colour of its value in the tree, or not (the selection is as it was)",
     },
     Binding {
         keys: &[ch('/')],

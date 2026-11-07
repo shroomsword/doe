@@ -148,6 +148,10 @@ pub struct App {
     files_followed: Vec<usize>,
     /// The preview of a file of the archive, while it is open.
     pub preview: Option<Preview>,
+    /// Which kind of value owns each byte, for the colours of the bytes pane; made when the bytes are first drawn.
+    pub byte_kinds: Option<crate::kinds::ByteKinds>,
+    /// Whether the bytes are coloured by the fields they belong to (`B`).
+    pub byte_colours: bool,
     /// Whether the Markdown entries that are previewed are shown rendered (kept while the viewer is open).
     pub markdown_rendered: bool,
     /// Where the tree pane is scrolled to.
@@ -295,6 +299,8 @@ impl App {
             files_wanted: true,
             files_followed: Vec::new(),
             preview: None,
+            byte_kinds: Some(loaded.byte_kinds),
+            byte_colours: true,
             markdown_rendered: false,
             tree: TreeModel::new(loaded.trace, loaded.value),
             view: TreeView::new(),
@@ -368,6 +374,8 @@ impl App {
             files_wanted: true,
             files_followed: Vec::new(),
             preview: None,
+            byte_kinds: None,
+            byte_colours: true,
             markdown_rendered: false,
             view: TreeView::new(),
             quit: false,
@@ -418,6 +426,8 @@ impl App {
             files_wanted: true,
             files_followed: Vec::new(),
             preview: None,
+            byte_kinds: None,
+            byte_colours: true,
             markdown_rendered: false,
             view: TreeView::new(),
             quit: false,
@@ -443,6 +453,7 @@ impl App {
                 self.loading = false;
                 self.loading_since = None;
                 self.tree = broken.tree;
+                self.byte_kinds = None;
                 self.type_name = broken.type_name;
                 self.size = broken.size;
                 self.error = None;
@@ -517,6 +528,7 @@ impl App {
             tree.take_state_of(&self.tree);
         }
         self.tree = tree;
+        self.byte_kinds = fresh.byte_kinds;
         let algorithm = self.files.as_ref().and_then(|f| f.algorithm);
         self.files = fresh.files;
         // the column stays on across a reload, with the checksums made again from the file as it is now
@@ -1268,6 +1280,14 @@ impl App {
             }
             Action::ToggleInspector => self.inspector = !self.inspector,
             Action::Files => self.toggle_files(),
+            Action::ByteColours => {
+                self.byte_colours = !self.byte_colours;
+                self.notice = Some(if self.byte_colours {
+                    "the bytes are coloured by the field they belong to (B turns it off)".to_owned()
+                } else {
+                    "the bytes are not coloured (B turns it on)".to_owned()
+                });
+            }
             Action::Help => {
                 self.help_view.reset();
                 self.help = true;

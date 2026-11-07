@@ -27,6 +27,7 @@ pub mod hex_view;
 pub mod highlight;
 pub mod inspect;
 pub mod keymap;
+pub mod kinds;
 pub mod languages;
 pub mod load;
 pub mod markdown;

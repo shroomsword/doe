@@ -572,3 +572,41 @@ impl Palette {
         }
     }
 }
+
+/// The relative luminance of a colour (WCAG), when it is 24-bit.
+fn luminance(color: Color) -> Option<f64> {
+    let Color::Rgb(r, g, b) = color else {
+        return None;
+    };
+    let channel = |v: u8| {
+        let v = f64::from(v) / 255.0;
+        if v <= 0.039_28 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    Some(0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b))
+}
+
+/// The contrast ratio of two 24-bit colours (WCAG, 1 to 21); None when one of them is not 24-bit.
+#[must_use]
+pub fn contrast(a: Color, b: Color) -> Option<f64> {
+    let (la, lb) = (luminance(a)?, luminance(b)?);
+    let (bright, dark) = if la > lb { (la, lb) } else { (lb, la) };
+    Some((bright + 0.05) / (dark + 0.05))
+}
+
+/// The smallest contrast the coloured bytes keep on the selection.
+pub const SELECTED_CONTRAST: f64 = 3.0;
+
+/// The colour to draw a byte of that colour in on a background: the colour itself when it is readable there, else the text
+/// colour of the theme (a colour the theme has, so the viewer still draws with the colours of its theme and no others). In a
+/// terminal with 256 or 16 colours the colours are not 24-bit and cannot be measured, so the colour is used as it is.
+#[must_use]
+pub fn readable_on(color: Color, background: Color, text: Color) -> Color {
+    match contrast(color, background) {
+        Some(ratio) if ratio < SELECTED_CONTRAST => text,
+        _ => color,
+    }
+}

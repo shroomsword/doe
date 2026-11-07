@@ -1230,6 +1230,7 @@ the editor for its pane, closes a dialog and closes a search.
 | `a` | Turn automatic detection on or off |
 | `r` | Change how integers are shown (decimal, hexadecimal, binary, octal) |
 | `c` | Set the number of columns of the Bytes pane |
+| `b` | Colour the bytes of the Bytes pane by the field they belong to, or not |
 | `C` | Cancel the parse that is running |
 | `1` | Focus the Schema pane |
 | `2` | Focus the Parsed pane (shows it if it is closed) |
@@ -1327,6 +1328,17 @@ file with a **Copy** button, and **Save checksums** writes `checksums.md5`, `che
 `sha1sum` and `sha256sum` (`<digits>  <path>`, two spaces, one line for each file in the order of the archive), which `md5sum -c
 checksums.md5`, `sha1sum -c checksums.sha1` or `sha256sum -c checksums.sha256` checks in the folder the archive is extracted to; an entry that cannot be
 placed safely is left out of it, and so is a file with no checksum; the status line says how many files the list does not have. `S` puts the same list on the clipboard.
+
+**Colours of the Bytes pane.** Every byte that belongs to a leaf field is drawn, in the hex and in the character column, in the
+colour that field's value has in the Parsed pane: a number, a string, a run of bytes, an enum, a boolean (a struct or an array
+has the colours of its fields, and a gap between fields, a field with no kind of its own such as a float, and a byte after the
+last field keep the plain colour). The pane reads as a map of the file. The selection is as it was: the selected field's
+bytes keep the selection background (the lighter one with the dotted underline for the bytes that a bit field shares),
+and over it the text keeps the colour of its kind, or, in a theme where that colour is hard to read on the selection (a
+contrast under 3:1), the theme's text colour. A byte that two fields hold takes
+the colour of the one of the sequence, then of an instance, like the next-field keys of the terminal viewer. `b`, or the
+button at the left of the columns button in the title bar of the Bytes pane, turns the colours off and on; it is kept in the
+browser's local storage. The index of which field owns which byte is made after the tree is shown.
 
 **Columns of the Bytes pane.** `c`, or the columns button (an icon of a rectangle in three bands) in the title bar
 of the Bytes pane, opens a dialog in which the number of columns is entered: a column is one byte, so the number is the
@@ -1607,6 +1619,15 @@ line says how many, and `.` and `,` go to the next and the previous of them. Onl
 the instances of the types on the way to the field are looked at, so a key press
 never looks through the whole tree; an instance inside a type that is somewhere
 else in the file is found from the tree, not from its bytes.
+
+Each byte of the bytes pane is drawn in the colour of the field it belongs to, the colour that field's value has in the tree
+(yellow numbers, green strings, red runs of bytes, magenta enums, cyan booleans with the terminal's own colours; the theme's
+with a theme), so that the pane reads as a map of the file; `B` turns the colours off and on. The selection is as it was:
+with a theme (24-bit colour) the selected bytes keep the selection background and a colour of their kind that is readable
+on it (the theme's text colour when the colour has a contrast under 3:1 there); with the terminal's own colours the
+selected bytes are drawn as they always were. The cursor byte and the range of `v` keep their styles over the colours. A
+struct, an array, a gap and a field with no kind (a float) have the plain colour. The index of which field owns each byte is made
+once for a parse, with the parse (in its thread, so the first screen does not wait for it); with `NO_COLOR` nothing is coloured.
 
 `v` starts a **selection** of bytes at the cursor, and moving the cursor extends
 it in either direction (the bytes are drawn reversed and in italics, and the
