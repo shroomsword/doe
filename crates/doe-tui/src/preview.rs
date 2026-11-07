@@ -49,6 +49,14 @@ pub struct Preview {
     pub top: usize,
     /// How many lines the last drawing had room for (set by the drawing).
     pub rows: usize,
+    /// Whether a Markdown entry is shown rendered and not as its source (`r`, or `v`).
+    pub rendered: bool,
+    /// How many lines the rendering has at the width of the last drawing (set by the drawing).
+    pub rendered_lines: usize,
+    /// The rendered document, made the first time it is wanted.
+    pub document: Option<crate::markdown::Doc>,
+    /// The lines of the document at the width they were last laid out for (a resize lays them out again).
+    layout: Option<(usize, Vec<crate::markdown::Line>)>,
 }
 
 impl Preview {
@@ -93,6 +101,10 @@ impl Preview {
             cut,
             top: 0,
             rows: 1,
+            rendered: false,
+            rendered_lines: 0,
+            document: None,
+            layout: None,
         })
     }
 
@@ -105,9 +117,44 @@ impl Preview {
             .unwrap_or("plain")
     }
 
+    /// Whether the entry is Markdown, which has a rendered view.
+    #[must_use]
+    pub fn is_markdown(&self) -> bool {
+        self.language == Some("markdown")
+    }
+
+    /// The rendered document of a Markdown entry (made the first time).
+    pub fn document(&mut self) -> &crate::markdown::Doc {
+        let lines = &self.lines;
+        self.document.get_or_insert_with(|| {
+            // the text as it was made safe, without the mark of a cut
+            let text = lines.join(
+                "
+",
+            );
+            crate::markdown::parse(&text)
+        })
+    }
+
+    /// The lines of the rendered document for a pane `width` cells wide.
+    pub fn rendered_layout(&mut self, width: usize) -> &[crate::markdown::Line] {
+        if self.layout.as_ref().is_none_or(|(w, _)| *w != width) {
+            let lines = crate::markdown::layout(self.document(), width);
+            self.layout = Some((width, lines));
+        }
+        self.layout
+            .as_ref()
+            .map_or(&[], |(_, lines)| lines.as_slice())
+    }
+
     /// The largest `top`: the last line at the bottom.
     fn last_top(&self) -> usize {
-        self.lines.len().saturating_sub(self.rows.max(1))
+        let lines = if self.rendered {
+            self.rendered_lines
+        } else {
+            self.lines.len()
+        };
+        lines.saturating_sub(self.rows.max(1))
     }
 
     /// A key while the preview is open.
@@ -120,6 +167,11 @@ impl Preview {
                 return Outcome::Close;
             }
             KeyCode::Char('s') => return Outcome::Save,
+            // the other view of a Markdown entry (`v` too, the key of the web IDE)
+            KeyCode::Char('r' | 'v') if self.is_markdown() => {
+                self.rendered = !self.rendered;
+                self.top = 0;
+            }
             KeyCode::Up | KeyCode::Char('k') => self.top = self.top.saturating_sub(1),
             KeyCode::Down | KeyCode::Char('j') => self.top = (self.top + 1).min(last),
             KeyCode::PageUp => self.top = self.top.saturating_sub(page),
@@ -153,7 +205,7 @@ fn text_of(bytes: &[u8], cut: bool) -> Option<&str> {
 
 /// A line made to be drawn: tabs to the next multiple of four columns, a long line cut, and no character that would
 /// act on the terminal.
-fn shown(line: &str) -> String {
+pub(crate) fn shown(line: &str) -> String {
     let mut out = String::new();
     let mut column = 0;
     for c in line.chars() {

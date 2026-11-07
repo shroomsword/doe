@@ -15,6 +15,7 @@ use crate::hex_view;
 use crate::highlight::Kind;
 use crate::inspect;
 use crate::keymap;
+use crate::markdown::Style as MarkdownStyle;
 use crate::preview::Preview;
 use crate::report::Report;
 use crate::schemas::{self, Pager, Row as SchemaRow, SchemaList};
@@ -239,6 +240,25 @@ impl Theme {
             Token::Function => self.pick(|p| p.accent, Color::Cyan),
             Token::Constant => self.pick(|p| p.boolean, Color::Cyan),
             Token::Invalid => self.pick(|p| p.error, Color::Red),
+        }
+    }
+
+    /// A piece of a rendered Markdown entry: the theme's colours, with bold, italic and underline for what Markdown marks.
+    #[must_use]
+    pub fn markdown(self, style: MarkdownStyle) -> Style {
+        match style {
+            MarkdownStyle::Plain => Style::default(),
+            MarkdownStyle::Strong => Style::default().add_modifier(Modifier::BOLD),
+            MarkdownStyle::Emphasis => Style::default().add_modifier(Modifier::ITALIC),
+            MarkdownStyle::Strike => Style::default().add_modifier(Modifier::CROSSED_OUT),
+            MarkdownStyle::Code => self.pick(|p| p.string, Color::Green),
+            MarkdownStyle::Heading(1) => self.title().add_modifier(Modifier::UNDERLINED),
+            MarkdownStyle::Heading(_) => self.title(),
+            MarkdownStyle::Link => self
+                .pick(|p| p.type_, Color::Blue)
+                .add_modifier(Modifier::UNDERLINED),
+            MarkdownStyle::Dim => self.dim(),
+            MarkdownStyle::Token(token) => self.code(token),
         }
     }
 
@@ -1146,18 +1166,49 @@ fn preview_overlay(frame: &mut Frame<'_>, preview: &mut Preview, theme: Theme) {
         format::truncate(&format::safe(&preview.path), usize::from(area.width / 2)),
         preview.language_name()
     );
+    let title = if preview.rendered && preview.is_markdown() {
+        format!("{} (rendered) ", title.trim_end())
+    } else {
+        title
+    };
+    let hint = if preview.is_markdown() {
+        " ↑↓ PgUp PgDn Home End scroll · r source/rendered · s saves the entry · Esc goes back (read-only) "
+    } else {
+        " ↑↓ PgUp PgDn Home End scroll · s saves the entry · Esc goes back (read-only) "
+    };
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(theme.border(true))
         .title(Span::styled(title, theme.title()))
-        .title_bottom(Line::from(Span::styled(
-            " ↑↓ PgUp PgDn Home End scroll · s saves the entry · Esc goes back (read-only) ",
-            theme.dim(),
-        )));
+        .title_bottom(Line::from(Span::styled(hint, theme.dim())));
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let rows = usize::from(inner.height);
     preview.rows = rows;
+    if preview.rendered && preview.is_markdown() {
+        // the rendered document, laid out for the width of the pane (a resize lays it out again)
+        let width = usize::from(inner.width);
+        let laid = preview.rendered_layout(width).to_vec();
+        preview.rendered_lines = laid.len();
+        preview.top = preview.top.min(laid.len().saturating_sub(rows.max(1)));
+        let lines: Vec<Line<'static>> = laid
+            .iter()
+            .skip(preview.top)
+            .take(rows)
+            .map(|line| {
+                Line::from(
+                    line.iter()
+                        .map(|piece| Span::styled(piece.text.clone(), theme.markdown(piece.style)))
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect();
+        frame.render_widget(Paragraph::new(lines), inner);
+        return;
+    }
+    preview.top = preview
+        .top
+        .min(preview.lines.len().saturating_sub(rows.max(1)));
     preview.top = preview
         .top
         .min(preview.lines.len().saturating_sub(rows.max(1)));

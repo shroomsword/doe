@@ -1333,6 +1333,9 @@ export class App {
       case 'checksums-back':
         this.cycleChecksum(-1);
         break;
+      case 'markdown-view':
+        if (!this.archive.toggleMarkdownView()) element('status').textContent = 'the selected file is not Markdown';
+        break;
       case 'copy-checksums':
         this.archive.copyChecksums().then(
           (said) => {

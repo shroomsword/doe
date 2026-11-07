@@ -5,7 +5,8 @@
 import type { HighlightStyle } from '@codemirror/language';
 import type { FsEntry, FsKind, Listing } from './doe.js';
 import { drawHighlighted } from './highlight.js';
-import { detectLanguage, LANGUAGES, loadParser } from './languages.js';
+import { detectLanguage, languageOfFence, LANGUAGES, loadParser } from './languages.js';
+import { renderMarkdown } from './markdown.js';
 import type { Path } from './model.js';
 
 export interface FsNode {
@@ -248,6 +249,10 @@ export class FilesView {
   private readonly hashBar: HTMLElement;
   private readonly hashSave: HTMLButtonElement;
   private readonly hashHead: HTMLElement;
+  private readonly viewGroup: HTMLElement;
+  private readonly rendered: HTMLElement;
+  /** How a Markdown entry is shown: its (highlighted) source, or rendered. Kept for the session. */
+  private markdownView: 'source' | 'rendered' = 'source';
   /** Whether the list is too narrow for the whole of a long digest in its row (a pane the size of a phone's, a small window). */
   private compact = false;
   /** The algorithm of the checksum column, or null when the column is off. */
@@ -288,6 +293,17 @@ export class FilesView {
     this.hashBar = parent.querySelector<HTMLElement>('#files-hash-bar') ?? document.createElement('div');
     this.hashSave = parent.querySelector<HTMLButtonElement>('#files-hash-save') ?? document.createElement('button');
     this.hashHead = parent.querySelector<HTMLElement>('#files-hash-head') ?? document.createElement('span');
+    this.viewGroup = parent.querySelector<HTMLElement>('#files-view') ?? document.createElement('span');
+    this.rendered = parent.querySelector<HTMLElement>('#files-preview-rendered') ?? document.createElement('div');
+    try {
+      if (sessionStorage.getItem('doe.markdown') === 'rendered') this.markdownView = 'rendered';
+    } catch {
+      // the choice is for this page only
+    }
+    this.viewGroup.addEventListener('click', (event) => {
+      const view = (event.target as HTMLElement).closest<HTMLElement>('button')?.dataset.view;
+      if (view === 'source' || view === 'rendered') this.setMarkdownView(view);
+    });
     this.hashCopy.addEventListener('click', () => {
       const digest = this.hashValue.dataset.digest ?? '';
       if (digest) void navigator.clipboard?.writeText(digest).catch(() => undefined);
@@ -477,6 +493,10 @@ export class FilesView {
     this.hashCopy.hidden = true;
     this.drawn += 1;
     this.previewText.textContent = '';
+    this.previewText.hidden = false;
+    this.rendered.hidden = true;
+    this.rendered.replaceChildren();
+    this.viewGroup.hidden = true;
     delete this.previewText.dataset.language;
     if (!node || !entry) return;
     this.previewName.textContent = `${node.path.join('/')}${entry.link ? ` -> ${entry.link}` : ''}`;
@@ -509,6 +529,30 @@ export class FilesView {
     const id = wanted === '' ? guess : wanted === 'plain' ? null : wanted;
     this.previewText.textContent = shown;
     this.previewText.dataset.language = id ?? 'plain';
+    // a Markdown entry can be read rendered, as well as highlighted
+    if (id === 'markdown') {
+      this.viewGroup.hidden = false;
+      for (const button of this.viewGroup.querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.view === this.markdownView));
+      if (this.markdownView === 'rendered') {
+        this.previewText.hidden = true;
+        this.rendered.hidden = false;
+        const mine = ++this.drawn;
+        const style = this.style;
+        renderMarkdown(shown, this.rendered, {
+          languageOf: languageOfFence,
+          highlight: (target, code, language) => {
+            if (!style) return;
+            loadParser(language).then(
+              (parser) => {
+                if (mine === this.drawn) drawHighlighted(target, code, style, parser);
+              },
+              () => undefined,
+            );
+          },
+        });
+        return;
+      }
+    }
     if (id === null || !this.style) return;
     // the parser comes in its own chunk the first time: the text is on the page (plain) meanwhile
     const mine = ++this.drawn;
@@ -531,6 +575,25 @@ export class FilesView {
     this.language.replaceChildren(...options);
     this.language.value = this.chosen?.entry === this.selected ? this.chosen.language : '';
     this.language.hidden = false;
+  }
+
+  /** Show Markdown entries as their source or rendered (the switch of the preview bar, and the key v). */
+  setMarkdownView(view: 'source' | 'rendered'): void {
+    if (view === this.markdownView) return;
+    this.markdownView = view;
+    try {
+      sessionStorage.setItem('doe.markdown', view);
+    } catch {
+      // for this page only
+    }
+    this.showPreview();
+  }
+
+  /** The key v: the other view of a Markdown entry. False when the entry that is shown is not Markdown. */
+  toggleMarkdownView(): boolean {
+    if (this.viewGroup.hidden) return false;
+    this.setMarkdownView(this.markdownView === 'rendered' ? 'source' : 'rendered');
+    return true;
   }
 
   /** The colours of the preview: those of a theme. */

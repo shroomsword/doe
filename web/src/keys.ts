@@ -19,6 +19,7 @@ export type Action =
   | 'checksums'
   | 'checksums-back'
   | 'copy-checksums'
+  | 'markdown-view'
   | 'next-pane'
   | 'previous-pane'
   | 'pane-left'
@@ -69,6 +70,7 @@ export const KEYS: readonly Key[] = [
   { key: 'm', action: 'checksums', label: 'Show the MD5 of each file in the Files view, then the SHA-1, then the SHA-256, then hide them', needs: 'filesystem' },
   { key: 'M', action: 'checksums-back', label: 'The previous checksum of the Files view (SHA-256, SHA-1, MD5, none)', needs: 'filesystem' },
   { key: 'S', action: 'copy-checksums', label: 'Copy the list of checksums of the Files view, in the format of md5sum -c', needs: 'filesystem' },
+  { key: 'v', action: 'markdown-view', label: 'Show a Markdown file of the Files view rendered, or as its source', needs: 'filesystem' },
   { key: 'Tab', action: 'next-pane', label: 'Next pane (from a pane, not from a button or a field)' },
   { key: 'Shift+Tab', action: 'previous-pane', label: 'Previous pane' },
   { key: 'h', action: 'pane-left', label: 'Focus the pane on the left' },

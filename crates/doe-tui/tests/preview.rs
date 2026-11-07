@@ -344,3 +344,191 @@ fn p_without_a_file_selected_or_without_files_says_so() {
         app.notice
     );
 }
+
+const README: &str = "# Title
+
+Some *emphasis* and **strong** words and a [link](https://example.test/a) that is long enough to wrap in a narrow pane of the viewer.
+
+- one
+  - nested
+- [x] done
+
+> quoted
+
+| a | b |
+|---|---|
+| 1 | 2 |
+
+```rust
+fn main() { let n = 42; }
+```
+";
+
+#[test]
+fn r_renders_a_markdown_entry_and_back_and_the_choice_is_kept_for_the_next_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = app_of(
+        dir.path(),
+        &[
+            ("README.md", README.as_bytes()),
+            (
+                "other.md",
+                b"# Other
+",
+            ),
+            ("main.rs", RUST.as_bytes()),
+        ],
+    );
+    select(&mut app, "README.md");
+    press(&mut app, KeyCode::Enter);
+    // the source first, highlighted, with line numbers
+    let lines = rows(&draw_buffer(&mut app, true, 100, 30)).join(
+        "
+",
+    );
+    assert!(
+        lines.contains("README.md · Markdown") && lines.contains("1 │ # Title"),
+        "{lines}"
+    );
+    assert!(lines.contains("r source/rendered"), "{lines}");
+    key(&mut app, 'r');
+    let buffer = draw_buffer(&mut app, true, 100, 30);
+    let lines = rows(&buffer).join(
+        "
+",
+    );
+    assert!(lines.contains("(rendered)"), "{lines}");
+    // no source marks: the heading without its #, the bullets, the table box, the quote bar and the link target
+    assert!(
+        lines.contains("Title") && !lines.contains("# Title"),
+        "{lines}"
+    );
+    assert!(
+        lines.contains("• one") && lines.contains("  • nested") && lines.contains("☑ done"),
+        "{lines}"
+    );
+    assert!(
+        lines.contains("│ quoted") && lines.contains("│ a │ b │"),
+        "{lines}"
+    );
+    assert!(lines.contains("link <https://example.test/a>"), "{lines}");
+    assert!(
+        !lines.contains("**strong**") && !lines.contains("*emphasis*"),
+        "{lines}"
+    );
+    // the code block is coloured by its fence (with the terminal's own 16 colours), and the heading has its style
+    assert_ne!(colour_of(&buffer, "fn"), Color::Reset);
+    assert_ne!(colour_of(&buffer, "42"), Color::Reset);
+    assert_ne!(colour_of(&buffer, "Title"), Color::Reset);
+    // with no colour the text is the same and nothing is coloured
+    let plain = draw_buffer(&mut app, false, 100, 30);
+    assert_eq!(colour_of(&plain, "42"), Color::Reset);
+    // r again: the source
+    key(&mut app, 'r');
+    assert!(
+        rows(&draw_buffer(&mut app, true, 100, 30))
+            .join(
+                "
+"
+            )
+            .contains("1 │ # Title")
+    );
+    // v does it too, and the choice is kept for the next Markdown entry, not for a file that is not Markdown
+    key(&mut app, 'v');
+    press(&mut app, KeyCode::Esc);
+    select(&mut app, "other.md");
+    press(&mut app, KeyCode::Enter);
+    assert!(app.preview.as_ref().unwrap().rendered);
+    assert!(
+        rows(&draw_buffer(&mut app, true, 100, 30))
+            .join(
+                "
+"
+            )
+            .contains("(rendered)")
+    );
+    press(&mut app, KeyCode::Esc);
+    select(&mut app, "main.rs");
+    press(&mut app, KeyCode::Enter);
+    assert!(!app.preview.as_ref().unwrap().rendered);
+    // r on a file that is not Markdown does nothing
+    key(&mut app, 'r');
+    assert!(!app.preview.as_ref().unwrap().rendered);
+}
+
+#[test]
+fn the_rendering_wraps_again_when_the_terminal_is_resized_and_scrolls_within_its_own_lines() {
+    let dir = tempfile::tempdir().unwrap();
+    let words: String = (0..80).map(|i| format!("word{i} ")).collect();
+    let text = format!(
+        "# H
+
+{words}
+"
+    );
+    let mut app = app_of(dir.path(), &[("a.md", text.as_bytes())]);
+    select(&mut app, "a.md");
+    press(&mut app, KeyCode::Enter);
+    key(&mut app, 'r');
+    let wide = rows(&draw_buffer(&mut app, false, 120, 12));
+    let narrow = rows(&draw_buffer(&mut app, false, 40, 12));
+    let longest = |lines: &[String]| lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
+    assert!(longest(&narrow) <= 40, "{narrow:#?}");
+    // the same words, on more lines: the last word is not on the first screen of the narrow one
+    assert!(
+        rows(&draw_buffer(&mut app, false, 120, 12))
+            .join(
+                "
+"
+            )
+            .contains("word79"),
+        "{wide:#?}"
+    );
+    assert!(
+        !narrow
+            .join(
+                "
+"
+            )
+            .contains("word79"),
+        "{narrow:#?}"
+    );
+    // End goes to the last line of the rendering, whatever the width
+    let _ = draw_buffer(&mut app, false, 40, 12);
+    press(&mut app, KeyCode::End);
+    let end = rows(&draw_buffer(&mut app, false, 40, 12)).join(
+        "
+",
+    );
+    assert!(end.contains("word79"), "{end}");
+    // and back to the source, from the top
+    key(&mut app, 'r');
+    assert_eq!(app.preview.as_ref().unwrap().top, 0);
+}
+
+#[test]
+fn raw_html_in_a_markdown_entry_is_text_in_the_rendering() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = app_of(
+        dir.path(),
+        &[(
+            "evil.md",
+            b"<script>alert(1)</script>
+
+[click](javascript:alert(4)) ![p](https://evil.test/p.png)
+",
+        )],
+    );
+    select(&mut app, "evil.md");
+    press(&mut app, KeyCode::Enter);
+    key(&mut app, 'r');
+    let lines = rows(&draw_buffer(&mut app, false, 100, 12)).join(
+        "
+",
+    );
+    assert!(lines.contains("<script>alert(1)</script>"), "{lines}");
+    assert!(
+        lines.contains("click <javascript:alert(4)>") && lines.contains("[image: p]"),
+        "{lines}"
+    );
+}

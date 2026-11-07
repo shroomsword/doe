@@ -29,6 +29,7 @@ pub mod inspect;
 pub mod keymap;
 pub mod languages;
 pub mod load;
+pub mod markdown;
 pub mod preview;
 pub mod prompt;
 pub mod radixes;

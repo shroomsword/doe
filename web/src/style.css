@@ -336,6 +336,32 @@ body.pane-dragging, body.pane-dragging * { cursor: grabbing !important; user-sel
 #files-preview { border-top: 1px solid var(--line); max-height: 40%; display: flex; flex-direction: column; min-height: 3rem; }
 .files-preview-bar { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 2px 8px; font-size: .85em; }
 .files-preview-bar strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#files-view { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+#files-view[hidden] { display: none; }
+#files-view button { border: 0; border-radius: 0; font-size: 12px; padding: 0 8px; background: none; color: var(--fg); cursor: pointer; }
+#files-view button[aria-pressed="true"] { background: var(--select); font-weight: 600; }
+#files-preview-rendered { margin: 0; padding: 4px 12px; overflow: auto; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+#files-preview-rendered[hidden] { display: none; }
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { margin: .8em 0 .3em; line-height: 1.25; color: var(--accent); }
+.md h1 { font-size: 1.5em; border-bottom: 1px solid var(--line); } .md h2 { font-size: 1.3em; border-bottom: 1px solid var(--line); } .md h3 { font-size: 1.15em; }
+.md h4, .md h5, .md h6 { font-size: 1em; }
+.md p { margin: .4em 0; }
+.md ul, .md ol { margin: .3em 0; padding-left: 1.6em; }
+.md li > p { margin: 0; }
+.md blockquote { margin: .4em 0; padding: 0 .8em; border-left: 3px solid var(--line); color: var(--muted); }
+.md hr { border: 0; border-top: 1px solid var(--line); margin: .8em 0; }
+.md .md-code, .md .md-pre { font-family: var(--mono); font-size: 12px; background: var(--panel); border-radius: 3px; }
+.md .md-code { padding: 0 .3em; }
+.md .md-pre { margin: .5em 0; padding: 6px 8px; overflow: auto; white-space: pre; }
+.md .md-pre code { font-family: inherit; }
+.md .md-html { color: var(--muted); }
+.md .md-link { color: var(--accent); text-decoration: underline dotted; cursor: help; }
+.md .md-url, .md .md-image { color: var(--muted); }
+.md .md-task { color: var(--muted); }
+.md .md-note { color: var(--bad); font-style: italic; }
+.md table { border-collapse: collapse; margin: .5em 0; }
+.md th, .md td { border: 1px solid var(--line); padding: 2px 8px; text-align: left; }
+.md th { background: var(--panel); }
 #files-language { font-size: 12px; padding: 0 2px; max-width: 9rem; }
 #files-preview-text { margin: 0; padding: 4px 8px; overflow: auto; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
