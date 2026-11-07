@@ -12,6 +12,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use doe::filesystem::Algorithm;
 use doe_tui::Options;
 use doe_tui::app::App;
 use doe_tui::load::load;
@@ -95,7 +96,7 @@ fn m_adds_a_column_of_md5s_that_fill_in_and_m_takes_it_away() {
     let before = screen(&mut app);
     assert!(!row_of(&before, "data.bin").contains("c56bd5480f6e5413cb62a0ad9666613a"));
     key(&mut app, 'm');
-    assert!(app.files.as_ref().unwrap().show_checksums);
+    assert!(app.files.as_ref().unwrap().algorithm.is_some());
     assert!(
         app.notice
             .as_deref()
@@ -118,7 +119,7 @@ fn m_adds_a_column_of_md5s_that_fill_in_and_m_takes_it_away() {
     // the directory has none
     let docs = row_of(&lines, "▾ d docs");
     assert!(!docs.contains('…') && !docs.contains('—'), "{docs}");
-    key(&mut app, 'm');
+    key(&mut app, 'M');
     let after = screen(&mut app);
     assert!(!row_of(&after, "data.bin").contains("c56bd5"));
 }
@@ -207,7 +208,7 @@ fn the_fields_view_says_where_the_checksums_are() {
         "{:?}",
         app.notice
     );
-    assert!(!app.files.as_ref().unwrap().show_checksums);
+    assert!(app.files.as_ref().unwrap().algorithm.is_none());
 }
 
 #[test]
@@ -235,4 +236,60 @@ fn in_a_narrow_pane_the_time_and_the_mode_go_before_the_name_does() {
         "{hello}"
     );
     assert!(!hello.contains("-rw-r--r--"), "{hello}");
+}
+
+#[test]
+fn m_goes_from_md5_to_sha1_to_off_and_m_shifted_goes_back_with_the_digests_of_each_kept() {
+    let mut app = sample("tar", "sample.tar");
+    let algorithm = |app: &App| app.files.as_ref().unwrap().algorithm;
+    key(&mut app, 'm');
+    assert_eq!(algorithm(&app), Some(Algorithm::Md5));
+    finish(&mut app);
+    press(&mut app, KeyCode::Right);
+    // 40 digits for SHA-1, named in the hint and the status line
+    key(&mut app, 'm');
+    assert_eq!(algorithm(&app), Some(Algorithm::Sha1));
+    assert!(
+        app.notice
+            .as_deref()
+            .unwrap()
+            .contains("SHA-1 of each file"),
+        "{:?}",
+        app.notice
+    );
+    finish(&mut app);
+    let lines = screen(&mut app);
+    let hello = row_of(&lines, "hello.txt");
+    assert!(
+        hello.contains("f572d396fae9206628714fb2ce00f72e94f2258f"),
+        "{hello}"
+    );
+    assert!(!hello.contains("b1946ac9"), "{hello}");
+    assert!(lines.iter().any(|l| l.contains("m SHA-1")), "{lines:#?}");
+    assert!(row_of(&lines, "data.bin").contains("494179714a6cd627239dfededf2de9ef994caf03"));
+    // y copies the SHA-1 of the selected file
+    press(&mut app, KeyCode::Down);
+    key(&mut app, 'y');
+    assert_eq!(
+        app.take_clipboard().as_deref(),
+        Some("f572d396fae9206628714fb2ce00f72e94f2258f")
+    );
+    assert!(
+        app.notice.as_deref().unwrap().contains("copied the SHA-1"),
+        "{:?}",
+        app.notice
+    );
+    // M goes back to MD5, whose digests are kept: nothing is computed again
+    key(&mut app, 'M');
+    assert_eq!(algorithm(&app), Some(Algorithm::Md5));
+    assert!(!app.files.as_ref().unwrap().checksums.running());
+    assert!(row_of(&screen(&mut app), "hello.txt").contains("b1946ac92492d2347c6235b4d2611184"));
+    // and from MD5 back to off, and M from off to SHA-1, m from SHA-1 to off
+    key(&mut app, 'M');
+    assert_eq!(algorithm(&app), None);
+    assert!(!row_of(&screen(&mut app), "hello.txt").contains("b1946"));
+    key(&mut app, 'M');
+    assert_eq!(algorithm(&app), Some(Algorithm::Sha1));
+    key(&mut app, 'm');
+    assert_eq!(algorithm(&app), None);
 }

@@ -19,6 +19,7 @@ use crate::format;
 use crate::theme::compare_names;
 use crate::tree_view::TreeView;
 use crate::ui::Theme;
+use doe::filesystem::Algorithm;
 
 /// How many children of a directory have rows at first, and how many more each time.
 pub const CHUNK: usize = 500;
@@ -75,10 +76,10 @@ pub struct FilesState {
     selected: usize,
     /// Whether the directories come before the files (the default).
     pub directories_first: bool,
-    /// The checksums of the files, made on a thread; the column shows them when [`FilesState::show_checksums`] is on.
+    /// The checksums of the files, made on a thread; the column shows the ones of [`FilesState::algorithm`].
     pub checksums: Checksums,
-    /// Whether the checksum column is shown (`m`).
-    pub show_checksums: bool,
+    /// The algorithm of the checksum column, or None when the column is not shown (`m` and `M` go through them).
+    pub algorithm: Option<Algorithm>,
 }
 
 impl FilesState {
@@ -131,7 +132,7 @@ impl FilesState {
             selected: 0,
             directories_first: true,
             checksums: Checksums::default(),
-            show_checksums: false,
+            algorithm: None,
         };
         state.rebuild();
         state
@@ -247,7 +248,7 @@ impl FilesState {
     #[must_use]
     pub fn selected_checksum(&self) -> Option<String> {
         let range = Self::checksum_range(self.selected_entry()?)?;
-        match self.checksums.get(range)? {
+        match self.checksums.get(self.algorithm?, range)? {
             Digest::Done(digits) => Some(digits.clone()),
             Digest::Failed => None,
         }
@@ -256,9 +257,7 @@ impl FilesState {
     /// Why the selected entry has no checksum, when the column is on and it is a file without one.
     #[must_use]
     pub fn checksum_note(&self) -> Option<String> {
-        if !self.show_checksums {
-            return None;
-        }
+        let algorithm = self.algorithm?;
         let entry = self.selected_entry()?;
         if entry.kind != Kind::File {
             return None;
@@ -271,7 +270,7 @@ impl FilesState {
                 "no checksum: the schema does not give the contents of this entry".to_owned(),
             );
         };
-        matches!(self.checksums.get(range), Some(Digest::Failed))
+        matches!(self.checksums.get(algorithm, range), Some(Digest::Failed))
             .then(|| "no checksum: the bytes could not be read (the file changed?)".to_owned())
     }
 
@@ -550,28 +549,30 @@ fn columns(entry: Option<&Entry>, directory: bool, files: &FilesState, width: us
     };
     let time = entry.mtime.map(time_text).unwrap_or_default();
     let mode = mode_text(entry.mode, entry.kind);
-    if files.show_checksums {
-        let hash = checksum_cell(entry, files);
+    if let Some(algorithm) = files.algorithm {
+        let hash = checksum_cell(entry, files, algorithm);
+        let digits = algorithm.hex_len();
         let room = width.saturating_sub(NAME_ROOM);
-        let full = format!("{size:>9}  {hash:<32}  {mode:<10}  {time}");
+        let full = format!("{size:>9}  {hash:<digits$}  {mode:<10}  {time}");
         if format::width(&full) <= room {
             return full;
         }
-        let without_time = format!("{size:>9}  {hash:<32}  {mode:<10}");
+        let without_time = format!("{size:>9}  {hash:<digits$}  {mode:<10}");
         if format::width(&without_time) <= room {
             return without_time;
         }
-        return format!("{size:>9}  {hash:<32}");
+        return format!("{size:>9}  {hash:<digits$}");
     }
     format!("{size:>9}  {mode:<10}  {time}")
 }
 
 /// The checksum column of an entry: nothing for what is not a file, `…` while it is made, `—` for a file with none.
-fn checksum_cell(entry: &Entry, files: &FilesState) -> String {
+fn checksum_cell(entry: &Entry, files: &FilesState, algorithm: Algorithm) -> String {
     if entry.kind != Kind::File {
         return String::new();
     }
-    match FilesState::checksum_range(entry).and_then(|range| files.checksums.get(range)) {
+    match FilesState::checksum_range(entry).and_then(|range| files.checksums.get(algorithm, range))
+    {
         Some(Digest::Done(digits)) => digits.clone(),
         Some(Digest::Failed) => "—".to_owned(),
         None if FilesState::checksum_range(entry).is_none() => "—".to_owned(),

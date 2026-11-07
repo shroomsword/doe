@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use doe::DoeError;
+use doe::filesystem::Algorithm;
 
 use crate::Options;
 use crate::builder::Builder;
@@ -511,13 +512,13 @@ impl App {
             tree.take_state_of(&self.tree);
         }
         self.tree = tree;
-        let checksums_on = self.files.as_ref().is_some_and(|f| f.show_checksums);
+        let algorithm = self.files.as_ref().and_then(|f| f.algorithm);
         self.files = fresh.files;
         // the column stays on across a reload, with the checksums made again from the file as it is now
-        if checksums_on && let Some(files) = self.files.as_mut() {
-            files.show_checksums = true;
+        if let (Some(algorithm), Some(files)) = (algorithm, self.files.as_mut()) {
+            files.algorithm = Some(algorithm);
             let ranges = files.checksum_ranges();
-            files.checksums.start(&self.file, &ranges);
+            files.checksums.start(&self.file, algorithm, &ranges);
         }
         self.files_followed = Vec::new();
         // the entries may be somewhere else now
@@ -1374,7 +1375,8 @@ impl App {
     /// A key for the files: move, open, close; the entry that is selected is selected in the tree and the bytes follow.
     fn files_action(&mut self, action: Action) {
         match action {
-            Action::Checksums => return self.toggle_checksums(),
+            Action::Checksums => return self.cycle_checksums(true),
+            Action::ChecksumsBack => return self.cycle_checksums(false),
             Action::CopyChecksum => return self.copy_checksum(),
             _ => {}
         }
@@ -1425,21 +1427,35 @@ impl App {
         }
     }
 
-    /// `m`: show or hide the checksum column. Showing it starts the thread that makes the checksums.
-    fn toggle_checksums(&mut self) {
+    /// `m` goes to the next algorithm of the checksum column, MD5, SHA-1, and off after the last; `M` goes back. Showing one
+    /// starts the thread that makes the checksums of it; what was made for the others stays.
+    fn cycle_checksums(&mut self, forward: bool) {
         let Some(files) = self.files.as_mut() else {
             return;
         };
-        files.show_checksums = !files.show_checksums;
-        if files.show_checksums {
-            let ranges = files.checksum_ranges();
-            files.checksums.start(&self.file, &ranges);
-            self.notice = Some(
-                "MD5 of each file: a checksum for comparing files, not a security measure"
-                    .to_owned(),
-            );
+        // the positions are 0 for off and then one for each algorithm
+        let all = Algorithm::ALL;
+        let at = files
+            .algorithm
+            .and_then(|a| all.iter().position(|x| *x == a))
+            .map_or(0, |i| i + 1);
+        let count = all.len() + 1;
+        let next = if forward {
+            (at + 1) % count
         } else {
-            files.checksums.stop();
+            (at + count - 1) % count
+        };
+        files.algorithm = next.checked_sub(1).and_then(|i| all.get(i)).copied();
+        match files.algorithm {
+            Some(algorithm) => {
+                let ranges = files.checksum_ranges();
+                files.checksums.start(&self.file, algorithm, &ranges);
+                self.notice = Some(format!(
+                    "{} of each file: a checksum for comparing files, not a security measure (m next, M back)",
+                    algorithm.label()
+                ));
+            }
+            None => files.checksums.stop(),
         }
         if let Some(note) = self.files.as_ref().and_then(FilesState::checksum_note) {
             self.notice = Some(note);
@@ -1451,13 +1467,13 @@ impl App {
         match self
             .files
             .as_ref()
-            .map(|f| (f.show_checksums, f.selected_checksum()))
+            .map(|f| (f.algorithm, f.selected_checksum()))
         {
-            Some((true, Some(digits))) => {
-                self.notice = Some(format!("copied the MD5 {digits}"));
+            Some((Some(algorithm), Some(digits))) => {
+                self.notice = Some(format!("copied the {} {digits}", algorithm.label()));
                 self.clipboard = Some(digits);
             }
-            Some((true, None)) => {
+            Some((Some(_), None)) => {
                 self.notice =
                     Some("this entry has no checksum yet (… or — in the column)".to_owned());
             }
@@ -1505,7 +1521,7 @@ impl App {
             Action::TreeToggle => tree.toggle(),
             Action::NextSibling => tree.next_sibling(),
             Action::PreviousSibling => tree.prev_sibling(),
-            Action::Checksums | Action::CopyChecksum => {
+            Action::Checksums | Action::ChecksumsBack | Action::CopyChecksum => {
                 self.notice = Some("the checksums are a column of the files: press F".to_owned());
             }
             Action::Preview => {

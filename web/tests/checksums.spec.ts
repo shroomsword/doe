@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type Page, expect, test } from '@playwright/test';
-import { batchesOf, checksumLine } from '../src/files.js';
+import { ALGORITHMS, batchesOf, checksumLine, cycleAlgorithm } from '../src/files.js';
 import { tarOf } from './fixture.js';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -28,8 +28,29 @@ async function open(page: Page, name: string, buffer: Buffer, parsedAs: string):
   await expect(page.locator('#detect-report')).toContainText(`${parsedAs} parses the file`, { timeout: 30_000 });
 }
 
+/** Choose a checksum in the menu of the hash button ('None' hides the column). */
+async function choose(page: Page, label: string): Promise<void> {
+  await page.locator('#hash-toggle').click();
+  await expect(page.locator('#hash-menu')).toBeVisible();
+  await page.locator('#hash-menu button', { hasText: new RegExp(`^${label}$`) }).click();
+  await expect(page.locator('#hash-menu')).toBeHidden();
+}
+
 const row = (page: Page, name: string) => page.locator('#files-list .file-row', { hasText: name });
 const hash = (page: Page, name: string) => row(page, name).locator('.file-hash');
+
+test('the algorithms go round: none, MD5, SHA-1, none, and back', () => {
+  expect(ALGORITHMS.map((a) => [a.id, a.label, a.digits])).toEqual([
+    ['md5', 'MD5', 32],
+    ['sha1', 'SHA-1', 40],
+  ]);
+  expect(cycleAlgorithm(null, 1)).toBe('md5');
+  expect(cycleAlgorithm('md5', 1)).toBe('sha1');
+  expect(cycleAlgorithm('sha1', 1)).toBeNull();
+  expect(cycleAlgorithm(null, -1)).toBe('sha1');
+  expect(cycleAlgorithm('sha1', -1)).toBe('md5');
+  expect(cycleAlgorithm('md5', -1)).toBeNull();
+});
 
 test('a line of md5sum, and the batches the work is cut into', () => {
   expect(checksumLine('d41d8cd98f00b204e9800998ecf8427e', 'a/b.txt')).toBe('d41d8cd98f00b204e9800998ecf8427e  a/b.txt\n');
@@ -52,7 +73,7 @@ test('the button and m show the MD5 of each file of a tar, as md5sum has it, and
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(toggle).toHaveAccessibleName('Checksums');
   await expect(page.locator('.file-hash')).toHaveCount(0);
-  await toggle.click();
+  await choose(page, 'MD5');
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#files-hash-bar')).toBeVisible();
   await expect(page.locator('#files-hash-head')).toHaveText('MD5');
@@ -61,11 +82,14 @@ test('the button and m show the MD5 of each file of a tar, as md5sum has it, and
   await expect(hash(page, 'data.bin')).toHaveText('c56bd5480f6e5413cb62a0ad9666613a');
   await expect(hash(page, 'hello.txt')).toHaveText('b1946ac92492d2347c6235b4d2611184');
   await expect(row(page, 'docs').first().locator('.file-hash')).toHaveText('');
-  // m turns it off and on again, with the focus in the page
+  // m goes on to SHA-1 and then off, and on again, with the focus in the page
   await page.locator('#files-list').focus();
+  await page.keyboard.press('m');
+  await expect(page.locator('#files-hash-head')).toHaveText('SHA-1');
   await page.keyboard.press('m');
   await expect(page.locator('.file-hash')).toHaveCount(0);
   await expect(page.locator('#files-hash-bar')).toBeHidden();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await page.keyboard.press('m');
   await expect(hash(page, 'hello.txt')).toHaveText('b1946ac92492d2347c6235b4d2611184');
 });
@@ -74,7 +98,7 @@ test('the checksum of the selected file is in the preview bar, can be copied, an
   await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined);
   await ready(page);
   await open(page, 'sample.tar', sample('sample.tar'), 'tar');
-  await page.locator('#hash-toggle').click();
+  await choose(page, 'MD5');
   await row(page, 'docs').locator('.file-twisty').click();
   await expect(hash(page, 'hello.txt')).toHaveText('b1946ac92492d2347c6235b4d2611184');
   await row(page, 'hello.txt').click();
@@ -87,7 +111,7 @@ test('the checksum of the selected file is in the preview bar, can be copied, an
   // the list: one line per file (not for the directory), in the order of the archive, as md5sum writes it
   await expect(page.locator('#files-hash-save')).toBeEnabled();
   const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#files-hash-save').click()]);
-  expect(download.suggestedFilename()).toBe('md5sums.txt');
+  expect(download.suggestedFilename()).toBe('checksums.md5');
   const text = readFileSync((await download.path()) ?? '', 'utf8');
   expect(text).toBe('b1946ac92492d2347c6235b4d2611184  docs/hello.txt\nc56bd5480f6e5413cb62a0ad9666613a  data.bin\n');
 });
@@ -95,7 +119,7 @@ test('the checksum of the selected file is in the preview bar, can be copied, an
 test('an empty file has the MD5 of nothing, and a zip has it for stored entries and a dash with the reason for deflated ones', async ({ page }) => {
   await ready(page);
   await open(page, 'e.tar', tarOf({ 'empty.txt': '', 'a.txt': 'abc' }), 'tar');
-  await page.locator('#hash-toggle').click();
+  await choose(page, 'MD5');
   await expect(hash(page, 'empty.txt')).toHaveText('d41d8cd98f00b204e9800998ecf8427e');
   await expect(hash(page, 'a.txt')).toHaveText('900150983cd24fb0d6963f7d28e17f72');
   await open(page, 'sample.zip', sample('sample.zip'), 'zip_archive');
@@ -114,7 +138,7 @@ test('an empty file has the MD5 of nothing, and a zip has it for stored entries 
 test('opening another input drops the checksums of the old one', async ({ page }) => {
   await ready(page);
   await open(page, 'one.tar', tarOf({ 'f.txt': 'abc' }), 'tar');
-  await page.locator('#hash-toggle').click();
+  await choose(page, 'MD5');
   await expect(hash(page, 'f.txt')).toHaveText('900150983cd24fb0d6963f7d28e17f72');
   // the same name and size, other contents: the checksum is of the new bytes
   await open(page, 'two.tar', tarOf({ 'f.txt': 'xyz' }), 'tar');
@@ -126,7 +150,7 @@ test('an archive of several megabytes keeps the page responsive while the checks
   const files: Record<string, Uint8Array> = {};
   for (let i = 0; i < 4; i += 1) files[`big${i}.bin`] = new Uint8Array(2 * 1024 * 1024).fill(i + 1);
   await open(page, 'big.tar', tarOf(files), 'tar');
-  await page.locator('#hash-toggle').click();
+  await choose(page, 'MD5');
   // the page answers while the worker hashes: a click on a row selects it at once
   await row(page, 'big0.bin').click();
   await expect(row(page, 'big0.bin')).toHaveClass(/selected/);
@@ -135,4 +159,78 @@ test('an archive of several megabytes keeps the page responsive while the checks
   // and each one is the MD5 of its bytes (a different one for each fill)
   const all = await page.locator('.file-hash').allTextContents();
   expect(new Set(all).size).toBe(4);
+});
+
+test('the menu lists MD5 and SHA-1 with the one in use marked, and SHA-1 has 40 digits, a header, a copy and a list for sha1sum', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined);
+  await ready(page);
+  await open(page, 'sample.tar', sample('sample.tar'), 'tar');
+  await page.locator('#hash-toggle').click();
+  const items = page.locator('#hash-menu button');
+  await expect(items).toHaveText(['MD5', 'SHA-1', 'None']);
+  await expect(items.nth(2)).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('#hash-toggle')).toHaveAttribute('aria-expanded', 'true');
+  // the keys of the menu: down, Enter
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#hash-menu')).toBeHidden();
+  await expect(page.locator('#files-hash-head')).toHaveText('SHA-1');
+  await row(page, 'docs').locator('.file-twisty').click();
+  await expect(hash(page, 'hello.txt')).toHaveText('f572d396fae9206628714fb2ce00f72e94f2258f');
+  await expect(hash(page, 'data.bin')).toHaveText('494179714a6cd627239dfededf2de9ef994caf03');
+  await expect(page.locator('#files-hash-head')).toHaveAttribute('title', /SHA-1.*not a security measure/);
+  await row(page, 'hello.txt').click();
+  await expect(page.locator('#files-hash-value')).toHaveText('SHA-1 f572d396fae9206628714fb2ce00f72e94f2258f');
+  if (test.info().project.name === 'chromium') {
+    await page.locator('#files-hash-copy').click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('f572d396fae9206628714fb2ce00f72e94f2258f');
+  }
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#files-hash-save').click()]);
+  expect(download.suggestedFilename()).toBe('checksums.sha1');
+  expect(readFileSync((await download.path()) ?? '', 'utf8')).toBe(
+    'f572d396fae9206628714fb2ce00f72e94f2258f  docs/hello.txt\n494179714a6cd627239dfededf2de9ef994caf03  data.bin\n',
+  );
+  // Escape closes the menu and the focus goes back to the button
+  await page.locator('#hash-toggle').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#hash-menu')).toBeHidden();
+  await expect(page.locator('#hash-toggle')).toBeFocused();
+});
+
+test('m goes MD5, SHA-1, none and M goes back; the digests of the other algorithm are kept; the choice is remembered', async ({ page }) => {
+  await ready(page);
+  await open(page, 'sample.tar', sample('sample.tar'), 'tar');
+  await page.locator('#files-list').focus();
+  const head = page.locator('#files-hash-head');
+  await page.keyboard.press('m');
+  await expect(head).toHaveText('MD5');
+  await row(page, 'docs').locator('.file-twisty').click();
+  await expect(hash(page, 'hello.txt')).toHaveText('b1946ac92492d2347c6235b4d2611184');
+  await page.locator('#files-list').focus();
+  await page.keyboard.press('m');
+  await expect(head).toHaveText('SHA-1');
+  await expect(hash(page, 'hello.txt')).toHaveText('f572d396fae9206628714fb2ce00f72e94f2258f');
+  // back to MD5 with Shift+M: its digests are there at once, never the dots of a pending one
+  await page.keyboard.press('Shift+M');
+  await expect(head).toHaveText('MD5');
+  await expect(hash(page, 'hello.txt')).toHaveText('b1946ac92492d2347c6235b4d2611184');
+  await page.keyboard.press('Shift+M');
+  await expect(page.locator('.file-hash')).toHaveCount(0);
+  await expect(page.locator('#files-hash-bar')).toBeHidden();
+  // from none, M goes to SHA-1 and m from there to none
+  await page.keyboard.press('Shift+M');
+  await expect(head).toHaveText('SHA-1');
+  // the choice is remembered for the next page
+  await page.reload();
+  await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
+  await open(page, 'sample.tar', sample('sample.tar'), 'tar');
+  await expect(page.locator('#files-hash-head')).toHaveText('SHA-1');
+  await row(page, 'docs').locator('.file-twisty').click();
+  await expect(hash(page, 'hello.txt')).toHaveText('f572d396fae9206628714fb2ce00f72e94f2258f');
+  // None forgets it
+  await choose(page, 'None');
+  await page.reload();
+  await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
+  await open(page, 'sample.tar', sample('sample.tar'), 'tar');
+  await expect(page.locator('.file-hash')).toHaveCount(0);
 });

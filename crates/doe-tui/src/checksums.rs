@@ -15,9 +15,6 @@ use std::thread::JoinHandle;
 
 use doe::filesystem::{Algorithm, Hasher};
 
-/// The algorithm of the column. Only MD5 for now; the follow-ups add to this.
-pub const ALGORITHM: Algorithm = Algorithm::Md5;
-
 /// How much of a file is read at a time.
 const CHUNK: usize = 1024 * 1024;
 
@@ -36,13 +33,14 @@ pub enum Digest {
 /// The checksums of the ranges of one file, and the worker that makes the missing ones.
 #[derive(Debug, Default)]
 pub struct Checksums {
-    digests: HashMap<Range, Digest>,
+    digests: HashMap<(Algorithm, Range), Digest>,
     job: Option<Job>,
 }
 
 #[derive(Debug)]
 struct Job {
     receiver: Receiver<(Range, Option<String>)>,
+    algorithm: Algorithm,
     stop: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
 }
@@ -58,8 +56,8 @@ impl Drop for Job {
 impl Checksums {
     /// What is known about a range.
     #[must_use]
-    pub fn get(&self, range: Range) -> Option<&Digest> {
-        self.digests.get(&range)
+    pub fn get(&self, algorithm: Algorithm, range: Range) -> Option<&Digest> {
+        self.digests.get(&(algorithm, range))
     }
 
     /// Whether the worker still has ranges to do.
@@ -79,12 +77,13 @@ impl Checksums {
         self.job = None;
     }
 
-    /// Make the checksums of the ranges that are not done (in the order given) from the file at `path`, on a thread.
-    pub fn start(&mut self, path: &Path, ranges: &[Range]) {
+    /// Make the checksums of `algorithm` of the ranges that are not done (in the order given) from the file at `path`,
+    /// on a thread. What is done for the other algorithms stays, so that going back to one is instant.
+    pub fn start(&mut self, path: &Path, algorithm: Algorithm, ranges: &[Range]) {
         self.job = None;
         let mut todo: Vec<Range> = Vec::new();
         for range in ranges {
-            if !self.digests.contains_key(range) && !todo.contains(range) {
+            if !self.digests.contains_key(&(algorithm, *range)) && !todo.contains(range) {
                 todo.push(*range);
             }
         }
@@ -101,13 +100,16 @@ impl Checksums {
                 if flag.load(Ordering::Relaxed) {
                     return;
                 }
-                let digest = file.as_mut().and_then(|file| digest_of(file, range, &flag));
+                let digest = file
+                    .as_mut()
+                    .and_then(|file| digest_of(file, algorithm, range, &flag));
                 if flag.load(Ordering::Relaxed) || sender.send((range, digest)).is_err() {
                     return;
                 }
             }
         });
         self.job = Some(Job {
+            algorithm,
             receiver,
             stop,
             thread: Some(thread),
@@ -123,8 +125,10 @@ impl Checksums {
         loop {
             match job.receiver.try_recv() {
                 Ok((range, digest)) => {
-                    self.digests
-                        .insert(range, digest.map_or(Digest::Failed, Digest::Done));
+                    self.digests.insert(
+                        (job.algorithm, range),
+                        digest.map_or(Digest::Failed, Digest::Done),
+                    );
                     changed = true;
                 }
                 Err(TryRecvError::Empty) => break,
@@ -141,9 +145,14 @@ impl Checksums {
 }
 
 /// The checksum of a range of `file`, or None when it cannot be read all (or `stop` was set).
-fn digest_of(file: &mut File, range: Range, stop: &AtomicBool) -> Option<String> {
+fn digest_of(
+    file: &mut File,
+    algorithm: Algorithm,
+    range: Range,
+    stop: &AtomicBool,
+) -> Option<String> {
     file.seek(SeekFrom::Start(range.0)).ok()?;
-    let mut hasher = Hasher::new(ALGORITHM);
+    let mut hasher = Hasher::new(algorithm);
     let mut left = range.1.checked_sub(range.0)?;
     let mut buffer = vec![0_u8; CHUNK];
     while left > 0 {
@@ -192,36 +201,65 @@ mod tests {
         let whole = (0, bytes.len() as u64);
         checks.start(
             &path,
+            Algorithm::Md5,
             &[(2, 5), (0, 0), whole, (2, 5), (0, bytes.len() as u64 + 1)],
         );
         assert!(checks.running());
         wait(&mut checks);
         assert_eq!(
-            checks.get((2, 5)),
+            checks.get(Algorithm::Md5, (2, 5)),
             Some(&Digest::Done("900150983cd24fb0d6963f7d28e17f72".to_owned()))
         );
         assert_eq!(
-            checks.get((0, 0)),
+            checks.get(Algorithm::Md5, (0, 0)),
             Some(&Digest::Done("d41d8cd98f00b204e9800998ecf8427e".to_owned()))
         );
         let expected = doe::filesystem::md5_of(&bytes, whole).unwrap();
-        assert_eq!(checks.get(whole), Some(&Digest::Done(expected)));
+        assert_eq!(
+            checks.get(Algorithm::Md5, whole),
+            Some(&Digest::Done(expected))
+        );
         // past the end of the file: failed, not a wrong digest
         assert_eq!(
-            checks.get((0, bytes.len() as u64 + 1)),
+            checks.get(Algorithm::Md5, (0, bytes.len() as u64 + 1)),
             Some(&Digest::Failed)
         );
         assert!(!checks.running());
     }
 
     #[test]
+    fn each_algorithm_has_its_own_digests_and_starting_one_keeps_the_others() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("f.bin");
+        std::fs::write(&path, b"abc").unwrap();
+        let mut checks = Checksums::default();
+        checks.start(&path, Algorithm::Md5, &[(0, 3)]);
+        wait(&mut checks);
+        checks.start(&path, Algorithm::Sha1, &[(0, 3)]);
+        wait(&mut checks);
+        assert_eq!(
+            checks.get(Algorithm::Md5, (0, 3)),
+            Some(&Digest::Done("900150983cd24fb0d6963f7d28e17f72".to_owned()))
+        );
+        assert_eq!(
+            checks.get(Algorithm::Sha1, (0, 3)),
+            Some(&Digest::Done(
+                "a9993e364706816aba3e25717850c26c9cd0d89d".to_owned()
+            ))
+        );
+        // nothing is started again for what is done, whichever the algorithm
+        checks.start(&path, Algorithm::Md5, &[(0, 3)]);
+        assert!(!checks.running());
+    }
+
+    #[test]
     fn a_file_that_cannot_be_opened_fails_each_range_and_clear_forgets() {
         let mut checks = Checksums::default();
-        checks.start(Path::new("/nonexistent/file"), &[(0, 3)]);
+        checks.start(Path::new("/nonexistent/file"), Algorithm::Md5, &[(0, 3)]);
         wait(&mut checks);
-        assert_eq!(checks.get((0, 3)), Some(&Digest::Failed));
+        assert_eq!(checks.get(Algorithm::Md5, (0, 3)), Some(&Digest::Failed));
         checks.clear();
-        assert_eq!(checks.get((0, 3)), None);
+        assert_eq!(checks.get(Algorithm::Md5, (0, 3)), None);
     }
 
     #[test]
@@ -230,13 +268,16 @@ mod tests {
         let path = dir.path().join("f.bin");
         std::fs::write(&path, b"abc").unwrap();
         let mut checks = Checksums::default();
-        checks.start(&path, &[(0, 3)]);
+        checks.start(&path, Algorithm::Md5, &[(0, 3)]);
         wait(&mut checks);
         checks.stop();
         assert!(!checks.running());
-        assert!(matches!(checks.get((0, 3)), Some(Digest::Done(_))));
+        assert!(matches!(
+            checks.get(Algorithm::Md5, (0, 3)),
+            Some(Digest::Done(_))
+        ));
         // nothing is started again for what is done
-        checks.start(&path, &[(0, 3)]);
+        checks.start(&path, Algorithm::Md5, &[(0, 3)]);
         assert!(!checks.running());
     }
 }

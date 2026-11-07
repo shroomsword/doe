@@ -385,14 +385,19 @@ world
                 continue;
             };
             let range = entry.data.unwrap_or((0, 0));
-            let digest = doe::filesystem::md5_of(&archive, range).unwrap();
-            let wanted = doe::filesystem::md5_of(original, (0, original.len() as u64)).unwrap();
-            assert_eq!(digest, wanted, "{schema}: {name}");
-            checked += 1;
+            for algorithm in doe::filesystem::Algorithm::ALL {
+                let digest = doe::filesystem::digest_of(*algorithm, &archive, range).unwrap();
+                let wanted =
+                    doe::filesystem::digest_of(*algorithm, original, (0, original.len() as u64))
+                        .unwrap();
+                assert_eq!(digest, wanted, "{schema}: {name}: {}", algorithm.name());
+                assert_eq!(digest.len(), algorithm.hex_len());
+                checked += 1;
+            }
         }
     }
     // tar is on every machine this runs on; the others are skipped when their program is not
-    assert!(checked >= 5, "only {checked} files were compared");
+    assert!(checked >= 10, "only {checked} files were compared");
 }
 
 #[test]
@@ -429,4 +434,54 @@ fn a_tar_whose_numbers_end_in_spaces_as_bsdtar_writes_them_reads_the_same() {
         doe::filesystem::md5_of(&archive, list.entries[0].data.unwrap()).as_deref(),
         Some("5d41402abc4b2a76b9719d911017c592")
     );
+}
+
+#[test]
+fn the_sha1_of_a_file_is_that_of_sha1sum_and_the_algorithms_are_listed_with_their_widths() {
+    use doe::filesystem::{Algorithm, Hasher, digest_of};
+    let sha1 = |name: &str| {
+        let list = listing("tar", "sample.tar");
+        let entry = list.entries.iter().find(|e| path_of(e) == name).unwrap();
+        let bytes = std::fs::read(types().join("samples/sample.tar")).unwrap();
+        digest_of(Algorithm::Sha1, &bytes, entry.data.unwrap())
+    };
+    // the values are those of `sha1sum` on the files that `tar` extracts
+    assert_eq!(
+        sha1("docs/hello.txt").as_deref(),
+        Some("f572d396fae9206628714fb2ce00f72e94f2258f")
+    );
+    assert_eq!(
+        sha1("data.bin").as_deref(),
+        Some("494179714a6cd627239dfededf2de9ef994caf03")
+    );
+    // FIPS 180-4 / RFC 3174
+    assert_eq!(
+        digest_of(Algorithm::Sha1, b"", (0, 0)).as_deref(),
+        Some("da39a3ee5e6b4b0d3255bfef95601890afd80709")
+    );
+    assert_eq!(
+        digest_of(Algorithm::Sha1, b"abc", (0, 3)).as_deref(),
+        Some("a9993e364706816aba3e25717850c26c9cd0d89d")
+    );
+    let input = vec![9_u8; 100_000];
+    let mut chunked = Hasher::new(Algorithm::Sha1);
+    for chunk in input.chunks(777) {
+        chunked.update(chunk);
+    }
+    assert_eq!(
+        Some(chunked.finish()),
+        digest_of(Algorithm::Sha1, &input, (0, 100_000))
+    );
+    assert_eq!(Algorithm::ALL, [Algorithm::Md5, Algorithm::Sha1]);
+    assert_eq!(Algorithm::from_name("SHA-1"), Some(Algorithm::Sha1));
+    assert_eq!(Algorithm::from_name("sha1"), Some(Algorithm::Sha1));
+    assert_eq!(Algorithm::Sha1.label(), "SHA-1");
+    assert_eq!(Algorithm::Sha1.file_name(), "checksums.sha1");
+    assert_eq!(Algorithm::Md5.file_name(), "checksums.md5");
+    for algorithm in Algorithm::ALL {
+        assert_eq!(
+            digest_of(*algorithm, b"abc", (0, 3)).unwrap().len(),
+            algorithm.hex_len()
+        );
+    }
 }

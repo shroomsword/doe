@@ -419,6 +419,16 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         (false, false) => " q quit · i inspector ",
         (false, true) => " q quit · i inspector · F files/fields ",
     };
+    // the algorithm of the checksum column is named in the hint while the column is shown
+    let hint = match app
+        .files
+        .as_ref()
+        .filter(|_| app.files_wanted)
+        .and_then(|f| f.algorithm)
+    {
+        Some(algorithm) => format!("{} · m {} ", hint.trim_end(), algorithm.label()),
+        None => hint.to_owned(),
+    };
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(theme.border(focus == Focus::Tree))
