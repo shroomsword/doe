@@ -1210,6 +1210,7 @@ the editor for its pane, closes a dialog and closes a search.
 | `m` | Show the MD5 of each file in the Files view, then the SHA-1, then the SHA-256, then hide them |
 | `M` | The previous checksum of the Files view (SHA-256, SHA-1, MD5, none) |
 | `S` | Copy the list of checksums of the Files view, in the format of `md5sum -c` |
+| `v` | Show a Markdown file of the Files view rendered, or as its source |
 | `Tab` | Next pane (from a pane, not from a button or a field) |
 | `Shift+Tab` | Previous pane |
 | `h` | Focus the pane on the left |
@@ -1296,7 +1297,17 @@ name of the entry (`main.rs`, `Makefile`, `Dockerfile`, `*.json`…) or, when th
 the **language list** next to Save shows the guess (`Auto: Rust`) and lets you choose another language or plain text for
 that entry. The parsers (JSON, YAML, Markdown, HTML, XML, CSS, JavaScript and TypeScript, Python, Rust, C and C++, shell,
 TOML, INI, Dockerfile, SQL, Diff) are loaded the first time a file of the language is shown. A line of more than 2000
-characters is cut with `…`, and so is an entry of more than 100,000 bytes. An entry with an empty name, an absolute path, a `..` or the path of an earlier entry has a warning sign and
+characters is cut with `…`, and so is an entry of more than 100,000 bytes.
+
+A **Markdown** entry (`.md`, `.markdown`) has a **Source | Rendered** switch in the preview bar, and `v` does the same from
+the keyboard (`r` is the page's key for the radix of integers). Rendered shows headings, paragraphs with emphasis, strong text and
+strikethrough, nested lists (also ordered, and task lists with ☑ and ☐), block quotes, tables, rules and code blocks, coloured
+with the language of the fence when it names one the preview knows. The file is from an archive and is **not trusted**, so
+nothing in it acts: raw HTML is shown as the text it is, never put in the page; a link is its text with the target written
+out (`text <https://…>`) and is not a link; an image is its alt text (`[image: alt]`, the target in the tooltip) and is never
+loaded, so opening an archive cannot make a request. A file nested too deep, or with more than 20,000 elements or 4,000 table
+cells, is rendered as far as the limits go and says so. The choice is kept for the rest of the session. Footnotes and math are
+shown as text. An entry with an empty name, an absolute path, a `..` or the path of an earlier entry has a warning sign and
 is not resolved; a directory shows more than 500 children a page at a time (`N more…`).
 
 **Checksums of the files.** The hash button next to the Files button opens a menu of the checksums (**MD5**, **SHA-1**, **SHA-256** and
@@ -1634,7 +1645,11 @@ first line (`#!/usr/bin/env python3`); a file of an unknown type is shown plain,
 grammars the viewer carries do not have (TypeScript is read with the JavaScript grammar). `↑` `↓` `j` `k`, `PgUp` `PgDn`,
 `Home` and `End` scroll; a line of more than 2000 characters is cut with `…`, and an entry of more than 100,000 bytes ends with
 `…`. `s` asks for a file name (starting with the entry's name) and saves the **whole** entry there, never over a file that
-exists; `Esc` or `q` goes back to the files. An entry that is not text says `N bytes (not text)`.
+exists; `Esc` or `q` goes back to the files. On a **Markdown** entry `r` (or `v`) switches between the source and the
+**rendered** text: headings in bold and the theme's accent, lists with bullets and indent, block quotes with a bar, tables
+drawn with box characters, rules, links as `text <url>`, images as `[image: alt]`, code blocks coloured by the language of the
+fence; paragraphs are wrapped to the width of the pane and wrapped again when the terminal is resized. Raw HTML is shown as
+text. The choice is kept for the next Markdown entry. An entry that is not text says `N bytes (not text)`.
 
 **Building a schema.** `doe --tui FILE --build OUT.yaml` starts the viewer on an
 empty schema that grows one field at a time from the hex pane, and saves it with

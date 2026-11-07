@@ -75,8 +75,9 @@
             <div id="files-hash-bar" hidden><span id="files-hash-head" title="A checksum for comparing files, not a security measure">MD5</span><button id="files-hash-save" type="button" disabled title="Save the checksums of all the files in the format of md5sum, to check with md5sum -c in the folder they are extracted to">Save checksums</button></div>
             <div id="files-list" tabindex="0" role="tree" aria-label="files of the archive"></div>
             <div id="files-preview" hidden>
-              <div class="files-preview-bar"><strong id="files-preview-name"></strong><select id="files-language" hidden aria-label="Language of the preview" title="The language the preview is coloured as (a guess from the name of the entry, or from a #! first line)"></select><code id="files-hash-value" hidden></code><button id="files-hash-copy" type="button" hidden title="Copy the checksum">Copy</button><button id="files-save" type="button" hidden title="Save the contents of this entry as a file">Save</button></div>
+              <div class="files-preview-bar"><strong id="files-preview-name"></strong><span id="files-view" role="group" aria-label="How the Markdown is shown" hidden><button type="button" data-view="source" aria-pressed="true" title="The highlighted text of the file">Source</button><button type="button" data-view="rendered" aria-pressed="false" title="Headings, lists, tables and code, drawn (v)">Rendered</button></span><select id="files-language" hidden aria-label="Language of the preview" title="The language the preview is coloured as (a guess from the name of the entry, or from a #! first line)"></select><code id="files-hash-value" hidden></code><button id="files-hash-copy" type="button" hidden title="Copy the checksum">Copy</button><button id="files-save" type="button" hidden title="Save the contents of this entry as a file">Save</button></div>
               <pre id="files-preview-text"></pre>
+              <div id="files-preview-rendered" class="md" tabindex="0" hidden></div>
             </div>
           </div>
         </div>

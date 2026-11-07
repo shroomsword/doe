@@ -148,6 +148,8 @@ pub struct App {
     files_followed: Vec<usize>,
     /// The preview of a file of the archive, while it is open.
     pub preview: Option<Preview>,
+    /// Whether the Markdown entries that are previewed are shown rendered (kept while the viewer is open).
+    pub markdown_rendered: bool,
     /// Where the tree pane is scrolled to.
     pub view: TreeView,
     /// The bytes of the file, read as they are shown (none if it cannot be opened now).
@@ -293,6 +295,7 @@ impl App {
             files_wanted: true,
             files_followed: Vec::new(),
             preview: None,
+            markdown_rendered: false,
             tree: TreeModel::new(loaded.trace, loaded.value),
             view: TreeView::new(),
             quit: false,
@@ -365,6 +368,7 @@ impl App {
             files_wanted: true,
             files_followed: Vec::new(),
             preview: None,
+            markdown_rendered: false,
             view: TreeView::new(),
             quit: false,
         }
@@ -414,6 +418,7 @@ impl App {
             files_wanted: true,
             files_followed: Vec::new(),
             preview: None,
+            markdown_rendered: false,
             view: TreeView::new(),
             quit: false,
             file,
@@ -1563,7 +1568,10 @@ impl App {
         let path = entry.path.join("/");
         let name = entry.path.last().cloned().unwrap_or_default();
         match Preview::new(path, name, (first, end), &window) {
-            Ok(preview) => self.preview = Some(preview),
+            Ok(mut preview) => {
+                preview.rendered = preview.is_markdown() && self.markdown_rendered;
+                self.preview = Some(preview);
+            }
             Err(message) => self.notice = Some(message),
         }
     }
@@ -1573,7 +1581,12 @@ impl App {
         let Some(preview) = self.preview.as_mut() else {
             return;
         };
-        match preview.key(key) {
+        let outcome = preview.key(key);
+        // the choice between the source and the rendering is kept for the next Markdown entry
+        if preview.is_markdown() {
+            self.markdown_rendered = preview.rendered;
+        }
+        match outcome {
             PreviewOutcome::Keep => {}
             PreviewOutcome::Close => self.preview = None,
             PreviewOutcome::Save => {

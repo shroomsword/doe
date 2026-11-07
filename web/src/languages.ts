@@ -135,6 +135,14 @@ export function detectLanguage(name: string, text: string): string | null {
   return fromShebang(text);
 }
 
+/** The id of the language that the first word of a Markdown code fence names (`rust`, `js`, `sh`, `yml`...), or null. */
+export function languageOfFence(info: string): string | null {
+  const word = info.toLowerCase().replace(/^\./, '');
+  if (word === '') return null;
+  if (LANGUAGES.some((l) => l.id === word)) return word;
+  return EXTENSIONS[word] ?? null;
+}
+
 const parsers = new Map<string, Promise<Parser>>();
 
 /** The parser of a language, loaded the first time it is asked for. Rejects for an id that is not a language. */
