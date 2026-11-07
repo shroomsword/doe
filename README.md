@@ -1301,7 +1301,7 @@ characters is cut with `…`, and so is an entry of more than 100,000 bytes.
 
 A **Markdown** entry (`.md`, `.markdown`) has a **Source | Rendered** switch in the preview bar, and `v` does the same from
 the keyboard (`r` is the page's key for the radix of integers). Rendered shows headings, paragraphs with emphasis, strong text and
-strikethrough, nested lists (also ordered, and task lists with ☑ and ☐), block quotes, tables, rules and code blocks, coloured
+strikethrough, nested lists (also ordered, and task lists with checked and unchecked boxes), block quotes, tables, rules and code blocks, coloured
 with the language of the fence when it names one the preview knows. The file is from an archive and is **not trusted**, so
 nothing in it acts: raw HTML is shown as the text it is, never put in the page; a link is its text with the target written
 out (`text <https://…>`) and is not a link; an image is its alt text (`[image: alt]`, the target in the tooltip) and is never
