@@ -1330,6 +1330,12 @@ export class App {
       case 'checksums-back':
         this.cycleChecksum(-1);
         break;
+      case 'copy-checksums':
+        void this.archive.copyChecksums().then((said) => {
+          if (said) element('status').textContent = said;
+          else element('status').textContent = 'no checksums are shown: press m';
+        });
+        break;
       case 'next-pane':
         this.cyclePane(1);
         break;

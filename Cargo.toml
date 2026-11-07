@@ -35,6 +35,7 @@ indexmap = { version = "2", default-features = false }
 flate2 = { version = "1", default-features = false }
 md-5 = { version = "0.11", default-features = false }
 sha1 = { version = "0.11", default-features = false }
+sha2 = { version = "0.11", default-features = false }
 encoding_rs = { version = "0.8", default-features = false }
 assert_cmd = "2"
 indoc = "2"

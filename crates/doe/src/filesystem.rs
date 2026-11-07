@@ -195,8 +195,8 @@ fn kind_of(spec: &RawFilesystem, entry: &Value, mode: Option<u32>, trailing_slas
     }
 }
 
-/// A checksum algorithm for the files of a listing. MD5 and SHA-1; SHA-256 comes as a variant too, so a viewer that
-/// asks for one by name, and lists them with [`Algorithm::ALL`], does not change.
+/// A checksum algorithm for the files of a listing: MD5, SHA-1 and SHA-256. A viewer that asks for one by name, and lists
+/// them with [`Algorithm::ALL`], does not change when one is added.
 ///
 /// MD5 and SHA-1 are checksums for comparing files, not security measures: both have known collisions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -206,11 +206,13 @@ pub enum Algorithm {
     Md5,
     /// SHA-1, 40 hex digits, as `sha1sum` writes.
     Sha1,
+    /// SHA-256, 64 hex digits, as `sha256sum` writes.
+    Sha256,
 }
 
 impl Algorithm {
     /// Every algorithm, in the order a viewer offers and cycles them.
-    pub const ALL: &'static [Algorithm] = &[Algorithm::Md5, Algorithm::Sha1];
+    pub const ALL: &'static [Algorithm] = &[Algorithm::Md5, Algorithm::Sha1, Algorithm::Sha256];
 
     /// The name as a person and `--` options write it: `md5`, `sha1`.
     #[must_use]
@@ -218,6 +220,7 @@ impl Algorithm {
         match self {
             Algorithm::Md5 => "md5",
             Algorithm::Sha1 => "sha1",
+            Algorithm::Sha256 => "sha256",
         }
     }
 
@@ -227,6 +230,7 @@ impl Algorithm {
         match self {
             Algorithm::Md5 => "MD5",
             Algorithm::Sha1 => "SHA-1",
+            Algorithm::Sha256 => "SHA-256",
         }
     }
 
@@ -236,7 +240,15 @@ impl Algorithm {
         match self {
             Algorithm::Md5 => 32,
             Algorithm::Sha1 => 40,
+            Algorithm::Sha256 => 64,
         }
+    }
+
+    /// Whether the algorithm is only for comparing files and not for security (it has known collisions): MD5 and
+    /// SHA-1. A viewer says so in the tooltip of the header; SHA-256 does not need the warning.
+    #[must_use]
+    pub fn is_weak(self) -> bool {
+        matches!(self, Algorithm::Md5 | Algorithm::Sha1)
     }
 
     /// The name of the file that a list of checksums is saved to: `checksums.md5`, `checksums.sha1`.
@@ -265,6 +277,7 @@ pub struct Hasher {
 enum HasherState {
     Md5(md5::Md5),
     Sha1(sha1::Sha1),
+    Sha256(sha2::Sha256),
 }
 
 impl Hasher {
@@ -275,6 +288,7 @@ impl Hasher {
         let state = match algorithm {
             Algorithm::Md5 => HasherState::Md5(md5::Md5::new()),
             Algorithm::Sha1 => HasherState::Sha1(sha1::Sha1::new()),
+            Algorithm::Sha256 => HasherState::Sha256(sha2::Sha256::new()),
         };
         Hasher { state }
     }
@@ -285,6 +299,7 @@ impl Hasher {
         match &mut self.state {
             HasherState::Md5(state) => state.update(bytes),
             HasherState::Sha1(state) => state.update(bytes),
+            HasherState::Sha256(state) => state.update(bytes),
         }
     }
 
@@ -295,6 +310,7 @@ impl Hasher {
         match self.state {
             HasherState::Md5(state) => hex(&state.finalize()),
             HasherState::Sha1(state) => hex(&state.finalize()),
+            HasherState::Sha256(state) => hex(&state.finalize()),
         }
     }
 }

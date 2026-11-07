@@ -18,6 +18,7 @@ export type Action =
   | 'files'
   | 'checksums'
   | 'checksums-back'
+  | 'copy-checksums'
   | 'next-pane'
   | 'previous-pane'
   | 'pane-left'
@@ -65,8 +66,9 @@ export const KEYS: readonly Key[] = [
   { key: 'd', action: 'detect', label: 'Detect the schema of the open file', needs: 'file' },
   { key: 's', action: 'save', label: 'Save the parsed value', needs: 'parsed' },
   { key: 'F', action: 'files', label: 'Switch the Parsed pane between the files of an archive and the tree of fields', needs: 'filesystem' },
-  { key: 'm', action: 'checksums', label: 'Show the MD5 of each file in the Files view, then the SHA-1, then hide them', needs: 'filesystem' },
-  { key: 'M', action: 'checksums-back', label: 'The previous checksum of the Files view (SHA-1, MD5, none)', needs: 'filesystem' },
+  { key: 'm', action: 'checksums', label: 'Show the MD5 of each file in the Files view, then the SHA-1, then the SHA-256, then hide them', needs: 'filesystem' },
+  { key: 'M', action: 'checksums-back', label: 'The previous checksum of the Files view (SHA-256, SHA-1, MD5, none)', needs: 'filesystem' },
+  { key: 'S', action: 'copy-checksums', label: 'Copy the list of checksums of the Files view, in the format of md5sum -c', needs: 'filesystem' },
   { key: 'Tab', action: 'next-pane', label: 'Next pane (from a pane, not from a button or a field)' },
   { key: 'Shift+Tab', action: 'previous-pane', label: 'Previous pane' },
   { key: 'h', action: 'pane-left', label: 'Focus the pane on the left' },

@@ -534,10 +534,14 @@ pub fn time_text(seconds: i64) -> String {
     )
 }
 
-/// The cells of a row's columns, before the name: the size, mode and time, right of the name.
-/// The room that a name keeps when the checksum column is on: the time and then the mode are left out before the name.
+/// The room that a name keeps when the checksum column is on: the time and then the mode are left out before the name,
+/// and then the digest is cut to its first [`SHORT_DIGITS`] digits.
 const NAME_ROOM: usize = 24;
 
+/// How many digits of a checksum a pane too narrow for the whole of it shows (`y` still copies the whole).
+const SHORT_DIGITS: usize = 16;
+
+/// The cells of a row's columns, right of the name: the size, mode and time, and the checksum when it is shown.
 fn columns(entry: Option<&Entry>, directory: bool, files: &FilesState, width: usize) -> String {
     let Some(entry) = entry else {
         return String::new();
@@ -561,7 +565,17 @@ fn columns(entry: Option<&Entry>, directory: bool, files: &FilesState, width: us
         if format::width(&without_time) <= room {
             return without_time;
         }
-        return format!("{size:>9}  {hash:<digits$}");
+        let whole = format!("{size:>9}  {hash:<digits$}");
+        if format::width(&whole) <= room {
+            return whole;
+        }
+        // too narrow for all the digits: the first of them and an ellipsis
+        let short = if hash.chars().count() > SHORT_DIGITS {
+            format!("{}…", hash.chars().take(SHORT_DIGITS).collect::<String>())
+        } else {
+            hash
+        };
+        return format!("{size:>9}  {short:<width$}", width = SHORT_DIGITS + 1);
     }
     format!("{size:>9}  {mode:<10}  {time}")
 }

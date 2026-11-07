@@ -472,7 +472,10 @@ fn the_sha1_of_a_file_is_that_of_sha1sum_and_the_algorithms_are_listed_with_thei
         Some(chunked.finish()),
         digest_of(Algorithm::Sha1, &input, (0, 100_000))
     );
-    assert_eq!(Algorithm::ALL, [Algorithm::Md5, Algorithm::Sha1]);
+    assert_eq!(
+        Algorithm::ALL,
+        [Algorithm::Md5, Algorithm::Sha1, Algorithm::Sha256]
+    );
     assert_eq!(Algorithm::from_name("SHA-1"), Some(Algorithm::Sha1));
     assert_eq!(Algorithm::from_name("sha1"), Some(Algorithm::Sha1));
     assert_eq!(Algorithm::Sha1.label(), "SHA-1");
@@ -484,4 +487,47 @@ fn the_sha1_of_a_file_is_that_of_sha1sum_and_the_algorithms_are_listed_with_thei
             algorithm.hex_len()
         );
     }
+}
+
+#[test]
+fn the_sha256_of_a_file_is_that_of_sha256sum_and_only_md5_and_sha1_are_called_weak() {
+    use doe::filesystem::{Algorithm, Hasher, digest_of};
+    let list = listing("tar", "sample.tar");
+    let bytes = std::fs::read(types().join("samples/sample.tar")).unwrap();
+    let sha256 = |name: &str| {
+        let entry = list.entries.iter().find(|e| path_of(e) == name).unwrap();
+        digest_of(Algorithm::Sha256, &bytes, entry.data.unwrap())
+    };
+    // the values are those of `sha256sum` on the files that `tar` extracts
+    assert_eq!(
+        sha256("docs/hello.txt").as_deref(),
+        Some("5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03")
+    );
+    assert_eq!(
+        sha256("data.bin").as_deref(),
+        Some("1f825aa2f0020ef7cf91dfa30da4668d791c5d4824fc8e41354b89ec05795ab3")
+    );
+    // FIPS 180-4
+    assert_eq!(
+        digest_of(Algorithm::Sha256, b"", (0, 0)).as_deref(),
+        Some("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+    );
+    assert_eq!(
+        digest_of(Algorithm::Sha256, b"abc", (0, 3)).as_deref(),
+        Some("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+    );
+    let input = vec![3_u8; 100_000];
+    let mut chunked = Hasher::new(Algorithm::Sha256);
+    for chunk in input.chunks(1021) {
+        chunked.update(chunk);
+    }
+    assert_eq!(
+        Some(chunked.finish()),
+        digest_of(Algorithm::Sha256, &input, (0, 100_000))
+    );
+    assert_eq!(Algorithm::from_name("SHA-256"), Some(Algorithm::Sha256));
+    assert_eq!(Algorithm::Sha256.label(), "SHA-256");
+    assert_eq!(Algorithm::Sha256.hex_len(), 64);
+    assert_eq!(Algorithm::Sha256.file_name(), "checksums.sha256");
+    assert!(Algorithm::Md5.is_weak() && Algorithm::Sha1.is_weak() && !Algorithm::Sha256.is_weak());
 }
