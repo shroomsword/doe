@@ -142,6 +142,9 @@ export class App {
       // only when the page has the input in memory: a file that stays on the machine is not in the worker
       hash: (algorithm, ranges) => (this.bytes && !this.serverInput ? this.client.digest(algorithm, ranges) : null),
       download: (name, text) => this.downloadText(name, text),
+      say: (text) => {
+        element('status').textContent = text;
+      },
     });
     element<HTMLSelectElement>('radix').value = this.radixes.global;
     this.hex = new HexView(element('hex'), (byte) => this.pickByte(byte));
@@ -1331,10 +1334,14 @@ export class App {
         this.cycleChecksum(-1);
         break;
       case 'copy-checksums':
-        void this.archive.copyChecksums().then((said) => {
-          if (said) element('status').textContent = said;
-          else element('status').textContent = 'no checksums are shown: press m';
-        });
+        this.archive.copyChecksums().then(
+          (said) => {
+            element('status').textContent = said ?? 'no checksums are shown: press m';
+          },
+          () => {
+            element('status').textContent = 'the checksums could not be copied';
+          },
+        );
         break;
       case 'next-pane':
         this.cyclePane(1);

@@ -1315,7 +1315,7 @@ on the machine of `doe --ide` shows `—` (its bytes are not loaded here). The p
 file with a **Copy** button, and **Save checksums** writes `checksums.md5`, `checksums.sha1` or `checksums.sha256` in the format of `md5sum`,
 `sha1sum` and `sha256sum` (`<digits>  <path>`, two spaces, one line for each file in the order of the archive), which `md5sum -c
 checksums.md5`, `sha1sum -c checksums.sha1` or `sha256sum -c checksums.sha256` checks in the folder the archive is extracted to; an entry that cannot be
-placed safely is left out of it. `S` puts the same list on the clipboard.
+placed safely is left out of it, and so is a file with no checksum; the status line says how many files the list does not have. `S` puts the same list on the clipboard.
 
 **Columns of the Bytes pane.** `c`, or the columns button (an icon of a rectangle in three bands) in the title bar
 of the Bytes pane, opens a dialog in which the number of columns is entered: a column is one byte, so the number is the

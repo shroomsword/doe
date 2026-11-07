@@ -303,3 +303,40 @@ test('S copies the list of the shown algorithm in the format of the checksum too
     '5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03  docs/hello.txt\n1f825aa2f0020ef7cf91dfa30da4668d791c5d4824fc8e41354b89ec05795ab3  data.bin\n',
   );
 });
+
+test('the list says how many files it leaves out: those with no checksum, when it is saved and when it is copied', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined);
+  await ready(page);
+  // a zip: one stored entry has its MD5, the two deflated ones have none
+  await open(page, 'sample.zip', sample('sample.zip'), 'zip_archive');
+  await choose(page, 'MD5');
+  await row(page, 'docs').locator('.file-twisty').click();
+  await expect(hash(page, 'hello.txt')).toHaveText('b1946ac92492d2347c6235b4d2611184');
+  await expect(page.locator('#files-hash-save')).toBeEnabled();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#files-hash-save').click()]);
+  expect(readFileSync((await download.path()) ?? '', 'utf8')).toBe('b1946ac92492d2347c6235b4d2611184  docs/hello.txt\n');
+  await expect(page.locator('#status')).toHaveText('saved checksums.md5 with 1 file; 2 files are not in it (no checksum, or a path that cannot be placed safely)');
+  if (test.info().project.name === 'chromium') {
+    await page.locator('#files-list').focus();
+    await page.keyboard.press('Shift+S');
+    await expect(page.locator('#status')).toHaveText('copied the MD5 checksums of 1 file; 2 files are not in it (no checksum, or a path that cannot be placed safely)');
+  }
+  // a tar that has every checksum says nothing about files left out
+  await open(page, 'sample.tar', sample('sample.tar'), 'tar');
+  await expect(page.locator('#files-hash-save')).toBeEnabled();
+  await Promise.all([page.waitForEvent('download'), page.locator('#files-hash-save').click()]);
+  await expect(page.locator('#status')).toHaveText('saved checksums.md5 with 2 files');
+});
+
+test('a clipboard that refuses the write says so and points to Save, and does not leave the promise unhandled', async ({ page }) => {
+  await ready(page);
+  await open(page, 'sample.tar', sample('sample.tar'), 'tar');
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => Promise.reject(new Error('denied')) }, configurable: true });
+  });
+  await choose(page, 'MD5');
+  await expect(page.locator('#files-hash-save')).toBeEnabled();
+  await page.locator('#files-list').focus();
+  await page.keyboard.press('Shift+S');
+  await expect(page.locator('#status')).toContainText('did not let the page write to the clipboard');
+});

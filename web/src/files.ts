@@ -232,6 +232,8 @@ export interface FilesHandlers {
   hash(algorithm: string, ranges: [number, number][]): Promise<(string | null)[]> | null;
   /** Save a text as a file of that name. */
   download(name: string, text: string): void;
+  /** Say something on the status line. */
+  say(text: string): void;
 }
 
 export class FilesView {
@@ -572,6 +574,8 @@ export class FilesView {
   /** The list changed size: a long digest is cut when the row has no room for all of it (the name keeps 20 characters). */
   private fit(): void {
     const info = this.info();
+    // a list that is hidden or not laid out yet has no width to judge by: it keeps the form it has
+    if (this.list.clientWidth === 0) return;
     const size = Number.parseFloat(getComputedStyle(this.list).fontSize) || 13;
     // size, mode, time, the gaps and a name, in characters of the monospace font (about 0.6 of its size)
     const compact = info !== null && info.digits > LONG_DIGITS && this.list.clientWidth < (info.digits + 62) * size * 0.6;
@@ -696,40 +700,59 @@ export class FilesView {
     }
   }
 
-  /** The checksums of every file as `md5sum`, `sha1sum` and `sha256sum` write them: `<digits>  <path>` lines in the order of the archive. */
-  private checksumText(): string {
+  /**
+   * The checksums of every file as `md5sum`, `sha1sum` and `sha256sum` write them (`<digits>  <path>` lines in the order of
+   * the archive), how many files are in it, and how many files are not: a file with no checksum (`—`) or with a path that
+   * cannot be placed safely (`md5sum -c` would read outside the folder).
+   */
+  private checksumList(): { text: string; written: number; left: number } {
     let text = '';
+    let written = 0;
+    let files = 0;
     const walk = (node: FsNode): void => {
       const entry = node.entry;
-      const range = entry ? this.rangeOf(entry) : null;
-      const digest = range ? this.digests.get(this.rangeKey(range)) : undefined;
-      // an entry that cannot be placed safely is not written: `md5sum -c` would read outside the folder
-      if (entry && digest && entry.flags.length === 0) text += checksumLine(digest, entry.path.join('/'));
+      if (entry?.kind === 'file') {
+        files += 1;
+        const range = this.rangeOf(entry);
+        const digest = range ? this.digests.get(this.rangeKey(range)) : undefined;
+        if (digest && entry.flags.length === 0) {
+          text += checksumLine(digest, entry.path.join('/'));
+          written += 1;
+        }
+      }
       node.children.forEach(walk);
     };
     if (this.root) walk(this.root);
-    return text;
+    return { text, written, left: files - written };
+  }
+
+  /** What the status line says about the files that a list does not have. */
+  private leftNote(left: number): string {
+    return left > 0 ? `; ${left} ${left === 1 ? 'file is' : 'files are'} not in it (no checksum, or a path that cannot be placed safely)` : '';
   }
 
   /** Save the list (so that `md5sum -c`, `sha1sum -c` or `sha256sum -c` reads it in the folder the archive is extracted to). */
   private saveChecksums(): void {
-    const text = this.checksumText();
-    if (text) this.handlers.download(`checksums.${this.algorithm ?? 'md5'}`, text);
+    const { text, written, left } = this.checksumList();
+    if (!text) return;
+    const name = `checksums.${this.algorithm ?? 'md5'}`;
+    this.handlers.download(name, text);
+    this.handlers.say(`saved ${name} with ${written} ${written === 1 ? 'file' : 'files'}${this.leftNote(left)}`);
   }
 
-  /** Put the list on the clipboard (the key S). What it says is for the status line; null: there is no list to copy. */
+  /** Put the list on the clipboard (the key S). What it says is for the status line; null: no checksum is shown. */
   async copyChecksums(): Promise<string | null> {
     const info = this.info();
     if (!info) return null;
     if (!this.checksumsDone()) return `the ${info.label} checksums are still being made`;
-    const text = this.checksumText();
+    const { text, written, left } = this.checksumList();
     if (!text) return `no ${info.label} checksum to copy`;
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      return 'the clipboard cannot be written here';
+      return 'the browser did not let the page write to the clipboard here; Save checksums writes the same list to a file';
     }
-    return `copied the ${info.label} checksums of ${text.split('\n').length - 1} files`;
+    return `copied the ${info.label} checksums of ${written} ${written === 1 ? 'file' : 'files'}${this.leftNote(left)}`;
   }
 
   private rowOf(target: EventTarget | null): Row | null {
