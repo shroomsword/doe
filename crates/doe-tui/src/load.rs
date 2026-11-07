@@ -31,6 +31,9 @@ pub struct Loaded {
     pub schema_files: Vec<PathBuf>,
     /// The entries of the value, when the schema says it is a file system (`filesystem:`).
     pub filesystem: Option<doe::filesystem::Listing>,
+    /// Which kind of value owns each byte, for the colours of the bytes pane. It is made here, with the parse, so that the
+    /// first screen does not wait for it.
+    pub byte_kinds: crate::kinds::ByteKinds,
 }
 
 /// Where loading stopped.
@@ -201,6 +204,7 @@ pub fn try_load(options: &Options) -> Result<Loaded, Box<LoadFailure>> {
         let spec = compiler.registry.filesystems.get(schema)?;
         doe::filesystem::list(value, &trace, spec)
     });
+    let byte_kinds = crate::tree::byte_kinds_of(&trace, value.as_ref());
     Ok(Loaded {
         type_name,
         size,
@@ -209,5 +213,6 @@ pub fn try_load(options: &Options) -> Result<Loaded, Box<LoadFailure>> {
         error,
         schema_files,
         filesystem,
+        byte_kinds,
     })
 }

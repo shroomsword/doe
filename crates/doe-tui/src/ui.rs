@@ -11,10 +11,11 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use crate::app::{App, Focus, Prompt};
 use crate::code::Token;
 use crate::format;
-use crate::hex_view;
+use crate::hex_view::{self, Cover};
 use crate::highlight::Kind;
 use crate::inspect;
 use crate::keymap;
+use crate::kinds::Kind as ByteKind;
 use crate::markdown::Style as MarkdownStyle;
 use crate::preview::Preview;
 use crate::report::Report;
@@ -259,6 +260,37 @@ impl Theme {
                 .add_modifier(Modifier::UNDERLINED),
             MarkdownStyle::Dim => self.dim(),
             MarkdownStyle::Token(token) => self.code(token),
+        }
+    }
+
+    /// The style of a byte of the bytes pane that belongs to a field of that kind: the colour its value has in the tree. On a
+    /// selected byte (`cover`) the colour is one that stays readable on the selection, and with the terminal's own colours
+    /// the selection is left as it is; with no colour, nothing is added.
+    #[must_use]
+    pub fn byte_kind(self, kind: ByteKind, cover: Cover) -> Style {
+        let (themed, terminal): (fn(Palette) -> Color, Color) = match kind {
+            ByteKind::Number => (|p| p.number, Color::Yellow),
+            ByteKind::Str => (|p| p.string, Color::Green),
+            ByteKind::Bytes => (|p| p.bytes, Color::Red),
+            ByteKind::Enum => (|p| p.enum_, Color::Magenta),
+            ByteKind::Bool => (|p| p.boolean, Color::Cyan),
+        };
+        match (cover, self.palette) {
+            (Cover::No, _) => self.pick(themed, terminal),
+            (_, Some(p)) => {
+                let background = if cover == Cover::Whole {
+                    p.selection
+                } else {
+                    p.selection_part
+                };
+                let on_selection = crate::theme::readable_on(themed(p), p.selection, p.foreground);
+                Style::default().fg(crate::theme::readable_on(
+                    on_selection,
+                    background,
+                    p.foreground,
+                ))
+            }
+            (_, None) => Style::default(),
         }
     }
 
@@ -581,6 +613,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
                     &mut app.hex,
                     Some(app.tree.selected()),
                     focus == Focus::Hex,
+                    app.byte_kinds.as_ref().filter(|_| app.byte_colours),
                     theme,
                 ),
                 None => frame.render_widget(Paragraph::new("could not open the file"), bytes_area),
@@ -2235,7 +2268,7 @@ instances:
     fn the_help_lists_the_keys_and_fits_or_says_that_it_does_not() {
         let (mut app, _dir) = app();
         app.help = true;
-        let (lines, _) = draw_app(&mut app, 100, 80);
+        let (lines, _) = draw_app(&mut app, 100, 100);
         for needle in [
             "keys",
             "Anywhere",

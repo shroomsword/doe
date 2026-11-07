@@ -162,6 +162,18 @@ h3 { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; margin
 .hex-bytes { margin-right: 2ch; }
 .hex-bytes .b { display: inline-block; width: 3ch; text-align: center; cursor: pointer; }
 .hex-text .a { cursor: pointer; }
+/* the bytes are coloured by the kind of the field they belong to, as its value is in the tree */
+.hex .k-number { color: var(--number); }
+.hex .k-string { color: var(--string); }
+.hex .k-bytes { color: var(--bytes); }
+.hex .k-enum { color: var(--enum); }
+.hex .k-boolean { color: var(--boolean); }
+/* on the selection the colour is the one that stays readable there: the theme's, or one mixed with its text (theme.ts) */
+.hex .sel.k-number { color: var(--sel-number, var(--number)); }
+.hex .sel.k-string { color: var(--sel-string, var(--string)); }
+.hex .sel.k-bytes { color: var(--sel-bytes, var(--bytes)); }
+.hex .sel.k-enum { color: var(--sel-enum, var(--enum)); }
+.hex .sel.k-boolean { color: var(--sel-boolean, var(--boolean)); }
 .hex .sel { background: var(--select); }
 .hex .sel.part { background: var(--select-part); text-decoration: underline dotted; }
 

@@ -166,9 +166,40 @@ export function systemTheme(dark: boolean): ThemeInfo {
   return theme;
 }
 
+/** The relative luminance of a colour `#rrggbb` (WCAG). */
+function luminance(colour: string): number {
+  const parts = [1, 3, 5].map((i) => Number.parseInt(colour.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * (parts[0] ?? 0) + 0.7152 * (parts[1] ?? 0) + 0.0722 * (parts[2] ?? 0);
+}
+
+/** The contrast ratio of two colours `#rrggbb` (WCAG: 1 to 21). */
+export function contrast(a: string, b: string): number {
+  const [bright, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return ((bright ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
+}
+
+/** The smallest contrast that the coloured bytes keep on the selection. */
+export const SELECTED_CONTRAST = 3;
+
+/**
+ * The colour to draw a byte of that colour in on a background: the colour itself when it is readable there, else the text
+ * colour of the theme (a colour the theme has, as the terminal viewer does).
+ */
+export function readableOn(colour: string, background: string, text: string, minimum = SELECTED_CONTRAST): string {
+  return contrast(colour, background) >= minimum ? colour : text;
+}
+
+/** The kinds of value whose colour a byte takes (`--sel-<kind>` is the one for the selected bytes). */
+const BYTE_KINDS = ['number', 'string', 'bytes', 'enum', 'boolean'] as const;
+
 /** Set the colours of the page to a theme's. */
 export function applyTheme(theme: ThemeInfo, root: HTMLElement = document.documentElement): void {
   for (const name of COLOR_NAMES) root.style.setProperty(PROPERTIES[name], theme.colors[name]);
+  // the colours of the bytes that are selected: readable on the selection, and on the lighter one of a part of a byte
+  for (const kind of BYTE_KINDS) {
+    const onSelection = readableOn(theme.colors[kind], theme.colors.selection, theme.colors.foreground);
+    root.style.setProperty(`--sel-${kind}`, readableOn(onSelection, theme.colors.selection_part, theme.colors.foreground));
+  }
   // form controls, scrollbars and the like follow the variant
   root.style.setProperty('color-scheme', theme.variant);
   root.dataset.theme = theme.id;

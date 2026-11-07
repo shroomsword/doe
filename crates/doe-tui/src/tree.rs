@@ -19,6 +19,8 @@ use doe::Value;
 use doe::api::value_summary;
 use doe::parser::trace::{Span, TraceNode};
 
+use crate::kinds::{ByteKinds, Kind, Leaf};
+
 /// How many children of a node are shown at first, and how many more each time.
 pub const CHUNK: usize = 200;
 /// The most children of one node that have rows at a time.
@@ -235,7 +237,60 @@ fn marker_row(kind: RowKind, parent: &[usize], name: String) -> Row {
     }
 }
 
+/// The kind of a value, as the tree colours it ([`crate::ui::Theme::value`]).
+fn kind_of(value: Option<&Value>) -> Option<Kind> {
+    Some(match shown_of(value)? {
+        Shown::UInt(_) | Shown::SInt(_) | Shown::Float(_) => Kind::Number,
+        Shown::Enum { .. } => Kind::Enum,
+        Shown::Bool(_) => Kind::Bool,
+        Shown::Str { .. } => Kind::Str,
+        Shown::Bytes { .. } => Kind::Bytes,
+    })
+}
+
+/// Which kind of value owns each byte of the file: the leaves of the trace with the kind of their values. A struct or
+/// an array has its children's bytes; what is read from an instance comes after the fields of the sequence, and what a
+/// `process:` produced is left out (its offsets are not the file's).
+#[must_use]
+pub fn byte_kinds_of(root: &TraceNode, value: Option<&Value>) -> ByteKinds {
+    // instances are somewhere else in the file, so they hold a byte only where no field does
+    const INSTANCE: u64 = 1 << 40;
+    let mut leaves = Vec::new();
+    let mut order = 0_u64;
+    // an explicit stack, in the order of the tree: a trace can be deep
+    let mut stack: Vec<(&TraceNode, Option<&Value>, bool)> = vec![(root, value, false)];
+    while let Some((node, value, instance)) = stack.pop() {
+        let instance = instance || node.is_instance;
+        if node.processed {
+            continue;
+        }
+        if !node.children.is_empty() {
+            for (index, child) in node.children.iter().enumerate().rev() {
+                stack.push((child, child_value(value, index, &child.name), instance));
+            }
+            continue;
+        }
+        let Some(span) = node.span.filter(|s| !s.is_empty()) else {
+            continue;
+        };
+        leaves.push(Leaf {
+            first: span.start_byte(),
+            end: span.end_byte(),
+            kind: kind_of(value),
+            priority: order + if instance { INSTANCE } else { 0 },
+        });
+        order += 1;
+    }
+    ByteKinds::from_leaves(leaves)
+}
+
 impl TreeModel {
+    /// Which kind of value owns each byte of the file; see [`byte_kinds_of`].
+    #[must_use]
+    pub fn byte_kinds(&self) -> ByteKinds {
+        byte_kinds_of(&self.root, self.value.as_ref())
+    }
+
     /// A tree of what a parse read. The root is open and selected.
     #[must_use]
     pub fn new(root: TraceNode, value: Option<Value>) -> Self {

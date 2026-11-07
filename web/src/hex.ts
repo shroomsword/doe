@@ -4,6 +4,8 @@
 // scroll bar stands for the whole file but not row for row: a pixel of scroll
 // can be many rows.
 
+import type { ByteKinds } from './kinds.js';
+
 /** The bytes in a row until the person sets another number. */
 export const DEFAULT_BYTES_PER_ROW = 16;
 const ROW_HEIGHT = 20; // px, as --hex-row in style.css
@@ -88,6 +90,9 @@ export class HexView {
   private readonly rows: HTMLElement;
   private bytes: ByteSource = new MemoryBytes(new Uint8Array(0));
   private selection: HexSelection | null = null;
+  /** Which kind of value owns each byte, when the bytes are coloured by their fields. */
+  private kinds: ByteKinds | null = null;
+  private coloured = true;
   private pending = false;
   private perRow = DEFAULT_BYTES_PER_ROW;
 
@@ -171,6 +176,19 @@ export class HexView {
     this.render();
   }
 
+  /** Colour the bytes by the kind of the field that owns them (null: no colours). */
+  setKinds(kinds: ByteKinds | null): void {
+    this.kinds = kinds;
+    this.render();
+  }
+
+  /** Whether the bytes are coloured by their fields (the toggle of the pane). */
+  setColoured(on: boolean): void {
+    if (on === this.coloured) return;
+    this.coloured = on;
+    this.render();
+  }
+
   setSelection(selection: HexSelection | null): void {
     this.selection = selection;
     this.render();
@@ -225,6 +243,8 @@ export class HexView {
           const whole = selection.startBit <= i * 8 && selection.endBit >= i * 8 + 8;
           marked = whole ? ' sel' : ' sel part';
         }
+        const kind = this.coloured ? this.kinds?.kindAt(i) : null;
+        if (kind) marked += ` k-${kind}`;
         cells += `<span class="b${marked}" data-i="${i}">${value === undefined ? '··' : hex(value, 2)}</span>`;
         text += `<span class="a${marked}" data-i="${i}">${value === undefined ? ' ' : printable(value)}</span>`;
       }
