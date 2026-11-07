@@ -369,3 +369,46 @@ fn sha256_has_64_digits_and_a_narrow_pane_shows_the_first_16_of_them() {
     key(&mut app, 'M');
     assert_eq!(app.files.as_ref().unwrap().algorithm, Some(Algorithm::Sha1));
 }
+
+/// The rows of the screen of a terminal of that width.
+fn screen_of(app: &mut App, width: u16) -> Vec<String> {
+    let mut terminal = Terminal::new(TestBackend::new(width, 16)).unwrap();
+    terminal.draw(|f| draw(f, app, &Theme::new(false))).unwrap();
+    let buffer = terminal.backend().buffer().clone();
+    (0..buffer.area.height)
+        .map(|y| {
+            (0..buffer.area.width)
+                .map(|x| buffer[(x, y)].symbol())
+                .collect::<String>()
+        })
+        .collect()
+}
+
+#[test]
+fn a_digest_of_up_to_40_digits_is_never_cut_and_a_narrower_pane_drops_the_size_before_it_cuts_a_long_one()
+ {
+    let mut app = sample("tar", "sample.tar");
+    key(&mut app, 'm');
+    finish(&mut app);
+    press(&mut app, KeyCode::Right);
+    // an MD5 in a pane of 52 columns: the size, mode and time are left out, the 32 digits are not cut
+    let narrow = screen_of(&mut app, 120);
+    let hello = row_of(&narrow, "hello.txt");
+    assert!(
+        hello.contains("b1946ac92492d2347c6235b4d2611184"),
+        "{hello}"
+    );
+    assert!(!hello.contains('…'), "{hello}");
+    // SHA-1 the same, in a pane of 61
+    key(&mut app, 'm');
+    finish(&mut app);
+    let sha1 = screen_of(&mut app, 135);
+    assert!(row_of(&sha1, "hello.txt").contains("f572d396fae9206628714fb2ce00f72e94f2258f"));
+    // SHA-256 in a pane of 43: no room for the size and 17 cells of digest, so the digest alone, cut
+    key(&mut app, 'm');
+    finish(&mut app);
+    let tight = screen_of(&mut app, 100);
+    let hello = row_of(&tight, "hello.txt");
+    assert!(hello.contains("5891b5b522d5df08…"), "{hello}");
+    assert!(!hello.contains("6 B"), "{hello}");
+}

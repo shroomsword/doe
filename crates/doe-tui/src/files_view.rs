@@ -538,8 +538,11 @@ pub fn time_text(seconds: i64) -> String {
 /// and then the digest is cut to its first [`SHORT_DIGITS`] digits.
 const NAME_ROOM: usize = 24;
 
-/// How many digits of a checksum a pane too narrow for the whole of it shows (`y` still copies the whole).
+/// How many digits of a long checksum a pane too narrow for the whole of it shows (`y` still copies the whole).
 const SHORT_DIGITS: usize = 16;
+
+/// A checksum with more digits than this is cut in a narrow pane; the web page uses the same number (`LONG_DIGITS`).
+const LONG_DIGITS: usize = 40;
 
 /// The cells of a row's columns, right of the name: the size, mode and time, and the checksum when it is shown.
 fn columns(entry: Option<&Entry>, directory: bool, files: &FilesState, width: usize) -> String {
@@ -557,25 +560,31 @@ fn columns(entry: Option<&Entry>, directory: bool, files: &FilesState, width: us
         let hash = checksum_cell(entry, files, algorithm);
         let digits = algorithm.hex_len();
         let room = width.saturating_sub(NAME_ROOM);
-        let full = format!("{size:>9}  {hash:<digits$}  {mode:<10}  {time}");
-        if format::width(&full) <= room {
-            return full;
+        // from the most to the least: everything, the time left out, then the mode, then the size; a long digest (SHA-256,
+        // as in the web page: more than LONG_DIGITS) is then cut to its first digits, with the size and without it
+        let mut candidates = vec![
+            format!("{size:>9}  {hash:<digits$}  {mode:<10}  {time}"),
+            format!("{size:>9}  {hash:<digits$}  {mode:<10}"),
+            format!("{size:>9}  {hash:<digits$}"),
+            format!("{hash:<digits$}"),
+        ];
+        if digits > LONG_DIGITS {
+            let short = if hash.chars().count() > SHORT_DIGITS {
+                format!("{}…", hash.chars().take(SHORT_DIGITS).collect::<String>())
+            } else {
+                hash
+            };
+            let short = format!("{short:<width$}", width = SHORT_DIGITS + 1);
+            candidates.push(format!("{size:>9}  {short}"));
+            candidates.push(short);
         }
-        let without_time = format!("{size:>9}  {hash:<digits$}  {mode:<10}");
-        if format::width(&without_time) <= room {
-            return without_time;
-        }
-        let whole = format!("{size:>9}  {hash:<digits$}");
-        if format::width(&whole) <= room {
-            return whole;
-        }
-        // too narrow for all the digits: the first of them and an ellipsis
-        let short = if hash.chars().count() > SHORT_DIGITS {
-            format!("{}…", hash.chars().take(SHORT_DIGITS).collect::<String>())
-        } else {
-            hash
-        };
-        return format!("{size:>9}  {short:<width$}", width = SHORT_DIGITS + 1);
+        // the first that fits; in a pane too narrow for any, the smallest (the name is cut to nothing, and the row
+        // is clipped at the edge of the pane, as any row is)
+        let smallest = candidates.last().cloned().unwrap_or_default();
+        return candidates
+            .into_iter()
+            .find(|candidate| format::width(candidate) <= room)
+            .unwrap_or(smallest);
     }
     format!("{size:>9}  {mode:<10}  {time}")
 }
