@@ -25,6 +25,8 @@ pub enum Action {
     Preview,
     /// Colour the bytes by the field they belong to, or not.
     ByteColours,
+    /// Show the description of each field after its value, or not.
+    Descriptions,
     /// Show the help.
     Help,
     /// Show or hide the message about a parse that failed.
@@ -202,6 +204,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::Files,
         help: "switch the tree between the fields and the files of an archive (when the schema says it is a file system)",
+    },
+    Binding {
+        keys: &[ch('D')],
+        scope: Scope::Anywhere,
+        action: Action::Descriptions,
+        help: "show the description (doc:) of each field after its value, or not (the inspector, i, has the whole text of the selected field)",
     },
     Binding {
         keys: &[ch('B')],

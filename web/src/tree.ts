@@ -3,8 +3,8 @@
 // (the children of a node that is closed are not made), and a node with very
 // many children shows a first part of them and a row that shows more.
 
-import type { TraceNode } from './doe.js';
-import { type Path, describeRange, nodeAt, valueKind } from './model.js';
+import type { Docs, TraceNode } from './doe.js';
+import { type Path, describeRange, docOf, firstLine, nodeAt, valueKind } from './model.js';
 import { type Radix, fieldKey, integerText } from './radix.js';
 
 /** How many children of a node are shown at first, and added by each click on "more". */
@@ -16,6 +16,8 @@ interface Row {
   key: string;
   node: TraceNode;
   depth: number;
+  /** The description (`doc:`) of the field, whole; null when it has none. */
+  doc?: string | null;
   /** For the row that shows more: how many are hidden. */
   more?: number;
 }
@@ -33,6 +35,9 @@ export class TreeView {
   private readonly shown = new Map<string, number>();
   private selected: Path | null = null;
   private rows: Row[] = [];
+  /** The descriptions of the fields of the result, and whether the rows show them. */
+  private docs: Docs | undefined;
+  private showDocs = true;
 
   constructor(
     parent: HTMLElement,
@@ -50,9 +55,10 @@ export class TreeView {
   }
 
   /** Show a new result. What was open stays open where the same names are still there. */
-  setTrace(root: TraceNode | null): void {
+  setTrace(root: TraceNode | null, docs?: Docs): void {
     const previous = this.root;
     this.root = root;
+    this.docs = docs;
     // What was open is kept for the same schema, and forgotten for another.
     if (previous && root && (previous.name !== root.name || previous.type !== root.type)) {
       this.open.clear();
@@ -80,6 +86,21 @@ export class TreeView {
     this.render();
   }
 
+  /** Show the descriptions of the fields after their values, or not. */
+  setDocsShown(on: boolean): void {
+    if (on === this.showDocs) return;
+    this.showDocs = on;
+    this.render();
+  }
+
+  /** The description of the node at `path`, whole, when the rows show descriptions. */
+  docAt(path: Path): string | null {
+    if (!this.showDocs || !this.root || path.length === 0) return null;
+    const parent = nodeAt(this.root, path.slice(0, -1));
+    const node = nodeAt(this.root, path);
+    return parent && node ? docOf(this.docs, parent.type, node.name) : null;
+  }
+
   private leadsToFailure(node: TraceNode): boolean {
     return node.failed || node.children.some((child) => this.leadsToFailure(child));
   }
@@ -102,14 +123,14 @@ export class TreeView {
     const rows: Row[] = [];
     const root = this.root;
     if (!root) return rows;
-    const walk = (node: TraceNode, path: Path, depth: number, field: string): void => {
-      rows.push({ path, node, depth, key: field });
+    const walk = (node: TraceNode, path: Path, depth: number, field: string, parentType: string | null): void => {
+      rows.push({ path, node, depth, key: field, doc: this.showDocs ? docOf(this.docs, parentType, node.name) : null });
       if (!this.open.has(key(path))) return;
       const limit = this.shown.get(key(path)) ?? CHUNK;
-      node.children.slice(0, limit).forEach((child, index) => walk(child, [...path, index], depth + 1, fieldKey(field, node, child)));
+      node.children.slice(0, limit).forEach((child, index) => walk(child, [...path, index], depth + 1, fieldKey(field, node, child), node.type));
       if (node.children.length > limit) rows.push({ path, node, depth: depth + 1, key: field, more: node.children.length - limit });
     };
-    walk(root, [], 0, '');
+    walk(root, [], 0, '', null);
     return rows;
   }
 
@@ -138,6 +159,7 @@ export class TreeView {
           `<span class="name">${escape(node.name)}</span>`,
           node.type ? `<span class="type">${escape(node.type)}</span>` : '',
           text !== null ? `<span class="summary ${node.integer ? (node.integer.name === null ? 'number' : 'enum') : (valueKind(text) ?? '')}">${escape(text)}</span>` : '',
+          row.doc ? `<span class="doc" title="${escape(row.doc)}">${escape(firstLine(row.doc))}</span>` : '',
           range ? `<span class="range">${escape(range)}</span>` : node.instance ? '<span class="range">computed</span>' : '',
           node.failed ? '<span class="flag">failed here</span>' : '',
           node.problem ? `<span class="flag" title="${escape(node.problem)}">not valid text</span>` : '',

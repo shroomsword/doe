@@ -98,6 +98,15 @@ fn pieces(row: &Row, theme: Theme, radix: Radix) -> Vec<Piece> {
         out.push((" = ".to_owned(), theme.dim()));
         out.push((format::shown(shown, row.bits(), radix), theme.value(shown)));
     }
+    // the description of the field: its first line, dim; the row is cut to the width of the pane, so it is never wrapped
+    if let Some(doc) = row
+        .doc
+        .as_deref()
+        .map(doe::doc::first_line)
+        .filter(|d| !d.is_empty())
+    {
+        out.push((format!("  {}", format::safe(doc)), theme.dim()));
+    }
     if row.instance {
         // an instance is not in the sequence of the type: dimmed all over
         for piece in &mut out {

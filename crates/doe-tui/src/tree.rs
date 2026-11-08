@@ -20,6 +20,7 @@ use doe::api::value_summary;
 use doe::parser::trace::{Span, TraceNode};
 
 use crate::kinds::{ByteKinds, Kind, Leaf};
+use doe::doc::FieldDocs;
 
 /// How many children of a node are shown at first, and how many more each time.
 pub const CHUNK: usize = 200;
@@ -156,6 +157,8 @@ pub struct Row {
     pub problem: Option<String>,
     /// Whether the offsets are in the bytes a `process:` produced.
     pub processed: bool,
+    /// The description (`doc:`) of the field, whole, when the tree shows descriptions and the field has one.
+    pub doc: Option<String>,
     /// Whether it has children, so can be opened.
     pub openable: bool,
     /// Whether it is open.
@@ -171,6 +174,10 @@ pub struct TreeModel {
     /// Which children of a node have rows (`start..end`), when it is not the first [`CHUNK`].
     windows: HashMap<Vec<usize>, (usize, usize)>,
     rows: Vec<Row>,
+    /// The descriptions of the fields (`doc:`), by the type of the node that holds them and the name of the field.
+    docs: FieldDocs,
+    /// Whether the rows have the descriptions.
+    show_docs: bool,
     /// The selected row.
     selected: usize,
     /// The root's row, for the case that there are no rows (there always are).
@@ -198,8 +205,15 @@ fn child_value<'a>(value: Option<&'a Value>, index: usize, name: &str) -> Option
 }
 
 /// The row of a node.
-fn row_of(node: &TraceNode, value: Option<&Value>, path: &[usize], open: bool) -> Row {
+fn row_of(
+    node: &TraceNode,
+    value: Option<&Value>,
+    path: &[usize],
+    open: bool,
+    doc: Option<String>,
+) -> Row {
     Row {
+        doc,
         kind: RowKind::Node,
         path: path.to_vec(),
         depth: path.len(),
@@ -232,6 +246,7 @@ fn marker_row(kind: RowKind, parent: &[usize], name: String) -> Row {
         failed: false,
         problem: None,
         processed: false,
+        doc: None,
         openable: false,
         open: false,
     }
@@ -295,16 +310,49 @@ impl TreeModel {
     #[must_use]
     pub fn new(root: TraceNode, value: Option<Value>) -> Self {
         let mut model = TreeModel {
-            fallback: row_of(&root, value.as_ref(), &[], false),
+            fallback: row_of(&root, value.as_ref(), &[], false, None),
             root,
             value,
             open: HashSet::from([Vec::new()]),
             windows: HashMap::new(),
             rows: Vec::new(),
+            docs: FieldDocs::new(),
+            show_docs: true,
             selected: 0,
         };
         model.rebuild();
         model
+    }
+
+    /// The same tree with the descriptions of the fields of a parse (see [`doe::doc`]).
+    #[must_use]
+    pub fn with_docs(mut self, docs: FieldDocs) -> Self {
+        self.docs = docs;
+        self.rebuild();
+        self
+    }
+
+    /// Show the descriptions after the values, or not.
+    pub fn set_docs_shown(&mut self, on: bool) {
+        if on != self.show_docs {
+            self.show_docs = on;
+            self.rebuild();
+        }
+    }
+
+    /// Whether the rows show the descriptions.
+    #[must_use]
+    pub fn docs_shown(&self) -> bool {
+        self.show_docs
+    }
+
+    /// The description of the field at `path`, whole: the one of its name in the table of the type of its parent.
+    #[must_use]
+    pub fn doc_at(&self, path: &[usize]) -> Option<&str> {
+        let (last, parent) = path.split_last()?;
+        let parent_node = self.node(parent)?;
+        let node = parent_node.children.get(*last)?;
+        doe::doc::doc_of(&self.docs, parent_node.type_name.as_deref(), &node.name)
     }
 
     /// The rows that are visible, from the top.
@@ -416,6 +464,10 @@ impl TreeModel {
         if matches(&node.name) || node.type_name.as_deref().is_some_and(&matches) {
             return true;
         }
+        // a word of the description, while the descriptions are shown (a match would have no reason on the screen)
+        if self.show_docs && self.doc_at(path).is_some_and(&matches) {
+            return true;
+        }
         shown_of(self.value_at(path)).is_some_and(|shown| {
             matches(&crate::format::shown(
                 &shown,
@@ -519,7 +571,7 @@ impl TreeModel {
             .map(|row| (row.kind.clone(), row.path.clone()));
         let mut rows = Vec::new();
         let mut path = Vec::new();
-        self.push_rows(&self.root, self.value.as_ref(), &mut path, &mut rows);
+        self.push_rows(&self.root, self.value.as_ref(), None, &mut path, &mut rows);
         self.rows = rows;
         // The same row if it is still there, else the closest one above.
         self.selected = keep
@@ -535,11 +587,16 @@ impl TreeModel {
         &self,
         node: &TraceNode,
         value: Option<&Value>,
+        parent_type: Option<&str>,
         path: &mut Vec<usize>,
         rows: &mut Vec<Row>,
     ) {
         let open = self.open.contains(path.as_slice()) && !node.children.is_empty();
-        rows.push(row_of(node, value, path, open));
+        let doc = parent_type
+            .filter(|_| self.show_docs)
+            .and_then(|ty| doe::doc::doc_of(&self.docs, Some(ty), &node.name))
+            .map(str::to_owned);
+        rows.push(row_of(node, value, path, open, doc));
         if !open {
             return;
         }
@@ -554,7 +611,13 @@ impl TreeModel {
         }
         for (index, child) in node.children.iter().enumerate().take(end).skip(start) {
             path.push(index);
-            self.push_rows(child, child_value(value, index, &child.name), path, rows);
+            self.push_rows(
+                child,
+                child_value(value, index, &child.name),
+                node.type_name.as_deref(),
+                path,
+                rows,
+            );
             path.pop();
         }
         if end < len {

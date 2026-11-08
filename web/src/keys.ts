@@ -21,6 +21,7 @@ export type Action =
   | 'copy-checksums'
   | 'markdown-view'
   | 'byte-colours'
+  | 'descriptions'
   | 'next-pane'
   | 'previous-pane'
   | 'pane-left'
@@ -73,6 +74,7 @@ export const KEYS: readonly Key[] = [
   { key: 'S', action: 'copy-checksums', label: 'Copy the list of checksums of the Files view, in the format of md5sum -c', needs: 'filesystem' },
   { key: 'v', action: 'markdown-view', label: 'Show a Markdown file of the Files view rendered, or as its source', needs: 'filesystem' },
   { key: 'b', action: 'byte-colours', label: 'Colour the bytes of the Bytes pane by the field they belong to, or not' },
+  { key: 'D', action: 'descriptions', label: 'Show the description (doc:) of each field after its value in the Parsed pane, or not' },
   { key: 'Tab', action: 'next-pane', label: 'Next pane (from a pane, not from a button or a field)' },
   { key: 'Shift+Tab', action: 'previous-pane', label: 'Previous pane' },
   { key: 'h', action: 'pane-left', label: 'Focus the pane on the left' },

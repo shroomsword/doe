@@ -16,6 +16,7 @@ mod context;
 mod cursor;
 mod detect;
 mod detect_gallery;
+mod docs;
 mod elf_gallery;
 mod encoding;
 mod engine;

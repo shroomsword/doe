@@ -174,6 +174,8 @@ pub struct ParseResponse {
     pub problems: Vec<Diagnostic>,
     /// The entries of the value, when the schema says that it is a file system (see [`crate::filesystem`]).
     pub filesystem: Option<crate::filesystem::Listing>,
+    /// The descriptions (`doc:`) of the fields of the types the trace has, by type and field name (see [`crate::doc`]).
+    pub docs: crate::doc::FieldDocs,
 }
 
 /// A schema and the compiler that has it.
@@ -521,6 +523,7 @@ fn parse_with<'a>(
         error: None,
         problems: Vec::new(),
         filesystem: None,
+        docs: crate::doc::FieldDocs::new(),
     };
     let request = match request_from(request) {
         Ok(request) => request,
@@ -562,7 +565,9 @@ fn parse_with<'a>(
     });
     let mut trace = trace_out(&outcome.trace);
     annotate(&mut trace, outcome.value.as_ref());
+    let docs = crate::doc::field_docs(&compiled.compiler.registry, &outcome.trace);
     ParseResponse {
+        docs,
         filesystem,
         ok: outcome.error.is_none(),
         id,

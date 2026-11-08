@@ -3,7 +3,7 @@
 // anywhere.
 
 import { CallEnded, DoeClient } from './client.js';
-import type { Diagnostic, ExportFormat, ExportResponse, InspectResponse, ParseResponse, Request, TraceNode } from './doe.js';
+import type { Diagnostic, Docs, ExportFormat, ExportResponse, InspectResponse, ParseResponse, Request, TraceNode } from './doe.js';
 import { SchemaEditor } from './editor.js';
 import { Help } from './help.js';
 import { type Action, type Needs, KEYS, byteQuery, findPattern, isField, keyName, keyOf } from './keys.js';
@@ -1198,6 +1198,12 @@ export class App {
     const input = element<HTMLInputElement>('columns-input');
     element('columns-button').addEventListener('click', () => this.openColumns());
     element('byte-colours').addEventListener('click', () => this.toggleByteColours());
+    element('docs-toggle').addEventListener('click', () => this.toggleDocs());
+    try {
+      if (localStorage.getItem('doe.docs') === 'off') this.toggleDocs(false);
+    } catch {
+      // the descriptions are shown
+    }
     try {
       if (localStorage.getItem('doe.byte-colours') === 'off') this.toggleByteColours(false);
     } catch {
@@ -1253,6 +1259,32 @@ export class App {
   }
 
   private kindsRun = 0;
+
+  /** The descriptions of the fields of the result on show. */
+  private docs: Docs | undefined;
+  private docsShown = true;
+
+  /** The key D and the button of the Parsed pane: the description of each field after its value, or not. Remembered. */
+  private toggleDocs(on?: boolean): void {
+    this.docsShown = on ?? !this.docsShown;
+    element('docs-toggle').setAttribute('aria-pressed', String(this.docsShown));
+    this.tree.setDocsShown(this.docsShown);
+    this.showFieldDoc();
+    try {
+      if (this.docsShown) localStorage.removeItem('doe.docs');
+      else localStorage.setItem('doe.docs', 'off');
+    } catch {
+      // for this page only
+    }
+  }
+
+  /** The whole description of the selected field, under the tree. */
+  private showFieldDoc(): void {
+    const target = element('field-doc');
+    const doc = this.selection ? this.tree.docAt(this.selection) : null;
+    target.hidden = doc === null;
+    target.textContent = doc ?? '';
+  }
 
   /** The key b and the button of the Bytes pane: colour the bytes by the fields they belong to, or not. Remembered. */
   private toggleByteColours(on?: boolean): void {
@@ -1460,6 +1492,9 @@ export class App {
       case 'byte-colours':
         this.toggleByteColours();
         break;
+      case 'descriptions':
+        this.toggleDocs();
+        break;
       case 'panes':
         this.panesList();
         element<HTMLDialogElement>('panes-dialog').showModal();
@@ -1499,10 +1534,10 @@ export class App {
 
   private parsedSearch(): SearchHandler {
     return {
-      placeholder: 'name, type or value',
+      placeholder: 'name, type, value or description',
       find: (query, direction) => {
         if (!this.trace) return 'nothing is parsed';
-        const found = findNode(this.trace, query, direction === 0 ? null : this.tree.current, direction === 0 ? 1 : direction);
+        const found = findNode(this.trace, query, direction === 0 ? null : this.tree.current, direction === 0 ? 1 : direction, this.docsShown ? this.docs : undefined);
         if (!found) return 'no match';
         this.select(found.path, 'tree');
         this.tree.select(found.path, true);
@@ -1947,7 +1982,8 @@ export class App {
     // a parse that failed must not go unseen because the Status pane is closed
     if (!response.ok || response.error) this.reveal('status');
     this.trace = response.trace;
-    this.tree.setTrace(response.trace);
+    this.docs = response.docs;
+    this.tree.setTrace(response.trace, response.docs);
     this.indexByteKinds(response.trace);
     this.showArchive(response.filesystem);
     // The selection stays on a node that is still there with the same name.
@@ -1978,6 +2014,7 @@ export class App {
     } else this.hex.setSelection(null);
     this.showSelection(node);
     this.showFieldRadix();
+    this.showFieldDoc();
   }
 
   /** The name under which the radix of the selected field is kept, when it is an integer. */

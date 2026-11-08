@@ -53,9 +53,15 @@ only; `./` and `../` relative to the importing file. A path with a directory
   "diagnostics": [],    // what is wrong with the schema (then no value, trace or error)
   "value": { ... },     // the value as `doe --json` prints it; what was read before the failure if it failed
   "trace": TraceNode,   // where each part of the value came from
-  "error": null         // Diagnostic of kind "parse" (or "input"); null when the parse worked
+  "error": null,        // Diagnostic of kind "parse" (or "input"); null when the parse worked
+  "docs": { "png::chunk": { "len": "The length of the data." } }   // the doc: of the fields, by type and field
 }
 ```
+
+`docs` has the descriptions (`doc:`) of the fields and instances of the types the trace has, by the fully-qualified name
+of the type (the `type` of a node) and the name of the field. The description of a node is the one of its name in the table
+of the type of its **parent**; an element (`[0]`) has none, the field has it once, and only fields that have a description
+are in it (the table is small, so the trace does not carry a string for every node). It is `{}` for a schema without any.
 
 When the parse fails, `value` and `trace` are what was read until then, the
 node where it failed has `failed: true`, and `error` says why. When the schema

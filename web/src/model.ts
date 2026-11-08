@@ -2,7 +2,7 @@
 // bytes of a node, the node of a byte, the limit on the input, and turning the
 // positions doe gives into positions of the editor.
 
-import type { Position, TraceNode } from './doe.js';
+import type { Docs, Position, TraceNode } from './doe.js';
 
 /** The largest input; a WebAssembly module has 4 GiB of memory at most, and the page holds the file and a copy. */
 export const MAX_INPUT_BYTES = 256 * 1024 * 1024;
@@ -129,6 +129,18 @@ export function editorRange(line: string, lineFrom: number, position: Pick<Posit
   return { from: lineFrom + start, to: lineFrom + Math.min(end, line.length) };
 }
 
+/** The description of a node: the one of its name in the table of the type of its parent (an element `[0]` has none, the field has it once). */
+export function docOf(docs: Docs | undefined, parentType: string | null, name: string): string | null {
+  if (!docs || parentType === null) return null;
+  const doc = docs[parentType]?.[name];
+  return doc === undefined ? null : doc;
+}
+
+/** The first line of a description, for the row of a field. */
+export function firstLine(doc: string): string {
+  return doc.trim().split(/\r?\n/)[0]?.trim() ?? '';
+}
+
 /** The paths of all the nodes under `root`, parents before their children, in the order of the tree. */
 function allPaths(root: TraceNode): Path[] {
   const paths: Path[] = [];
@@ -140,22 +152,25 @@ function allPaths(root: TraceNode): Path[] {
   return paths;
 }
 
-/** Whether a node has the text in its name, its type or its value (the case does not matter). */
-export function nodeMatches(node: TraceNode, query: string): boolean {
+/** Whether a node has the text in its name, its type, its value or its description (the case does not matter). */
+export function nodeMatches(node: TraceNode, query: string, doc: string | null = null): boolean {
   const wanted = query.trim().toLowerCase();
   if (wanted === '') return false;
-  return [node.name, node.type ?? '', node.summary ?? '', node.integer?.value ?? '', node.integer?.name ?? ''].some((text) => text.toLowerCase().includes(wanted));
+  return [node.name, node.type ?? '', node.summary ?? '', node.integer?.value ?? '', node.integer?.name ?? '', doc ?? ''].some((text) => text.toLowerCase().includes(wanted));
 }
 
 /**
  * The next node, going `direction` from the one at `from` (or from the start), that has the text, wrapping
  * around; null when none has it. `count` is how many nodes have it.
  */
-export function findNode(root: TraceNode, query: string, from: Path | null, direction: 1 | -1): { path: Path; count: number } | null {
+export function findNode(root: TraceNode, query: string, from: Path | null, direction: 1 | -1, docs?: Docs): { path: Path; count: number } | null {
   const paths = allPaths(root);
   const matching = paths.filter((path) => {
     const node = nodeAt(root, path);
-    return node !== null && nodeMatches(node, query);
+    if (node === null) return false;
+    // the description of a field is looked up in the type of its parent
+    const parent = docs && path.length > 0 ? nodeAt(root, path.slice(0, -1)) : null;
+    return nodeMatches(node, query, docs && parent ? docOf(docs, parent.type, node.name) : null);
   });
   if (matching.length === 0) return null;
   const same = (a: Path, b: Path): boolean => a.length === b.length && a.every((value, i) => value === b[i]);

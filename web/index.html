@@ -46,6 +46,7 @@
             <label class="button" title="Open the binary file to parse. It is read in this browser and never uploaded.">Open<input id="open-input" type="file" /></label>
             <button id="detect" type="button" title="Find the schema of the opened file among the gallery (and the types of this machine, with doe --ide)">Detect</button>
             <label id="detect-auto-box" title="Detect the schema when a file is opened and the current one does not parse it"><input id="detect-auto" type="checkbox" /> auto</label>
+            <button id="docs-toggle" type="button" class="icon" aria-pressed="true" aria-label="Descriptions" title="Show the description (doc:) of each field after its value (D)"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 12h5" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
             <button id="files-toggle" type="button" class="icon" hidden aria-pressed="false" aria-label="Files" title="Show the entries of the archive as directories and files, or the tree of fields (F)"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path d="M5 6v13M5 7h6M5 13h6M5 19h6" stroke="currentColor" stroke-width="2" fill="none"/><rect x="2" y="2" width="6" height="5" rx="1" fill="currentColor"/><rect x="11" y="5" width="11" height="4" rx="1" fill="currentColor"/><rect x="11" y="11" width="11" height="4" rx="1" fill="currentColor"/><rect x="11" y="17" width="11" height="4" rx="1" fill="currentColor"/></svg></button>
             <button id="hash-toggle" type="button" class="icon" hidden aria-pressed="false" aria-haspopup="menu" aria-expanded="false" aria-label="Checksums" title="Choose the checksum shown for each file in the Files view: MD5, SHA-1 or none (m goes through them). Checksums for comparing files, not a security measure."><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path d="M9 3 7 21M17 3l-2 18M4 9h17M3 15h17" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
             <div id="hash-menu" role="menu" aria-label="Checksum" hidden></div>
@@ -81,6 +82,7 @@
             </div>
           </div>
         </div>
+        <div id="field-doc" hidden></div>
       </section>
       <section id="pane-hex" data-slot="3" tabindex="-1" aria-labelledby="h-bytes">
         <div class="pane-title">
