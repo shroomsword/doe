@@ -34,6 +34,8 @@ pub struct Loaded {
     /// Which kind of value owns each byte, for the colours of the bytes pane. It is made here, with the parse, so that the
     /// first screen does not wait for it.
     pub byte_kinds: crate::kinds::ByteKinds,
+    /// The descriptions (`doc:`) of the fields of the types the parse entered, for the rows of the tree.
+    pub docs: doe::doc::FieldDocs,
 }
 
 /// Where loading stopped.
@@ -205,6 +207,7 @@ pub fn try_load(options: &Options) -> Result<Loaded, Box<LoadFailure>> {
         doe::filesystem::list(value, &trace, spec)
     });
     let byte_kinds = crate::tree::byte_kinds_of(&trace, value.as_ref());
+    let docs = doe::doc::field_docs(&compiler.registry, &trace);
     Ok(Loaded {
         type_name,
         size,
@@ -214,5 +217,6 @@ pub fn try_load(options: &Options) -> Result<Loaded, Box<LoadFailure>> {
         schema_files,
         filesystem,
         byte_kinds,
+        docs,
     })
 }

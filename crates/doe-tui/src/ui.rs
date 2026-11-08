@@ -1738,6 +1738,35 @@ fn status_bar(frame: &mut Frame<'_>, area: Rect, app: &App, theme: Theme) {
 
 /// The lines of the inspector for the selected field, as text.
 fn inspector_lines(app: &mut App) -> Vec<(String, String)> {
+    // the whole description of the selected field (not of a selection of bytes), when the descriptions are shown
+    let mut lines = Vec::new();
+    if app.hex.selected_range().is_none()
+        && app.tree.docs_shown()
+        && let Some(doc) = app.tree.doc_at(&app.tree.selected().path.clone())
+    {
+        for (i, line) in doc.lines().take(DOC_LINES).enumerate() {
+            lines.push((
+                if i == 0 {
+                    "doc".to_owned()
+                } else {
+                    String::new()
+                },
+                format::safe(line),
+            ));
+        }
+        if doc.lines().count() > DOC_LINES {
+            lines.push((String::new(), "…".to_owned()));
+        }
+    }
+    lines.extend(inspector_forms(app));
+    lines
+}
+
+/// How many lines of a description the inspector shows.
+const DOC_LINES: usize = 12;
+
+/// The forms the selected bytes (or field) can be read in.
+fn inspector_forms(app: &mut App) -> Vec<(String, String)> {
     let row = app.tree.selected().clone();
     // a selection of bytes is what the inspector looks at; else the selected field
     let selected = app.hex.selected_range();

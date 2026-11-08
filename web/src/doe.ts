@@ -60,7 +60,12 @@ export interface ParseResponse {
   problems: Diagnostic[];
   /** The entries of the value, when the schema says that it is a file system (`filesystem:`). */
   filesystem?: Listing | null;
+  /** The descriptions (`doc:`) of fields and instances, by the type of the node that holds them and then the field's name. */
+  docs?: Docs;
 }
+
+/** The descriptions of fields: `docs[type][name]`. */
+export type Docs = Record<string, Record<string, string>>;
 
 export type FsKind = 'file' | 'directory' | 'symlink' | 'hardlink' | 'device' | 'fifo' | 'socket';
 

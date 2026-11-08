@@ -302,7 +302,7 @@ impl App {
             byte_kinds: Some(loaded.byte_kinds),
             byte_colours: true,
             markdown_rendered: false,
-            tree: TreeModel::new(loaded.trace, loaded.value),
+            tree: TreeModel::new(loaded.trace, loaded.value).with_docs(loaded.docs),
             view: TreeView::new(),
             quit: false,
         };
@@ -527,6 +527,8 @@ impl App {
         if !was_broken {
             tree.take_state_of(&self.tree);
         }
+        // the descriptions stay shown or hidden as they were
+        tree.set_docs_shown(self.tree.docs_shown());
         self.tree = tree;
         self.byte_kinds = fresh.byte_kinds;
         let algorithm = self.files.as_ref().and_then(|f| f.algorithm);
@@ -1280,6 +1282,16 @@ impl App {
             }
             Action::ToggleInspector => self.inspector = !self.inspector,
             Action::Files => self.toggle_files(),
+            Action::Descriptions => {
+                let on = !self.tree.docs_shown();
+                self.tree.set_docs_shown(on);
+                self.notice = Some(if on {
+                    "the descriptions of the fields are shown after their values (D hides them)"
+                        .to_owned()
+                } else {
+                    "the descriptions of the fields are hidden (D shows them)".to_owned()
+                });
+            }
             Action::ByteColours => {
                 self.byte_colours = !self.byte_colours;
                 self.notice = Some(if self.byte_colours {

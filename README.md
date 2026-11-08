@@ -319,7 +319,7 @@ it the integer 0 or 1 and names it; the wider ones are unsigned integers. As in 
 | `valid:` | Fail the parse unless the value read satisfies the rules; see [Validating values](#validating-values) |
 | `enum:` | Map the parsed integer to a named variant. `name` is an enum visible in the type; `type::name` is one declared in another type (a nested path is allowed) |
 | `contents:` | Assert fixed bytes (magic numbers, file signatures) |
-| `doc:` | Human-readable description (shown in verbose output) |
+| `doc:` | Human-readable description of the field or instance; the web IDE and the terminal viewer show its first line after the value in the tree (`D` hides it) and the whole text under the tree or in the inspector |
 
 ### Encodings
 
@@ -1231,6 +1231,7 @@ the editor for its pane, closes a dialog and closes a search.
 | `r` | Change how integers are shown (decimal, hexadecimal, binary, octal) |
 | `c` | Set the number of columns of the Bytes pane |
 | `b` | Colour the bytes of the Bytes pane by the field they belong to, or not |
+| `D` | Show the description (`doc:`) of each field after its value in the Parsed pane, or not |
 | `C` | Cancel the parse that is running |
 | `1` | Focus the Schema pane |
 | `2` | Focus the Parsed pane (shows it if it is closed) |
@@ -1328,6 +1329,16 @@ file with a **Copy** button, and **Save checksums** writes `checksums.md5`, `che
 `sha1sum` and `sha256sum` (`<digits>  <path>`, two spaces, one line for each file in the order of the archive), which `md5sum -c
 checksums.md5`, `sha1sum -c checksums.sha1` or `sha256sum -c checksums.sha256` checks in the folder the archive is extracted to; an entry that cannot be
 placed safely is left out of it, and so is a file with no checksum; the status line says how many files the list does not have. `S` puts the same list on the clipboard.
+
+**Descriptions of the fields.** A field or an instance that has a `doc:` in the schema shows the **first line** of it after
+its value in the Parsed pane, dim and italic, cut to the width of the row with an ellipsis (a row is never wrapped and
+the pane does not scroll sideways because of it); the **whole text** is the tooltip of the description and is shown
+under the tree when the field is selected. `D`, or the button of the Parsed pane with the speech bubble, shows or hides
+the descriptions (they are shown to begin with, and the choice is kept in the browser). The search of the pane (`/`) also
+finds a word of a description while the descriptions are shown. It is the description of the **field**: an element of a
+repeated field (`[0]`, `[1]`) has none, the field has it once, and a field of a user type shows the field's own `doc:`,
+not the one of the type. The text is plain text: `<`, `&` and the markup of Markdown in it are shown as written. The
+parameters of a type and the values of an enum have a `doc:` too, and are not shown (they are not rows of the tree).
 
 **Colours of the Bytes pane.** Every byte that belongs to a leaf field is drawn, in the hex and in the character column, in the
 colour that field's value has in the Parsed pane: a number, a string, a run of bytes, an enum, a boolean (a struct or an array
@@ -1619,6 +1630,11 @@ line says how many, and `.` and `,` go to the next and the previous of them. Onl
 the instances of the types on the way to the field are looked at, so a key press
 never looks through the whole tree; an instance inside a type that is somewhere
 else in the file is found from the tree, not from its bytes.
+
+The description (`doc:`) of a field is shown after its value in the tree, dim, as its first line cut to the width of the
+pane; the whole text is in the inspector (`i`) under `doc` when the field is selected (not for a selection of bytes), and `D`
+shows or hides the descriptions (they are shown to begin with, and a reload keeps the choice). The search (`/`) finds a
+word of a description while they are shown. An element of a repeated field has none; the field has it once.
 
 Each byte of the bytes pane is drawn in the colour of the field it belongs to, the colour that field's value has in the tree
 (yellow numbers, green strings, red runs of bytes, magenta enums, cyan booleans with the terminal's own colours; the theme's
