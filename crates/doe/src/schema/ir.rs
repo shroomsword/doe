@@ -188,6 +188,8 @@ pub enum Process {
     Deflate,
     /// Decompress gzip data (RFC 1952), every member, with the CRC-32 and the size checked.
     Gzip,
+    /// Decompress a Brotli stream (RFC 7932).
+    Brotli,
 }
 
 /// The rules a field's value must satisfy; all that are given must hold.

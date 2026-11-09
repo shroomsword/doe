@@ -32,6 +32,8 @@ flate2 = { workspace = true, features = ["rust_backend"] }
 md-5.workspace = true
 sha1.workspace = true
 sha2.workspace = true
+# `process: brotli` and the payload of a .br file (pure Rust; its static dictionary of 122,784 bytes is compiled in).
+brotli-decompressor = { workspace = true, features = ["std"] }
 
 # The tests read files, the configuration and file-backed input.
 [[test]]

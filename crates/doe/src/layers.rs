@@ -74,8 +74,9 @@ fn decode(process_name: &str, data: &[u8], limit: usize) -> Result<Vec<u8>> {
         "gzip" => process::gunzip(data, limit),
         "deflate" => process::inflate_raw(data, limit),
         "zlib" => process::inflate(data, limit),
+        "brotli" => process::brotli_decode(data, limit),
         other => Err(DoeError::Schema(format!(
-            "the payload says process '{other}': zlib, deflate and gzip are supported"
+            "the payload says process '{other}': zlib, deflate, gzip and brotli are supported"
         ))),
     }
 }

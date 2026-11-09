@@ -533,6 +533,47 @@ def make_brotli():
         ("cramjam_empty", b"", 5),
     ):
         put("archive/brotli", sample, bytes(cramjam.brotli.compress(data, level=quality)), WITHOUT_REFERENCE)
+    # a tar in a Brotli stream (a .tar.br): the file the payload of `brotli` is for
+    tar = (Path(__file__).resolve().parent.parent / "types" / "samples" / "sample.tar").read_bytes()
+    put("archive/brotli", "cramjam_tar", bytes(cramjam.brotli.compress(tar, level=9)), WITHOUT_REFERENCE)
+
+
+def make_woff2():
+    try:
+        from fontTools.fontBuilder import FontBuilder
+        from fontTools.pens.ttGlyphPen import TTGlyphPen
+        import brotli  # noqa: F401  (fontTools writes WOFF 2 with it)
+    except ImportError:
+        raise Missing("fontTools and brotli (pip install fonttools brotli)") from None
+    # a font of two glyphs with TrueType outlines, so that the tables glyf and loca are transformed, as the WOFF 2 of a
+    # real font is; saved as WOFF 2 by fontTools (which compresses the tables with the Brotli of Google)
+    def square(size):
+        pen = TTGlyphPen(None)
+        pen.moveTo((0, 0))
+        pen.lineTo((0, size))
+        pen.lineTo((size, size))
+        pen.lineTo((size, 0))
+        pen.closePath()
+        return pen.glyph()
+
+    builder = FontBuilder(1000, isTTF=True)
+    builder.setupGlyphOrder([".notdef", "A"])
+    builder.setupCharacterMap({65: "A"})
+    builder.setupGlyf({".notdef": square(500), "A": square(600)})
+    builder.setupHorizontalMetrics({".notdef": (600, 0), "A": (700, 0)})
+    builder.setupHorizontalHeader(ascent=800, descent=-200)
+    builder.setupNameTable({"familyName": "Doe Sample", "styleName": "Regular"})
+    builder.setupOS2(sTypoAscender=800, sTypoDescender=-200, usWinAscent=800, usWinDescent=200)
+    builder.setupPost()
+    builder.font.flavor = "woff2"
+    builder.font.recalcTimestamp = False
+    for table in ("head",):
+        # fixed times, so that running the script again gives the same bytes
+        builder.font[table].created = builder.font[table].modified = 3_786_825_600
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "doe.woff2"
+        builder.save(str(out))
+        put("font/woff2", "fonttools_square", out.read_bytes(), WITHOUT_REFERENCE)
 
 
 def make_gpg():
@@ -705,7 +746,7 @@ def make_tls():
 ALL = [
     make_gettext, make_dtb, make_uimage, make_cc65, make_tap, make_xar, make_zchunk, make_zisofs, make_android,
     make_partition_tables, make_gpg, make_msi, make_windres, make_php,
-    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream, make_snappy, make_compress_z, make_lzop, make_brotli, make_xz, make_zstd, make_lz4, make_gzip, make_bzip2,
+    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream, make_snappy, make_compress_z, make_lzop, make_brotli, make_woff2, make_xz, make_zstd, make_lz4, make_gzip, make_bzip2,
 ]
 
 # Not made: files that the gallery's definitions cannot read (#278). The functions stay so that they can be run when the

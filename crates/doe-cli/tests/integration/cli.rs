@@ -178,6 +178,42 @@ fn a_tar_gz_is_shown_as_the_tar_it_holds_and_the_layers_are_said() {
 }
 
 #[test]
+fn a_tar_br_is_shown_as_the_tar_inside_its_brotli_stream() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("sample.tar.br");
+    // a real stream: cramjam (the Rust encoder) compressed types/samples/sample.tar
+    std::fs::copy(
+        library().join("../conformance/samples_without_reference/archive/brotli/cramjam_tar.bin"),
+        &file,
+    )
+    .unwrap();
+    doe()
+        .args(["-c", NO_CONFIG, "-I"])
+        .arg(library())
+        .arg(&file)
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with(
+            "tar
+",
+        ))
+        .stdout(predicate::str::contains("hello.txt"))
+        .stderr(predicate::str::contains("is brotli > tar"));
+    // the stream itself
+    doe()
+        .args(["-c", NO_CONFIG, "--no-unwrap", "-I"])
+        .arg(library())
+        .arg(&file)
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with(
+            "brotli
+",
+        ))
+        .stderr(predicate::str::contains("is brotli").not());
+}
+
+#[test]
 fn a_layer_can_be_chosen_and_json_has_every_layer_outermost_first() {
     let file = library().join("samples/sample.tar.gz");
     let json = doe()

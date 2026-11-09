@@ -114,7 +114,7 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `wasm` | WebAssembly modules: the sections, with their ids and sizes (LEB128) and bytes |
 | `npy` | numpy `.npy` array files: the header text and the data |
 | `woff` | WOFF web fonts: the header and the table directory |
-| `woff2` | WOFF 2 web fonts: the header |
+| `woff2` | WOFF 2 web fonts: the header, the table directory (`UIntBase128` lengths, known tags, transforms) and the tables, from the Brotli stream decoded with `process: brotli` (the contents of a table are bytes) |
 | `flac` | FLAC audio: the metadata blocks (stream info, tags, padding...) and the frames as bytes |
 | `gzip_file` | gzip files: the header of the first member and the trailer; its payload is the gunzipped file (a `.tar.gz` is shown as the tar) |
 | `cpio` | cpio archives: newc and crc (`070701`, `070702`: initramfs, RPM payloads), odc, and the old binary format in both byte orders, with the entries as files and directories |
@@ -123,7 +123,7 @@ doe -I types --json capture.pcapng pcapng | jq '.blocks[].body.link_type.name'
 | `snappy` | Snappy framed streams (`.sz`): the chunks with their CRCs, and each compressed block as its literals and copies; `snappy::snappy_block` reads a raw block |
 | `compress_z` | Unix `compress` files (`.Z`): the flags (maximum code size, block mode); the LZW codes are bytes |
 | `lzop` | lzop files (`.lzo`): the header and its flags, and every block's sizes and checksums; the LZO1X data is bytes |
-| `brotli` | Brotli streams (`.br`): the window size and the meta-blocks up to the first compressed one, with the bytes of uncompressed and metadata blocks; the compressed data is bytes |
+| `brotli` | Brotli streams (`.br`): the window size and the meta-blocks up to the first compressed one, with the bytes of uncompressed and metadata blocks; the compressed data is bytes; the payload is the decoded stream (`doe FILE.tar.br` shows the tar) |
 | `lzma_alone` | LZMA-alone files (`.lzma`): the properties split into `lc`, `lp` and `pb`, the dictionary size and the size; the compressed data is bytes |
 | `lzip` | lzip files (`.lz`): the header with the dictionary size decoded, the trailer and the last member |
 | `squashfs` | `SquashFS` 4.0 images: the superblock, the id, fragment and export tables, and the root inode and directory (metadata that is stored or a zlib stream) |
@@ -314,7 +314,7 @@ it the integer 0 or 1 and names it; the wider ones are unsigned integers. As in 
 | `if:` | Skip the field when the expression is false |
 | `size-eos` | `true` to take the rest of the enclosing window or the input as the size; for `bytes`, `str` and user types |
 | `parent` | `_parent` (or `_parent._parent`): the type the field reads gets the parent of the type the field is in, as its `_parent` (see [Instances](#instances)) |
-| `process` | Transform the bytes of the field's `size` window before they are parsed: `xor(key)` (an integer or a byte sequence, repeated), `rol(n)`, `ror(n)` (rotate each byte), `zlib` (a zlib stream, RFC 1950), `deflate` (a raw deflate stream, RFC 1951) or `gzip` (gzip data, RFC 1952: every member, with its header read and its CRC-32 and size checked). For `bytes`, `str` and user types that have a `size` or `size-eos`. The three decompress into memory up to 256 MiB; a larger result, or data that is not what the process says, is an error that names the field |
+| `process` | Transform the bytes of the field's `size` window before they are parsed: `xor(key)` (an integer or a byte sequence, repeated), `rol(n)`, `ror(n)` (rotate each byte), `zlib` (a zlib stream, RFC 1950), `deflate` (a raw deflate stream, RFC 1951) or `gzip` (gzip data, RFC 1952: every member, with its header read and its CRC-32 and size checked) or `brotli` (a Brotli stream, RFC 7932: the tables of a WOFF 2 font, the body of a `Content-Encoding: br` response; bytes after the end of the stream are not looked at). For `bytes`, `str` and user types that have a `size` or `size-eos`. The four decompress into memory up to 256 MiB, enforced while decoding; a larger result, or data that is not what the process says, is an error that names the field |
 | `pos:` | Read the field at this byte offset instead of the current position; see [Seeking](#seeking) |
 | `valid:` | Fail the parse unless the value read satisfies the rules; see [Validating values](#validating-values) |
 | `enum:` | Map the parsed integer to a named variant. `name` is an enum visible in the type; `type::name` is one declared in another type (a nested path is allowed) |
@@ -1434,15 +1434,15 @@ A schema can say that a file of it holds another file with a `payload:` key:
 
 ```yaml
 payload:
-  process: gzip   # zlib, deflate or gzip
+  process: gzip   # zlib, deflate, gzip or brotli
   from: 0         # where the data starts, in bytes (the default is 0)
 ```
 
 When `doe` looks for the schema of a file (no `TYPE_OR_SCHEMA`), and the schema it finds has a `payload:`, it decodes the
 payload **in memory** (up to 256 MiB; nothing is written to disk) and looks for the schema of the result, as it did for
 the file: by signature, then by name, which is the name of the file without its last extension (`x.tar.gz` holds `x.tar`,
-and `x.tgz` holds `x.tar` too). That goes on to a depth of four layers. The library's `gzip_file` has the key, so
-`doe archive.tar.gz` shows the tar, and says on stderr what the layers are:
+and `x.tgz` holds `x.tar` too). That goes on to a depth of four layers. The library's `gzip_file` and `brotli` have the key, so
+`doe archive.tar.gz` and `doe archive.tar.br` show the tar, and says on stderr what the layers are:
 
 ```text
 $ doe archive.tar.gz
