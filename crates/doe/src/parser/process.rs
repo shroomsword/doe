@@ -1,4 +1,4 @@
-//! The byte transforms of `process:`: `xor`, `rol`, `ror`, `zlib`, `deflate` and `gzip`.
+//! The byte transforms of `process:`: `xor`, `rol`, `ror`, `zlib`, `deflate`, `gzip` and `brotli`.
 
 use std::io::Read;
 
@@ -79,4 +79,22 @@ pub fn inflate_raw(data: &[u8], limit: usize) -> Result<Vec<u8>> {
 /// that does not match), or the result is longer than `limit` bytes.
 pub fn gunzip(data: &[u8], limit: usize) -> Result<Vec<u8>> {
     read_limited(MultiGzDecoder::new(data), "gzip", limit)
+}
+
+/// Decompress a Brotli stream (RFC 7932) to at most `limit` bytes. The output is limited while it is decoded (a stream can
+/// expand a lot), and a stream that is cut is an error. Bytes after the end of the stream are not looked at (the decoder
+/// reads ahead, so it cannot say where the stream ended in the input), unlike `gzip`, whose members are counted.
+///
+/// # Errors
+///
+/// Returns an error if the data is not a valid Brotli stream (a bad header, a cut or corrupt stream), or the result is
+/// longer than `limit` bytes.
+pub fn brotli_decode(data: &[u8], limit: usize) -> Result<Vec<u8>> {
+    let mut input = data;
+    let out = read_limited(
+        brotli_decompressor::Decompressor::new(&mut input, 4096),
+        "brotli",
+        limit,
+    )?;
+    Ok(out)
 }

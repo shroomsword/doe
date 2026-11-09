@@ -10,8 +10,10 @@ doc: |
 #   `rest`, bytes - the length of a compressed meta-block in the compressed stream is not given anywhere, so the meta-blocks
 #   after it cannot be found without decoding. The bits that the compressed meta-block's header leaves in its last byte
 #   belong to the prefix codes and are in the first byte of `rest`, not shown separately. Decoding needs prefix-code tables,
-#   a sliding window and the 122,784-byte static dictionary and is not possible in a schema; `process: brotli` would be
-#   the way (a host decoder). A stream with the large-window extension (WBITS code 1) is read as far as its header.
+#   a sliding window and the 122,784-byte static dictionary and is not possible in a schema, so the schema stops there;
+#   `payload: process: brotli` below decodes the whole stream and `doe FILE.br` shows what is inside as a layer of its own
+#   (`process: brotli` does the same for a field of any schema). A stream with the large-window extension (WBITS code 1)
+#   is read as far as its header.
 # Detection: there is no signature. The type is tried for a name that ends in `.br`, or it is given; a Brotli body is
 #   usually a layer (a WOFF2 table, an HTTP body), not a file.
 # Specification: RFC 7932, "Brotli Compressed Data Format"; the large-window extension is in the Brotli repository's docs.
@@ -20,6 +22,9 @@ meta:
   file-extension: br
   bit-endian: le
   endian: le
+# The file is one Brotli stream: its contents are another file (a .tar.br holds a tar), as for gzip.
+payload:
+  process: brotli
 seq:
   - id: window_first
     type: b1

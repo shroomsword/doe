@@ -1818,12 +1818,16 @@ fn compile_process(
             count(0)?;
             Process::Gzip
         }
+        "brotli" => {
+            count(0)?;
+            Process::Brotli
+        }
         "xor" => Process::Xor(argument()?),
         "rol" => Process::Rol(argument()?),
         "ror" => Process::Ror(argument()?),
         other => {
             return Err(bad(format!(
-                "unknown process '{other}' (xor, rol, ror, zlib, deflate and gzip are supported)"
+                "unknown process '{other}' (xor, rol, ror, zlib, deflate, gzip and brotli are supported)"
             )));
         }
     };

@@ -1152,6 +1152,10 @@ impl<'reg> Engine<'reg> {
                 data = process::gunzip(&data, MAX_PROCESSED_LEN)
                     .map_err(|e| fail(format!("process: {e}")))?;
             }
+            Process::Brotli => {
+                data = process::brotli_decode(&data, MAX_PROCESSED_LEN)
+                    .map_err(|e| fail(format!("process: {e}")))?;
+            }
         }
         let mut inner = Cursor::new(&data);
         if let Some(trace) = ctx.trace() {

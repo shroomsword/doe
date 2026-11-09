@@ -156,12 +156,74 @@ fn woff_has_the_header_and_the_table_directory() {
 }
 
 #[test]
-fn woff2_has_the_header() {
+fn woff2_has_the_header_the_table_directory_and_the_tables_of_its_brotli_stream() {
     let v = decode("woff2", "sample.woff2");
     assert_eq!(v["num_tables"], 3);
     assert_eq!(v["total_sfnt_size"], 4096);
-    assert_eq!(v["total_compressed_size"], 20);
-    assert_eq!(v["rest"]["len"], 16);
+    // the stream that holds the tables (a hand-built one in an uncompressed meta-block)
+    assert_eq!(v["total_compressed_size"], 376);
+    let directory = v["table_directory"].as_array().unwrap();
+    assert_eq!(directory.len(), 3);
+    // cmap: no transform, so the length in the stream is the length in the font
+    assert_eq!(name_of(&directory[0]["tag_index"]), "cmap");
+    assert_eq!(directory[0]["orig_length"]["value"], 20);
+    assert_eq!(directory[0]["has_transform_length"], false);
+    assert_eq!(directory[0]["data_length"], 20);
+    // glyf is transformed (version 0): the stream holds 52 bytes of the 40
+    assert_eq!(name_of(&directory[1]["tag_index"]), "glyf");
+    assert_eq!(directory[1]["orig_length"]["value"], 40);
+    assert_eq!(directory[1]["transform_length"]["value"], 52);
+    assert_eq!(directory[1]["data_length"], 52);
+    // a tag of its own, and a length of two bytes of UIntBase128: 0x82 0x2c is 300
+    assert_eq!(name_of(&directory[2]["tag_index"]), "arbitrary");
+    assert_eq!(directory[2]["custom_tag"], "abcd");
+    assert_eq!(directory[2]["orig_length"]["value"], 300);
+    assert_eq!(directory[2]["orig_length"]["b0"], 0x82);
+    // the stream is decoded (process: brotli): the tables, cut as the directory says
+    let tables = v["font_data"]["tables"].as_array().unwrap();
+    let lengths: Vec<u64> = tables
+        .iter()
+        .map(|t| t["data"]["len"].as_u64().unwrap())
+        .collect();
+    assert_eq!(lengths, [20, 52, 300]);
+    assert_eq!(v["rest"]["len"], 0);
+}
+
+#[test]
+fn woff2_reads_a_real_font_that_fonttools_wrote() {
+    // 10 tables; glyf and loca are transformed (loca has a transformed length of 0: the transform folds it into glyf)
+    let v = decode_real("woff2", "font/woff2/fonttools_square.bin");
+    assert_eq!(v["num_tables"], 10);
+    assert_eq!(v["length"], 300);
+    let directory = v["table_directory"].as_array().unwrap();
+    let tags: Vec<String> = directory
+        .iter()
+        .map(|t| name_of(&t["tag_index"]).to_owned())
+        .collect();
+    assert_eq!(
+        tags,
+        [
+            "os_2", "cmap", "glyf", "head", "hhea", "hmtx", "loca", "maxp", "name", "post"
+        ]
+    );
+    // what fontTools says each table has in the font, and in the stream
+    let originals: Vec<u64> = directory
+        .iter()
+        .map(|t| t["orig_length"]["value"].as_u64().unwrap())
+        .collect();
+    assert_eq!(originals, [96, 52, 48, 54, 36, 8, 6, 32, 105, 38]);
+    let streamed: Vec<u64> = directory
+        .iter()
+        .map(|t| t["data_length"].as_u64().unwrap())
+        .collect();
+    assert_eq!(streamed, [96, 52, 64, 54, 36, 8, 0, 32, 105, 38]);
+    // the decoded stream has the tables cut to those lengths, all of it
+    let tables = v["font_data"]["tables"].as_array().unwrap();
+    let cut: Vec<u64> = tables
+        .iter()
+        .map(|t| t["data"]["len"].as_u64().unwrap())
+        .collect();
+    assert_eq!(cut, streamed);
 }
 
 #[test]

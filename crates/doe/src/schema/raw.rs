@@ -167,7 +167,7 @@ pub(crate) fn parse_yaml<T: DeserializeOwned>(text: &str) -> Result<T, YamlError
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawPayload {
-    /// The transform: `zlib`, `deflate` or `gzip`.
+    /// The transform: `zlib`, `deflate`, `gzip` or `brotli`.
     pub process: String,
     /// The offset in the file where the data starts.
     #[serde(default)]

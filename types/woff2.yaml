@@ -1,11 +1,17 @@
 id: woff2
 doc: |
-  WOFF 2 web font: the header (the table directory and the data are Brotli-compressed)
-# Covers: the header: the signature, the font's flavor, the sizes, the number of tables, the version and the
-#   places of the metadata and the private data.
-# Limits: only the header (48 bytes). The table directory has variable-length numbers (UIntBase128) and the
-#   data is one Brotli stream, so they are bytes here.
-# Specification: W3C Recommendation "WOFF File Format 2.0".
+  WOFF 2 web font: the header, the table directory and the tables (the data is one Brotli stream, decoded with process: brotli)
+# Covers: the header (the signature, the font's flavor, the sizes, the number of tables, the version and the places of the
+#   metadata and the private data), the table directory (for each table its tag, the transform it has, its original length
+#   and, for a transformed table, the length of the transformed data; the lengths are UIntBase128 numbers of 1 to 5 bytes),
+#   and the font data: the Brotli stream that follows the directory, decoded with `process: brotli`, cut into the tables
+#   of the directory, each as the bytes the stream holds for it (the transformed bytes for a glyf or loca table; the bytes of
+#   a table that is not transformed are the table).
+# Limits: the contents of a table are bytes here (the transformed glyf, loca and hmtx streams of the specification are not
+#   read apart; the tables of the font are in the library's other types, once the transform is undone). A font collection
+#   (flavor ttcf) has a collection directory after the table directory, which is not read: its data is bytes. The metadata
+#   block (Brotli-compressed XML) and the private data are bytes after the font data.
+# Specification: W3C Recommendation "WOFF File Format 2.0" (the table directory, the UIntBase128 type, the known table tags).
 meta:
   id: woff2
   endian: be
@@ -24,6 +30,7 @@ seq:
     type: u4
   - id: total_compressed_size
     type: u4
+    doc: The size of the Brotli stream that holds the tables.
   - id: major_version
     type: u2
   - id: minor_version
@@ -38,6 +45,146 @@ seq:
     type: u4
   - id: priv_length
     type: u4
+  - id: table_directory
+    type: table_entry
+    repeat: expr
+    repeat-expr: num_tables
+  - id: font_data
+    size: total_compressed_size
+    process: brotli
+    type: font_tables
+    doc: The tables of the font, one Brotli stream. A table is the bytes the stream holds for it, in the order of the directory.
   - id: rest
-    doc: The table directory, the compressed font data, and the metadata and private data.
+    doc: The metadata and the private data (and a collection directory, which is not read).
     size-eos: true
+types:
+  font_tables:
+    seq:
+      - id: tables
+        type: table_data(_parent.table_directory[_index].data_length)
+        repeat: expr
+        repeat-expr: _parent.num_tables
+  table_data:
+    params:
+      - id: len
+        type: u4
+    seq:
+      - id: data
+        size: len
+  table_entry:
+    meta:
+      bit-endian: le
+    seq:
+      - id: tag_index
+        type: b6
+        enum: known_tags
+        doc: Which of the 63 known tags the table has, or 63 when its tag follows.
+      - id: transform_version
+        type: b2
+        doc: For glyf and loca 0 is the transform of the specification and 3 none; for the other tables 0 is none.
+      - id: custom_tag
+        type: str
+        size: 4
+        encoding: ASCII
+        if: tag_index.to_i == 63
+      - id: orig_length
+        type: uint_base128
+        doc: The length of the table in the font.
+      - id: transform_length
+        type: uint_base128
+        if: has_transform_length
+        doc: The length of the transformed table in the stream, when it has a transform.
+    instances:
+      is_glyf_or_loca:
+        value: tag_index.to_i == 10 or tag_index.to_i == 11
+      has_transform_length:
+        value: 'is_glyf_or_loca ? transform_version != 3 : transform_version != 0'
+      data_length:
+        value: 'has_transform_length ? transform_length.value : orig_length.value'
+        doc: How many bytes the table has in the Brotli stream.
+  uint_base128:
+    seq:
+      - id: b0
+        type: u1
+      - id: b1
+        type: u1
+        if: b0 >= 128
+      - id: b2
+        type: u1
+        if: b0 >= 128 and b1 >= 128
+      - id: b3
+        type: u1
+        if: b0 >= 128 and b1 >= 128 and b2 >= 128
+      - id: b4
+        type: u1
+        if: b0 >= 128 and b1 >= 128 and b2 >= 128 and b3 >= 128
+    instances:
+      value:
+        value: 'b0 < 128 ? b0 : (b1 < 128 ? ((b0 & 127) << 7) | b1 : (b2 < 128 ? ((b0 & 127) << 14) | ((b1 & 127) << 7) | b2 : (b3 < 128 ? ((b0 & 127) << 21) | ((b1 & 127) << 14) | ((b2 & 127) << 7) | b3 : ((b0 & 127) << 28) | ((b1 & 127) << 21) | ((b2 & 127) << 14) | ((b3 & 127) << 7) | (b4 & 127))))'
+        doc: The number, 7 bits to a byte, the high bit of a byte saying that another follows.
+enums:
+  known_tags:
+    0: cmap
+    1: head
+    2: hhea
+    3: hmtx
+    4: maxp
+    5: name
+    6: os_2
+    7: post
+    8: cvt
+    9: fpgm
+    10: glyf
+    11: loca
+    12: prep
+    13: cff
+    14: vorg
+    15: ebdt
+    16: eblc
+    17: gasp
+    18: hdmx
+    19: kern
+    20: ltsh
+    21: pclt
+    22: vdmx
+    23: vhea
+    24: vmtx
+    25: base
+    26: gdef
+    27: gpos
+    28: gsub
+    29: ebsc
+    30: jstf
+    31: math
+    32: cbdt
+    33: cblc
+    34: colr
+    35: cpal
+    36: svg
+    37: sbix
+    38: acnt
+    39: avar
+    40: bdat
+    41: bloc
+    42: bsln
+    43: cvar
+    44: fdsc
+    45: feat
+    46: fmtx
+    47: fvar
+    48: gvar
+    49: hsty
+    50: just
+    51: lcar
+    52: mort
+    53: morx
+    54: opbd
+    55: prop
+    56: trak
+    57: zapf
+    58: silf
+    59: glat
+    60: gloc
+    61: feat_graphite
+    62: sill
+    63: arbitrary

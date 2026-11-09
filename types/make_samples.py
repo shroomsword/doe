@@ -130,10 +130,57 @@ def woff() -> bytes:
     return header + directory + data
 
 
+def brotli_stored(raw: bytes, wbits_code: tuple[int, int] = (1, 3)) -> bytes:
+    """A valid Brotli stream that holds `raw` (at most 65536 bytes) in one uncompressed meta-block, then the empty last
+    meta-block: not smaller than the data, but a decoder gives the bytes back."""
+    assert 0 < len(raw) <= 65536
+    bits = 0
+    count = 0
+    out = bytearray()
+
+    def put(value: int, width: int) -> None:
+        nonlocal bits, count
+        bits |= value << count
+        count += width
+        while count >= 8:
+            out.append(bits & 255)
+            bits >>= 8
+            count -= 8
+
+    first, code = wbits_code
+    put(first, 1)
+    if first:
+        put(code, 3)
+    # ISLAST 0, MNIBBLES 0 (4 nibbles), MLEN - 1, ISUNCOMPRESSED 1, then the bits up to the byte end are zero
+    put(0, 1)
+    put(0, 2)
+    put(len(raw) - 1, 16)
+    put(1, 1)
+    if count:
+        out.append(bits & 255)
+        bits = 0
+        count = 0
+    out += raw
+    # the last, empty meta-block: ISLAST 1, ISLASTEMPTY 1
+    put(1, 1)
+    put(1, 1)
+    out.append(bits & 255)
+    return bytes(out)
+
+
 def woff2() -> bytes:
-    """The 48 bytes of a WOFF 2 header, and a few bytes where the directory and the data would be."""
-    header = b"wOF2" + struct.pack(">IIHHIIHHIIIII", 0x00010000, 64, 3, 0, 4096, 20, 1, 0, 0, 0, 0, 0, 0)
-    return header + bytes(range(16))
+    """A WOFF 2 font of three tables: a cmap, a glyf with its transform, and a table with a tag of its own whose length needs
+    two bytes of UIntBase128. The tables are one Brotli stream (in an uncompressed meta-block, so that it is hand-built)."""
+    # flags: the tag index in 6 bits and the transform version in 2; then the original length, then the transformed length
+    directory = bytes([0x00, 20])  # cmap (index 0), no transform, 20 bytes
+    directory += bytes([0x0A, 40, 52])  # glyf (index 10), version 0 = transformed, 40 bytes, 52 transformed
+    directory += bytes([0x3F]) + b"abcd" + bytes([0x82, 0x2C])  # a tag of its own, 300 = 0b10_0101100 in two bytes
+    tables = bytes(range(20)) + bytes(range(52)) + bytes(i % 251 for i in range(300))
+    stream = brotli_stored(tables)
+    stream += bytes(-len(stream) % 4)
+    length = 48 + len(directory) + len(stream)
+    header = b"wOF2" + struct.pack(">IIHHIIHHIIIII", 0x00010000, length, 3, 0, 4096, len(stream), 1, 0, 0, 0, 0, 0, 0)
+    return header + directory + stream
 
 
 def flac() -> bytes:
