@@ -1668,6 +1668,8 @@ pane; the whole text is in the inspector (`i`) under `doc` when the field is sel
 shows or hides the descriptions (they are shown to begin with, and a reload keeps the choice). The search (`/`) finds a
 word of a description while they are shown. An element of a repeated field has none; the field has it once.
 
+A file that holds another file (a `.tar.gz` is a gzip file that holds a tar; a `.tar.xz`, `.cpio.zst`, ... likewise) is opened on the innermost layer, and `L` shows the next layer, and the file itself after the last, with a message that says which layer is shown (`layer 2 of 2: gzip_file > tar`); a file that holds nothing says so.
+
 Each byte of the bytes pane is drawn in the colour of the field it belongs to, the colour that field's value has in the tree
 (yellow numbers, green strings, red runs of bytes, magenta enums, cyan booleans with the terminal's own colours; the theme's
 with a theme), so that the pane reads as a map of the file; `B` turns the colours off and on. The selection is as it was:
