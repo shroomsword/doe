@@ -43,6 +43,14 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
       case 'digest':
         send({ op: 'digested', id: message.id, digests: need().digest(message.algorithm, input, message.ranges) });
         break;
+      case 'decode':
+        try {
+          const bytes = need().decode(message.process, input, message.from);
+          send({ op: 'decoded', id: message.id, bytes: bytes.buffer as ArrayBuffer });
+        } catch (error) {
+          send({ op: 'decoded', id: message.id, error: String(error) });
+        }
+        break;
       case 'export':
         send({ op: 'exported', id: message.id, response: need().export(message.request, input, message.format) });
         break;

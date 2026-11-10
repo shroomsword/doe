@@ -169,6 +169,8 @@ pub struct App {
     pub loading: bool,
     /// The temporary directory that holds the layer being shown (a `.tar.gz` shown as its tar), removed when it is replaced.
     layer_guard: Option<tempfile::TempDir>,
+    /// Which layer of the file is shown (0 is the file itself), once known.
+    layer_index: Option<usize>,
     /// When the parse began, for the time it has taken.
     pub loading_since: Option<std::time::Instant>,
     /// Whether the help is shown.
@@ -329,6 +331,7 @@ impl App {
             inspector: false,
             loading: false,
             layer_guard: None,
+            layer_index: None,
             loading_since: None,
             help: false,
             help_view: crate::help::HelpView::default(),
@@ -404,6 +407,7 @@ impl App {
             inspector: false,
             loading: false,
             layer_guard: None,
+            layer_index: None,
             loading_since: None,
             help: false,
             help_view: crate::help::HelpView::default(),
@@ -461,6 +465,7 @@ impl App {
             inspector: false,
             loading: true,
             layer_guard: None,
+            layer_index: None,
             loading_since: Some(std::time::Instant::now()),
             help: false,
             help_view: crate::help::HelpView::default(),
@@ -1013,6 +1018,101 @@ impl App {
         }
     }
 
+    /// Show the next layer of a file that holds another file (`.tar.gz`: the gzip file, then the tar), and the file itself
+    /// after the last. The layers are found again from the file each time, as `doe FILE` finds them.
+    pub fn cycle_layer(&mut self) {
+        if self.loading {
+            self.notice = Some("still reading the file".to_owned());
+            return;
+        }
+        let Some(mut options) = self.options.clone() else {
+            return;
+        };
+        let outer = options
+            .outer_file
+            .clone()
+            .unwrap_or_else(|| options.file.clone());
+        let found = match doe::layers::unwrap(
+            &outer,
+            &options.include_paths,
+            &doe::detect::Options::default(),
+            doe::layers::MAX_DEPTH,
+            UNWRAP_LIMIT,
+        ) {
+            Ok(found) => found,
+            Err(e) => {
+                self.notice = Some(format!("could not look inside: {e}"));
+                return;
+            }
+        };
+        let count = found.layers.len();
+        if count < 2 {
+            self.notice = Some(
+                found
+                    .notes
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "this file holds no other file".to_owned()),
+            );
+            return;
+        }
+        // a viewer that was opened on a layer shows the last one; one opened on the file shows the first
+        let here = self.layer_index.unwrap_or(if options.outer_file.is_some() {
+            count - 1
+        } else {
+            0
+        });
+        let next = (here + 1) % count;
+        let Some(layer) = found.layers.get(next) else {
+            return;
+        };
+        let mut guard = None;
+        if next == 0 {
+            options.file.clone_from(&outer);
+            options.outer_file = None;
+        } else {
+            let Some(data) = found.data.get(next - 1) else {
+                return;
+            };
+            let mut name = outer
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("layer")
+                .to_owned();
+            for _ in 0..next {
+                name = doe::layers::payload_name(&name);
+            }
+            let Ok(dir) = tempfile::Builder::new().prefix("doe-layer-").tempdir() else {
+                return;
+            };
+            let path = dir
+                .path()
+                .join(if name.is_empty() { "layer" } else { &name });
+            if std::fs::write(&path, data).is_err() {
+                return;
+            }
+            options.file = path;
+            options.outer_file = Some(outer);
+            guard = Some(dir);
+        }
+        options.type_or_schema.clone_from(&layer.type_name);
+        match load::try_load(&options) {
+            Ok(loaded) => {
+                self.file.clone_from(&options.file);
+                self.options = Some(options);
+                self.adopt(loaded);
+                self.layer_guard = guard;
+                self.layer_index = Some(next);
+                self.notice = Some(format!(
+                    "layer {} of {count}: {}",
+                    next + 1,
+                    found.describe()
+                ));
+            }
+            Err(failure) => self.reload_failed(&failure, &options),
+        }
+    }
+
     /// Parse with a type of the type paths: the viewer reads the file again as
     /// `doe --tui FILE TYPE` would.
     pub fn choose_available(&mut self, id: &str) {
@@ -1033,6 +1133,7 @@ impl App {
                 self.options = Some(options);
                 self.adopt(loaded);
                 self.layer_guard = guard.or_else(|| self.layer_guard.take());
+                self.layer_index = None;
                 self.notice = Some(said.unwrap_or_else(|| format!("parsing as {id}")));
             }
             // the old type stays, with the old tree
@@ -1356,6 +1457,7 @@ impl App {
             }
             Action::ToggleInspector => self.inspector = !self.inspector,
             Action::Files => self.toggle_files(),
+            Action::Layers => self.cycle_layer(),
             Action::Descriptions => {
                 let on = !self.tree.docs_shown();
                 self.tree.set_docs_shown(on);

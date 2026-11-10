@@ -205,3 +205,36 @@ pub fn zstd_decode(data: &[u8], limit: usize) -> Result<Vec<u8>> {
         }
     }
 }
+
+/// Decode the payload of a file: `data` from byte `from`, as the `payload:` of the schema says (`process`: `gzip`, `xz`, ...),
+/// to at most `limit` bytes. This is what `doe::layers::unwrap` does for each layer; the web IDE calls it on the bytes it holds.
+///
+/// # Errors
+///
+/// Returns an error if the process is not one that a payload can name, `from` is past the end, or the data cannot be
+/// decoded (a corrupt or cut stream, a bad checksum, more than `limit` bytes).
+pub fn decode_payload(process_name: &str, data: &[u8], from: u64, limit: usize) -> Result<Vec<u8>> {
+    let start = usize::try_from(from).unwrap_or(usize::MAX);
+    let coded = data.get(start..).ok_or_else(|| {
+        DoeError::Schema(format!("the payload starts at byte {start}, past the end"))
+    })?;
+    decode(process_name, coded, limit.min(MAX_PROCESSED_LEN))
+}
+
+/// Decode `data` as the schema's `payload:` says.
+fn decode(process_name: &str, data: &[u8], limit: usize) -> Result<Vec<u8>> {
+    match process_name {
+        "gzip" => gunzip(data, limit),
+        "deflate" => inflate_raw(data, limit),
+        "zlib" => inflate(data, limit),
+        "brotli" => brotli_decode(data, limit),
+        "bzip2" => bzip2_decode(data, limit),
+        "xz" => xz_decode(data, limit),
+        "lzma" => lzma_decode(data, limit),
+        "zstd" => zstd_decode(data, limit),
+        "lzip" => lzip_decode(data, limit),
+        other => Err(DoeError::Schema(format!(
+            "the payload says process '{other}': zlib, deflate, gzip, brotli, bzip2, xz, lzma, lzip and zstd are supported"
+        ))),
+    }
+}

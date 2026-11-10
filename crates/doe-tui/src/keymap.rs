@@ -27,6 +27,8 @@ pub enum Action {
     ByteColours,
     /// Show the description of each field after its value, or not.
     Descriptions,
+    /// Show the next layer of a file that holds another file (a `.tar.gz` is gzip, then the tar it holds).
+    Layers,
     /// Show the help.
     Help,
     /// Show or hide the message about a parse that failed.
@@ -210,6 +212,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::Descriptions,
         help: "show the description (doc:) of each field after its value, or not (the inspector, i, has the whole text of the selected field)",
+    },
+    Binding {
+        keys: &[ch('L')],
+        scope: Scope::Anywhere,
+        action: Action::Layers,
+        help: "show the next layer of a file that holds another file (a .tar.gz is the gzip file, then the tar it holds), and the file itself after the last",
     },
     Binding {
         keys: &[ch('B')],

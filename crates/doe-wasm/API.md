@@ -12,6 +12,7 @@ parse(request: string, bytes: Uint8Array): string   // ParseResponse as JSON
 render(request: string, bytes: Uint8Array, format: string): string   // ExportResponse as JSON (`export` is a reserved word in JavaScript)
 signature(request: string): string      // SignatureResponse as JSON: what the schema's files start with, and its names
 detect_order(request: string, head: Uint8Array): string   // OrderResponse as JSON: which schemas to try on a file, in what order
+decode(process: string, bytes: Uint8Array, from: number): Uint8Array   // the payload of a file (`gzip`, `xz`, `zstd`, ...) from byte `from`; throws the reason as a string
 version(): string
 ```
 
@@ -114,6 +115,7 @@ compile (and for one with an import that is not there).
   "ok": true,
   "magic": [ { "offset": 0, "bytes": [137, 80, 78, 71] } ],  // every file of the schema starts with these; [] if the schema does not say
   "names": ["png", "png"],      // the format's id, the name of its file and its meta: file-extension, in lower case
+  "payload": null,              // or {"process": "gzip", "from": 0} when a file of the schema holds another file (`payload:`): `decode` gives it
   "diagnostics": []             // what is wrong with the schema, when ok is false
 }
 ```

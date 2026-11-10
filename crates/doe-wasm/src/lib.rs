@@ -70,6 +70,24 @@ pub fn render(request: &str, bytes: &[u8], format: &str) -> String {
     to_json(&api::export(request, bytes, format))
 }
 
+/// Decode the payload of a file (`process`: `gzip`, `xz`, `zstd`, ... as the `payload:` of its schema says) from byte
+/// `from` of `bytes`, to at most 256 MiB. This is how the page shows a `.tar.gz` as the tar it holds.
+///
+/// # Errors
+///
+/// The text of the reason: an unknown process, a start past the end, a cut or corrupt stream, a bad checksum, or
+/// more data than the limit.
+#[wasm_bindgen]
+pub fn decode(process: &str, bytes: &[u8], from: u32) -> Result<Vec<u8>, String> {
+    doe::parser::process::decode_payload(
+        process,
+        bytes,
+        u64::from(from),
+        doe::parser::process::MAX_PROCESSED_LEN,
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// A checksum that is computed as bytes come: `new Hasher("md5")`, `update(chunk)` for each piece, `finish()` for the
 /// lower case hex digits. The worker keeps the input, and feeds this from it a few MiB at a time, so a file of any
 /// size is hashed without a copy of it and without holding the worker.

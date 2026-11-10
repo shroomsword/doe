@@ -12,6 +12,7 @@ export type ToWorker =
   | { op: 'signature'; id: number; request: Request }
   | { op: 'order'; id: number; sources: DetectSource[]; name: string | null; all: boolean }
   | { op: 'digest'; id: number; algorithm: string; ranges: [number, number][] }
+  | { op: 'decode'; id: number; process: string; from: number }
   | { op: 'parse'; id: number; request: Request }
   | { op: 'export'; id: number; request: Request; format: ExportFormat };
 
@@ -22,6 +23,7 @@ export type FromWorker =
   | { op: 'signed'; id: number; response: SignatureResponse }
   | { op: 'ordered'; id: number; response: OrderResponse }
   | { op: 'digested'; id: number; digests: (string | null)[] }
+  | { op: 'decoded'; id: number; bytes?: ArrayBuffer; error?: string }
   | { op: 'parsed'; id: number; response: ParseResponse }
   | { op: 'exported'; id: number; response: ExportResponse }
   | { op: 'failed'; id: number; message: string };
@@ -185,6 +187,27 @@ export class DoeClient {
     this.end(new CallEnded('cancelled', 'the parse was cancelled'));
   }
 
+  /**
+   * The payload of the input (as set with `setInput`): the bytes from `from`, decoded as `process` says (a `.tar.gz`'s
+   * gzip data is the tar). Like `digest`, it does not end the running call. Rejects with the reason when the data
+   * cannot be decoded.
+   */
+  async decode(process: string, from: number): Promise<Uint8Array> {
+    await this.start();
+    const worker = this.worker;
+    if (!worker) throw new CallEnded('failed', 'doe is not running');
+    if (!this.inputSent) {
+      const copy = this.input.slice().buffer;
+      worker.postMessage({ op: 'input', bytes: copy } satisfies ToWorker, [copy]);
+      this.inputSent = true;
+    }
+    const id = this.next++;
+    return new Promise<Uint8Array>((resolve, reject) => {
+      this.inspecting.set(id, { resolve: resolve as (response: never) => void, reject });
+      worker.postMessage({ op: 'decode', id, process, from } satisfies ToWorker);
+    });
+  }
+
   private async call<R>(make: (id: number) => ToWorker): Promise<R> {
     // A newer call ends an older one: only the newest is of use.
     this.cancel();
@@ -215,6 +238,13 @@ export class DoeClient {
     if (message.op === 'digested') {
       this.inspecting.get(message.id)?.resolve(message.digests as never);
       this.inspecting.delete(message.id);
+      return;
+    }
+    if (message.op === 'decoded') {
+      const waiting = this.inspecting.get(message.id);
+      this.inspecting.delete(message.id);
+      if (message.error !== undefined || !message.bytes) waiting?.reject(new CallEnded('failed', message.error ?? 'nothing was decoded'));
+      else waiting?.resolve(new Uint8Array(message.bytes) as never);
       return;
     }
     if (message.op === 'inspected' || message.op === 'ordered' || message.op === 'signed') {
