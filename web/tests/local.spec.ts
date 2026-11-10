@@ -179,6 +179,8 @@ test('a type that changed on disk is announced, and the text in the editor is no
 });
 
 test('a page that is not changed makes no requests for the types, and the key L reads the libraries now', async ({ page }) => {
+  // let the changes made by the tests before this one (they put the files back) be heard first
+  await page.waitForTimeout(1500);
   const requests: string[] = [];
   page.on('request', (request) => {
     if (request.url().includes('/api/types')) requests.push(request.url());
