@@ -34,6 +34,10 @@ sha1.workspace = true
 sha2.workspace = true
 # `process: brotli` and the payload of a .br file (pure Rust; its static dictionary of 122,784 bytes is compiled in).
 brotli-decompressor = { workspace = true, features = ["std"] }
+# `process: bzip2 | xz | lzma | zstd` and the payload of the files of those formats (pure Rust).
+bzip2.workspace = true
+lzma-rust2 = { workspace = true, features = ["std", "xz", "lzip"] }
+ruzstd = { workspace = true, features = ["std", "hash"] }
 
 # The tests read files, the configuration and file-backed input.
 [[test]]

@@ -1822,12 +1822,32 @@ fn compile_process(
             count(0)?;
             Process::Brotli
         }
+        "bzip2" => {
+            count(0)?;
+            Process::Bzip2
+        }
+        "xz" => {
+            count(0)?;
+            Process::Xz
+        }
+        "lzma" => {
+            count(0)?;
+            Process::Lzma
+        }
+        "zstd" => {
+            count(0)?;
+            Process::Zstd
+        }
+        "lzip" => {
+            count(0)?;
+            Process::Lzip
+        }
         "xor" => Process::Xor(argument()?),
         "rol" => Process::Rol(argument()?),
         "ror" => Process::Ror(argument()?),
         other => {
             return Err(bad(format!(
-                "unknown process '{other}' (xor, rol, ror, zlib, deflate, gzip and brotli are supported)"
+                "unknown process '{other}' (xor, rol, ror, zlib, deflate, gzip, brotli, bzip2, xz, lzma, lzip and zstd are supported)"
             )));
         }
     };

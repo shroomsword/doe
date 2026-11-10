@@ -538,6 +538,47 @@ def make_brotli():
     put("archive/brotli", "cramjam_tar", bytes(cramjam.brotli.compress(tar, level=9)), WITHOUT_REFERENCE)
 
 
+def make_decoders():
+    """Compressed text and a compressed tar in every format that `process:` decodes (#406), as the tools write them: the
+    files the payload of `bzip2`, `xz`, `lzma` and `zstd` is for, and the streams of several members/frames in one."""
+    import bz2
+
+    need("xz")
+    need("zstd")
+    root = Path(__file__).resolve().parent.parent
+    tar = (root / "types" / "samples" / "sample.tar").read_bytes()
+    cpio = (root / "types" / "samples" / "sample.cpio").read_bytes()
+    half = len(TEXT) // 2
+    parts = (TEXT[:half], TEXT[half:])
+
+    def xz(data, *args):
+        return run(["xz", "-c", "-k", *args], input=data)
+
+    def zstd(data, *args):
+        return run(["zstd", "-q", "-c", *args], input=data)
+
+    put("archive/bzip2", "python_bz2_text", bz2.compress(TEXT, 9), WITHOUT_REFERENCE)
+    put("archive/bzip2", "python_bz2_tar", bz2.compress(tar, 9), WITHOUT_REFERENCE)
+    put("archive/bzip2", "python_bz2_two_streams", b"".join(bz2.compress(p, 9) for p in parts), WITHOUT_REFERENCE)
+    put("archive/xz", "xz_text", xz(TEXT, "-6"), WITHOUT_REFERENCE)
+    put("archive/xz", "xz_tar", xz(tar, "-6"), WITHOUT_REFERENCE)
+    put("archive/xz", "xz_two_streams_text", b"".join(xz(p, "-6") for p in parts), WITHOUT_REFERENCE)
+    put("archive/lzma_alone", "xz_alone_text", xz(TEXT, "--format=lzma"), WITHOUT_REFERENCE)
+    put("archive/lzma_alone", "xz_alone_tar", xz(tar, "--format=lzma"), WITHOUT_REFERENCE)
+    put("archive/zstd", "zstd_text", zstd(TEXT, "-19"), WITHOUT_REFERENCE)
+    put("archive/zstd", "zstd_tar", zstd(tar, "-19"), WITHOUT_REFERENCE)
+    put("archive/bzip2", "python_bz2_cpio", bz2.compress(cpio, 9), WITHOUT_REFERENCE)
+    put("archive/xz", "xz_cpio", xz(cpio, "-6"), WITHOUT_REFERENCE)
+    put("archive/zstd", "zstd_cpio", zstd(cpio, "-19"), WITHOUT_REFERENCE)
+    # a decompression bomb: 64 MiB of zeros in a few kilobytes (the limit of a test is a megabyte)
+    zeros = bytes(64 * 1024 * 1024)
+    put("archive/bzip2", "python_bz2_bomb", bz2.compress(zeros, 9), WITHOUT_REFERENCE)
+    put("archive/xz", "xz_bomb", xz(zeros, "-9"), WITHOUT_REFERENCE)
+    put("archive/lzma_alone", "xz_alone_bomb", xz(zeros, "--format=lzma", "-9"), WITHOUT_REFERENCE)
+    put("archive/zstd", "zstd_bomb", zstd(zeros, "-19", "--long=27"), WITHOUT_REFERENCE)
+    put("archive/zstd", "zstd_two_frames_text", b"".join(zstd(p, "-3") for p in parts), WITHOUT_REFERENCE)
+
+
 def make_woff2():
     try:
         from fontTools.fontBuilder import FontBuilder
@@ -746,7 +787,7 @@ def make_tls():
 ALL = [
     make_gettext, make_dtb, make_uimage, make_cc65, make_tap, make_xar, make_zchunk, make_zisofs, make_android,
     make_partition_tables, make_gpg, make_msi, make_windres, make_php,
-    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream, make_snappy, make_compress_z, make_lzop, make_brotli, make_woff2, make_xz, make_zstd, make_lz4, make_gzip, make_bzip2,
+    make_dbf_shapefile, make_ffmpeg, make_websocket, make_tls, make_mar, make_efi, make_cpio, make_lzma_alone, make_lzip, make_zlib_stream, make_snappy, make_compress_z, make_lzop, make_brotli, make_decoders, make_woff2, make_xz, make_zstd, make_lz4, make_gzip, make_bzip2,
 ]
 
 # Not made: files that the gallery's definitions cannot read (#278). The functions stay so that they can be run when the

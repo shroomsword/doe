@@ -16,6 +16,9 @@ meta:
   id: lzip
   file-extension: [lz, lzip]
   endian: le
+# The file is lzip compressed: its contents are another file (a .tar.lz holds a tar), as for gzip.
+payload:
+  process: lzip
 seq:
   - id: header
     type: header

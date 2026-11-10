@@ -37,6 +37,9 @@ md-5 = { version = "0.11", default-features = false }
 sha1 = { version = "0.11", default-features = false }
 sha2 = { version = "0.11", default-features = false }
 brotli-decompressor = { version = "6", default-features = false }
+bzip2 = "0.6" # the default feature is libbz2-rs-sys, a Rust port of libbz2
+lzma-rust2 = { version = "0.25", default-features = false }
+ruzstd = { version = "0.9", default-features = false }
 notify = { version = "8", default-features = false }
 encoding_rs = { version = "0.8", default-features = false }
 assert_cmd = "2"

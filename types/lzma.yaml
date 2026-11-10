@@ -14,6 +14,9 @@ meta:
   id: lzma_alone
   file-extension: lzma
   endian: le
+# The file is one lzma compressed file: its contents are another file (a .tar.lzma holds a tar), as for gzip.
+payload:
+  process: lzma
 seq:
   - id: properties
     type: u1

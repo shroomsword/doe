@@ -190,6 +190,16 @@ pub enum Process {
     Gzip,
     /// Decompress a Brotli stream (RFC 7932).
     Brotli,
+    /// Decompress a bzip2 file.
+    Bzip2,
+    /// Decompress an xz file.
+    Xz,
+    /// Decompress a `.lzma` file (LZMA alone).
+    Lzma,
+    /// Decompress Zstandard data (RFC 8878), every frame.
+    Zstd,
+    /// Decompress a lzip file, every member.
+    Lzip,
 }
 
 /// The rules a field's value must satisfy; all that are given must hold.

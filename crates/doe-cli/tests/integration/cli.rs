@@ -178,6 +178,65 @@ fn a_tar_gz_is_shown_as_the_tar_it_holds_and_the_layers_are_said() {
 }
 
 #[test]
+fn compressed_tars_and_cpios_are_shown_as_the_file_system_they_hold() {
+    let dir = tempfile::tempdir().unwrap();
+    let archive = library().join("../conformance/samples_without_reference/archive");
+    for (name, from, layers, entry) in [
+        ("sample.tar.xz", "xz/xz_tar.bin", "is xz > tar", "hello.txt"),
+        (
+            "sample.tar.bz2",
+            "bzip2/python_bz2_tar.bin",
+            "is bzip2 > tar",
+            "hello.txt",
+        ),
+        (
+            "sample.tar.zst",
+            "zstd/zstd_tar.bin",
+            "is zstd > tar",
+            "hello.txt",
+        ),
+        (
+            "sample.tar.lzma",
+            "lzma_alone/xz_alone_tar.bin",
+            "is lzma_alone > tar",
+            "hello.txt",
+        ),
+        ("sample.cpio.xz", "xz/xz_cpio.bin", "is xz > cpio", "cpio"),
+        (
+            "sample.cpio.zst",
+            "zstd/zstd_cpio.bin",
+            "is zstd > cpio",
+            "cpio",
+        ),
+        (
+            "sample.cpio.bz2",
+            "bzip2/python_bz2_cpio.bin",
+            "is bzip2 > cpio",
+            "cpio",
+        ),
+    ] {
+        let file = dir.path().join(name);
+        std::fs::copy(archive.join(from), &file).unwrap();
+        doe()
+            .args(["-c", NO_CONFIG, "-I"])
+            .arg(library())
+            .arg(&file)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains(entry))
+            .stderr(predicate::str::contains(layers));
+        // the container itself
+        doe()
+            .args(["-c", NO_CONFIG, "--no-unwrap", "-I"])
+            .arg(library())
+            .arg(&file)
+            .assert()
+            .success()
+            .stderr(predicate::str::contains(layers).not());
+    }
+}
+
+#[test]
 fn a_tar_br_is_shown_as_the_tar_inside_its_brotli_stream() {
     let dir = tempfile::tempdir().unwrap();
     let file = dir.path().join("sample.tar.br");
