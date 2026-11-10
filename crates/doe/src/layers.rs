@@ -14,7 +14,7 @@ use serde::Serialize;
 
 use crate::detect::{Detection, Library, Options};
 use crate::error::{DoeError, Result};
-use crate::parser::process::{self, MAX_PROCESSED_LEN};
+use crate::parser::process;
 
 /// How many layers are followed at most (a gzip of a tar of ...).
 pub const MAX_DEPTH: usize = 4;
@@ -65,24 +65,6 @@ pub fn payload_name(file_name: &str) -> String {
     match ext.to_ascii_lowercase().as_str() {
         "tgz" | "taz" | "tbz" | "tbz2" | "txz" | "tzst" => format!("{stem}.tar"),
         _ => stem.to_owned(),
-    }
-}
-
-/// Decode `data` as the schema's `payload:` says.
-fn decode(process_name: &str, data: &[u8], limit: usize) -> Result<Vec<u8>> {
-    match process_name {
-        "gzip" => process::gunzip(data, limit),
-        "deflate" => process::inflate_raw(data, limit),
-        "zlib" => process::inflate(data, limit),
-        "brotli" => process::brotli_decode(data, limit),
-        "bzip2" => process::bzip2_decode(data, limit),
-        "xz" => process::xz_decode(data, limit),
-        "lzma" => process::lzma_decode(data, limit),
-        "zstd" => process::zstd_decode(data, limit),
-        "lzip" => process::lzip_decode(data, limit),
-        other => Err(DoeError::Schema(format!(
-            "the payload says process '{other}': zlib, deflate, gzip, brotli, bzip2, xz, lzma, lzip and zstd are supported"
-        ))),
     }
 }
 
@@ -190,7 +172,7 @@ pub fn unwrap_as(
             ));
             break;
         };
-        let decoded = match decode(&payload.process, coded, max_bytes.min(MAX_PROCESSED_LEN)) {
+        let decoded = match process::decode_payload(&payload.process, coded, 0, max_bytes) {
             Ok(decoded) => decoded,
             Err(error) => {
                 out.notes.push(format!(

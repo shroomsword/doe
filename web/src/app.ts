@@ -17,7 +17,8 @@ import { type Origin, SchemaList, editable, isKnownType, listing, parsedAs } fro
 import { type Work, codeOfHash, decodeWork, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { RADIXES, Radixes, isRadix } from './radix.js';
-import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
+import { type Attempt, type Deps, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
+import { type Layer, MAX_LAYERS, describeLayers, payloadName } from './layers.js';
 import { TreeView } from './tree.js';
 import { type Layout, type Mode, type PaneName, type Sizes, PANE_NAMES, TILE_PRESETS, applyLayout, defaultLayout, isDefault, layoutText, loadLayout, moved, movedAcross, movedInRow, saveLayout, shown, swapped, tilesOf, withSizes, withTiles, withVisible } from './layout.js';
 import { Splitters } from './resize.js';
@@ -88,6 +89,9 @@ export class App {
   private switching = false;
   private bytes: Uint8Array | null = null;
   private inputName: string | null = null;
+  /** The layers of the opened file (a `.tar.gz` is gzip > tar), outermost first, when it holds files; and the one shown. */
+  private layers: Layer[] = [];
+  private layerIndex = 0;
   private notice: Diagnostic | null = null;
   private trace: TraceNode | null = null;
   private selection: Path | null = null;
@@ -383,34 +387,20 @@ export class App {
         status.textContent = 'there is no gallery to look in';
         return;
       }
-      const found = await detectGallery(
-        {
-          formats: this.gallery.formats,
-          order: (sources, name, every) => this.client.order(sources, name, every),
-          fetchText: (path) => this.fetchGallery(path),
-          parse: (request) => this.client.parse(request),
-          progress: (text) => {
-            status.textContent = text;
-          },
-          cancelled: () => run.cancelled,
-        },
-        this.inputName,
-        all,
-      );
+      const found = await detectGallery(this.galleryDeps(run), this.inputName, all);
       const lines = found.attempts.map((a: Attempt) => ({ text: describe(a), fit: a.result === 'fit' }));
       if (found.chosen) {
         const { format, text, files } = found.chosen;
-        this.applyWork({
-          schema: text,
-          files,
-          path: format.path,
-          include_paths: [''],
-          origin: galleryOrigin(format.path),
-          origins: Object.fromEntries(Object.keys(files).map((path) => [path, galleryOrigin(path)])),
-        });
+        const work = this.galleryWork(format.path, text, files);
+        this.applyWork(work);
+        this.layers = [];
+        this.layerIndex = 0;
+        this.renderLayers();
         this.refreshNow();
         status.textContent = `detected ${format.id} (${found.attempts.length} tried)`;
         this.showDetectReport(`${format.id} parses the file`, lines, false);
+        // a file that holds another file (a .tar.gz) is shown as that file
+        await this.followPayload(work, format.id, run);
       } else if (run.cancelled) {
         status.textContent = 'detection cancelled';
       } else {
@@ -426,6 +416,138 @@ export class App {
     }
   }
 
+  /** What the detection needs from the page. */
+  private galleryDeps(run: { cancelled: boolean }): Deps {
+    const status = element('status');
+    return {
+      formats: this.gallery?.formats ?? [],
+      order: (sources, name, every) => this.client.order(sources, name, every),
+      fetchText: (path) => this.fetchGallery(path),
+      parse: (request) => this.client.parse(request),
+      progress: (text) => {
+        status.textContent = text;
+      },
+      cancelled: () => run.cancelled,
+    };
+  }
+
+  /** The work that opens a format of the gallery (or of doe's own library) with the files it imports. */
+  private galleryWork(path: string, text: string, files: Record<string, string>): Work {
+    return {
+      schema: text,
+      files,
+      path,
+      include_paths: [''],
+      origin: galleryOrigin(path),
+      origins: Object.fromEntries(Object.keys(files).map((file) => [file, galleryOrigin(file)])),
+    };
+  }
+
+  // ── files inside files ─────────────────────────────────────────────────────
+
+  /**
+   * The schema that was found for the opened file says that the file holds another file (a gzip file holds a tar): decode it in
+   * the worker, find the schema of that in the same way, and so on to a depth; then show the innermost layer. A payload that
+   * cannot be decoded or that fits no schema leaves the layer that was found, with a note in the status.
+   */
+  private async followPayload(first: Work, firstType: string, run: { cancelled: boolean } | null): Promise<void> {
+    const bytes = this.bytes;
+    if (!bytes || this.serverInput || !this.gallery) return;
+    const stack: Layer[] = [{ name: this.inputName ?? 'file', bytes, work: first, type: firstType }];
+    const status = element('status');
+    let note = '';
+    try {
+      while (stack.length < MAX_LAYERS) {
+        const top = stack[stack.length - 1] as Layer;
+        this.client.setInput(top.bytes);
+        const signature = await this.client.signature({ schema: top.work.schema, files: top.work.files, path: top.work.path, include_paths: top.work.include_paths ?? [''], ...(top.work.type ? { type: top.work.type } : {}) });
+        const payload = signature.ok ? signature.payload : null;
+        if (!payload) break;
+        status.textContent = `unwrapping ${top.type} (${payload.process})…`;
+        let decoded: Uint8Array;
+        try {
+          decoded = await this.client.decode(payload.process, payload.from);
+        } catch (error) {
+          note = `could not unwrap ${top.type} (${payload.process}): ${error instanceof Error ? error.message.replace(/^doe stopped: /, '') : String(error)}`;
+          break;
+        }
+        const name = payloadName(top.name);
+        this.client.setInput(decoded);
+        const found = await detectGallery(this.galleryDeps(run ?? { cancelled: false }), name, false);
+        if (!found.chosen) {
+          note = `the payload of ${top.type} (${decoded.length} bytes) fits no schema`;
+          break;
+        }
+        stack.push({ name, bytes: decoded, work: this.galleryWork(found.chosen.format.path, found.chosen.text, found.chosen.files), type: found.chosen.format.id });
+      }
+    } catch (error) {
+      note = `could not look inside: ${error instanceof Error ? error.message : String(error)}`;
+    }
+    if (stack.length < 2) {
+      this.client.setInput(bytes);
+      if (note) status.textContent = `${status.textContent} · ${note}`;
+      return;
+    }
+    this.layers = stack;
+    this.showLayer(stack.length - 1);
+    status.textContent = `${stack[0]?.name ?? 'file'} is ${describeLayers(stack)}${note ? ` · ${note}` : ''}`;
+  }
+
+  /** Show layer `index` of the opened file: its bytes in the Bytes pane and its schema in the editor. */
+  private showLayer(index: number): void {
+    const layer = this.layers[index];
+    if (!layer) return;
+    this.layerIndex = index;
+    this.bytes = layer.bytes;
+    this.inputName = layer.name;
+    this.selection = null;
+    this.archive.resetChecksums();
+    this.client.setInput(layer.bytes);
+    this.hex.setBytes(layer.bytes);
+    this.applyWork(layer.work);
+    this.renderLayers();
+    this.refreshNow();
+  }
+
+  /** The line above the panes that names the layers and switches between them (only for a file that holds another file). */
+  private renderLayers(): void {
+    const nav = element('layers');
+    nav.hidden = this.layers.length < 2;
+    if (nav.hidden) {
+      nav.replaceChildren();
+      return;
+    }
+    const label = document.createElement('span');
+    label.className = 'layers-label';
+    label.textContent = 'Layers';
+    const items: Node[] = [label];
+    this.layers.forEach((layer, index) => {
+      if (index > 0) {
+        const arrow = document.createElement('span');
+        arrow.className = 'layers-arrow';
+        arrow.setAttribute('aria-hidden', 'true');
+        arrow.textContent = '\u203a';
+        items.push(arrow);
+      }
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'layer';
+      button.dataset.layer = String(index);
+      button.title = `${layer.type}, ${layer.bytes.length} bytes${index === 0 ? ' (the file itself)' : ''}`;
+      button.setAttribute('aria-current', String(index === this.layerIndex));
+      const name = document.createElement('span');
+      name.textContent = layer.name;
+      const type = document.createElement('small');
+      type.textContent = layer.type;
+      button.append(name, type);
+      button.addEventListener('click', () => {
+        if (index !== this.layerIndex) this.showLayer(index);
+      });
+      items.push(button);
+    });
+    nav.replaceChildren(...items);
+  }
+
   /** Fetch a format and the files it imports, at the commit the page was built with. */
   async openGallery(format: { path: string; imports: string[] }): Promise<void> {
     const gallery = this.gallery;
@@ -437,15 +559,11 @@ export class App {
       const [text, ...imports] = await Promise.all([format.path, ...format.imports].map(get));
       const files: Record<string, string> = {};
       for (const [index, path] of format.imports.entries()) files[path] = imports[index] ?? '';
-      this.applyWork({
-        schema: text ?? '',
-        files,
-        path: format.path,
-        include_paths: [''],
-        origin: galleryOrigin(format.path),
-        origins: Object.fromEntries(Object.keys(files).map((path) => [path, galleryOrigin(path)])),
-      });
+      const work = this.galleryWork(format.path, text ?? '', files);
+      this.applyWork(work);
       this.refreshNow();
+      // a type chosen for the file itself that holds another file (gzip_file on a .tar.gz) is shown as what it holds
+      if (this.bytes && this.layerIndex === 0) await this.followPayload(work, work.path.split('/').pop()?.replace(/\.(yaml|ksy)$/, '') ?? work.path, null);
     } catch (error) {
       this.problems.show([{ severity: 'error', kind: 'request', message: `could not fetch the format: ${String(error)}`, position: null }]);
       status.textContent = 'could not fetch the format';
@@ -723,6 +841,9 @@ export class App {
   private useServerInput(local: LocalApi, input: { name: string; size: number }): void {
     element<HTMLButtonElement>('detect').disabled = false;
     this.serverInput = input;
+    this.layers = [];
+    this.layerIndex = 0;
+    this.renderLayers();
     this.archive.resetChecksums();
     this.bytes = null;
     this.inputName = input.name;
@@ -732,6 +853,9 @@ export class App {
   }
 
   private setInput(bytes: Uint8Array, name: string): void {
+    this.layers = [];
+    this.layerIndex = 0;
+    this.renderLayers();
     this.serverInput = null;
     this.archive.resetChecksums();
     this.lastInputName = null;
@@ -2249,7 +2373,7 @@ export class App {
     const parts: string[] = [];
     if (!this.inputName) parts.push(this.lastInputName ? `open ${this.lastInputName} again` : 'no file opened');
     const size = this.serverInput?.size ?? this.bytes?.length;
-    if (this.inputName && size !== undefined) parts.push(`${this.inputName}, ${size} bytes${this.serverInput ? ' (on this machine)' : ''}`);
+    if (this.inputName && size !== undefined) parts.push(`${this.inputName}, ${size} bytes${this.serverInput ? ' (on this machine)' : ''}${this.layers.length > 1 ? ` (layer ${this.layerIndex + 1} of ${this.layers.length}: ${describeLayers(this.layers)})` : ''}`);
     parts.push(response.diagnostics.length > 0 ? 'the schema has problems' : response.ok ? `parsed as ${this.parseType ?? response.id ?? '?'}` : problems > 0 ? 'the parse failed' : 'ok');
     element('status').textContent = parts.join(' · ');
   }

@@ -148,6 +148,8 @@ export interface DetectSource {
 /** What `signature` answers: what a type starts with and what the format is called. */
 export interface SignatureResponse {
   ok: boolean;
+  /** What a file of the schema holds, when it holds another file: `process` (`gzip`, `xz`, ...) decodes the bytes from `from`. */
+  payload?: { process: string; from: number } | null;
   magic: Magic[];
   alternatives: Magic[][];
   checks: number;
@@ -182,6 +184,8 @@ export interface Doe {
   detectOrder(sources: DetectSource[], head: Uint8Array, name: string | null, all: boolean): OrderResponse;
   /** The checksums (lower case hex) of ranges of `bytes`, each fed to the algorithm in pieces; null for a range outside. */
   digest(algorithm: string, bytes: Uint8Array, ranges: [number, number][]): (string | null)[];
+  /** The payload of a file: `bytes` from `from`, decoded as `process` says. Throws the reason when it cannot be decoded. */
+  decode(process: string, bytes: Uint8Array, from: number): Uint8Array;
 }
 
 /** How much of a range is given to the checksum at once. */
@@ -201,6 +205,7 @@ export async function loadDoe(wasmUrl: URL | string): Promise<Doe> {
       JSON.parse(wasm.render(JSON.stringify(request), bytes, format)) as ExportResponse,
     detectOrder: (sources, head, name, all) =>
       JSON.parse(wasm.detect_order(JSON.stringify({ sources, name, all }), head)) as OrderResponse,
+    decode: (process, bytes, from) => wasm.decode(process, bytes, from),
     digest: (algorithm, bytes, ranges) =>
       ranges.map(([from, to]) => {
         if (from < 0 || from > to || to > bytes.length) return null;

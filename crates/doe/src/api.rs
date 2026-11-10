@@ -232,6 +232,15 @@ fn request_from(json: &str) -> Result<Request, Diagnostic> {
         .map_err(|e| Diagnostic::new("request", format!("the request is not valid: {e}")))
 }
 
+/// What a file of a schema holds, when the schema says it holds another file (`payload:`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct PayloadInfo {
+    /// The transform that gives the other file: `gzip`, `xz`, `zstd`, ...
+    pub process: String,
+    /// Where the coded data starts, in bytes.
+    pub from: u64,
+}
+
 /// The answer to [`signature`].
 #[derive(Debug, Serialize)]
 pub struct SignatureResponse {
@@ -249,6 +258,8 @@ pub struct SignatureResponse {
     pub informative: bool,
     /// The names of the format, in lower case: id, file name, extensions.
     pub names: Vec<String>,
+    /// What a file of the schema holds, if it holds another file.
+    pub payload: Option<PayloadInfo>,
     /// What is wrong with the schema.
     pub diagnostics: Vec<Diagnostic>,
 }
@@ -264,6 +275,7 @@ pub fn signature(request: &str) -> SignatureResponse {
         checks: 0,
         informative: false,
         names: Vec::new(),
+        payload: None,
         diagnostics,
     };
     let request = match request_from(request) {
@@ -293,6 +305,15 @@ pub fn signature(request: &str) -> SignatureResponse {
                         .filesystems
                         .contains_key(&compiled.id),
                 names: compiled.names,
+                payload: compiled
+                    .compiler
+                    .registry
+                    .payloads
+                    .get(&compiled.id)
+                    .map(|p| PayloadInfo {
+                        process: p.process.clone(),
+                        from: p.from,
+                    }),
                 diagnostics: Vec::new(),
             }
         }

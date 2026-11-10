@@ -407,3 +407,11 @@ main.has-max > #splitters { display: none; }
 body.pane-resizing-col, body.pane-resizing-col * { cursor: col-resize !important; user-select: none !important; }
 body.pane-resizing-row, body.pane-resizing-row * { cursor: row-resize !important; user-select: none !important; }
 body.pane-resizing-col iframe, body.pane-resizing-row iframe, body.pane-resizing-col .cm-editor, body.pane-resizing-row .cm-editor { pointer-events: none; }
+
+/* the layers of a file that holds another file (a .tar.gz): a line above the panes */
+.layers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 4px var(--gutter); border-bottom: 1px solid var(--line); background: var(--panel); font-size: 12px; }
+.layers-label { color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-size: 11px; }
+.layers-arrow { color: var(--muted); }
+.layer { display: inline-flex; align-items: baseline; gap: 6px; padding: 1px 8px; }
+.layer small { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.layer[aria-current="true"] { border-color: var(--accent); background: var(--select); }
