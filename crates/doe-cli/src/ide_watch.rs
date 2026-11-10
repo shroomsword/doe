@@ -16,6 +16,7 @@
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
@@ -191,6 +192,67 @@ fn read(
     (paths, error)
 }
 
+// ── what the libraries are, to tell a change from a noise ───────────────────
+
+/// The deepest a library is looked into, and the most files, as `discover_types`
+/// does (a limit keeps a loop of links or a huge tree from stalling the watcher).
+const MAX_DEPTH: usize = 16;
+const MAX_FILES: usize = 100_000;
+
+fn collect(dir: &Path, depth: usize, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        if files.len() >= MAX_FILES {
+            return;
+        }
+        let path = entry.path();
+        if path.is_dir() {
+            if depth < MAX_DEPTH {
+                collect(&path, depth + 1, files);
+            }
+        } else if path.extension().and_then(OsStr::to_str).is_some_and(|ext| {
+            ["yaml", "yml", "ksy"]
+                .iter()
+                .any(|k| ext.eq_ignore_ascii_case(k))
+        }) {
+            files.push(path);
+        }
+    }
+}
+
+/// A number that changes when the schema files below `paths`, or the
+/// configuration file, change. The notifications say that something happened;
+/// this says whether it matters (a platform may report the folder itself, or
+/// what happened before the watch began).
+fn fingerprint(paths: &[PathBuf], config: Option<&Path>) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    paths.hash(&mut hasher);
+    for dir in paths {
+        let mut files = Vec::new();
+        collect(dir, 0, &mut files);
+        files.sort();
+        for file in files {
+            file.hash(&mut hasher);
+            std::fs::read(&file).ok().hash(&mut hasher);
+        }
+    }
+    if let Some(config) = config {
+        std::fs::read(config).ok().hash(&mut hasher);
+    }
+    hasher.finish()
+}
+
+/// `paths` and, for those that are links, where they lead: a platform reports
+/// the real paths, and the paths of the configuration may be the links.
+fn with_real(paths: &[PathBuf]) -> Vec<PathBuf> {
+    let mut all = paths.to_vec();
+    all.extend(paths.iter().filter_map(|p| std::fs::canonicalize(p).ok()));
+    all.dedup();
+    all
+}
+
 // ── which events matter, and what is watched ─────────────────────────────────
 
 /// Whether a change to `path` can change the libraries: a schema file or a folder
@@ -331,9 +393,19 @@ pub(crate) fn start(
     let unwatched = watching.sync(&wanted(&libraries.paths(), config.as_deref()));
     libraries.set_unwatched(unwatched);
     let libraries = Arc::clone(libraries);
+    let known = fingerprint(&libraries.paths(), config.as_deref());
     std::thread::Builder::new()
         .name("doe-watch".to_owned())
-        .spawn(move || run(&libraries, &receiver, watching, config.as_deref(), &*source))
+        .spawn(move || {
+            run(
+                &libraries,
+                &receiver,
+                watching,
+                config.as_deref(),
+                &*source,
+                known,
+            );
+        })
         .map_err(|e| format!("the type libraries are not watched: {e}"))?;
     Ok(())
 }
@@ -344,14 +416,15 @@ fn run(
     mut watching: Watching,
     config: Option<&Path>,
     source: &dyn Fn() -> anyhow::Result<Vec<PathBuf>>,
+    mut known: u64,
 ) {
     while let Ok(first) = receiver.recv() {
-        let mut changed = is_relevant_event(&first, &libraries.paths(), config);
+        let mut changed = is_relevant_event(&first, &with_real(&libraries.paths()), config);
         let started = Instant::now();
         loop {
             match receiver.recv_timeout(QUIET) {
                 Ok(event) => {
-                    changed |= is_relevant_event(&event, &libraries.paths(), config);
+                    changed |= is_relevant_event(&event, &with_real(&libraries.paths()), config);
                     if started.elapsed() >= LONGEST_BURST {
                         break;
                     }
@@ -365,6 +438,13 @@ fn run(
         }
         let (paths, error) = read(source, &libraries.paths());
         let unwatched = watching.sync(&wanted(&paths, config));
+        // after the watches: what was written before a new folder was watched is in it
+        let now = fingerprint(&paths, config);
+        if now == known && paths == libraries.paths() {
+            // events with nothing behind them
+            continue;
+        }
+        known = now;
         if let Some(why) = &unwatched {
             log::warn!("{why}");
         }
@@ -578,10 +658,11 @@ mod tests {
         let libraries = Libraries::new(vec![later.clone()]);
         start(&libraries, None, plain(vec![later.clone()])).unwrap();
         std::fs::create_dir(&later).unwrap();
-        let seen = libraries.wait_change(0, WAIT).expect("the folder was seen");
+        // an empty folder is no change; the type that comes into it is
+        std::thread::sleep(Duration::from_millis(500));
         write_type(&later, "x.yaml", "x", "in the new folder");
         libraries
-            .wait_change(seen.generation, WAIT)
+            .wait_change(0, WAIT)
             .expect("the new folder was watched");
     }
 

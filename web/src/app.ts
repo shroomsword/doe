@@ -586,13 +586,28 @@ export class App {
     element('types-reload-open').addEventListener('click', () => {
       if (this.loadedType) void this.openType(local, this.loadedType.path);
     });
-    await this.refreshTypes(local);
-    // the server tells us when the libraries change on this machine: no polling
-    local.watch({
-      event: (event) => void this.librariesChanged(local, event),
-      open: () => this.libraryState({ lost: false }),
-      lost: () => this.libraryState({ lost: true }),
+    // The server tells us when the libraries change on this machine (no polling), and tells us how they are now when
+    // the connection is made: that is the first load. Without a connection (or an answer) the list is asked for once.
+    let first: () => void = () => undefined;
+    const loaded = new Promise<void>((resolve) => {
+      first = resolve;
     });
+    const fallback = (): void => {
+      if (this.libraryGeneration === null) {
+        this.libraryGeneration = -1;
+        void this.refreshTypes(local).then(first);
+      }
+    };
+    local.watch({
+      event: (event) => void this.librariesChanged(local, event).then(first),
+      open: () => this.libraryState({ lost: false }),
+      lost: () => {
+        this.libraryState({ lost: true });
+        fallback();
+      },
+    });
+    setTimeout(fallback, 3000);
+    await loaded;
   }
 
   /** Ask for the list of types again and show it, keeping the choice and, in the browser of types, the filter. */
