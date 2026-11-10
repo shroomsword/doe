@@ -70,6 +70,7 @@ fn app(dir: &Path) -> App {
         theme: None,
         theme_dir: None,
         config_file: None,
+        outer_file: None,
         theme_on_command_line: false,
         transparent: None,
         radix: None,

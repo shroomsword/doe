@@ -97,7 +97,13 @@ struct Viewed {
 }
 
 #[cfg(any(feature = "tui", feature = "ide"))]
-fn viewed(cli: &Cli, config: &Config, file: &Path, find_type: bool) -> anyhow::Result<Viewed> {
+fn viewed(
+    cli: &Cli,
+    config: &Config,
+    file: &Path,
+    find_type: bool,
+    given: Option<&str>,
+) -> anyhow::Result<Viewed> {
     use std::io::Write as _;
 
     let own = |type_name: Option<String>| Viewed {
@@ -105,7 +111,7 @@ fn viewed(cli: &Cli, config: &Config, file: &Path, find_type: bool) -> anyhow::R
         type_name,
         _guard: None,
     };
-    let layers = detect_layers(cli, config, file)?;
+    let layers = detect_layers(cli, config, file, given)?;
     for note in &layers.notes {
         log::info!("{note}");
     }
@@ -150,6 +156,12 @@ fn viewed(cli: &Cli, config: &Config, file: &Path, find_type: bool) -> anyhow::R
     })
 }
 
+/// Whether `given` names a type of the type paths (not a schema file, and not `SCHEMA::TYPE`).
+#[cfg(feature = "tui")]
+fn is_library_type(given: &str) -> bool {
+    !doe::is_schema_path(given) && !given.contains("::")
+}
+
 #[cfg(feature = "ide")]
 fn ide(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     let paths = include_paths(&cli.include_paths, config);
@@ -157,7 +169,7 @@ fn ide(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     let viewed = cli
         .file
         .as_deref()
-        .map(|file| viewed(cli, config, file, false))
+        .map(|file| viewed(cli, config, file, false, None))
         .transpose()?;
     let offered = viewed.as_ref().map(|v| v.path.as_path());
     if !crate::ide::BUNDLED {
@@ -248,16 +260,27 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     };
     let mut viewed_file = None;
     let type_or_schema = match (&cli.type_or_schema, &cli.build) {
+        // a type of the library that holds another file (`gzip_file`) is shown as what it holds, as when it is found
+        (Some(given), None) if is_library_type(given) => {
+            let found = viewed(cli, config, file, false, Some(given))?;
+            let type_name = found.type_name.clone().unwrap_or_else(|| given.clone());
+            viewed_file = Some(found);
+            type_name
+        }
         (Some(given), _) => given.clone(),
         // the schema is the one that is being built
         (None, Some(_)) => String::new(),
         (None, None) => {
-            let found = viewed(cli, config, file, true)?;
+            let found = viewed(cli, config, file, true, None)?;
             let type_name = found.type_name.clone().unwrap_or_default();
             viewed_file = Some(found);
             type_name
         }
     };
+    let outer_file = viewed_file
+        .as_ref()
+        .filter(|v| v.path != *file)
+        .map(|_| file.clone());
     let file: &Path = viewed_file
         .as_ref()
         .map_or(file.as_path(), |v| v.path.as_path());
@@ -282,6 +305,7 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
             cli.config.clone().or_else(Config::default_path).as_deref(),
         ),
         config_file: cli.config.clone().or_else(Config::default_path),
+        outer_file,
         theme_on_command_line: cli.theme.is_some(),
         transparent: transparent_setting(cli, config),
     };
@@ -347,6 +371,7 @@ fn detect_layers(
     cli: &Cli,
     config: &Config,
     file: &Path,
+    given: Option<&str>,
 ) -> anyhow::Result<doe::layers::Unwrapped> {
     let options = doe::detect::Options {
         all: cli.detect.as_deref() == Some("all"),
@@ -357,12 +382,13 @@ fn detect_layers(
     } else {
         cli.layer.map_or(doe::layers::MAX_DEPTH, usize::from)
     };
-    doe::layers::unwrap(
+    doe::layers::unwrap_as(
         file,
         &include_paths(&cli.include_paths, config),
         &options,
         wanted,
         UNWRAP_LIMIT,
+        given,
     )
     .with_context(|| format!("could not look for the schema of {}", file.display()))
 }
@@ -485,7 +511,7 @@ fn run(cli: &Cli, config: &Config) -> anyhow::Result<()> {
     };
     if cli.type_or_schema.is_none() {
         // the schema is looked for, and a file that holds another file is shown as the one it holds
-        let layers = detect_layers(cli, config, file)?;
+        let layers = detect_layers(cli, config, file, None)?;
         for note in &layers.notes {
             log::info!("{note}");
         }
@@ -713,7 +739,7 @@ mod viewed_tests {
     #[test]
     fn a_viewer_opens_the_innermost_layer_from_a_temporary_file_that_goes_away() {
         let file = types().join("samples/sample.tar.gz");
-        let found = viewed(&cli(&file, &[]), &Config::default(), &file, true).unwrap();
+        let found = viewed(&cli(&file, &[]), &Config::default(), &file, true, None).unwrap();
         assert_eq!(found.type_name.as_deref(), Some("tar"));
         assert_eq!(found.path.file_name().unwrap(), "sample.tar");
         assert_eq!(
@@ -733,12 +759,13 @@ mod viewed_tests {
             &Config::default(),
             &file,
             true,
+            None,
         )
         .unwrap();
         assert_eq!(found.path, file);
         assert_eq!(found.type_name.as_deref(), Some("gzip_file"));
         let plain = types().join("samples/sample.txt.gz");
-        let found = viewed(&cli(&plain, &[]), &Config::default(), &plain, true).unwrap();
+        let found = viewed(&cli(&plain, &[]), &Config::default(), &plain, true, None).unwrap();
         assert_eq!(found.path, plain);
         assert_eq!(found.type_name.as_deref(), Some("gzip_file"));
     }

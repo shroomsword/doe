@@ -73,6 +73,7 @@ fn options(f: &Fixture, type_or_schema: &str) -> Options {
         theme: None,
         theme_dir: None,
         config_file: None,
+        outer_file: None,
         theme_on_command_line: false,
         transparent: None,
         radix: None,

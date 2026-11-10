@@ -81,6 +81,9 @@ pub struct Options {
     /// The configuration file of this run (`--config`, or the default one): where `Enter` in the list of themes saves
     /// the choice. None: nothing is saved, and the list says what to put in the file.
     pub config_file: Option<PathBuf>,
+    /// The file that `file` is a layer of (a `.tar.gz` shown as the tar it holds, from a temporary file), when it is one:
+    /// choosing a type that holds another file unwraps this file again.
+    pub outer_file: Option<PathBuf>,
     /// Whether `--theme` was given on the command line, which wins over the configuration file.
     pub theme_on_command_line: bool,
     /// Whether to leave the background of the screen to the terminal: `--transparent` or `--no-transparent`, else the

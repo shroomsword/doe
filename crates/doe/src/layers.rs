@@ -95,17 +95,55 @@ pub fn unwrap(
     max_layers: usize,
     max_bytes: usize,
 ) -> Result<Unwrapped> {
-    let library = Library::load(include_paths)?;
+    unwrap_as(file, include_paths, options, max_layers, max_bytes, None)
+}
+
+/// Like [`unwrap`], with the type of the outermost layer given instead of looked for (`first`: the id of a type of the
+/// include paths): a file that is opened as `gzip_file` is still shown as the tar it holds.
+///
+/// # Errors
+///
+/// As [`unwrap`]; and when `first` is not a type of the include paths.
+pub fn unwrap_as(
+    file: &Path,
+    include_paths: &[PathBuf],
+    options: &Options,
+    max_layers: usize,
+    max_bytes: usize,
+    first: Option<&str>,
+) -> Result<Unwrapped> {
     let mut out = Unwrapped::default();
-    let first = library.detect(file, options)?;
-    let Some(mut name) = first.chosen().map(|a| a.name.clone()) else {
-        out.detections.push(first);
-        return Ok(out);
+    if let Some(given) = first {
+        // a type that holds nothing is the only layer: the type paths do not have to be compiled to know it
+        let mut compiler = crate::schema::compiler::Compiler::new(include_paths.to_vec());
+        compiler.load(given, None)?;
+        if !compiler.registry.payloads.contains_key(given) {
+            out.layers.push(Layer {
+                type_name: given.to_owned(),
+            });
+            return Ok(out);
+        }
+    }
+    let library = Library::load(include_paths)?;
+    let mut name = if let Some(given) = first {
+        if !library.sources().iter().any(|s| s.name == given) {
+            return Err(DoeError::Schema(format!(
+                "'{given}' is not a type of the type paths"
+            )));
+        }
+        given.to_owned()
+    } else {
+        let found = library.detect(file, options)?;
+        let Some(chosen) = found.chosen().map(|a| a.name.clone()) else {
+            out.detections.push(found);
+            return Ok(out);
+        };
+        out.detections.push(found);
+        chosen
     };
     out.layers.push(Layer {
         type_name: name.clone(),
     });
-    out.detections.push(first);
     let file_name = file
         .file_name()
         .and_then(|n| n.to_str())

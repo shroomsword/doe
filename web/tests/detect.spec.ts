@@ -260,6 +260,16 @@ test('a zlib stream is found by its first two bytes, without the network', async
   expect(asked).toEqual([]);
 });
 
+test("a gzip file is found as doe's gzip_file (which says it holds a file), not the gallery's gzip with the same signature", async ({ page }) => {
+  test.skip(!hasGallery, 'the gallery is not checked out');
+  await serveGallery(page);
+  await ready(page);
+  await page.setInputFiles('#open-input', { name: 'sample.tar.gz', mimeType: 'application/octet-stream', buffer: readFileSync(join(repo, 'types', 'samples', 'sample.tar.gz')) });
+  await page.click('#detect');
+  await expect(page.locator('#detect-report')).toContainText('gzip_file parses the file', { timeout: 30_000 });
+  await expect(page.locator('#detect-report li')).toHaveCount(1);
+});
+
 test('a Snappy framed stream is found by its identifier, without the network', async ({ page }) => {
   const asked = await serveGallery(page);
   await ready(page);

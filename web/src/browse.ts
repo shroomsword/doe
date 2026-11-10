@@ -28,6 +28,7 @@ export interface Entry {
   /** Other starts of a file of the type, and how many things it checks (see `DetectSource`). */
   alternatives?: Magic[][];
   checks?: number;
+  informative?: boolean;
   /** What it is called, in lower case: its id, the name of its file and its extensions. */
   names: string[];
   /** Why its schema could not be compiled, once that is known. */
@@ -89,6 +90,7 @@ export function galleryEntries(formats: readonly GalleryFormat[], currentPath: s
     magic: format.magic ?? [],
     alternatives: format.alternatives ?? [],
     checks: format.checks ?? 0,
+    informative: format.informative ?? false,
     names: format.names ?? [format.id.toLowerCase()],
     compileError: null,
     verified: format.verified ?? null,

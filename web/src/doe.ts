@@ -141,6 +141,8 @@ export interface DetectSource {
   names: string[];
   /** How many things the schema checks; a schema that checks nothing is tried last when all are tried. */
   checks?: number;
+  /** The schema says what a file of it holds: between equal fits it is tried first. */
+  informative?: boolean;
 }
 
 /** What `signature` answers: what a type starts with and what the format is called. */
@@ -149,6 +151,7 @@ export interface SignatureResponse {
   magic: Magic[];
   alternatives: Magic[][];
   checks: number;
+  informative: boolean;
   names: string[];
   diagnostics: Diagnostic[];
 }

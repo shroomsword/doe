@@ -1486,7 +1486,7 @@ tar
 `--no-unwrap` shows the outermost layer alone (a gzip file as a gzip file, as before); `--layer N` shows layer N (1 is the
 file itself). With `--json` or `--pretty` every layer is printed, outermost first, as `{"layers": [{"type": "gzip_file",
 "value": ...}, {"type": "tar", "value": ...}]}`; with `--layer` it is that layer alone, as the type prints it. A type
-given by name is never unwrapped. If the payload cannot be decoded (a corrupt stream, a bad CRC, more than the limit) or
+given by name is never unwrapped by the command line, but `--tui` shows a type that holds a file (`doe --tui archive.tar.gz gzip_file`, or `gzip_file` chosen in the type browser) as the layer it holds. Where two types fit a file equally well (the signature is the same), the one whose schema says what the file holds (`filesystem:` or `payload:`) is tried first, so doe's `gzip_file` comes before the gallery's `gzip`. If the payload cannot be decoded (a corrupt stream, a bad CRC, more than the limit) or
 fits no schema, the outer layer is shown and `-v` says why. The offsets of an inner layer are in its decoded bytes, not in
 the file. `--tui` and `--ide` open the innermost layer too (or the one `--layer` names; `--no-unwrap` opens the file): the
 viewers read a file by its path, so the layer is written to a temporary file named as it would be (`archive.tar`), which is

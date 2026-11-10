@@ -346,6 +346,10 @@ pub struct Source {
     /// after the ones that check something when all are tried.
     #[serde(default)]
     pub checks: u32,
+    /// Whether the schema says what a file of it holds (`filesystem:` or `payload:`): between two schemas that fit a file
+    /// equally well, the one that says more is tried first (doe's `gzip_file` before the gallery's `gzip`).
+    #[serde(default)]
+    pub informative: bool,
 }
 
 impl Source {
@@ -449,8 +453,17 @@ pub fn rank(sources: &[Source], head: &[u8], file_name: Option<&str>, all: bool)
         Why::Name => 2,
         Why::Remaining => 3,
     };
-    // the longer the signature, the less likely it is chance; the order of the sources otherwise
-    ranked.sort_by_key(|(r, length)| (tier(r.why), std::cmp::Reverse(*length), r.index));
+    // the longer the signature, the less likely it is chance; then the schema that says what the file holds (a gzip that
+    // holds a tar is better shown as that); the order of the sources otherwise
+    ranked.sort_by_key(|(r, length)| {
+        let informative = sources.get(r.index).is_some_and(|s| s.informative);
+        (
+            tier(r.why),
+            std::cmp::Reverse(*length),
+            !informative,
+            r.index,
+        )
+    });
     ranked.into_iter().map(|(r, _)| r).collect()
 }
 
@@ -626,6 +639,10 @@ fn source_from(
     if let Ok(raw) = Compiler::new(include_paths.to_vec()).read_schema(&available.source) {
         names.extend(extensions_of(raw.meta.file_extension.as_ref()));
     }
+    let informative = compiled.is_some_and(|c| {
+        c.registry.payloads.contains_key(&available.id)
+            || c.registry.filesystems.contains_key(&available.id)
+    });
     let mut signatures = compiled
         .map(|c| signatures_of(&c.registry, &available.id))
         .unwrap_or_default()
@@ -637,6 +654,7 @@ fn source_from(
         alternatives: signatures.collect(),
         names,
         checks: compiled.map_or(0, |c| checks_of(&c.registry)),
+        informative,
     }
 }
 
@@ -877,6 +895,7 @@ mod tests {
             alternatives: Vec::new(),
             names: names.iter().map(|n| (*n).to_owned()).collect(),
             checks: 0,
+            informative: false,
         }
     }
 
@@ -925,6 +944,30 @@ mod tests {
                 .map(|(n, _)| n.as_str())
                 .collect::<Vec<_>>(),
             ["both", "long", "short", "named"]
+        );
+    }
+
+    #[test]
+    fn of_two_equal_fits_the_schema_that_says_what_the_file_holds_is_first() {
+        let mut library = source("gzip_file", &[(0, b"\x1f\x8b")], &["gz"]);
+        library.informative = true;
+        // the gallery's, which sorts first by its id
+        let gallery = source("gzip", &[(0, b"\x1f\x8b")], &["gz"]);
+        let sources = [gallery, library];
+        assert_eq!(
+            order(&sources, b"\x1f\x8b\x08", Some("a.tar.gz"), false)
+                .into_iter()
+                .map(|(name, _)| name)
+                .collect::<Vec<_>>(),
+            ["gzip_file", "gzip"]
+        );
+        // a longer signature is still first
+        let mut longer = source("other", &[(0, b"\x1f\x8b\x08")], &["gz"]);
+        longer.informative = false;
+        let sources = [sources[0].clone(), sources[1].clone(), longer];
+        assert_eq!(
+            order(&sources, b"\x1f\x8b\x08", Some("a.gz"), false)[0].0,
+            "other"
         );
     }
 

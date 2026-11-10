@@ -250,6 +250,7 @@ impl Local {
                                 "magic": source.magic,
                                 "alternatives": source.alternatives,
                                 "checks": source.checks,
+                                "informative": source.informative,
                                 "names": source.names,
                                 "error": error,
                             })
