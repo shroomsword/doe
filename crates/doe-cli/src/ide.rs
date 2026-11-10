@@ -16,6 +16,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use crate::ide_api::Local;
+use crate::ide_watch::Libraries;
 
 include!(concat!(env!("OUT_DIR"), "/ide_assets.rs"));
 
@@ -34,6 +35,9 @@ pub(crate) struct Response {
     pub(crate) body: Cow<'static, [u8]>,
     /// For `HEAD`: say how long the body is but do not send it.
     pub(crate) head_only: bool,
+    /// Not a body but a stream of events (`text/event-stream`), which is held
+    /// open and written as things happen.
+    pub(crate) stream: bool,
 }
 
 fn reason(status: u16) -> &'static str {
@@ -72,6 +76,7 @@ pub(crate) fn error(status: u16, body: &'static str) -> Response {
         content_type: "text/plain; charset=utf-8",
         body: Cow::Borrowed(body.as_bytes()),
         head_only: false,
+        stream: false,
     }
 }
 
@@ -159,6 +164,7 @@ pub(crate) fn respond(head: &str, body: &[u8], port: u16, local: &Local) -> Resp
             content_type: content_type(asset),
             body: Cow::Borrowed(body),
             head_only: method == "HEAD",
+            stream: false,
         },
         None => error(404, "not found\n"),
     }
@@ -170,11 +176,13 @@ const POLICY: &str = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; 
 style-src 'self' 'unsafe-inline'; worker-src 'self'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; \
 frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
+/// The headers every answer has, and the end of the head.
+const COMMON_HEADERS: &str = "Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n\
+Cross-Origin-Resource-Policy: same-origin\r\nConnection: close\r\n";
+
 fn write_response(stream: &mut TcpStream, response: &Response) -> io::Result<()> {
     let head = format!(
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n\
-Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n\
-Cross-Origin-Resource-Policy: same-origin\r\nContent-Security-Policy: {POLICY}\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n{COMMON_HEADERS}Content-Security-Policy: {POLICY}\r\n\r\n",
         response.status,
         reason(response.status),
         response.content_type,
@@ -235,6 +243,47 @@ fn read_request(stream: &mut TcpStream) -> io::Result<Result<(String, Vec<u8>), 
     Ok(Ok((head, body)))
 }
 
+/// How often a stream of events is written to when nothing happens, so that a
+/// page that went away is noticed (the write fails) and a page can tell that the
+/// server did.
+const HEARTBEAT: Duration = Duration::from_secs(15);
+
+/// One event of the stream: what `doe --ide` found when it last read the
+/// libraries. It carries no file contents.
+fn libraries_event(snapshot: &crate::ide_watch::Snapshot) -> String {
+    let data = serde_json::json!({
+        "generation": snapshot.generation,
+        "error": snapshot.error,
+        "unwatched": snapshot.unwatched,
+    });
+    format!("event: libraries\ndata: {data}\n\n")
+}
+
+/// Hold the connection and tell the page each time the libraries are read again
+/// (and once now), until it goes away.
+fn stream_events(mut stream: TcpStream, libraries: &Arc<Libraries>) -> io::Result<()> {
+    let Some(_slot) = libraries.stream_slot() else {
+        return write_response(&mut stream, &error(503, "too many streams of events\n"));
+    };
+    let head = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n{COMMON_HEADERS}Content-Security-Policy: {POLICY}\r\n\r\n"
+    );
+    stream.write_all(head.as_bytes())?;
+    let mut snapshot = libraries.snapshot();
+    stream.write_all(libraries_event(&snapshot).as_bytes())?;
+    stream.flush()?;
+    loop {
+        match libraries.wait_change(snapshot.generation, HEARTBEAT) {
+            Some(next) => {
+                stream.write_all(libraries_event(&next).as_bytes())?;
+                snapshot = next;
+            }
+            None => stream.write_all(b": still here\n\n")?,
+        }
+        stream.flush()?;
+    }
+}
+
 fn serve_connection(mut stream: TcpStream, port: u16, local: &Local) -> io::Result<()> {
     stream.set_read_timeout(Some(IO_TIMEOUT))?;
     stream.set_write_timeout(Some(IO_TIMEOUT))?;
@@ -242,6 +291,9 @@ fn serve_connection(mut stream: TcpStream, port: u16, local: &Local) -> io::Resu
         Ok((head, body)) => respond(&head, &body, port, local),
         Err(response) => response,
     };
+    if response.stream {
+        return stream_events(stream, local.libraries());
+    }
     write_response(&mut stream, &response)
 }
 
@@ -412,5 +464,84 @@ mod tests {
         stream.read_to_string(&mut text).unwrap();
         assert!(text.starts_with("HTTP/1.1 200 OK"), "{text}");
         assert!(text.contains("Content-Security-Policy"));
+    }
+
+    /// Open the stream of events and read until `want` events have come.
+    fn events(port: u16, extra: &str, want: usize) -> (String, TcpStream) {
+        let mut stream = TcpStream::connect((Ipv4Addr::LOCALHOST, port)).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(20)))
+            .unwrap();
+        write!(
+            stream,
+            "GET /api/types/events HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n{extra}\r\n"
+        )
+        .unwrap();
+        let mut text = String::new();
+        let mut chunk = [0_u8; 1024];
+        while text.matches("event: libraries").count() < want {
+            let n = stream.read(&mut chunk).unwrap();
+            if n == 0 {
+                break;
+            }
+            text.push_str(&String::from_utf8_lossy(&chunk[..n]));
+        }
+        (text, stream)
+    }
+
+    #[test]
+    fn the_stream_of_events_tells_the_page_when_the_libraries_change() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(dir.path()).unwrap();
+        let local = Local::new(std::slice::from_ref(&root), None).unwrap();
+        crate::ide_watch::start(
+            local.libraries(),
+            None,
+            Box::new({
+                let root = root.clone();
+                move || Ok(vec![root.clone()])
+            }),
+        )
+        .unwrap();
+        let (listener, port) = bind(0).unwrap();
+        std::thread::spawn(move || serve(&listener, port, local));
+
+        let (text, _stream) = events(port, "", 1);
+        assert!(text.starts_with("HTTP/1.1 200 OK"), "{text}");
+        assert!(text.contains("Content-Type: text/event-stream"));
+        assert!(!text.contains("Content-Length"));
+        assert!(text.contains("Content-Security-Policy"));
+        assert!(
+            text.contains(r#"data: {"error":null,"generation":0,"unwatched":null}"#),
+            "{text}"
+        );
+
+        std::fs::write(
+            root.join("new.yaml"),
+            "meta:\n  id: new\nseq:\n  - id: a\n    type: u1\n",
+        )
+        .unwrap();
+        let (text, _stream) = events(port, "", 2);
+        assert!(text.contains(r#""generation":1"#), "{text}");
+    }
+
+    #[test]
+    fn the_stream_of_events_obeys_the_checks_of_the_other_calls() {
+        let (listener, port) = bind(0).unwrap();
+        std::thread::spawn(move || serve(&listener, port, local()));
+        let (text, _) = events(port, "Origin: http://evil.example\r\n", 0);
+        assert!(
+            text.is_empty() || text.starts_with("HTTP/1.1 403"),
+            "{text}"
+        );
+        let wrong = get("/api/types/events", "Host: evil.example:9000");
+        assert_eq!(wrong.status, 403);
+        let head = respond(
+            "HEAD /api/types/events HTTP/1.1\r\nHost: 127.0.0.1:9000\r\n\r\n",
+            b"",
+            9000,
+            &local(),
+        );
+        assert_eq!(head.status, 404);
     }
 }

@@ -10,6 +10,8 @@ mod commands;
 mod ide;
 #[cfg(feature = "ide")]
 mod ide_api;
+#[cfg(feature = "ide")]
+mod ide_watch;
 mod install_types;
 mod list_types;
 mod logging;
