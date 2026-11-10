@@ -152,7 +152,7 @@ fn viewed(cli: &Cli, config: &Config, file: &Path, find_type: bool) -> anyhow::R
 
 #[cfg(feature = "ide")]
 fn ide(cli: &Cli, config: &Config) -> anyhow::Result<()> {
-    let include_paths = include_paths(&cli.include_paths, config);
+    let paths = include_paths(&cli.include_paths, config);
     // a file that holds files is offered as the layer that is wanted
     let viewed = cli
         .file
@@ -165,7 +165,21 @@ fn ide(cli: &Cli, config: &Config) -> anyhow::Result<()> {
             "this build of doe has no web IDE in it (it was built without web/dist): the page will say so"
         );
     }
-    let local = crate::ide_api::Local::new(&include_paths, offered)?;
+    let config_path = cli.config.clone().or_else(Config::default_path);
+    let cli_paths = cli.include_paths.clone();
+    let reading = {
+        let (config_path, cli_paths) = (config_path.clone(), cli_paths.clone());
+        move || -> anyhow::Result<Vec<PathBuf>> {
+            let config = Config::load_or_default(config_path.as_deref())?;
+            Ok(include_paths(&cli_paths, &config))
+        }
+    };
+    let local = crate::ide_api::Local::new(&paths, offered)?.reading_from(reading.clone());
+    // The libraries follow the files: the include paths, and the configuration.
+    if let Err(why) = crate::ide_watch::start(local.libraries(), config_path, Box::new(reading)) {
+        log::warn!("{why}: use Reload in the page");
+        local.libraries().set_unwatched(Some(why));
+    }
     let requested = cli.port.unwrap_or(crate::cli::DEFAULT_IDE_PORT);
     let (listener, port) = crate::ide::bind(requested)
         .with_context(|| format!("could not listen on 127.0.0.1:{requested}"))?;

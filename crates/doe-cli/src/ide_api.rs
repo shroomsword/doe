@@ -28,6 +28,7 @@ use serde_json::{Value, json};
 use std::borrow::Cow;
 
 use crate::ide::{Response, error};
+use crate::ide_watch::{Libraries, absolute};
 
 /// The most bytes of the input that one request for bytes gives.
 const MAX_RANGE: u64 = 1024 * 1024;
@@ -42,10 +43,22 @@ struct InputFile {
     size: u64,
 }
 
+/// How the include paths are read again.
+struct Source(Box<dyn Fn() -> anyhow::Result<Vec<PathBuf>> + Send + Sync>);
+
+impl std::fmt::Debug for Source {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Source")
+    }
+}
+
 /// What the server may show of this machine.
 #[derive(Debug)]
 pub(crate) struct Local {
-    include_paths: Vec<PathBuf>,
+    /// The include paths, which follow the configuration and the folders.
+    libraries: Arc<Libraries>,
+    /// How the include paths are read again (the *Reload* button).
+    source: Option<Source>,
     input: Option<InputFile>,
     /// Whether a parse is running: one at a time.
     busy: AtomicBool,
@@ -58,6 +71,7 @@ fn json_response(status: u16, value: &Value) -> Response {
             content_type: "application/json",
             body: Cow::Owned(bytes),
             head_only: false,
+            stream: false,
         },
         Err(_) => error(500, "could not make the answer\n"),
     }
@@ -127,10 +141,7 @@ impl Local {
     /// `include_paths` are where types are looked for; `input` is the file that
     /// the page may parse natively.
     pub(crate) fn new(include_paths: &[PathBuf], input: Option<&Path>) -> anyhow::Result<Self> {
-        let include_paths = include_paths
-            .iter()
-            .map(|p| std::path::absolute(p).unwrap_or_else(|_| p.clone()))
-            .collect();
+        let include_paths = absolute(include_paths);
         let input = input
             .map(|path| -> anyhow::Result<InputFile> {
                 let real = std::fs::canonicalize(path)
@@ -149,10 +160,29 @@ impl Local {
             })
             .transpose()?;
         Ok(Local {
-            include_paths,
+            libraries: Libraries::new(include_paths),
+            source: None,
             input,
             busy: AtomicBool::new(false),
         })
+    }
+
+    /// Where the include paths come from when the libraries are read again.
+    pub(crate) fn reading_from(
+        mut self,
+        source: impl Fn() -> anyhow::Result<Vec<PathBuf>> + Send + Sync + 'static,
+    ) -> Self {
+        self.source = Some(Source(Box::new(source)));
+        self
+    }
+
+    pub(crate) fn libraries(&self) -> &Arc<Libraries> {
+        &self.libraries
+    }
+
+    /// The include paths now.
+    fn include_paths(&self) -> Vec<PathBuf> {
+        self.libraries.paths()
     }
 
     /// The answer to a request for `/api/<api>`.
@@ -160,6 +190,14 @@ impl Local {
         match (method, api) {
             ("GET" | "HEAD", "local") => self.info(),
             ("GET" | "HEAD", "types") => self.types(),
+            ("GET", "types/events") => Response {
+                status: 200,
+                content_type: "text/event-stream",
+                body: Cow::Borrowed(b""),
+                head_only: false,
+                stream: true,
+            },
+            ("POST", "types/reload") => self.reload(),
             ("GET" | "HEAD", "signatures") => self.signatures(),
             ("GET" | "HEAD", "schema") => self.schema(query),
             ("GET" | "HEAD", "input") => self.bytes(query),
@@ -170,12 +208,24 @@ impl Local {
         }
     }
 
+    /// Read the configuration and the include paths again, now.
+    fn reload(&self) -> Response {
+        match &self.source {
+            Some(source) => self.libraries.reload(&*source.0),
+            None => self.libraries.reload(&|| Ok(self.include_paths())),
+        }
+        json_response(
+            200,
+            &json!({"generation": self.libraries.snapshot().generation}),
+        )
+    }
+
     fn info(&self) -> Response {
         json_response(
             200,
             &json!({
                 "version": env!("CARGO_PKG_VERSION"),
-                "include_paths": self.include_paths,
+                "include_paths": self.include_paths(),
                 "input": self.input.as_ref().map(|i| json!({"name": i.name, "size": i.size})),
             }),
         )
@@ -186,14 +236,14 @@ impl Local {
     /// `{id, path, magic, names, error}`. The schemas are compiled to see the
     /// signatures, so the page asks for this only when it needs it.
     fn signatures(&self) -> Response {
-        match discover_types(&self.include_paths) {
+        match discover_types(&self.include_paths()) {
             Ok(types) => json_response(
                 200,
                 &Value::Array(
                     types
                         .iter()
                         .map(|t| {
-                            let (source, error) = doe::detect::source_of(&self.include_paths, t);
+                            let (source, error) = doe::detect::source_of(&self.include_paths(), t);
                             json!({
                                 "id": t.id,
                                 "path": t.source,
@@ -215,7 +265,7 @@ impl Local {
     }
 
     fn types(&self) -> Response {
-        match discover_types(&self.include_paths) {
+        match discover_types(&self.include_paths()) {
             Ok(types) => json_response(
                 200,
                 &Value::Array(
@@ -240,7 +290,7 @@ impl Local {
         let Ok(wanted) = std::fs::canonicalize(&wanted) else {
             return error(403, "not one of the types\n");
         };
-        let Ok(types) = discover_types(&self.include_paths) else {
+        let Ok(types) = discover_types(&self.include_paths()) else {
             return error(500, "duplicate type ids on the include paths\n");
         };
         let Some(found) = types
@@ -252,7 +302,7 @@ impl Local {
 
         let seen = Arc::new(Mutex::new(BTreeMap::new()));
         let mut compiler = Compiler::with_source(
-            self.include_paths.clone(),
+            self.include_paths(),
             Box::new(Recording {
                 seen: Arc::clone(&seen),
             }),
@@ -276,7 +326,7 @@ impl Local {
                 "path": found.source,
                 "text": text,
                 "files": files,
-                "include_paths": self.include_paths,
+                "include_paths": self.include_paths(),
             }),
         )
     }
@@ -304,6 +354,7 @@ impl Local {
                 content_type: "application/octet-stream",
                 body: Cow::Owned(bytes),
                 head_only: false,
+                stream: false,
             },
             Err(e) => {
                 log::warn!("could not read the input file: {e}");
@@ -335,6 +386,7 @@ impl Local {
                 content_type: "application/json",
                 body: Cow::Owned(bytes),
                 head_only: false,
+                stream: false,
             },
             Err(_) => error(500, "could not make the answer\n"),
         }
@@ -353,7 +405,7 @@ impl Local {
             all: query_param(query, "all").is_some_and(|v| v == "1"),
             ..doe::detect::Options::default()
         };
-        let found = doe::detect::detect_file(&input.path, &self.include_paths, &options);
+        let found = doe::detect::detect_file(&input.path, &self.include_paths(), &options);
         self.busy.store(false, Ordering::SeqCst);
         match found {
             Ok(found) => json_response(
@@ -396,6 +448,7 @@ impl Local {
                 content_type: "application/json",
                 body: Cow::Owned(bytes),
                 head_only: false,
+                stream: false,
             },
             Ok(_) => error(413, "the result is too large to send to the page\n"),
             Err(_) => error(500, "could not make the answer\n"),

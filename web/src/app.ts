@@ -9,7 +9,7 @@ import { Help } from './help.js';
 import { type Action, type Needs, KEYS, byteQuery, findPattern, isField, keyName, keyOf } from './keys.js';
 import { PaneSearch, type SearchHandler } from './search.js';
 import { HexView, RemoteBytes } from './hex.js';
-import { type LocalApi, type LocalType, detectLocal } from './local.js';
+import { type LibrariesEvent, type LocalApi, type LocalType, detectLocal } from './local.js';
 import { type Entry, type Ranking, TypeBrowser, galleryEntries, libraryEntries, openEntries } from './browse.js';
 import { type Path, byteRange, checkSize, describeRange, findByte, findNode, nodeAt, pathName, pathOfProblem } from './model.js';
 import { ProblemsView } from './problems.js';
@@ -105,6 +105,11 @@ export class App {
   private readonly help: Help;
   /** The types of this machine, when the page is served by `doe --ide`. */
   private localTypes: LocalType[] = [];
+  /** The generation of the type libraries that the list holds, and what the server said of them last. */
+  private libraryGeneration: number | null = null;
+  private library: { lost: boolean; error: string | null; unwatched: string | null } = { lost: false, error: null, unwatched: null };
+  /** The type of this machine that is in the editor, as it was read, to see that it changed on disk. */
+  private loadedType: { path: string; text: string; files: string } | null = null;
 
   constructor(workerUrl: URL, wasmUrl: URL) {
     this.client = new DoeClient(workerUrl, wasmUrl);
@@ -573,11 +578,30 @@ export class App {
       button.title = `${input.size} bytes, read on this machine`;
       button.addEventListener('click', () => this.useServerInput(local, input));
     }
+    const select = element<HTMLSelectElement>('types');
+    select.addEventListener('change', () => {
+      if (select.value) void this.openType(local, select.value);
+    });
+    element('types-reload').addEventListener('click', () => void this.reloadLibraries(local));
+    element('types-reload-open').addEventListener('click', () => {
+      if (this.loadedType) void this.openType(local, this.loadedType.path);
+    });
+    await this.refreshTypes(local);
+    // the server tells us when the libraries change on this machine: no polling
+    local.watch({
+      event: (event) => void this.librariesChanged(local, event),
+      open: () => this.libraryState({ lost: false }),
+      lost: () => this.libraryState({ lost: true }),
+    });
+  }
+
+  /** Ask for the list of types again and show it, keeping the choice and, in the browser of types, the filter. */
+  private async refreshTypes(local: LocalApi): Promise<void> {
     try {
       const types = await local.types();
       this.localTypes = types;
-      if (types.length === 0) return;
       const select = element<HTMLSelectElement>('types');
+      const kept = select.value;
       select.innerHTML = '<option value="">choose…</option>';
       for (const type of types) {
         const option = document.createElement('option');
@@ -585,13 +609,80 @@ export class App {
         option.textContent = type.doc ? `${type.id} — ${type.doc}` : type.id;
         select.append(option);
       }
-      element('types-box').hidden = false;
-      select.addEventListener('change', () => {
-        if (select.value) void this.openType(local, select.value);
-      });
+      if (types.some((type) => type.path === kept)) select.value = kept;
+      element('types-box').hidden = types.length === 0;
+      element('types-reload').title = `Read the type libraries of this machine again (L); last read at ${new Date().toLocaleTimeString()}`;
+      if (this.browser.isOpen) this.browseTypes();
+      this.libraryState({ readError: null });
     } catch (error) {
-      this.problems.show([{ severity: 'error', kind: 'request', message: `could not list the types: ${String(error)}`, position: null }]);
+      // the list that is shown stays: a broken library does not empty it
+      this.libraryState({ readError: `could not list the types: ${String(error)}` });
     }
+  }
+
+  /** The server read the libraries again (or told the page for the first time). */
+  private async librariesChanged(local: LocalApi, event: LibrariesEvent): Promise<void> {
+    this.libraryState({ lost: false, error: event.error, unwatched: event.unwatched });
+    if (event.generation === this.libraryGeneration) return;
+    this.libraryGeneration = event.generation;
+    await this.refreshTypes(local);
+    await this.checkOpenType(local);
+  }
+
+  /** Read the libraries again now, whatever the watcher says. */
+  private async reloadLibraries(local: LocalApi): Promise<void> {
+    try {
+      this.libraryGeneration = await local.reload();
+      await this.refreshTypes(local);
+      await this.checkOpenType(local);
+      element('status').textContent = 'read the type libraries of this machine again';
+    } catch (error) {
+      this.libraryState({ readError: `could not read the type libraries again: ${String(error)}` });
+    }
+  }
+
+  /** Remember what the server said of the libraries and say what matters of it, beside the list and in the status. */
+  private libraryState(change: { lost?: boolean; error?: string | null; unwatched?: string | null; readError?: string | null }): void {
+    if (change.lost !== undefined) this.library.lost = change.lost;
+    if (change.error !== undefined) this.library.error = change.error;
+    if (change.unwatched !== undefined) this.library.unwatched = change.unwatched;
+    const said =
+      change.readError ??
+      (this.library.lost
+        ? 'lost the connection to doe --ide'
+        : this.library.error
+          ? `the type libraries could not be read: ${this.library.error}`
+          : this.library.unwatched
+            ? `the type libraries are not watched (${this.library.unwatched}): use the reload button`
+            : '');
+    const note = element('types-note');
+    note.textContent = said;
+    note.classList.toggle('bad', said !== '' && !said.startsWith('the type libraries are not watched'));
+    if (said !== '' && (change.readError || change.error)) element('status').textContent = said;
+  }
+
+  /** The type that is in the editor may have changed on disk: say so, and offer to load it; never replace the text by ourselves. */
+  private async checkOpenType(local: LocalApi): Promise<void> {
+    const loaded = this.loadedType;
+    const notice = element('types-changed');
+    if (!loaded || this.mainOrigin !== 'library' || this.schemaPath !== loaded.path) {
+      notice.hidden = true;
+      return;
+    }
+    const name = loaded.path.split(/[\\/]/).pop() ?? loaded.path;
+    try {
+      const now = await local.schema(loaded.path);
+      if (now.text === loaded.text && JSON.stringify(now.files) === loaded.files) {
+        notice.hidden = true;
+        return;
+      }
+      element('types-changed-text').textContent = `${name} changed on this machine`;
+      element('types-reload-open').hidden = false;
+    } catch {
+      element('types-changed-text').textContent = `${name} is no longer among the types of this machine`;
+      element('types-reload-open').hidden = true;
+    }
+    notice.hidden = false;
   }
 
   /** Put a type of this machine, with the files it imports, in the editor. */
@@ -606,6 +697,8 @@ export class App {
     this.schemaPath = schema.path;
     this.includePaths = schema.include_paths;
     this.mainOrigin = 'library';
+    this.loadedType = { path: schema.path, text: schema.text, files: JSON.stringify(schema.files) };
+    element('types-changed').hidden = true;
     this.parseType = null;
     this.found = null;
     this.setMain(schema.text);
@@ -1494,6 +1587,10 @@ export class App {
         break;
       case 'descriptions':
         this.toggleDocs();
+        break;
+      case 'reload-types':
+        if (this.local) void this.reloadLibraries(this.local);
+        else element('status').textContent = 'this page is not served by doe --ide: there are no type libraries of this machine to read';
         break;
       case 'panes':
         this.panesList();

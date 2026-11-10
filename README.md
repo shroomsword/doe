@@ -1169,7 +1169,21 @@ Four things make the page pleasant to come back to:
 `doe --ide` also offers what a page in a browser cannot see on this machine:
 
 - the **types** found through the include paths (`-I`) and the config, in a
-  list in the header; choosing one opens its schema with the files it imports;
+  list in the header; choosing one opens its schema with the files it imports.
+  The list **follows the files**: the server watches the include paths and the
+  config file with the file system's change notifications (inotify on Linux,
+  `FSEvents` on macOS, `ReadDirectoryChangesW` on Windows), and a second or so after a
+  `.yaml` or `.ksy` file is added, changed or removed, or the config changes
+  `include_paths`, the list in the header and *Browse...* are made again, with no restart and
+  no reload of the page (your filter and the type you chose stay). Nothing polls: neither
+  the server nor the page. The page holds one connection to the server for the news
+  (`GET /api/types/events`) and says so in the header when it is lost. If the type
+  that is open was **changed on disk**, the page says so and offers *Reload it*; the text in
+  the editor is never replaced without it. A library that cannot be read (a duplicate type id, a
+  mistake in the config) is said in the header and the last good list stays. Where
+  notifications cannot be had (a watch limit, a folder on a network drive, a build
+  without them) the header says that the libraries are not watched, and the reload
+  button (the arrow next to the list, or the key `L`) reads them again at once;
 - a **file named on the command line** (`doe --ide big.bin`), as the input of
   the page (the button *Use big.bin*), however large it is. It is read and
   parsed here, as `doe` reads files, and the page gets the bytes it shows in
@@ -1203,6 +1217,7 @@ the editor for its pane, closes a dialog and closes a search.
 | `o` | Open a file to parse |
 | `O` | Open a schema file |
 | `t` | Browse the types and schemas, and load one |
+| `L` | Read the type libraries of this machine again (with doe --ide) |
 | `i` | Add imports |
 | `d` | Detect the schema of the open file |
 | `s` | Save the parsed value |

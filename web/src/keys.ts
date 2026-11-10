@@ -12,6 +12,7 @@ export type Action =
   | 'open-file'
   | 'open-schema'
   | 'browse'
+  | 'reload-types'
   | 'imports'
   | 'detect'
   | 'save'
@@ -65,6 +66,7 @@ export const KEYS: readonly Key[] = [
   { key: 'o', action: 'open-file', label: 'Open a file to parse' },
   { key: 'O', action: 'open-schema', label: 'Open a schema file' },
   { key: 't', action: 'browse', label: 'Browse the types and schemas, and load one' },
+  { key: 'L', action: 'reload-types', label: 'Read the type libraries of this machine again (with doe --ide)' },
   { key: 'i', action: 'imports', label: 'Add imports' },
   { key: 'd', action: 'detect', label: 'Detect the schema of the open file', needs: 'file' },
   { key: 's', action: 'save', label: 'Save the parsed value', needs: 'parsed' },

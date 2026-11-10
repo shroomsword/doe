@@ -18,8 +18,9 @@ path = "src/main.rs"
 default = ["ide", "tui", "bundled-types"]
 # `doe --ide`: a local web server with the web IDE (web/) built into the binary.
 # The page is taken from web/dist (or DOE_IDE_DIST) when the binary is built;
-# without it a page that says so is embedded. No dependencies are needed.
-ide = []
+# without it a page that says so is embedded. `notify` watches the type libraries
+# (inotify, FSEvents, ReadDirectoryChangesW) so that the page can follow them.
+ide = ["dep:notify"]
 # `doe --tui`: the viewer in the terminal (crates/doe-tui).
 tui = ["dep:doe-tui"]
 # `doe --install-types`: the type library (types/) and the Kaitai Struct gallery are
@@ -43,6 +44,7 @@ etcetera.workspace = true
 fern.workspace = true
 humantime.workspace = true
 log.workspace = true
+notify = { workspace = true, optional = true, features = ["macos_fsevent"] }
 serde_json = { workspace = true, features = ["std"] }
 
 [dev-dependencies]

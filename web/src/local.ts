@@ -43,11 +43,52 @@ export interface LocalSchema {
   include_paths: string[];
 }
 
+/** What `doe --ide` tells the page each time it has read the type libraries (see `GET /api/types/events`). */
+export interface LibrariesEvent {
+  /** Raised each time the libraries were read again. */
+  generation: number;
+  /** Why they could not be read; the last good list stays. */
+  error: string | null;
+  /** Why they are not watched, so that the page is not told when they change. */
+  unwatched: string | null;
+}
+
+export interface LibrariesWatch {
+  event(event: LibrariesEvent): void;
+  /** The connection to the server was lost (the browser tries again by itself). */
+  lost(): void;
+  /** The connection is there (again). */
+  open(): void;
+}
+
 export class LocalApi {
   constructor(readonly info: LocalInfo) {}
 
   async types(): Promise<LocalType[]> {
     return (await this.json('api/types')) as LocalType[];
+  }
+
+  /** Hear when the type libraries change on this machine. Returns the function that stops listening. */
+  watch(watch: LibrariesWatch): () => void {
+    if (typeof EventSource === 'undefined') return () => undefined;
+    const source = new EventSource('api/types/events');
+    source.addEventListener('libraries', (message) => {
+      try {
+        watch.event(JSON.parse((message as MessageEvent<string>).data) as LibrariesEvent);
+      } catch {
+        // an event that is not ours says nothing
+      }
+    });
+    source.addEventListener('open', () => watch.open());
+    source.addEventListener('error', () => watch.lost());
+    return () => source.close();
+  }
+
+  /** Read the configuration and the include paths again, now; the generation that results. */
+  async reload(): Promise<number> {
+    const response = await fetch('api/types/reload', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    if (!response.ok) throw new Error((await response.text()).trim() || `the server answered ${response.status}`);
+    return ((await response.json()) as { generation: number }).generation;
   }
 
   /** The signatures of the types of this machine (the server compiles them, which takes a while). */
