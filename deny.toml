@@ -27,6 +27,7 @@ allow = [
     "Zlib",                # foldhash, graphics and compression crates
     "BSL-1.0",             # ryu, clipboard-win, xxhash-rust
     "CC0-1.0",             # public-domain dedications
+    "bzip2-1.0.6",         # libbz2-rs-sys (the bzip2 decoder): the BSD-style licence of libbzip2
     "0BSD",
     "MIT-0",
     "CDLA-Permissive-2.0", # webpki-roots, webpki-root-certs (rustls certificate bundles)

@@ -16,7 +16,11 @@ doc: |
 #   zstd repository's `contrib/seekable_format/zstd_seekable_compression_format.md`.
 meta:
   id: zstd
+  file-extension: [zst, zstd, tzst]
   endian: le
+# The file is one zstd compressed file: its contents are another file (a .tar.zst holds a tar), as for gzip.
+payload:
+  process: zstd
 seq:
   - id: frames
     type: any_frame

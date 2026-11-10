@@ -1156,6 +1156,26 @@ impl<'reg> Engine<'reg> {
                 data = process::brotli_decode(&data, MAX_PROCESSED_LEN)
                     .map_err(|e| fail(format!("process: {e}")))?;
             }
+            Process::Bzip2 => {
+                data = process::bzip2_decode(&data, MAX_PROCESSED_LEN)
+                    .map_err(|e| fail(format!("process: {e}")))?;
+            }
+            Process::Xz => {
+                data = process::xz_decode(&data, MAX_PROCESSED_LEN)
+                    .map_err(|e| fail(format!("process: {e}")))?;
+            }
+            Process::Lzma => {
+                data = process::lzma_decode(&data, MAX_PROCESSED_LEN)
+                    .map_err(|e| fail(format!("process: {e}")))?;
+            }
+            Process::Zstd => {
+                data = process::zstd_decode(&data, MAX_PROCESSED_LEN)
+                    .map_err(|e| fail(format!("process: {e}")))?;
+            }
+            Process::Lzip => {
+                data = process::lzip_decode(&data, MAX_PROCESSED_LEN)
+                    .map_err(|e| fail(format!("process: {e}")))?;
+            }
         }
         let mut inner = Cursor::new(&data);
         if let Some(trace) = ctx.trace() {

@@ -14,6 +14,7 @@ mod config;
 mod conformance;
 mod context;
 mod cursor;
+mod decoders;
 mod detect;
 mod detect_gallery;
 mod docs;

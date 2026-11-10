@@ -14,6 +14,9 @@ doc: |
 meta:
   id: bzip2
   endian: be
+# The file is one bzip2 compressed file: its contents are another file (a .tar.bz2 holds a tar), as for gzip.
+payload:
+  process: bzip2
 seq:
   - id: signature
     contents: "BZh"

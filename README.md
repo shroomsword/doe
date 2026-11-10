@@ -314,7 +314,7 @@ it the integer 0 or 1 and names it; the wider ones are unsigned integers. As in 
 | `if:` | Skip the field when the expression is false |
 | `size-eos` | `true` to take the rest of the enclosing window or the input as the size; for `bytes`, `str` and user types |
 | `parent` | `_parent` (or `_parent._parent`): the type the field reads gets the parent of the type the field is in, as its `_parent` (see [Instances](#instances)) |
-| `process` | Transform the bytes of the field's `size` window before they are parsed: `xor(key)` (an integer or a byte sequence, repeated), `rol(n)`, `ror(n)` (rotate each byte), `zlib` (a zlib stream, RFC 1950), `deflate` (a raw deflate stream, RFC 1951) or `gzip` (gzip data, RFC 1952: every member, with its header read and its CRC-32 and size checked) or `brotli` (a Brotli stream, RFC 7932: the tables of a WOFF 2 font, the body of a `Content-Encoding: br` response; bytes after the end of the stream are not looked at). For `bytes`, `str` and user types that have a `size` or `size-eos`. The four decompress into memory up to 256 MiB, enforced while decoding; a larger result, or data that is not what the process says, is an error that names the field |
+| `process` | Transform the bytes of the field's `size` window before they are parsed: `xor(key)` (an integer or a byte sequence, repeated), `rol(n)`, `ror(n)` (rotate each byte), `zlib` (a zlib stream, RFC 1950), `deflate` (a raw deflate stream, RFC 1951) or `gzip` (gzip data, RFC 1952: every member, with its header read and its CRC-32 and size checked) or `brotli` (a Brotli stream, RFC 7932: the tables of a WOFF 2 font, the body of a `Content-Encoding: br` response; bytes after the end of the stream are not looked at), `bzip2` (every stream, the CRCs checked), `xz` (every stream and its padding; the LZMA2 data, the delta and branch filters, and the CRC32, CRC64 or SHA-256 checks verified), `lzma` (a `.lzma` file, LZMA alone), `lzip` (every member, the CRC-32 and the sizes checked) or `zstd` (every frame, skippable frames skipped, the content checksum verified). For `bytes`, `str` and user types that have a `size` or `size-eos`. They all decompress into memory up to 256 MiB, enforced while decoding; a larger result, or data that is not what the process says, is an error that names the field |
 | `pos:` | Read the field at this byte offset instead of the current position; see [Seeking](#seeking) |
 | `valid:` | Fail the parse unless the value read satisfies the rules; see [Validating values](#validating-values) |
 | `enum:` | Map the parsed integer to a named variant. `name` is an enum visible in the type; `type::name` is one declared in another type (a nested path is allowed) |
@@ -1466,15 +1466,15 @@ A schema can say that a file of it holds another file with a `payload:` key:
 
 ```yaml
 payload:
-  process: gzip   # zlib, deflate, gzip or brotli
+  process: gzip   # zlib, deflate, gzip, brotli, bzip2, xz, lzma, lzip or zstd
   from: 0         # where the data starts, in bytes (the default is 0)
 ```
 
 When `doe` looks for the schema of a file (no `TYPE_OR_SCHEMA`), and the schema it finds has a `payload:`, it decodes the
 payload **in memory** (up to 256 MiB; nothing is written to disk) and looks for the schema of the result, as it did for
 the file: by signature, then by name, which is the name of the file without its last extension (`x.tar.gz` holds `x.tar`,
-and `x.tgz` holds `x.tar` too). That goes on to a depth of four layers. The library's `gzip_file` and `brotli` have the key, so
-`doe archive.tar.gz` and `doe archive.tar.br` show the tar, and says on stderr what the layers are:
+and `x.tgz` holds `x.tar` too). That goes on to a depth of four layers. The library's `gzip_file`, `brotli`, `bzip2`, `xz`, `lzma_alone`, `lzip` and `zstd` have the key, so
+`doe archive.tar.gz`, `.tar.br`, `.tar.bz2`, `.tar.xz`, `.tar.zst` and `.tar.lzma` show the tar (and `.cpio.gz`, `.cpio.xz`, ... the cpio, or any other file inside), and says on stderr what the layers are (`zstd` and `lzma_alone`, which have no signature, are found by the `.zst` and `.lzma` of the name):
 
 ```text
 $ doe archive.tar.gz

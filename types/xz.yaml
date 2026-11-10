@@ -17,6 +17,9 @@ doc: |
 meta:
   id: xz
   endian: le
+# The file is one xz compressed file: its contents are another file (a .tar.xz holds a tar), as for gzip.
+payload:
+  process: xz
 seq:
   - id: magic
     contents: [0xfd, "7zXZ", 0x00]

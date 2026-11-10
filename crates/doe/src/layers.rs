@@ -75,8 +75,13 @@ fn decode(process_name: &str, data: &[u8], limit: usize) -> Result<Vec<u8>> {
         "deflate" => process::inflate_raw(data, limit),
         "zlib" => process::inflate(data, limit),
         "brotli" => process::brotli_decode(data, limit),
+        "bzip2" => process::bzip2_decode(data, limit),
+        "xz" => process::xz_decode(data, limit),
+        "lzma" => process::lzma_decode(data, limit),
+        "zstd" => process::zstd_decode(data, limit),
+        "lzip" => process::lzip_decode(data, limit),
         other => Err(DoeError::Schema(format!(
-            "the payload says process '{other}': zlib, deflate, gzip and brotli are supported"
+            "the payload says process '{other}': zlib, deflate, gzip, brotli, bzip2, xz, lzma, lzip and zstd are supported"
         ))),
     }
 }
