@@ -245,6 +245,8 @@ pub struct SignatureResponse {
     pub alternatives: Vec<Vec<crate::detect::Magic>>,
     /// How many things the schema checks (see [`crate::detect::checks_of`]).
     pub checks: u32,
+    /// Whether the schema says what a file of it holds (`filesystem:` or `payload:`): see [`crate::detect::Source::informative`].
+    pub informative: bool,
     /// The names of the format, in lower case: id, file name, extensions.
     pub names: Vec<String>,
     /// What is wrong with the schema.
@@ -260,6 +262,7 @@ pub fn signature(request: &str) -> SignatureResponse {
         magic: Vec::new(),
         alternatives: Vec::new(),
         checks: 0,
+        informative: false,
         names: Vec::new(),
         diagnostics,
     };
@@ -279,6 +282,16 @@ pub fn signature(request: &str) -> SignatureResponse {
                 magic: signatures.next().unwrap_or_default(),
                 alternatives: signatures.collect(),
                 checks: crate::detect::checks_of(&compiled.compiler.registry),
+                informative: compiled
+                    .compiler
+                    .registry
+                    .payloads
+                    .contains_key(&compiled.id)
+                    || compiled
+                        .compiler
+                        .registry
+                        .filesystems
+                        .contains_key(&compiled.id),
                 names: compiled.names,
                 diagnostics: Vec::new(),
             }

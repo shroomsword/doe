@@ -333,6 +333,7 @@ impl TypeBrowser {
                     alternatives: Vec::new(),
                     checks: 0,
                     names: Vec::new(),
+                    informative: false,
                 })
             })
             .collect();

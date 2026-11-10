@@ -167,6 +167,8 @@ pub struct App {
     /// Whether the file is still being parsed (in another thread): the screen
     /// is up and says so, and the tree comes when it is done.
     pub loading: bool,
+    /// The temporary directory that holds the layer being shown (a `.tar.gz` shown as its tar), removed when it is replaced.
+    layer_guard: Option<tempfile::TempDir>,
     /// When the parse began, for the time it has taken.
     pub loading_since: Option<std::time::Instant>,
     /// Whether the help is shown.
@@ -251,6 +253,70 @@ pub fn parse_offset(text: &str) -> Result<u64, String> {
     })
 }
 
+/// The most bytes of a file that are read to unwrap it (what `process:` allows to be produced).
+const UNWRAP_LIMIT: usize = 256 * 1024 * 1024;
+
+/// Open the type `id` on the file as the layers say: a type that holds another file (a `.tar.gz`'s `gzip_file`) is shown as the
+/// layer it holds, from a temporary file. `options` are changed to say so; the directory is returned, and a line for the
+/// notice. A type that holds nothing leaves them as they are.
+fn unwrap_for(options: &mut Options, id: &str) -> (Option<tempfile::TempDir>, Option<String>) {
+    use std::io::Write as _;
+
+    let outer = options
+        .outer_file
+        .clone()
+        .unwrap_or_else(|| options.file.clone());
+    let Ok(found) = doe::layers::unwrap_as(
+        &outer,
+        &options.include_paths,
+        &doe::detect::Options::default(),
+        doe::layers::MAX_DEPTH,
+        UNWRAP_LIMIT,
+        Some(id),
+    ) else {
+        return (None, None);
+    };
+    if found.layers.len() < 2 {
+        // it holds something that cannot be shown (or nothing): the file as it was opened, if a layer was shown
+        if let Some(note) = found.notes.first() {
+            options.file = outer;
+            options.outer_file = None;
+            return (None, Some(note.clone()));
+        }
+        return (None, None);
+    }
+    let (Some(inner), Some(data)) = (found.layers.last(), found.data.last()) else {
+        return (None, None);
+    };
+    let mut name = outer
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("layer")
+        .to_owned();
+    for _ in 1..found.layers.len() {
+        name = doe::layers::payload_name(&name);
+    }
+    let Ok(dir) = tempfile::Builder::new().prefix("doe-layer-").tempdir() else {
+        return (None, None);
+    };
+    let path = dir
+        .path()
+        .join(if name.is_empty() { "layer" } else { &name });
+    if std::fs::File::create(&path)
+        .and_then(|mut f| f.write_all(data))
+        .is_err()
+    {
+        return (None, None);
+    }
+    options.file = path;
+    options.outer_file = Some(outer);
+    options.type_or_schema.clone_from(&inner.type_name);
+    (
+        Some(dir),
+        Some(format!("{}: showing the last layer", found.describe())),
+    )
+}
+
 impl App {
     /// A viewer for a parsed file. If the parse stopped, the field where it did
     /// is selected and its bytes are shown.
@@ -262,6 +328,7 @@ impl App {
             focus: Focus::Tree,
             inspector: false,
             loading: false,
+            layer_guard: None,
             loading_since: None,
             help: false,
             help_view: crate::help::HelpView::default(),
@@ -336,6 +403,7 @@ impl App {
             focus: Focus::Tree,
             inspector: false,
             loading: false,
+            layer_guard: None,
             loading_since: None,
             help: false,
             help_view: crate::help::HelpView::default(),
@@ -392,6 +460,7 @@ impl App {
             focus: Focus::Tree,
             inspector: false,
             loading: true,
+            layer_guard: None,
             loading_since: Some(std::time::Instant::now()),
             help: false,
             help_view: crate::help::HelpView::default(),
@@ -955,11 +1024,16 @@ impl App {
             return;
         };
         id.clone_into(&mut options.type_or_schema);
+        // a type that holds another file (`gzip_file`) is shown as what it holds, as when it is found
+        let (guard, said) = unwrap_for(&mut options, id);
         match load::try_load(&options) {
             Ok(loaded) => {
+                // the file may be a layer now (adopt reads the bytes from `self.file`)
+                self.file.clone_from(&options.file);
                 self.options = Some(options);
                 self.adopt(loaded);
-                self.notice = Some(format!("parsing as {id}"));
+                self.layer_guard = guard.or_else(|| self.layer_guard.take());
+                self.notice = Some(said.unwrap_or_else(|| format!("parsing as {id}")));
             }
             // the old type stays, with the old tree
             Err(failure) => self.reload_failed(&failure, &options),
@@ -2404,6 +2478,7 @@ pub(crate) mod tests {
             theme: None,
             theme_dir: None,
             config_file: None,
+            outer_file: None,
             theme_on_command_line: false,
             transparent: None,
             radix: None,
@@ -2454,6 +2529,7 @@ pub(crate) mod tests {
             theme: None,
             theme_dir: None,
             config_file: None,
+            outer_file: None,
             theme_on_command_line: false,
             transparent: None,
             radix: None,
@@ -2898,6 +2974,7 @@ seq:
             theme: None,
             theme_dir: None,
             config_file: None,
+            outer_file: None,
             theme_on_command_line: false,
             transparent: None,
             radix: None,
@@ -3199,6 +3276,7 @@ types:
             theme: None,
             theme_dir: None,
             config_file: None,
+            outer_file: None,
             theme_on_command_line: false,
             transparent: None,
             radix: None,
@@ -3260,6 +3338,7 @@ types:
             theme: None,
             theme_dir: None,
             config_file: None,
+            outer_file: None,
             theme_on_command_line: false,
             transparent: None,
             radix: None,
@@ -3447,6 +3526,7 @@ types:
             theme: None,
             theme_dir: None,
             config_file: None,
+            outer_file: None,
             theme_on_command_line: false,
             transparent: None,
             radix: None,

@@ -16,6 +16,8 @@ export interface GalleryFormat {
   /** Other starts of a file of the format, when it has more than one (see `DetectSource`). */
   alternatives?: { offset: number; bytes: number[] }[][];
   checks?: number;
+  /** The definition says what a file of it holds (`filesystem:` or `payload:`): between equal fits it is tried first. */
+  informative?: boolean;
   names?: string[];
   /** A type of doe's own library (`types/`), served with the page, not a format of the Kaitai Struct gallery. */
   bundled?: boolean;
@@ -83,6 +85,7 @@ export async function detectGallery(deps: Deps, name: string | null, all: boolea
     magic: format.magic ?? [],
     alternatives: format.alternatives ?? [],
     checks: format.checks ?? 0,
+    informative: format.informative ?? false,
     names: format.names ?? [format.id.toLowerCase()],
   }));
   const ranked = await deps.order(sources, name, all);

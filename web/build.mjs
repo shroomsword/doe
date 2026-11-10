@@ -159,6 +159,7 @@ for (const format of manifest.formats) {
     withSignature += 1;
   }
   if (answer.ok && answer.checks > 0) format.checks = answer.checks;
+  if (answer.ok && answer.informative) format.informative = true;
 }
 console.log(`gallery.json: ${withSignature} of ${manifest.formats.length} formats have a signature`);
 writeFileSync(join(dist, 'gallery.json'), JSON.stringify(manifest));

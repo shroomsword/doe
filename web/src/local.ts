@@ -23,6 +23,7 @@ export interface LocalSignature {
   magic: Magic[];
   alternatives?: Magic[][];
   checks?: number;
+  informative?: boolean;
   names: string[];
   /** Why the schema could not be compiled. */
   error: string | null;
