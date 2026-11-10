@@ -1273,6 +1273,23 @@ kept in the browser's local storage and applied when the page loads; if the brow
 starts with the default layout. Once the layout is not the default, a button in the header and the key `R` put
 the panes back.
 
+**Tiles.** The panes can be arranged in **rows** that you choose, in a medium or wide window. `p` (or the panes
+button in the header) opens the *Panes* dialog, which has an *Arrangement* section: a list of ready arrangements
+(by the width of the window, which is the default; Schema on top with Parsed and Bytes beside each other and Status
+at the bottom; the three in a row with Status under them; two by two; one under the other; all in one row) and, row by row,
+the panes with buttons that move each one to the left or the right in its row, or to the row above or under (from the
+first or last row, when it shares the row, to a row of its own beyond it). Every pane is in exactly one row, a pane that
+is closed leaves its row, and a row with no pane shown is gone. A window that is too narrow (under 760 px) ignores the
+rows and puts the panes one under the other in the order of the rows; they come back when the window is wide again. A
+pane that is dragged by its title is put into the row of the pane it is dropped on, and `Alt+Shift+h`, `j`, `k` and `l`
+still swap two panes. In a row the panes have their own widths, and the rows their own heights, so a row with Parsed and
+Bytes can be split differently from the one above it; the Status pane alone in a row is low to begin with. The
+separators between the tiles work as the others do (drag, the arrow keys, `Enter` for the default), and the sizes are
+kept per window size like the others. The arrangement is kept in the browser with the rest of the layout (version 4 of
+the record; a record of an older version is the arrangement of the width of the window, and tiles that are not valid are
+ignored without losing the order or the sizes). In the medium window the rows share the height of the window instead of
+making the page longer. Reset (`R`) puts the default back.
+
 **Resizing the panes.** There is a separator in the gutter between each two neighbouring panes (a thin bar that
 turns blue under the pointer and when it has the focus). Drag it to make one pane wider (or taller) and its
 neighbour narrower (or shorter) by as much; each keeps room for its title bar and buttons (12 rem wide, 6 rem high)

@@ -6,7 +6,7 @@
 // from the page each time. The sizes belong to the places, not to the panes (layout.ts), are proportions, and are kept
 // by the page (`change`) when a drag ends.
 
-import type { Layout, Mode, Sizes } from './layout.js';
+import { type Layout, type Mode, type PaneName, type Sizes, applyTiles, columnWeights, currentMode, defaultRowWeight, rowWeights, tileRows } from './layout.js';
 
 /** The least room a pane keeps, in rem: enough for its title bar and its buttons. */
 const MIN_WIDTH = 12;
@@ -19,7 +19,9 @@ const MAX_HEIGHT = 4;
 
 /** What a separator changes. `columns`: the widths of two columns that share a row; `rows`: how the wide layout's two rows
  * share the height; `height`: the height of one row of a layout that scrolls (the page gets longer or shorter). */
-type Kind = 'columns' | 'rows' | 'height';
+type Kind = 'columns' | 'rows' | 'height' | 'tile-columns' | 'tile-rows';
+
+const isVertical = (split: Split): boolean => split.kind === 'columns' || split.kind === 'tile-columns';
 
 interface Split {
   kind: Kind;
@@ -33,6 +35,12 @@ interface Split {
   /** How many columns the mode has (`columns`). */
   columns: number;
   mode: Mode;
+  /** Tiles: the row of the tiling (the index in `Layout.tiles`) the separator is in, or, for `tile-rows`, above. */
+  row?: number;
+  /** Tiles: the row under it (`tile-rows`). */
+  nextRow?: number;
+  /** Tiles: the indexes in the row of the panes that are shown (`tile-columns`). */
+  members?: number[];
 }
 
 export interface SplitterOptions {
@@ -40,6 +48,8 @@ export interface SplitterOptions {
   /** The element the separators are put in: `position: absolute` over `main`. */
   host: HTMLElement;
   layout(): Layout;
+  /** The ids of the panes' elements: the tiles are drawn on them. */
+  ids: Record<PaneName, string>;
   /** The name of the pane in a place (1 to 4). */
   name(place: number): string;
   /** A drag or a key ended: the new sizes of the mode, or undefined for the default. */
@@ -64,8 +74,7 @@ export class Splitters {
 
   /** The mode the style sheet is in. */
   mode(): Mode {
-    const value = getComputedStyle(document.documentElement).getPropertyValue('--mode').trim();
-    return value === 'wide' || value === 'medium' ? value : 'narrow';
+    return currentMode();
   }
 
   /** Apply the sizes of the layout for the mode the page is in, and put the separators where the panes are. */
@@ -88,6 +97,8 @@ export class Splitters {
   private paint(sizes: Sizes | undefined): void {
     const { main } = this.options;
     for (const name of ['--c1', '--c2', '--c3', '--r1', '--r2', '--h1', '--h2', '--h3', '--h4', '--max4']) main.style.removeProperty(name);
+    // the tiles, when the layout has them and the window is wide enough, are drawn instead of the places
+    if (applyTiles(main, this.options.ids, this.options.layout(), this.mode(), sizes)) return;
     if (!sizes) return;
     sizes.cols?.forEach((weight, i) => main.style.setProperty(`--c${i + 1}`, `${weight.toFixed(4)}fr`));
     const mode = this.mode();
@@ -112,6 +123,7 @@ export class Splitters {
     const mode = this.mode();
     const out: Split[] = [];
     if (count < 2 || this.options.main.classList.contains('has-max')) return out;
+    if (this.options.main.dataset.tiled) return this.tileSplits(mode);
     const make = (kind: Kind, index: number, before: number, after: number, above: number[], columns: number): void => {
       out.push({ kind, index, before, after, above, columns, mode });
     };
@@ -126,6 +138,30 @@ export class Splitters {
     } else {
       for (let k = 1; k < count; k += 1) make('height', k - 1, k, k + 1, [k], 1);
     }
+    return out;
+  }
+
+  /** The separators of the tiles: between the panes of a row, and between the rows. A place is the number of a pane among those shown. */
+  private tileSplits(mode: Mode): Split[] {
+    const rows = tileRows(this.options.layout());
+    const out: Split[] = [];
+    let place = 0;
+    const firstPlace: number[] = [];
+    rows.forEach((r) => {
+      firstPlace.push(place + 1);
+      place += r.panes.length;
+    });
+    rows.forEach((r, ri) => {
+      const first = firstPlace[ri] ?? 1;
+      for (let i = 0; i + 1 < r.panes.length; i += 1) {
+        out.push({ kind: 'tile-columns', index: i, before: first + i, after: first + i + 1, above: [], columns: r.panes.length, mode, row: r.row, members: r.members });
+      }
+      const next = rows[ri + 1];
+      if (next) {
+        const above = r.panes.map((_, i) => first + i);
+        out.push({ kind: 'tile-rows', index: ri, before: first, after: firstPlace[ri + 1] ?? first, above, columns: 0, mode, row: r.row, nextRow: next.row });
+      }
+    });
     return out;
   }
 
@@ -173,7 +209,7 @@ export class Splitters {
     const before = this.section(split.before);
     const after = this.section(split.after);
     if (!before || !after) return;
-    const vertical = split.kind === 'columns';
+    const vertical = isVertical(split);
     bar.setAttribute('aria-orientation', vertical ? 'vertical' : 'horizontal');
     bar.dataset.orientation = vertical ? 'vertical' : 'horizontal';
     const thick = parseFloat(getComputedStyle(bar).getPropertyValue('--splitter')) || 16;
@@ -201,14 +237,14 @@ export class Splitters {
     const before = this.section(split.before);
     const after = this.section(split.after);
     if (!before || !after) return { first: 0, room: 0, min: 0, max: 0 };
-    if (split.kind === 'columns') {
+    if (isVertical(split)) {
       const first = before.getBoundingClientRect().width;
       const room = first + after.getBoundingClientRect().width;
       const min = Math.min(MIN_WIDTH * rem, room / 2);
       return { first, room, min, max: room - min };
     }
     const upper = this.section(split.above[0] ?? split.before);
-    if (split.kind === 'rows') {
+    if (split.kind === 'rows' || split.kind === 'tile-rows') {
       const first = (upper ?? before).getBoundingClientRect().height;
       const room = first + after.getBoundingClientRect().height;
       const min = Math.min(MIN_HEIGHT * rem, room / 2);
@@ -232,7 +268,29 @@ export class Splitters {
     const { room, min, max, first } = this.measure(split);
     const target = clamp(size, min, max);
     const out: Sizes = { ...base };
-    if (split.kind === 'columns') {
+    if (split.kind === 'tile-columns' && split.row !== undefined && split.members) {
+      const layout = this.options.layout();
+      const all = columnWeights(layout, base).map((row) => [...row]);
+      const row = all[split.row] ?? [];
+      const a = split.members[split.index] ?? 0;
+      const b = split.members[split.index + 1] ?? 0;
+      const pair = (row[a] ?? 1) + (row[b] ?? 1);
+      const share = room > 0 ? target / room : first / room;
+      row[a] = pair * share;
+      row[b] = pair - pair * share;
+      all[split.row] = row;
+      out.tileCols = all;
+      out.tileRows = rowWeights(layout, base);
+    } else if (split.kind === 'tile-rows' && split.row !== undefined && split.nextRow !== undefined) {
+      const layout = this.options.layout();
+      const heights = rowWeights(layout, base);
+      const pair = (heights[split.row] ?? 1) + (heights[split.nextRow] ?? 1);
+      const share = room > 0 ? target / room : first / room;
+      heights[split.row] = pair * share;
+      heights[split.nextRow] = pair - pair * share;
+      out.tileRows = heights;
+      out.tileCols = columnWeights(layout, base);
+    } else if (split.kind === 'columns') {
       const weights = Array.from({ length: split.columns }, (_, i) => base?.cols?.[i] ?? 1);
       const pair = (weights[split.index] ?? 1) + (weights[split.index + 1] ?? 1);
       // `first` is where the pair is now: the weights keep their sum, so the other columns do not change
@@ -256,7 +314,7 @@ export class Splitters {
     if (this.drag || event.button !== 0) return;
     const split = this.splitOf(bar);
     const { first, room } = this.measure(split);
-    const vertical = split.kind === 'columns';
+    const vertical = isVertical(split);
     this.drag = { bar, split, pointer: event.pointerId, start: vertical ? event.clientX : event.clientY, room, first, sizes: this.options.layout().sizes[split.mode] };
     bar.setPointerCapture(event.pointerId);
     bar.classList.add('dragging');
@@ -273,7 +331,7 @@ export class Splitters {
   private readonly move = (event: PointerEvent): void => {
     const drag = this.drag;
     if (!drag || event.pointerId !== drag.pointer) return;
-    const point = drag.split.kind === 'columns' ? event.clientX : event.clientY;
+    const point = isVertical(drag.split) ? event.clientX : event.clientY;
     this.preview({ size: drag.first + (point - drag.start), split: drag.split }, drag.sizes);
   };
 
@@ -295,7 +353,7 @@ export class Splitters {
   private readonly up = (event: PointerEvent): void => {
     const drag = this.drag;
     if (!drag || event.pointerId !== drag.pointer) return;
-    const point = drag.split.kind === 'columns' ? event.clientX : event.clientY;
+    const point = isVertical(drag.split) ? event.clientX : event.clientY;
     const sizes = this.resized(drag.split, drag.first + (point - drag.start), drag.sizes);
     this.finish();
     this.commit(drag.split, sizes);
@@ -354,7 +412,7 @@ export class Splitters {
   private key(bar: HTMLElement, event: KeyboardEvent): void {
     if (event.ctrlKey || event.altKey || event.metaKey || this.drag) return;
     const split = this.splitOf(bar);
-    const vertical = split.kind === 'columns';
+    const vertical = isVertical(split);
     const back = vertical ? 'ArrowLeft' : 'ArrowUp';
     const forward = vertical ? 'ArrowRight' : 'ArrowDown';
     const { first, room, min, max } = this.measure(split);
@@ -381,7 +439,22 @@ export class Splitters {
     const split = this.splitOf(bar);
     const base = this.options.layout().sizes[split.mode];
     let sizes: Sizes | undefined = base ? { ...base } : undefined;
-    if (sizes) {
+    if (split.kind === 'tile-columns' && split.row !== undefined && split.members) {
+      const layout = this.options.layout();
+      const all = columnWeights(layout, base).map((row) => [...row]);
+      const row = all[split.row] ?? [];
+      row[split.members[split.index] ?? 0] = 1;
+      row[split.members[split.index + 1] ?? 0] = 1;
+      all[split.row] = row;
+      sizes = { ...base, tileCols: all.every((r) => r.every((w) => w === 1)) ? undefined : all };
+      if (!sizes.tileCols) delete sizes.tileCols;
+    } else if (split.kind === 'tile-rows' && split.row !== undefined && split.nextRow !== undefined) {
+      const layout = this.options.layout();
+      const heights = rowWeights(layout, base);
+      const rows = layout.tiles ?? [];
+      for (const index of [split.row, split.nextRow]) heights[index] = defaultRowWeight((rows[index] ?? []).filter((name) => !layout.hidden.includes(name)));
+      sizes = { ...base, tileRows: heights };
+    } else if (sizes) {
       if (split.kind === 'columns' && sizes.cols) {
         const cols = [...sizes.cols];
         cols[split.index] = 1;
@@ -396,6 +469,7 @@ export class Splitters {
       }
       if (!sizes.cols && !sizes.rows) sizes = undefined;
     }
+    if (sizes && !sizes.cols && !sizes.rows && !sizes.tileRows && !sizes.tileCols) sizes = undefined;
     this.paint(sizes);
     const message = `${this.options.name(split.before)} and ${this.options.name(split.after)}: the default sizes`;
     this.options.change(split.mode, sizes, message);

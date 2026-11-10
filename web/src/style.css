@@ -296,6 +296,15 @@ kbd { font-family: var(--mono); font-size: .9em; padding: 0 5px; border: 1px sol
 #panes-list label { display: flex; gap: 8px; align-items: center; }
 #panes-list .state { margin-left: auto; color: var(--muted); font-size: .85em; }
 #panes-body .note { color: var(--muted); font-size: .85em; }
+/* the tiles (layout.ts): rows of panes that the user chose, in a window that is wide enough; the grid is in custom properties */
+main[data-tiled][data-count] { grid-template-columns: var(--tile-columns); grid-template-rows: var(--tile-rows); grid-template-areas: none; }
+main[data-tiled] > section[data-slot] { grid-column: var(--tile-column); grid-row: var(--tile-row); height: auto; min-height: 0; max-height: none; overflow: auto; }
+@media (max-width: 1199.98px) { main[data-tiled][data-count] { height: 88dvh; min-height: 30rem; } }
+#tiles-editor { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.tile-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border: 1px dashed var(--line); border-radius: 4px; }
+.tile-chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); }
+.tile-chip button { padding: 0 6px; }
+.tile-chip button:disabled { opacity: .35; cursor: default; }
 main[data-count="0"]::after { content: "All the panes are closed. Press p, or use the panes button in the header, to show some."; padding: 2rem; color: var(--muted); }
 .pane-maximize { display: inline-flex; align-items: center; padding: 2px 5px; margin-left: auto; flex: 0 0 auto; }
 .pane-close { margin-left: 0; }

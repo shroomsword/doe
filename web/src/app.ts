@@ -19,7 +19,7 @@ import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { RADIXES, Radixes, isRadix } from './radix.js';
 import { type Attempt, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
 import { TreeView } from './tree.js';
-import { type Layout, type Mode, type PaneName, type Sizes, PANE_NAMES, applyLayout, defaultLayout, isDefault, loadLayout, moved, saveLayout, shown, swapped, withSizes, withVisible } from './layout.js';
+import { type Layout, type Mode, type PaneName, type Sizes, PANE_NAMES, TILE_PRESETS, applyLayout, defaultLayout, isDefault, layoutText, loadLayout, moved, movedAcross, movedInRow, saveLayout, shown, swapped, tilesOf, withSizes, withTiles, withVisible } from './layout.js';
 import { Splitters } from './resize.js';
 import { PaneDrag } from './drag.js';
 import { buildByteKinds } from './kinds.js';
@@ -1086,6 +1086,7 @@ export class App {
       main,
       host: element('splitters'),
       layout: () => this.layout,
+      ids: PANE_IDS,
       name: (place) => NAMES[shown(this.layout)[place - 1] ?? 'schema'],
       change: (mode, sizes, message) => this.setSizes(mode, sizes, message),
     });
@@ -1093,6 +1094,7 @@ export class App {
     this.layoutChanged(false);
     element('layout-reset').addEventListener('click', () => this.resetLayout());
     element('panes-button').addEventListener('click', () => this.perform('panes'));
+    element('tiles-preset').addEventListener('change', () => this.choosePreset(element<HTMLSelectElement>('tiles-preset').value));
     element('panes-close').addEventListener('click', () => element<HTMLDialogElement>('panes-dialog').close());
     // every pane has a button at the top right of its title bar that closes it
     for (const name of PANES) {
@@ -1185,7 +1187,7 @@ export class App {
       return;
     }
     const next = moved(this.layout, name, target, after);
-    if (next.order.every((pane, i) => pane === this.layout.order[i])) return;
+    if (layoutText(next) === layoutText(this.layout)) return;
     this.commit(next, `${NAMES[name]} moved ${after ? 'after' : 'before'} ${NAMES[target]}`);
   }
 
@@ -1455,6 +1457,76 @@ export class App {
     const active = document.activeElement instanceof HTMLInputElement ? document.activeElement.dataset.pane : undefined;
     list.replaceChildren(...rows);
     if (active) list.querySelector<HTMLInputElement>(`input[data-pane="${active}"]`)?.focus();
+    this.tilesList();
+  }
+
+  /** The arrangement of the panes in rows: the presets, and a row-by-row editor with buttons for every move. */
+  private tilesList(): void {
+    const select = element<HTMLSelectElement>('tiles-preset');
+    const rows = tilesOf(this.layout);
+    const current = this.layout.tiles ? JSON.stringify(this.layout.tiles) : null;
+    const preset = TILE_PRESETS.find((p) => (p.rows === null ? current === null : JSON.stringify(p.rows) === current));
+    select.replaceChildren(...TILE_PRESETS.map((p) => new Option(p.label, p.id, false, p === preset)));
+    if (!preset) select.append(new Option('Custom', 'custom', false, true));
+    select.value = preset?.id ?? 'custom';
+    const editor = element('tiles-editor');
+    const focused = document.activeElement instanceof HTMLButtonElement && editor.contains(document.activeElement) ? document.activeElement.dataset.key : undefined;
+    editor.replaceChildren(
+      ...rows.map((row, index) => {
+        const group = document.createElement('div');
+        group.className = 'tile-row';
+        group.setAttribute('role', 'group');
+        group.setAttribute('aria-label', `Row ${index + 1}`);
+        for (const name of row) {
+          const chip = document.createElement('span');
+          chip.className = 'tile-chip';
+          const label = document.createElement('strong');
+          label.textContent = `${NAMES[name]}${this.isShown(name) ? '' : ' (closed)'}`;
+          chip.append(label);
+          const moves: { act: string; text: string; title: string; to: PaneName[][] | null }[] = [
+            { act: 'left', text: '\u25c0', title: 'to the left', to: movedInRow(rows, name, -1) },
+            { act: 'right', text: '\u25b6', title: 'to the right', to: movedInRow(rows, name, 1) },
+            { act: 'up', text: '\u25b2', title: 'to the row above (the top, in a row of its own, from the first row)', to: movedAcross(rows, name, -1) },
+            { act: 'down', text: '\u25bc', title: 'to the row under (the bottom, in a row of its own, from the last row)', to: movedAcross(rows, name, 1) },
+          ];
+          for (const move of moves) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = move.text;
+            button.dataset.key = `${name}-${move.act}`;
+            button.setAttribute('aria-label', `Move ${NAMES[name]} ${move.title.split(' (')[0]}`);
+            button.title = `Move ${NAMES[name]} ${move.title}`;
+            button.disabled = move.to === null;
+            const target = move.to;
+            button.addEventListener('click', () => {
+              if (target) this.commit(withTiles(this.layout, target), `${NAMES[name]} moved ${move.title.split(' (')[0]}: ${this.describeTiles(target)}`);
+            });
+            chip.append(button);
+          }
+          group.append(chip);
+        }
+        return group;
+      }),
+    );
+    if (focused) {
+      const again = editor.querySelector<HTMLButtonElement>(`button[data-key="${focused}"]`);
+      if (again && !again.disabled) again.focus();
+      else editor.querySelector<HTMLButtonElement>(`button[data-key^="${focused.split('-')[0]}-"]:not(:disabled)`)?.focus();
+    }
+    element('tiles-note').textContent = this.layout.tiles ? 'The panes are in these rows in a window that is wide enough; a narrow window puts them one under the other, in this order.' : 'The panes are placed by the width of the window. Move one, or choose an arrangement, to place them in rows.';
+  }
+
+  /** "Row 1: Schema. Row 2: Parsed and Bytes. Row 3: Status." for a screen reader. */
+  private describeTiles(rows: PaneName[][]): string {
+    return rows.map((row, i) => `row ${i + 1}: ${row.map((n) => NAMES[n]).join(' and ')}`).join('; ');
+  }
+
+  private choosePreset(id: string): void {
+    const preset = TILE_PRESETS.find((p) => p.id === id);
+    if (!preset) return;
+    const next = withTiles(this.layout, preset.rows ?? undefined);
+    if (layoutText(next) === layoutText(this.layout)) return;
+    this.commit(next, preset.rows ? `The panes are in rows: ${this.describeTiles(preset.rows)}` : 'The panes are placed by the width of the window');
   }
 
   private perform(action: Action): void {
