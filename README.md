@@ -1668,6 +1668,8 @@ pane; the whole text is in the inspector (`i`) under `doc` when the field is sel
 shows or hides the descriptions (they are shown to begin with, and a reload keeps the choice). The search (`/`) finds a
 word of a description while they are shown. An element of a repeated field has none; the field has it once.
 
+`f` makes the pane that has the keys fill the screen (its title says `full screen`), so that a long tree or a wide hex dump is read in all of it, and `f` again puts both panes back; `Esc` does too, before it would leave, and `Tab` while a pane fills the screen moves to the other pane, which then fills it. The selection, the cursor and the scroll positions of both panes are as they were. In a prompt, a search or the help `f` is a letter, and on a screen with room for one pane only (a narrow, short terminal) it changes nothing. The inspector, `i`, takes the place of the tree in a full-screen tree, as it does on a small screen. `f` is the key that maximizes a pane in the web IDE too.
+
 A file that holds another file (a `.tar.gz` is a gzip file that holds a tar; a `.tar.xz`, `.cpio.zst`, ... likewise) is opened on the innermost layer, and `L` shows the next layer, and the file itself after the last, with a message that says which layer is shown (`layer 2 of 2: gzip_file > tar`); a file that holds nothing says so.
 
 Each byte of the bytes pane is drawn in the colour of the field it belongs to, the colour that field's value has in the tree

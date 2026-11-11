@@ -438,6 +438,14 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     } else {
         (area, None)
     };
+    // `f`: the pane that has the keys fills the screen, when there are two to choose between
+    let fullscreen = app.fullscreen && hex_area.is_some();
+    let (tree_area, hex_area) = match (fullscreen, app.focus) {
+        (true, Focus::Tree) => (area, None),
+        // the tree is not drawn: it has no area
+        (true, Focus::Hex) => (Rect::new(area.x, area.y, 0, 0), Some(area)),
+        (false, _) => (tree_area, hex_area),
+    };
 
     // The pane that has the keys is the one with the hex pane when the other
     // is not drawn.
@@ -465,11 +473,16 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
             },
         }
     };
-    let hint = match (hex_area.is_some(), app.files.is_some()) {
+    let hint = match (hex_area.is_some() || fullscreen, app.files.is_some()) {
         (true, false) => " q quit · Tab switch pane · i inspector ",
         (true, true) => " q quit · Tab switch pane · i inspector · F files/fields ",
         (false, false) => " q quit · i inspector ",
         (false, true) => " q quit · i inspector · F files/fields ",
+    };
+    let hint = if fullscreen {
+        " q quit · f or Esc restore · Tab other pane · i inspector "
+    } else {
+        hint
     };
     // the algorithm of the checksum column is named in the hint while the column is shown
     let hint = match app
@@ -481,81 +494,84 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         Some(algorithm) => format!("{} · m {} ", hint.trim_end(), algorithm.label()),
         None => hint.to_owned(),
     };
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(theme.border(focus == Focus::Tree))
-        .title(Line::from(vec![
-            Span::raw(" "),
-            Span::styled(
-                format::truncate(&format::safe(&app.type_name), 40),
-                theme.title(),
-            ),
-            Span::raw(" "),
-        ]))
-        .title(Line::from(status).alignment(Alignment::Right))
-        .title_bottom(Line::from(Span::styled(hint, theme.dim())));
-    let inner = block.inner(tree_area);
-    frame.render_widget(block, tree_area);
-    // What went wrong is where the tree is (nothing was parsed), or under it.
-    let mut tree_inner = inner;
-    if app.loading {
-        // the file is still being parsed: there is no tree yet
-        let seconds = app.loading_since.map_or(0, |t| t.elapsed().as_secs());
-        let text = vec![
-            Line::from(Span::styled(
-                format!(
-                    "parsing {} as {}… {seconds} s",
-                    format::safe(&app.file.display().to_string()),
-                    format::safe(&app.type_name)
+    if !tree_area.is_empty() {
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(theme.border(focus == Focus::Tree))
+            .title(Line::from(vec![
+                Span::raw(" "),
+                Span::styled(
+                    format::truncate(&format::safe(&app.type_name), 40),
+                    theme.title(),
                 ),
-                theme.title(),
-            )),
-            Line::raw(""),
-            Line::from(Span::styled(
-                "the tree comes when it is done; q leaves",
-                theme.dim(),
-            )),
-        ];
-        frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
-        tree_inner = Rect { height: 0, ..inner };
-    } else if let Some(report) = &app.report {
-        let lines = report_lines(report, *theme);
-        if report.fatal {
-            frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+                Span::styled(if fullscreen { " · full screen" } else { "" }, theme.dim()),
+                Span::raw(" "),
+            ]))
+            .title(Line::from(status).alignment(Alignment::Right))
+            .title_bottom(Line::from(Span::styled(hint, theme.dim())));
+        let inner = block.inner(tree_area);
+        frame.render_widget(block, tree_area);
+        // What went wrong is where the tree is (nothing was parsed), or under it.
+        let mut tree_inner = inner;
+        if app.loading {
+            // the file is still being parsed: there is no tree yet
+            let seconds = app.loading_since.map_or(0, |t| t.elapsed().as_secs());
+            let text = vec![
+                Line::from(Span::styled(
+                    format!(
+                        "parsing {} as {}… {seconds} s",
+                        format::safe(&app.file.display().to_string()),
+                        format::safe(&app.type_name)
+                    ),
+                    theme.title(),
+                )),
+                Line::raw(""),
+                Line::from(Span::styled(
+                    "the tree comes when it is done; q leaves",
+                    theme.dim(),
+                )),
+            ];
+            frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
             tree_inner = Rect { height: 0, ..inner };
-        } else if app.show_report && inner.height >= REPORT_MIN_HEIGHT {
-            let rows = estimate_rows(&lines, inner.width)
-                .min(REPORT_MAX_ROWS)
-                .min(inner.height / 2);
-            let [top, bottom] =
-                Layout::vertical([Constraint::Min(0), Constraint::Length(rows + 1)]).areas(inner);
-            let mut panel = vec![Line::from(Span::styled(
-                format::truncate("── error (e hides) ", usize::from(bottom.width)),
-                theme.bad(),
-            ))];
-            panel.extend(lines);
-            frame.render_widget(Paragraph::new(panel).wrap(Wrap { trim: false }), bottom);
-            tree_inner = top;
+        } else if let Some(report) = &app.report {
+            let lines = report_lines(report, *theme);
+            if report.fatal {
+                frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+                tree_inner = Rect { height: 0, ..inner };
+            } else if app.show_report && inner.height >= REPORT_MIN_HEIGHT {
+                let rows = estimate_rows(&lines, inner.width)
+                    .min(REPORT_MAX_ROWS)
+                    .min(inner.height / 2);
+                let [top, bottom] =
+                    Layout::vertical([Constraint::Min(0), Constraint::Length(rows + 1)])
+                        .areas(inner);
+                let mut panel = vec![Line::from(Span::styled(
+                    format::truncate("── error (e hides) ", usize::from(bottom.width)),
+                    theme.bad(),
+                ))];
+                panel.extend(lines);
+                frame.render_widget(Paragraph::new(panel).wrap(Wrap { trim: false }), bottom);
+                tree_inner = top;
+            }
+        }
+        // With no room for the bytes, the inspector takes the place of the tree.
+        if fatal || app.loading {
+            // the report, or the message that it is being read, is all there is to see in this pane
+        } else if app.inspector && hex_area.is_none() {
+            inspector(frame, tree_inner, app, *theme);
+        } else if let Some(files) = app.files.as_ref().filter(|_| app.files_wanted) {
+            crate::files_view::render(frame, tree_inner, files, &mut app.view, theme);
+        } else {
+            tree_view::render(
+                frame,
+                tree_inner,
+                &app.tree,
+                &mut app.view,
+                theme,
+                &app.radixes,
+            );
         }
     }
-    // With no room for the bytes, the inspector takes the place of the tree.
-    if fatal || app.loading {
-        // the report, or the message that it is being read, is all there is to see in this pane
-    } else if app.inspector && hex_area.is_none() {
-        inspector(frame, tree_inner, app, *theme);
-    } else if let Some(files) = app.files.as_ref().filter(|_| app.files_wanted) {
-        crate::files_view::render(frame, tree_inner, files, &mut app.view, theme);
-    } else {
-        tree_view::render(
-            frame,
-            tree_inner,
-            &app.tree,
-            &mut app.view,
-            theme,
-            &app.radixes,
-        );
-    }
-
     if let Some(hex_area) = hex_area {
         let size = app.bytes.as_ref().map_or(0, crate::bytes::FileBytes::size);
         let mut described = if app.loading {
@@ -575,6 +591,9 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         }
         if let Some(bit) = app.hex.bit() {
             described = format!("{described} · bit {bit} of byte {:#x}", app.hex.cursor());
+        }
+        if fullscreen {
+            described = format!("full screen · {described}");
         }
         let note = format::truncate(&described, usize::from(hex_area.width.saturating_sub(4)));
         let block = Block::default()

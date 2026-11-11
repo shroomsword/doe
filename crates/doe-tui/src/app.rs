@@ -177,6 +177,8 @@ pub struct App {
     layer_guard: Option<tempfile::TempDir>,
     /// Which layer of the file is shown (0 is the file itself), once known.
     layer_index: Option<usize>,
+    /// Whether the focused pane fills the screen (`f`); the pane that has the focus is the one that is shown.
+    pub fullscreen: bool,
     /// When the parse began, for the time it has taken.
     pub loading_since: Option<std::time::Instant>,
     /// Whether the help is shown.
@@ -340,6 +342,7 @@ impl App {
             loading: false,
             layer_guard: None,
             layer_index: None,
+            fullscreen: false,
             loading_since: None,
             help: false,
             help_view: crate::help::HelpView::default(),
@@ -417,6 +420,7 @@ impl App {
             loading: false,
             layer_guard: None,
             layer_index: None,
+            fullscreen: false,
             loading_since: None,
             help: false,
             help_view: crate::help::HelpView::default(),
@@ -476,6 +480,7 @@ impl App {
             loading: true,
             layer_guard: None,
             layer_index: None,
+            fullscreen: false,
             loading_since: Some(std::time::Instant::now()),
             help: false,
             help_view: crate::help::HelpView::default(),
@@ -746,6 +751,12 @@ impl App {
         }
         if self.preview.is_some() {
             self.preview_key(&key);
+            return;
+        }
+        // Esc puts the two panes back before it leaves
+        if self.fullscreen && key.code == KeyCode::Esc && key.modifiers == KeyModifiers::NONE {
+            self.fullscreen = false;
+            self.notice = Some("both panes are shown".to_owned());
             return;
         }
         let pane = match self.focus {
@@ -1478,6 +1489,18 @@ impl App {
             Action::ToggleInspector => self.inspector = !self.inspector,
             Action::Files => self.toggle_files(),
             Action::Layers => self.cycle_layer(),
+            Action::Fullscreen => {
+                self.fullscreen = !self.fullscreen;
+                self.notice = Some(if self.fullscreen {
+                    match self.focus {
+                        Focus::Tree => "the tree fills the screen (f or Esc puts both panes back)",
+                        Focus::Hex => "the bytes fill the screen (f or Esc puts both panes back)",
+                    }
+                    .to_owned()
+                } else {
+                    "both panes are shown".to_owned()
+                });
+            }
             Action::Descriptions => {
                 let on = !self.tree.docs_shown();
                 self.tree.set_docs_shown(on);
