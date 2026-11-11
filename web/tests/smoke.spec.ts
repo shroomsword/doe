@@ -230,3 +230,40 @@ test('text that is not valid in its encoding is shown, marked in the tree and li
   await problems.nth(1).click();
   await expect(page.locator('.tree-row.selected')).toContainText('note');
 });
+
+test('the page has an icon: the SVG, the .ico and the touch icon are linked and served, and loading it fails no request', async ({ page }) => {
+  const failed: string[] = [];
+  // the page asks the server whether it is `doe --ide` (api/local): a hosted page answers 404, which is its answer
+  const ours = (url: string): boolean => !url.includes('/api/') && !url.includes('raw.githubusercontent.com');
+  page.on('requestfailed', (request) => {
+    if (ours(request.url())) failed.push(`${request.url()} ${request.failure()?.errorText ?? ''}`);
+  });
+  page.on('response', (response) => {
+    if (response.status() >= 400 && ours(response.url())) failed.push(`${response.url()} ${response.status()}`);
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
+  const links = await page.locator('link[rel~="icon"], link[rel="apple-touch-icon"]').evaluateAll((nodes) => nodes.map((n) => ({ rel: n.getAttribute('rel'), href: (n as HTMLLinkElement).href, type: n.getAttribute('type') })));
+  expect(links.map((l) => [l.rel, new URL(l.href).pathname])).toEqual([
+    ['icon', '/favicon.svg'],
+    ['icon', '/favicon.ico'],
+    ['apple-touch-icon', '/apple-touch-icon.png'],
+  ]);
+  const types: Record<string, string> = { '/favicon.svg': 'image/svg+xml', '/favicon.ico': 'image/x-icon', '/apple-touch-icon.png': 'image/png' };
+  for (const [path, type] of Object.entries(types)) {
+    const response = await page.request.get(path);
+    expect(response.status(), path).toBe(200);
+    expect(response.headers()['content-type'], path).toContain(type);
+    const body = await response.body();
+    expect(body.length, path).toBeGreaterThan(100);
+    if (path === '/favicon.svg') {
+      // small, with no script and no reference to anything outside it
+      const text = body.toString('utf8');
+      expect(text.length).toBeLessThan(2048);
+      expect(text).not.toMatch(/<script|xlink:href|href="http|url\(|@import/i);
+    }
+    if (path === '/favicon.ico') expect([...body.subarray(0, 4)]).toEqual([0, 0, 1, 0]);
+    if (path === '/apple-touch-icon.png') expect([...body.subarray(1, 4)]).toEqual([0x50, 0x4e, 0x47]);
+  }
+  expect(failed).toEqual([]);
+});

@@ -13,6 +13,9 @@ const types = {
   '.css': 'text/css; charset=utf-8',
   '.wasm': 'application/wasm',
   '.map': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
 };
 
 createServer((request, response) => {

@@ -202,3 +202,25 @@ test('a lost connection to the server is said', async ({ page }) => {
   // the list that was read stays
   await expect(options(page)).toHaveText(['choose…', 'common — two bytes', 'pair']);
 });
+
+test('the server of doe --ide serves the icon, with the right content types, and loading the page fails no request', async ({ page }) => {
+  const failed: string[] = [];
+  const ours = (url: string): boolean => !url.includes('/api/') && !url.includes('raw.githubusercontent.com');
+  page.on('requestfailed', (request) => {
+    if (ours(request.url())) failed.push(request.url());
+  });
+  page.on('response', (response) => {
+    if (response.status() >= 400 && ours(response.url())) failed.push(`${response.url()} ${response.status()}`);
+  });
+  await page.goto('/');
+  await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
+  for (const [path, type] of [['/favicon.svg', 'image/svg+xml'], ['/favicon.ico', 'image/x-icon'], ['/apple-touch-icon.png', 'image/png']]) {
+    const response = await page.request.get(path as string);
+    expect(response.status(), path).toBe(200);
+    expect(response.headers()['content-type'], path).toBe(type);
+  }
+  // the policy of the page lets it draw its own icon (img-src 'self')
+  const policy = (await page.request.get('/')).headers()['content-security-policy'] ?? '';
+  expect(policy).toContain("img-src 'self'");
+  expect(failed).toEqual([]);
+});
