@@ -27,6 +27,8 @@ pub enum Action {
     ByteColours,
     /// Show the description of each field after its value, or not.
     Descriptions,
+    /// Make the focused pane fill the screen, or put both panes back.
+    Fullscreen,
     /// Show the next layer of a file that holds another file (a `.tar.gz` is gzip, then the tar it holds).
     Layers,
     /// Show the help.
@@ -212,6 +214,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::Descriptions,
         help: "show the description (doc:) of each field after its value, or not (the inspector, i, has the whole text of the selected field)",
+    },
+    Binding {
+        keys: &[ch('f')],
+        scope: Scope::Anywhere,
+        action: Action::Fullscreen,
+        help: "make the focused pane fill the screen, or put both panes back (Esc puts them back too, before it leaves; Tab then moves to the other pane, which fills the screen)",
     },
     Binding {
         keys: &[ch('L')],
