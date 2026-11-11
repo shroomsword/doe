@@ -23,6 +23,7 @@ import { TreeView } from './tree.js';
 import { type Layout, type Mode, type PaneName, type Sizes, PANE_NAMES, applyLayout, currentMode, defaultLayout, dockOf, isDefault, loadLayout, saveLayout, shown, shownMovable, swapped, withDock, withSizes, withVisible } from './layout.js';
 import { type Movable, type Zone, ZONE_NAMES, dockTo, isMovable, zoneOf } from './dock.js';
 import { Splitters } from './resize.js';
+import { closeAllOnBackdropClick } from './dialogs.js';
 import { PaneDrag, offered } from './drag.js';
 import { buildByteKinds } from './kinds.js';
 import { ALGORITHMS, FilesView, cycleAlgorithm } from './files.js';
@@ -894,6 +895,7 @@ export class App {
       });
     }
     this.layoutSetup();
+    closeAllOnBackdropClick();
     this.columnsSetup();
     element('files-toggle').addEventListener('click', () => this.toggleFiles());
     element('hash-toggle').addEventListener('click', () => this.openHashMenu());
