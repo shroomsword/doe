@@ -15,6 +15,9 @@ pub const KINDS: [&str; 14] = [
 /// The word that asks for a type of the type paths as the kind, instead of one of [`KINDS`].
 pub const TYPE_WORD: &str = "type";
 
+/// The word that asks for a new type of the schema being built (empty: its fields are added into it), as the kind of a field.
+pub const NEW_WORD: &str = "new";
+
 /// The encoding that text is proposed in.
 pub const DEFAULT_ENCODING: &str = "ASCII";
 

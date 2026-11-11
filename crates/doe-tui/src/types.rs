@@ -135,6 +135,42 @@ impl TypeBrowser {
         TypeBrowser::new(include_paths.to_vec(), entries, problem)
     }
 
+    /// The same with the types that the schema being built defines put first, in a group of their own.
+    #[must_use]
+    pub fn with_defined(mut self, ids: &[String]) -> TypeBrowser {
+        if ids.is_empty() {
+            return self;
+        }
+        for entry in &mut self.entries {
+            entry.group += 1;
+        }
+        self.groups
+            .insert(0, PathBuf::from("defined by this schema"));
+        let mut entries: Vec<TypeEntry> = ids
+            .iter()
+            .map(|id| TypeEntry {
+                id: id.clone(),
+                path: PathBuf::from(format!("{id} (this schema)")),
+                group: 0,
+                doc: Some("a type of the schema that is being built".to_owned()),
+                // nothing to read from a path: it is not compiled to see its signature
+                source: Some(Source {
+                    name: id.clone(),
+                    magic: Vec::new(),
+                    alternatives: Vec::new(),
+                    names: Vec::new(),
+                    checks: 0,
+                    informative: false,
+                }),
+                error: None,
+            })
+            .collect();
+        entries.append(&mut self.entries);
+        self.entries = entries;
+        self.refilter();
+        self
+    }
+
     /// A browser of these types.
     #[must_use]
     pub fn new(groups: Vec<PathBuf>, entries: Vec<TypeEntry>, problem: Option<String>) -> Self {
