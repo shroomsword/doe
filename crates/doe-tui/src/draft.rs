@@ -72,6 +72,16 @@ pub enum Kind {
         /// How many bytes the text and its terminator take in the file that is being looked at.
         sample: u64,
     },
+    /// A field whose type is a schema of the type paths (`type: png_header`, imported by the schema).
+    Type {
+        /// The id of the type.
+        id: String,
+        /// The size of the window the type is read from, when it is bounded (`size:`); otherwise it reads as much as it needs.
+        size: Option<u64>,
+        /// How many bytes the field takes in the file that is being looked at (all of them when it is repeated): it is
+        /// read from the parse, as the length of text that ends is.
+        bytes: u64,
+    },
     /// A field of another kind, repeated.
     Repeat {
         /// What is repeated: an integer, a float, bytes or text.
@@ -102,7 +112,10 @@ impl Kind {
         match self {
             Kind::Bits(n) => u64::from(*n),
             Kind::Terminated { sample, .. } => sample * 8,
+            // a repeated type: its bytes are all of the elements', which only the parse can say
+            Kind::Repeat { inner, .. } if matches!(**inner, Kind::Type { .. }) => inner.bits(),
             Kind::Repeat { inner, sample, .. } => inner.bits() * sample,
+            Kind::Type { bytes, .. } => bytes * 8,
             Kind::Contents(bytes) => bytes.len() as u64 * 8,
             other => other.size_in_bytes() * 8,
         }
@@ -134,6 +147,7 @@ impl Kind {
             Kind::Bits(n) => format!("b{n}"),
             Kind::Contents(_) => "magic".to_owned(),
             Kind::Terminated { .. } => "strz".to_owned(),
+            Kind::Type { id, .. } => id.clone(),
             Kind::Repeat { inner, .. } => format!("{}[]", inner.label()),
         }
     }
@@ -171,6 +185,13 @@ impl Kind {
             Kind::Terminated { sample: 0, .. } => Err(DraftError::Size(
                 "text up to a terminator has at least the terminator".to_owned(),
             )),
+            Kind::Type { id, size, .. } => {
+                check_type_id(id)?;
+                if *size == Some(0) {
+                    return Err(DraftError::Size("a field has at least one byte".to_owned()));
+                }
+                Ok(())
+            }
             Kind::Repeat {
                 inner,
                 count,
@@ -184,7 +205,7 @@ impl Kind {
                         | Kind::Repeat { .. }
                 ) {
                     return Err(DraftError::Size(
-                        "only integers, floats, bytes and text of a size can be repeated"
+                        "only integers, floats, bytes, text of a size and types can be repeated"
                             .to_owned(),
                     ));
                 }
@@ -262,6 +283,23 @@ pub fn check_name(name: &str) -> Result<(), DraftError> {
     }
     if name.len() > MAX_NAME {
         return bad("a name has at most 64 characters");
+    }
+    Ok(())
+}
+
+/// Whether `id` can be the id of a type that the schema imports and uses: letters, digits, `_`, `-` and `.`.
+///
+/// # Errors
+///
+/// What is wrong with it.
+pub fn check_type_id(id: &str) -> Result<(), DraftError> {
+    if id.is_empty()
+        || id.len() > MAX_NAME
+        || !id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+    {
+        return Err(DraftError::Name(format!("{id:?} is not the id of a type")));
     }
     Ok(())
 }
@@ -557,6 +595,25 @@ impl Draft {
         Ok(())
     }
 
+    /// The ids of the types of the type paths that the fields use, once each, in the order they are first used: what the
+    /// schema imports.
+    #[must_use]
+    pub fn imports(&self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for field in &self.fields {
+            let kind = match &field.kind {
+                Kind::Repeat { inner, .. } => inner.as_ref(),
+                other => other,
+            };
+            if let Kind::Type { id, .. } = kind
+                && !out.contains(id)
+            {
+                out.push(id.clone());
+            }
+        }
+        out
+    }
+
     /// The schema as text, which `doe` compiles. Each field has a comment with
     /// its place in the file.
     #[must_use]
@@ -565,6 +622,13 @@ impl Draft {
         let _ = writeln!(out, "meta:");
         let _ = writeln!(out, "  id: {}", self.id);
         let _ = writeln!(out, "  endian: {}", self.endian.name());
+        let imports = self.imports();
+        if !imports.is_empty() {
+            let _ = writeln!(out, "imports:");
+            for id in &imports {
+                let _ = writeln!(out, "  - {id}");
+            }
+        }
         if self.fields.is_empty() {
             out.push_str("seq: []\n");
             return out;
@@ -639,6 +703,17 @@ impl Draft {
         };
         let mut draft = Draft::new(&id).map_err(|e| e.to_string())?;
         draft.endian = endian;
+        let mut imports: Vec<String> = Vec::new();
+        if lines.get(at).is_some_and(|(_, l)| *l == "imports:") {
+            at += 1;
+            while let Some((_, line)) = lines.get(at) {
+                let Some(import) = line.strip_prefix("  - ") else {
+                    break;
+                };
+                imports.push(import.trim().to_owned());
+                at += 1;
+            }
+        }
         let Some((number, line)) = lines.get(at) else {
             return Err("the schema has no seq".to_owned());
         };
@@ -662,7 +737,7 @@ impl Draft {
                     keys.push((*number, key, value.to_owned()));
                     at += 1;
                 }
-                let kind = kind_from_keys(&keys, *number, id)?;
+                let kind = kind_from_keys(&keys, *number, id, &imports)?;
                 draft
                     .push(Field {
                         id: id.to_owned(),
@@ -689,8 +764,21 @@ impl Draft {
                         *sample = (span.end - span.start).div_ceil(8);
                     }
                 }
-                Kind::Repeat { sample, .. } if !node.children.is_empty() => {
-                    *sample = node.children.len() as u64;
+                Kind::Type { bytes, .. } => {
+                    if let Some(span) = node.span.filter(|s| !s.is_empty()) {
+                        *bytes = (span.end - span.start).div_ceil(8);
+                    }
+                }
+                Kind::Repeat { inner, sample, .. } => {
+                    if !node.children.is_empty() {
+                        *sample = node.children.len() as u64;
+                    }
+                    // the bytes of a repeated type are all of its elements'
+                    if let Kind::Type { bytes, .. } = inner.as_mut()
+                        && let Some(span) = node.span.filter(|s| !s.is_empty())
+                    {
+                        *bytes = (span.end - span.start).div_ceil(8);
+                    }
                 }
                 _ => {}
             }
@@ -736,7 +824,12 @@ impl Draft {
 }
 
 /// The kind that the keys of a field in a schema of the builder say.
-fn kind_from_keys(keys: &[(usize, &str, String)], first: usize, id: &str) -> Result<Kind, String> {
+fn kind_from_keys(
+    keys: &[(usize, &str, String)],
+    first: usize,
+    id: &str,
+    imports: &[String],
+) -> Result<Kind, String> {
     let get = |name: &str| {
         keys.iter()
             .find(|(_, k, _)| *k == name)
@@ -783,6 +876,11 @@ fn kind_from_keys(keys: &[(usize, &str, String)], first: usize, id: &str) -> Res
             Some("str") => Kind::Text {
                 len: size()?,
                 encoding: encoding(),
+            },
+            Some(t) if imports.iter().any(|i| i == t) => Kind::Type {
+                id: t.to_owned(),
+                size: get("size").and_then(|v| v.parse().ok()),
+                bytes: get("size").and_then(|v| v.parse().ok()).unwrap_or(0),
             },
             Some(t) if t.len() > 1 && t.is_char_boundary(1) => {
                 let (letter, digits) = t.split_at(1);
@@ -858,6 +956,12 @@ fn write_kind(out: &mut String, kind: &Kind) {
             let _ = writeln!(out, "    type: str");
             let _ = writeln!(out, "    terminator: {terminator}");
             let _ = writeln!(out, "    encoding: {encoding}");
+        }
+        Kind::Type { id, size, .. } => {
+            let _ = writeln!(out, "    type: {id}");
+            if let Some(size) = size {
+                let _ = writeln!(out, "    size: {size}");
+            }
         }
         Kind::Repeat { inner, count, .. } => {
             write_kind(out, inner);

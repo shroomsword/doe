@@ -12,6 +12,9 @@ pub const KINDS: [&str; 14] = [
     "u1", "u2", "u4", "u8", "s1", "s2", "s4", "s8", "f4", "f8", "bytes", "str", "magic", "strz",
 ];
 
+/// The word that asks for a type of the type paths as the kind, instead of one of [`KINDS`].
+pub const TYPE_WORD: &str = "type";
+
 /// The encoding that text is proposed in.
 pub const DEFAULT_ENCODING: &str = "ASCII";
 
@@ -31,6 +34,10 @@ pub struct Answers {
     pub terminator: u8,
     /// How many bytes a `strz` and its terminator take in the file.
     pub text_sample: u64,
+    /// The id of the type of a field of a type of the type paths.
+    pub type_id: String,
+    /// The size of the window that such a field is read from, if it is bounded.
+    pub size: Option<u64>,
 }
 
 /// The kind that is proposed: the integer of the size of a selection of 1, 2, 4 or 8
@@ -74,6 +81,7 @@ pub fn next(kind: &str, after: Step) -> Option<Step> {
             "bytes" | "str" => Some(Step::FieldLength),
             "strz" => Some(Step::FieldTerminator),
             "magic" => Some(Step::FieldMagic),
+            TYPE_WORD => Some(Step::FieldSize),
             k if bits_of(k).is_some() => None,
             _ => Some(Step::FieldRepeat),
         },
@@ -82,6 +90,7 @@ pub fn next(kind: &str, after: Step) -> Option<Step> {
         } else {
             Step::FieldRepeat
         }),
+        Step::FieldSize => Some(Step::FieldRepeat),
         Step::FieldTerminator => Some(Step::FieldEncoding),
         Step::FieldEncoding if kind == "str" => Some(Step::FieldRepeat),
         _ => None,
@@ -105,6 +114,18 @@ pub fn parse_length(text: &str) -> Result<u64, String> {
         return Err("a field has at least one byte".to_owned());
     }
     Ok(n)
+}
+
+/// A size as typed, or none for nothing typed (the type reads as much as it needs).
+///
+/// # Errors
+///
+/// What is wrong with it.
+pub fn parse_size(text: &str) -> Result<Option<u64>, String> {
+    if text.trim().is_empty() {
+        return Ok(None);
+    }
+    parse_length(text).map(Some)
 }
 
 /// One byte as typed: decimal, or hex with `0x`.
@@ -196,6 +217,11 @@ pub fn kind_of(kind: &str, answers: &Answers) -> Result<Kind, String> {
     };
     let size = digits.parse::<u8>().unwrap_or(0);
     Ok(match (kind, letter) {
+        (TYPE_WORD, _) => Kind::Type {
+            id: answers.type_id.clone(),
+            size: answers.size,
+            bytes: answers.size.unwrap_or(0),
+        },
         ("bytes", _) => Kind::Bytes(answers.length.ok_or("bytes needs a length")?),
         ("str", _) => Kind::Text {
             len: answers.length.ok_or("str needs a length")?,
@@ -240,6 +266,8 @@ mod tests {
             magic: vec![1, 2],
             terminator: 0,
             text_sample: 4,
+            type_id: "pair".to_owned(),
+            size: None,
         }
     }
 
@@ -296,6 +324,28 @@ mod tests {
         );
         assert!(parse_repeat("0").is_err() && parse_repeat("Bad Name").is_err());
         assert!(needs_length("bytes") && needs_length("str") && !needs_length("u4"));
+    }
+
+    #[test]
+    fn a_type_of_the_type_paths_asks_for_a_window_then_the_repeat() {
+        use crate::prompt::Kind::{FieldKind, FieldRepeat, FieldSize};
+        assert_eq!(next(TYPE_WORD, FieldKind), Some(FieldSize));
+        assert_eq!(next(TYPE_WORD, FieldSize), Some(FieldRepeat));
+        assert_eq!(parse_size(""), Ok(None));
+        assert_eq!(parse_size(" 16 "), Ok(Some(16)));
+        assert!(parse_size("0").is_err() && parse_size("x").is_err());
+        let kind = kind_of(TYPE_WORD, &answers()).unwrap();
+        assert_eq!(
+            kind,
+            Kind::Type {
+                id: "pair".to_owned(),
+                size: None,
+                bytes: 0
+            }
+        );
+        assert_eq!(kind.label(), "pair");
+        // `type` is asked for by its word, not a kind of its own
+        assert_eq!(parse_kind("type"), None);
     }
 
     #[test]

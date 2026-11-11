@@ -19,6 +19,8 @@ pub enum Kind {
     FieldKind,
     /// The length of the bytes or text of that field.
     FieldLength,
+    /// The size of the window that a field of a type of the type paths is read from (nothing: as much as it needs).
+    FieldSize,
     /// The encoding of its text.
     FieldEncoding,
     /// The byte that ends a field of text.
@@ -40,8 +42,13 @@ impl Kind {
         match self {
             Kind::Search => "/",
             Kind::Goto => "goto offset: ",
-            Kind::FieldKind => "kind (u1..u8 s1..s8 f4 f8 b1..b64 bytes str strz magic): ",
+            Kind::FieldKind => {
+                "kind (u1..u8 s1..s8 f4 f8 b1..b64 bytes str strz magic, or type for a type of the type paths): "
+            }
             Kind::FieldLength => "length in bytes: ",
+            Kind::FieldSize => {
+                "size in bytes of the window it is read from (Enter for as much as it needs): "
+            }
             Kind::FieldEncoding => "encoding (ASCII, UTF-8…): ",
             Kind::FieldTerminator => "terminator byte (0, or 0x0a…): ",
             Kind::FieldMagic => "signature bytes in hex (7f 45 4c 46): ",
