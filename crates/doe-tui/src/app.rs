@@ -11,7 +11,7 @@ use doe::filesystem::Algorithm;
 use crate::Options;
 use crate::builder::Builder;
 use crate::bytes::FileBytes;
-use crate::draft::{Count, Draft, DraftError, Edit, Field, Kind as DraftKind};
+use crate::draft::{Container, Count, Draft, DraftError, Edit, Field, Kind as DraftKind};
 use crate::field_dialog;
 use crate::files_view::FilesState;
 use crate::format;
@@ -87,6 +87,14 @@ struct FieldDialog {
     type_id: String,
     /// The size of the window that such a field is read from, once asked.
     size: Option<u64>,
+    /// Where the field is added, or the field that is renamed or changed is: the schema or a type of it.
+    container: Container,
+    /// The row of the tree that the field (or the field that has the type it is added into) is.
+    path: Vec<usize>,
+    /// The offset in the file where an instance of that type starts, to measure from.
+    type_start: u64,
+    /// The field is of a new type that is empty (`new`): the type is made with the field.
+    new_type: bool,
 }
 
 impl FieldDialog {
@@ -105,6 +113,10 @@ impl FieldDialog {
             repeat: None,
             type_id: String::new(),
             size: None,
+            container: Container::Top,
+            path: Vec::new(),
+            type_start: 0,
+            new_type: false,
         }
     }
 }
@@ -218,6 +230,10 @@ pub struct App {
     field_dialog: Option<FieldDialog>,
     /// The questions of a field whose kind is being chosen from the types of the type paths (the browser of types is open).
     field_pick: Option<FieldDialog>,
+    /// The fields that are being made a type, while its name is asked: where, from which, how many.
+    group_plan: Option<(Container, usize, usize, Vec<usize>)>,
+    /// The field that is being added, while the name of the new empty type it has is asked.
+    new_type_dialog: Option<FieldDialog>,
     /// Hex that `y` asked to be put on the clipboard, until the event loop does it.
     clipboard: Option<String>,
     /// The schema that is being built, when the viewer was started with `--build`.
@@ -361,6 +377,8 @@ impl App {
             remove_was_armed: None,
             field_dialog: None,
             field_pick: None,
+            group_plan: None,
+            new_type_dialog: None,
             clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
@@ -439,6 +457,8 @@ impl App {
             remove_was_armed: None,
             field_dialog: None,
             field_pick: None,
+            group_plan: None,
+            new_type_dialog: None,
             clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
@@ -499,6 +519,8 @@ impl App {
             remove_was_armed: None,
             field_dialog: None,
             field_pick: None,
+            group_plan: None,
+            new_type_dialog: None,
             clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
@@ -1360,6 +1382,8 @@ impl App {
             PromptOutcome::Cancel => {
                 self.prompt = None;
                 self.field_dialog = None;
+                self.group_plan = None;
+                self.new_type_dialog = None;
             }
             PromptOutcome::Submit => {
                 let Some(prompt) = self.prompt.take() else {
@@ -1369,6 +1393,7 @@ impl App {
                     Kind::Search => self.start_search(prompt.line.text(), true),
                     Kind::Goto => self.goto(prompt.line.text()),
                     Kind::SaveEntry => self.save_entry(prompt.line.text()),
+                    Kind::TypeName => self.type_name_answered(prompt.line.text()),
                     field => self.field_step(field, prompt.line.text()),
                 }
             }
@@ -1531,7 +1556,10 @@ impl App {
             | Action::RemoveField
             | Action::ChangeKind
             | Action::ToggleByteOrder
+            | Action::GroupFields
+            | Action::UngroupField
             | Action::Save => self.builder_action(action),
+            Action::TreeAddField => self.add_field_in(false, true),
             Action::Search => self.open_prompt(Kind::Search),
             Action::SearchNext | Action::SearchPrevious => match self.last_query.clone() {
                 Some(query) => self.start_search(&query, action == Action::SearchNext),
@@ -1959,31 +1987,65 @@ impl App {
     fn after_kind(&mut self, dialog: FieldDialog) {
         match dialog.action {
             DialogAction::Retype(index) => match self.make_kind(&dialog) {
-                Ok(kind) => self.finish_retype(index, kind),
+                Ok(kind) => self.finish_retype(&dialog, index, kind),
                 Err(message) => self.notice = Some(message),
             },
             DialogAction::Add | DialogAction::Rename(_) => self.ask_name(dialog),
         }
     }
 
-    /// The index of the field of the schema that is selected: a row of the tree that is a
-    /// field of the schema itself, not something inside one.
-    fn selected_field(&mut self) -> Option<usize> {
+    /// Where the row of the tree at `path` is in the schema that is built: the schema or a type of it, and the index of the field.
+    /// A field of a type is found through the fields that have the type: the row of a field that has a type of the schema has its
+    /// fields under it (under each element, for a repeated one).
+    fn resolve_path(&self, path: &[usize]) -> Option<(Container, usize)> {
+        let draft = &self.builder.as_ref()?.draft;
+        let mut container = Container::Top;
+        let mut at = 0;
+        loop {
+            let index = *path.get(at)?;
+            let field = draft.fields_in(&container).get(index)?;
+            if at + 1 == path.len() {
+                return Some((container, index));
+            }
+            match &field.kind {
+                DraftKind::Type { id, .. } if draft.has_type(id) => {
+                    container = Container::Type(id.clone());
+                    at += 1;
+                }
+                // the row under a repeated field is an element, and the fields are under that
+                DraftKind::Repeat { inner, .. } => match inner.as_ref() {
+                    DraftKind::Type { id, .. } if draft.has_type(id) && path.len() > at + 2 => {
+                        container = Container::Type(id.clone());
+                        at += 2;
+                    }
+                    _ => return None,
+                },
+                _ => return None,
+            }
+        }
+    }
+
+    /// The field of the schema (or of a type of it) that is selected in the tree: where it is, its index and the row's path.
+    fn selected_target(&mut self) -> Option<(Container, usize, Vec<usize>)> {
         let path = self.tree.selected_path().to_vec();
-        let index = match path.as_slice() {
-            [index] => Some(*index),
-            _ => None,
+        let target = self
+            .resolve_path(&path)
+            .map(|(container, index)| (container, index, path));
+        if target.is_none() {
+            self.notice = Some(
+                "select a field of the schema, or of a type it defines, first (a row of the tree that is a field)"
+                    .to_owned(),
+            );
         }
-        .filter(|i| {
-            self.builder
-                .as_ref()
-                .is_some_and(|b| *i < b.draft.fields().len())
-        });
-        if index.is_none() {
-            self.notice =
-                Some("select a field of the schema first (a row just under the top)".to_owned());
-        }
-        index
+        target
+    }
+
+    /// Where the row at `path` starts in the file, in bytes.
+    fn row_start(&self, path: &[usize]) -> u64 {
+        self.tree
+            .node(path)
+            .and_then(|n| n.span)
+            .map_or(0, |span| span.start / 8)
     }
 
     /// The keys that change the schema that is built: undo, redo, remove, rename, change the
@@ -2035,19 +2097,16 @@ impl App {
                 });
             }
             Action::RemoveField => {
-                let Some(index) = self.selected_field() else {
+                let Some((container, index, path)) = self.selected_target() else {
                     return;
                 };
-                let after = self
+                let fields = self
                     .builder
                     .as_ref()
-                    .map_or(0, |b| b.draft.fields().len().saturating_sub(index + 1));
-                let name = self
-                    .builder
-                    .as_ref()
-                    .and_then(|b| b.draft.fields().get(index))
-                    .map(|f| f.id.clone())
+                    .map(|b| b.draft.fields_in(&container).to_vec())
                     .unwrap_or_default();
+                let after = fields.len().saturating_sub(index + 1);
+                let name = fields.get(index).map(|f| f.id.clone()).unwrap_or_default();
                 if after > 0 && armed != Some(index) {
                     self.remove_armed = Some(index);
                     self.notice = Some(format!(
@@ -2056,31 +2115,32 @@ impl App {
                     ));
                     return;
                 }
-                match self.edit_draft(|d| d.remove(index)) {
+                match self.edit_draft(|d| d.remove_in(&container, index)) {
                     Ok(()) => {
-                        self.select_field_near(index);
+                        self.select_field_near(&path, index);
                         self.notice = Some(format!("removed {name}"));
                     }
                     Err(message) => self.notice = Some(message),
                 }
             }
+            Action::GroupFields => self.group_fields(),
+            Action::UngroupField => self.ungroup_field(),
             Action::ChangeKind => {
-                let Some(index) = self.selected_field() else {
+                let Some((container, index, path)) = self.selected_target() else {
                     return;
                 };
                 let Some(field) = self
                     .builder
                     .as_ref()
-                    .and_then(|b| b.draft.fields().get(index))
+                    .and_then(|b| b.draft.fields_in(&container).get(index))
                     .cloned()
                 else {
                     return;
                 };
-                let at = self
-                    .builder
-                    .as_ref()
-                    .map_or(0, |b| b.draft.offset_of(index));
+                let at = self.row_start(&path);
                 let mut dialog = FieldDialog::new(DialogAction::Retype(index), at);
+                dialog.container = container;
+                dialog.path = path;
                 // what the field is now is what is proposed
                 match &field.kind {
                     DraftKind::Bytes(n) => dialog.selection = Some(*n),
@@ -2099,54 +2159,88 @@ impl App {
 
     /// `r` while building: ask for another name for the selected field.
     fn rename_field(&mut self) {
-        let Some(index) = self.selected_field() else {
+        let Some((container, index, path)) = self.selected_target() else {
             return;
         };
         let name = self
             .builder
             .as_ref()
-            .and_then(|b| b.draft.fields().get(index))
+            .and_then(|b| b.draft.fields_in(&container).get(index))
             .map(|f| f.id.clone())
             .unwrap_or_default();
-        self.field_dialog = Some(FieldDialog::new(DialogAction::Rename(index), 0));
+        let mut dialog = FieldDialog::new(DialogAction::Rename(index), 0);
+        dialog.container = container;
+        dialog.path = path;
+        self.field_dialog = Some(dialog);
         self.open_prompt_with(Kind::FieldName, &name);
     }
 
-    fn finish_rename(&mut self, index: usize, name: &str) {
-        match self.edit_draft(|d| d.rename(index, name)) {
+    fn finish_rename(&mut self, dialog: &FieldDialog, index: usize, name: &str) {
+        let container = dialog.container.clone();
+        match self.edit_draft(|d| d.rename_in(&container, index, name)) {
             Ok(()) => {
-                self.select_field_near(index);
+                self.select_field_near(&dialog.path, index);
                 self.notice = Some(format!("renamed to {name}"));
             }
             Err(message) => {
                 self.notice = Some(message);
                 // asked again, so that the name can be corrected
-                self.field_dialog = Some(FieldDialog::new(DialogAction::Rename(index), 0));
+                self.field_dialog = Some(dialog.clone());
                 self.open_prompt_with(Kind::FieldName, name);
             }
         }
     }
 
-    fn finish_retype(&mut self, index: usize, kind: DraftKind) {
+    fn finish_retype(&mut self, dialog: &FieldDialog, index: usize, kind: DraftKind) {
         let label = kind.label();
-        match self.edit_draft(|d| d.retype(index, kind)) {
+        let container = dialog.container.clone();
+        match self.edit_draft(|d| d.retype_in(&container, index, kind)) {
             Ok(()) => {
-                self.select_field_near(index);
+                self.select_field_near(&dialog.path, index);
                 self.notice = Some(format!("field {} is {label} now", index + 1));
             }
             Err(message) => self.notice = Some(message),
         }
     }
 
-    /// Select the field at `index`, or the one before it if it was the last that was removed.
-    fn select_field_near(&mut self, index: usize) {
-        let count = self.builder.as_ref().map_or(0, |b| b.draft.fields().len());
-        if count == 0 {
+    /// Select the field at `index` of the container that the row at `path` is in, or the one before it if it was the last that
+    /// was removed; with none left, the row that holds the container.
+    fn select_field_near(&mut self, path: &[usize], index: usize) {
+        let Some((container, _)) = self.resolve_path(path) else {
             self.tree.select_path(&[]);
-        } else {
-            self.tree.select_path(&[index.min(count - 1)]);
+            return;
+        };
+        let count = self
+            .builder
+            .as_ref()
+            .map_or(0, |b| b.draft.fields_in(&container).len());
+        let parent = path.split_last().map_or(&[][..], |(_, rest)| rest);
+        let mut target = parent.to_vec();
+        if count > 0 {
+            target.push(index.min(count - 1));
         }
+        self.tree.select_path(&target);
         self.show_selected_field();
+    }
+
+    /// After an edit is taken back or done again: the field it is about is selected, when that is a field of the schema.
+    fn select_edit(&mut self, edit: &Edit) {
+        let (Edit::Insert { at, index, .. }
+        | Edit::Remove { at, index, .. }
+        | Edit::Rename { at, index, .. }
+        | Edit::Retype { at, index, .. }
+        | Edit::Group {
+            at, start: index, ..
+        }
+        | Edit::Ungroup {
+            at, start: index, ..
+        }) = edit
+        else {
+            return;
+        };
+        if *at == Container::Top {
+            self.select_field_near(&[*index], *index);
+        }
     }
 
     /// Take the last change to the schema back.
@@ -2167,9 +2261,7 @@ impl App {
                 if let Some(builder) = self.builder.as_mut() {
                     builder.redo.push(edit.clone());
                 }
-                if let Some(index) = edit.index() {
-                    self.select_field_near(index);
-                }
+                self.select_edit(&edit);
                 self.notice = Some(format!("undid {}", edit.describe()));
             }
             Err(reason) => {
@@ -2201,9 +2293,7 @@ impl App {
                 if let Some(builder) = self.builder.as_mut() {
                     builder.history.push(edit.clone());
                 }
-                if let Some(index) = edit.index() {
-                    self.select_field_near(index);
-                }
+                self.select_edit(&edit);
                 self.notice = Some(format!("did again: {}", edit.describe()));
             }
             Err(reason) => {
@@ -2220,9 +2310,23 @@ impl App {
     /// Begin adding a field: where the schema ends (`a`), or at the cursor with a
     /// field of skipped bytes before it (`A`). The questions follow, one prompt each.
     fn add_field(&mut self, at_cursor: bool) {
-        let Some(builder) = self.builder.as_ref() else {
+        self.add_field_in(at_cursor, false);
+    }
+
+    /// Begin adding a field. With `into_selected` and a field of a type of the schema selected in the tree, the field goes into
+    /// that type, after the fields it has, with the offsets measured from where an instance of the type starts.
+    fn add_field_in(&mut self, at_cursor: bool, into_selected: bool) {
+        if self.builder.is_none() {
             self.notice =
                 Some("fields are added when the viewer is started with --build".to_owned());
+            return;
+        }
+        if into_selected && let Some(dialog) = self.dialog_into_selected_type() {
+            self.field_dialog = Some(dialog);
+            self.open_prompt_with(Kind::FieldKind, &field_dialog::propose_kind(None));
+            return;
+        }
+        let Some(builder) = self.builder.as_ref() else {
             return;
         };
         let end = builder.draft.end();
@@ -2255,6 +2359,55 @@ impl App {
         self.open_prompt_with(Kind::FieldKind, &field_dialog::propose_kind(selection));
     }
 
+    /// The questions for a field that goes into the type that the selected field has, if that is a type of the schema (as itself
+    /// or as the element of a repeat).
+    fn dialog_into_selected_type(&mut self) -> Option<FieldDialog> {
+        let path = self.tree.selected_path().to_vec();
+        let (container, index) = self.resolve_path(&path)?;
+        let (type_id, repeated, start, end) = {
+            let draft = &self.builder.as_ref()?.draft;
+            let field = draft.fields_in(&container).get(index)?;
+            let held = match &field.kind {
+                DraftKind::Type { id, .. } => Some((id.clone(), false)),
+                DraftKind::Repeat { inner, .. } => match inner.as_ref() {
+                    DraftKind::Type { id, .. } => Some((id.clone(), true)),
+                    _ => None,
+                },
+                _ => None,
+            };
+            let held = held.filter(|(id, _)| draft.has_type(id));
+            let Some((id, repeated)) = held else {
+                // a field that is in a type, and has no type of the schema itself: another field goes in the same type, after the
+                // fields it has, where an instance of it starts
+                let Container::Type(_) = &container else {
+                    return None;
+                };
+                let holder = path.split_last().map(|(_, rest)| rest.to_vec())?;
+                let end = draft.end_in(&container);
+                let start = self.row_start(&holder);
+                let mut dialog = FieldDialog::new(DialogAction::Add, start + end);
+                dialog.container = container;
+                dialog.path = holder;
+                dialog.type_start = start;
+                return Some(dialog);
+            };
+            let start = (container == Container::Top).then(|| draft.offset_of(index));
+            let end = draft.end_in(&Container::Type(id.clone()));
+            (id, repeated, start, end)
+        };
+        // where an instance starts: the field, and for a repeat its first element
+        let mut holder = path;
+        if repeated {
+            holder.push(0);
+        }
+        let start = start.unwrap_or_else(|| self.row_start(&holder));
+        let mut dialog = FieldDialog::new(DialogAction::Add, start + end);
+        dialog.container = Container::Type(type_id);
+        dialog.path = holder;
+        dialog.type_start = start;
+        Some(dialog)
+    }
+
     /// An answer to one of the questions about a field: ask the next, or add it.
     fn field_step(&mut self, step: Kind, text: &str) {
         let Some(mut dialog) = self.field_dialog.take() else {
@@ -2270,6 +2423,20 @@ impl App {
                 let word = text.trim();
                 if word.eq_ignore_ascii_case(field_dialog::TYPE_WORD) {
                     self.pick_library_type(dialog);
+                    return;
+                }
+                // a new type of the schema, empty: its fields are added after, into it
+                if word.eq_ignore_ascii_case(field_dialog::NEW_WORD) {
+                    if !matches!(dialog.action, DialogAction::Add) {
+                        return refused(
+                            self,
+                            dialog,
+                            "a new empty type is made when a field is added".to_owned(),
+                        );
+                    }
+                    dialog.new_type = true;
+                    self.new_type_dialog = Some(dialog);
+                    self.open_prompt_with(Kind::TypeName, "");
                     return;
                 }
                 match field_dialog::parse_kind(text) {
@@ -2317,12 +2484,12 @@ impl App {
             Kind::FieldName => {
                 match dialog.action {
                     DialogAction::Add => self.finish_field(&dialog, text.trim()),
-                    DialogAction::Rename(index) => self.finish_rename(index, text.trim()),
+                    DialogAction::Rename(index) => self.finish_rename(&dialog, index, text.trim()),
                     DialogAction::Retype(_) => {}
                 }
                 return;
             }
-            Kind::Search | Kind::Goto | Kind::SaveEntry => return,
+            Kind::Search | Kind::Goto | Kind::SaveEntry | Kind::TypeName => return,
         }
         self.continue_field(dialog, step);
     }
@@ -2342,6 +2509,10 @@ impl App {
     /// The id of a type of the type paths that a field can have: `Ok(None)` when `id` is not one. A type that takes
     /// parameters, and the schema being built itself, cannot be used.
     fn library_type(&self, id: &str) -> Result<Option<String>, String> {
+        // a type that the schema defines is its own: it is not looked for on the type paths
+        if self.builder.as_ref().is_some_and(|b| b.draft.has_type(id)) {
+            return Ok(Some(id.to_owned()));
+        }
         let Some(options) = self.options.as_ref() else {
             return Ok(None);
         };
@@ -2375,13 +2546,18 @@ impl App {
             .as_ref()
             .map(|o| o.include_paths.clone())
             .unwrap_or_default();
-        if include_paths.is_empty() {
+        let defined: Vec<String> = self
+            .builder
+            .as_ref()
+            .map(|b| b.draft.types().iter().map(|t| t.id.clone()).collect())
+            .unwrap_or_default();
+        if include_paths.is_empty() && defined.is_empty() {
             self.notice = Some("there are no type paths: give one with -I".to_owned());
             self.field_dialog = Some(dialog);
             self.open_prompt_with(Kind::FieldKind, "");
             return;
         }
-        self.types = Some(TypeBrowser::read(&include_paths));
+        self.types = Some(TypeBrowser::read(&include_paths).with_defined(&defined));
         self.notice = Some("choose the type of the field (Enter), or Esc for none".to_owned());
         self.field_pick = Some(dialog);
     }
@@ -2516,6 +2692,9 @@ impl App {
 
     /// The number that the earlier integer field `name` has in this file.
     fn value_of_field(&self, name: &str, dialog: &FieldDialog) -> Result<u64, String> {
+        if dialog.container != Container::Top {
+            return Err("a repeat that follows the value of a field is made in the fields of the schema itself, not in a type yet: use a number or eos".to_owned());
+        }
         let Some(builder) = self.builder.as_ref() else {
             return Err("the viewer is not building a schema".to_owned());
         };
@@ -2549,6 +2728,10 @@ impl App {
     /// Add the field that was asked for (and the skipped bytes before it), select it, and
     /// put the cursor after it.
     fn finish_field(&mut self, dialog: &FieldDialog, name: &str) {
+        // an empty new type is made with its field
+        if dialog.new_type {
+            return self.finish_new_type(dialog, name);
+        }
         let kind = match self.make_kind(dialog) {
             Ok(kind) => kind,
             Err(message) => {
@@ -2560,6 +2743,7 @@ impl App {
             id: name.to_owned(),
             kind,
         };
+        let container = dialog.container.clone();
         if dialog.gap > 0 {
             let skipped = self
                 .builder
@@ -2575,7 +2759,11 @@ impl App {
                 return;
             }
         }
-        if let Err(message) = self.edit_draft(|d| d.push(field)) {
+        let size = field.kind.size();
+        if let Err(message) = self.edit_draft(|d| {
+            let end = d.fields_in(&container).len();
+            d.insert_in(&container, end, field)
+        }) {
             if dialog.gap > 0 {
                 self.revert_last();
             }
@@ -2588,6 +2776,22 @@ impl App {
         let Some(builder) = self.builder.as_ref() else {
             return;
         };
+        if container != Container::Top {
+            // a field of a type: it is selected in the tree under the field that has the type, and the cursor goes after it
+            let index = builder.draft.fields_in(&container).len().saturating_sub(1);
+            let mut path = dialog.path.clone();
+            path.push(index);
+            self.tree.select_path(&path);
+            let at = dialog.type_start + builder.draft.offset_in(&container, index);
+            let end = at + size;
+            let file_size = self.bytes.as_ref().map_or(0, FileBytes::size);
+            self.hex.clear_range();
+            self.hex.set_cursor(end, file_size);
+            self.notice = Some(format!(
+                "added {name} to the type at {at:#x}; the type reads up to {end:#x} in this instance"
+            ));
+            return;
+        }
         let index = builder.draft.fields().len().saturating_sub(1);
         let (end, at) = (builder.draft.end(), builder.draft.offset_of(index));
         let end_bit = builder.draft.end_bit();
@@ -2607,6 +2811,180 @@ impl App {
         self.notice = Some(format!(
             "added {name} at {at:#x}; the schema reads up to {end:#x}"
         ));
+    }
+
+    /// The name of the new empty type was given: ask for the name of the field that has it.
+    fn type_name_answered(&mut self, text: &str) {
+        let name = text.trim().to_owned();
+        // the fields of a group: the type is made from them
+        if let Some((container, start, count, path)) = self.group_plan.take() {
+            self.finish_group(&container, start, count, &path, &name);
+            return;
+        }
+        let Some(mut dialog) = self.new_type_dialog.take() else {
+            return;
+        };
+        let checked = self
+            .builder
+            .as_ref()
+            .map(|b| b.draft.check_new_type_name(&name));
+        if let Some(Err(e)) = checked {
+            self.notice = Some(e.to_string());
+            self.new_type_dialog = Some(dialog);
+            self.open_prompt_with(Kind::TypeName, &name);
+            return;
+        }
+        field_dialog::TYPE_WORD.clone_into(&mut dialog.kind);
+        dialog.type_id.clone_from(&name);
+        self.ask_name(dialog);
+    }
+
+    /// An empty type and a field that has it, at the end of the schema or of the type that the dialog is for.
+    fn finish_new_type(&mut self, dialog: &FieldDialog, name: &str) {
+        let container = dialog.container.clone();
+        let type_id = dialog.type_id.clone();
+        let field_id = name.to_owned();
+        let result = self.edit_draft(|d| {
+            let end = d.fields_in(&container).len();
+            d.group_in(&container, end, 0, &type_id, &field_id)
+        });
+        match result {
+            Ok(()) => {
+                let index = self
+                    .builder
+                    .as_ref()
+                    .map_or(0, |b| b.draft.fields_in(&container).len().saturating_sub(1));
+                if container == Container::Top {
+                    self.tree.select_path(&[index]);
+                }
+                self.notice = Some(format!(
+                    "made the empty type {type_id} and the field {name}: select it and press a to add fields into the type"
+                ));
+            }
+            Err(message) => {
+                self.notice = Some(message);
+                self.field_dialog = Some(dialog.clone());
+                self.open_prompt_with(Kind::FieldName, name);
+            }
+        }
+    }
+
+    /// `Z` while building: the fields of the selected bytes, or the selected field, become a new type: ask for its name.
+    fn group_fields(&mut self) {
+        let Some(builder) = self.builder.as_ref() else {
+            return;
+        };
+        let range = self.hex.selected_range();
+        let (container, start, count, path) = if let Some((first, last)) = range {
+            // the fields of the schema that the bytes are exactly (they are one after the other)
+            let layout = builder.draft.layout();
+            let covered: Vec<usize> = layout
+                .iter()
+                .enumerate()
+                .filter(|(_, (a, b))| a / 8 >= first && b.div_ceil(8) <= last + 1)
+                .map(|(i, _)| i)
+                .collect();
+            let (Some(&from), Some(&to)) = (covered.first(), covered.last()) else {
+                self.notice = Some(format!(
+                    "the selection has to start and end at the edges of fields: no field is between byte {first:#x} and {last:#x} (select the bytes of the fields with v)"
+                ));
+                return;
+            };
+            let exact = layout.get(from).is_some_and(|(a, _)| a / 8 == first)
+                && layout
+                    .get(to)
+                    .is_some_and(|(_, b)| b.div_ceil(8) == last + 1);
+            if !exact {
+                self.notice = Some(format!(
+                    "the selection has to start and end at the edges of fields: the fields it holds are {:#x}..{:#x}",
+                    builder.draft.offset_of(from),
+                    builder.draft.offset_of(to + 1)
+                ));
+                return;
+            }
+            (Container::Top, from, to - from + 1, Vec::new())
+        } else {
+            let Some((container, index, path)) = self.selected_target() else {
+                return;
+            };
+            (container, index, 1, path)
+        };
+        self.group_plan = Some((container, start, count, path));
+        let proposed = self
+            .builder
+            .as_ref()
+            .map(|b| {
+                (1..=1000)
+                    .map(|n| format!("group_{n}"))
+                    .find(|name| b.draft.check_new_type_name(name).is_ok())
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default();
+        self.open_prompt_with(Kind::TypeName, &proposed);
+    }
+
+    fn finish_group(
+        &mut self,
+        container: &Container,
+        start: usize,
+        count: usize,
+        path: &[usize],
+        type_name: &str,
+    ) {
+        let field_id = self
+            .builder
+            .as_ref()
+            .map(|b| {
+                let taken: Vec<String> = b
+                    .draft
+                    .fields_in(container)
+                    .iter()
+                    .map(|f| f.id.clone())
+                    .collect();
+                (1..=1000)
+                    .map(|n| format!("{type_name}_{n}"))
+                    .find(|name| !taken.contains(name))
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default();
+        let container = container.clone();
+        match self.edit_draft(|d| d.group_in(&container, start, count, type_name, &field_id)) {
+            Ok(()) => {
+                self.select_field_near(
+                    &if path.is_empty() {
+                        vec![start]
+                    } else {
+                        path.to_vec()
+                    },
+                    start,
+                );
+                self.notice = Some(format!(
+                    "made {count} field{} the type {type_name}: the field {field_id} has it now",
+                    if count == 1 { "" } else { "s" }
+                ));
+            }
+            Err(message) => {
+                self.notice = Some(message);
+                // asked again, so that a name that is taken can be corrected
+                self.group_plan = Some((container, start, count, path.to_vec()));
+                self.open_prompt_with(Kind::TypeName, type_name);
+            }
+        }
+    }
+
+    /// `O` while building: the selected field has a type of the schema that no other field has: its fields take its place.
+    fn ungroup_field(&mut self) {
+        let Some((container, index, path)) = self.selected_target() else {
+            return;
+        };
+        match self.edit_draft(|d| d.ungroup_in(&container, index)) {
+            Ok(()) => {
+                self.select_field_near(&path, index);
+                self.notice =
+                    Some("the type is taken apart: its fields are in the schema now".to_owned());
+            }
+            Err(message) => self.notice = Some(message),
+        }
     }
 
     /// Take the last change to the draft back.

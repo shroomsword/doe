@@ -247,13 +247,17 @@ pub enum DraftError {
     Encoding(String),
     /// There is no field at this place.
     NoSuchField(usize),
+    /// Something is wrong with a type of the schema: its name, its use, or that it would contain itself.
+    Type(String),
 }
 
 impl std::fmt::Display for DraftError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DraftError::Duplicate(name) => write!(f, "there is a field called {name} already"),
-            DraftError::Name(why) | DraftError::Size(why) => f.write_str(why),
+            DraftError::Name(why) | DraftError::Size(why) | DraftError::Type(why) => {
+                f.write_str(why)
+            }
             DraftError::Encoding(name) => write!(f, "{name:?} is not the name of an encoding"),
             DraftError::NoSuchField(index) => write!(f, "there is no field number {}", index + 1),
         }
@@ -304,11 +308,31 @@ pub fn check_type_id(id: &str) -> Result<(), DraftError> {
     Ok(())
 }
 
+/// Where fields are: the schema itself, or a type that the schema defines (`types:`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Container {
+    /// The `seq` of the schema.
+    Top,
+    /// The `seq` of the type with this id.
+    Type(String),
+}
+
+/// A type that the schema defines: a name and fields, which the fields of the schema (and of other types) can have as their type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeDef {
+    /// Its id.
+    pub id: String,
+    /// Its fields, read one after the other from where an instance starts.
+    pub fields: Vec<Field>,
+}
+
 /// A change that was made to the draft, with what is needed to take it back.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Edit {
     /// A field was put in at this place.
     Insert {
+        /// In the schema or in which type.
+        at: Container,
         /// Where.
         index: usize,
         /// The field.
@@ -316,6 +340,8 @@ pub enum Edit {
     },
     /// A field was taken out from this place.
     Remove {
+        /// In the schema or in which type.
+        at: Container,
         /// Where it was.
         index: usize,
         /// The field.
@@ -323,6 +349,8 @@ pub enum Edit {
     },
     /// A field was renamed.
     Rename {
+        /// In the schema or in which type.
+        at: Container,
         /// Which.
         index: usize,
         /// The name before.
@@ -332,12 +360,40 @@ pub enum Edit {
     },
     /// A field was given another kind.
     Retype {
+        /// In the schema or in which type.
+        at: Container,
         /// Which.
         index: usize,
         /// The kind before.
         from: Kind,
         /// The kind after.
         to: Kind,
+    },
+    /// Fields were taken out and made a new type, and a field of that type put where they were (no fields: an empty type).
+    Group {
+        /// Where the fields were.
+        at: Container,
+        /// The index of the first of them, and of the field that replaces them.
+        start: usize,
+        /// The fields that are now the type's.
+        fields: Vec<Field>,
+        /// The id of the new type.
+        type_id: String,
+        /// The name of the field of that type that replaces them.
+        field_id: String,
+    },
+    /// The inverse of [`Edit::Group`]: the field of a type is replaced by the type's fields, and the type is gone.
+    Ungroup {
+        /// Where the field is.
+        at: Container,
+        /// Its index.
+        start: usize,
+        /// The type's fields, which take its place.
+        fields: Vec<Field>,
+        /// The type that goes.
+        type_id: String,
+        /// The name of the field that goes.
+        field_id: String,
     },
     /// The byte order of the draft was changed.
     ByteOrder {
@@ -359,6 +415,16 @@ impl Edit {
             Edit::Retype { index, to, .. } => {
                 format!("making field {} {}", index + 1, to.label())
             }
+            Edit::Group {
+                type_id, fields, ..
+            } => {
+                if fields.is_empty() {
+                    format!("making the empty type {type_id}")
+                } else {
+                    format!("grouping {} field(s) into the type {type_id}", fields.len())
+                }
+            }
+            Edit::Ungroup { type_id, .. } => format!("taking the type {type_id} apart"),
             Edit::ByteOrder { to, .. } => format!("making the byte order {}", to.name()),
         }
     }
@@ -371,6 +437,7 @@ impl Edit {
             | Edit::Remove { index, .. }
             | Edit::Rename { index, .. }
             | Edit::Retype { index, .. } => Some(*index),
+            Edit::Group { start, .. } | Edit::Ungroup { start, .. } => Some(*start),
             Edit::ByteOrder { .. } => None,
         }
     }
@@ -379,17 +446,55 @@ impl Edit {
     #[must_use]
     pub fn inverse(&self) -> Edit {
         match self.clone() {
-            Edit::Insert { index, field } => Edit::Remove { index, field },
-            Edit::Remove { index, field } => Edit::Insert { index, field },
-            Edit::Rename { index, from, to } => Edit::Rename {
+            Edit::Insert { at, index, field } => Edit::Remove { at, index, field },
+            Edit::Remove { at, index, field } => Edit::Insert { at, index, field },
+            Edit::Rename {
+                at,
+                index,
+                from,
+                to,
+            } => Edit::Rename {
+                at,
                 index,
                 from: to,
                 to: from,
             },
-            Edit::Retype { index, from, to } => Edit::Retype {
+            Edit::Retype {
+                at,
+                index,
+                from,
+                to,
+            } => Edit::Retype {
+                at,
                 index,
                 from: to,
                 to: from,
+            },
+            Edit::Group {
+                at,
+                start,
+                fields,
+                type_id,
+                field_id,
+            } => Edit::Ungroup {
+                at,
+                start,
+                fields,
+                type_id,
+                field_id,
+            },
+            Edit::Ungroup {
+                at,
+                start,
+                fields,
+                type_id,
+                field_id,
+            } => Edit::Group {
+                at,
+                start,
+                fields,
+                type_id,
+                field_id,
             },
             Edit::ByteOrder { from, to } => Edit::ByteOrder { from: to, to: from },
         }
@@ -402,6 +507,7 @@ pub struct Draft {
     id: String,
     endian: Endian,
     fields: Vec<Field>,
+    types: Vec<TypeDef>,
 }
 
 impl Draft {
@@ -416,6 +522,7 @@ impl Draft {
             id: id.to_owned(),
             endian: Endian::Little,
             fields: Vec::new(),
+            types: Vec::new(),
         })
     }
 
@@ -431,18 +538,78 @@ impl Draft {
         self.endian
     }
 
-    /// The fields, in the order they are read.
+    /// The fields of the schema itself, in the order they are read.
     #[must_use]
     pub fn fields(&self) -> &[Field] {
         &self.fields
+    }
+
+    /// The fields of the schema or of one of its types.
+    #[must_use]
+    pub fn fields_in(&self, at: &Container) -> &[Field] {
+        match at {
+            Container::Top => &self.fields,
+            Container::Type(id) => self
+                .types
+                .iter()
+                .find(|t| &t.id == id)
+                .map_or(&[][..], |t| &t.fields),
+        }
+    }
+
+    fn fields_mut(&mut self, at: &Container) -> Result<&mut Vec<Field>, DraftError> {
+        match at {
+            Container::Top => Ok(&mut self.fields),
+            Container::Type(id) => self
+                .types
+                .iter_mut()
+                .find(|t| &t.id == id)
+                .map(|t| &mut t.fields)
+                .ok_or_else(|| DraftError::Type(format!("the schema has no type {id}"))),
+        }
+    }
+
+    /// The types that the schema defines (`types:`).
+    #[must_use]
+    pub fn types(&self) -> &[TypeDef] {
+        &self.types
+    }
+
+    /// Whether the schema defines a type called `id`.
+    #[must_use]
+    pub fn has_type(&self, id: &str) -> bool {
+        self.types.iter().any(|t| t.id == id)
+    }
+
+    /// The fields that have the type `id` (also as the element of a repeat): where, and called what.
+    #[must_use]
+    pub fn uses_of(&self, id: &str) -> Vec<(Container, String)> {
+        let uses = |at: Container, fields: &[Field]| -> Vec<(Container, String)> {
+            fields
+                .iter()
+                .filter(|f| used_type(&f.kind) == Some(id))
+                .map(|f| (at.clone(), f.id.clone()))
+                .collect()
+        };
+        let mut out = uses(Container::Top, &self.fields);
+        for t in &self.types {
+            out.extend(uses(Container::Type(t.id.clone()), &t.fields));
+        }
+        out
     }
 
     /// Where each field starts and ends, in bits from the start of the file. Bit fields
     /// follow each other; any other field starts at a byte.
     #[must_use]
     pub fn layout(&self) -> Vec<(u64, u64)> {
+        self.layout_in(&Container::Top)
+    }
+
+    /// Where each field of the schema or of a type starts and ends, in bits from the start of the schema (the type).
+    #[must_use]
+    pub fn layout_in(&self, at: &Container) -> Vec<(u64, u64)> {
         let mut position = 0_u64;
-        self.fields
+        self.fields_in(at)
             .iter()
             .map(|field| {
                 if !matches!(field.kind, Kind::Bits(_)) {
@@ -459,9 +626,15 @@ impl Draft {
     /// it starts in, for a bit field).
     #[must_use]
     pub fn offset_of(&self, index: usize) -> u64 {
-        match self.layout().get(index) {
+        self.offset_in(&Container::Top, index)
+    }
+
+    /// Where the field at `index` of the schema or of a type starts, in bytes from where the schema (an instance of the type) starts.
+    #[must_use]
+    pub fn offset_in(&self, at: &Container, index: usize) -> u64 {
+        match self.layout_in(at).get(index) {
             Some((start, _)) => start / 8,
-            None => self.end(),
+            None => self.end_in(at),
         }
     }
 
@@ -474,7 +647,15 @@ impl Draft {
     /// Where the schema ends: the offset of the next byte that no field has.
     #[must_use]
     pub fn end(&self) -> u64 {
-        self.end_bit().div_ceil(8)
+        self.end_in(&Container::Top)
+    }
+
+    /// Where the schema or a type ends, in bytes from its start.
+    #[must_use]
+    pub fn end_in(&self, at: &Container) -> u64 {
+        self.layout_in(at)
+            .last()
+            .map_or(0, |(_, end)| end.div_ceil(8))
     }
 
     /// Put a field at the end.
@@ -492,17 +673,32 @@ impl Draft {
     ///
     /// As [`push`](Self::push), or `index` is past the end.
     pub fn insert(&mut self, index: usize, field: Field) -> Result<Edit, DraftError> {
-        if index > self.fields.len() {
+        self.insert_in(&Container::Top, index, field)
+    }
+
+    /// Put a field in the schema or a type at `index`.
+    ///
+    /// # Errors
+    ///
+    /// As [`push`](Self::push), or there is no such type or `index` is past the end.
+    pub fn insert_in(
+        &mut self,
+        at: &Container,
+        index: usize,
+        field: Field,
+    ) -> Result<Edit, DraftError> {
+        if index > self.fields_in(at).len() {
             return Err(DraftError::NoSuchField(index));
         }
-        self.check_new_name(&field.id, None)?;
+        self.check_new_name(at, &field.id, None)?;
         field.kind.check()?;
         let edit = Edit::Insert {
+            at: at.clone(),
             index,
             field: field.clone(),
         };
         self.guarded(|d| {
-            d.fields.insert(index, field);
+            d.fields_mut(at)?.insert(index, field);
             Ok(())
         })?;
         Ok(edit)
@@ -514,11 +710,24 @@ impl Draft {
     ///
     /// There is no such field.
     pub fn remove(&mut self, index: usize) -> Result<Edit, DraftError> {
-        if index >= self.fields.len() {
+        self.remove_in(&Container::Top, index)
+    }
+
+    /// Take the field at `index` of the schema or of a type out.
+    ///
+    /// # Errors
+    ///
+    /// There is no such field.
+    pub fn remove_in(&mut self, at: &Container, index: usize) -> Result<Edit, DraftError> {
+        if index >= self.fields_in(at).len() {
             return Err(DraftError::NoSuchField(index));
         }
-        let field = self.guarded(|d| Ok(d.fields.remove(index)))?;
-        Ok(Edit::Remove { index, field })
+        let field = self.guarded(|d| Ok(d.fields_mut(at)?.remove(index)))?;
+        Ok(Edit::Remove {
+            at: at.clone(),
+            index,
+            field,
+        })
     }
 
     /// Give the field at `index` another name.
@@ -527,15 +736,30 @@ impl Draft {
     ///
     /// There is no such field, or the name is not right or is taken.
     pub fn rename(&mut self, index: usize, to: &str) -> Result<Edit, DraftError> {
-        self.check_new_name(to, Some(index))?;
+        self.rename_in(&Container::Top, index, to)
+    }
+
+    /// Give the field at `index` of the schema or of a type another name.
+    ///
+    /// # Errors
+    ///
+    /// There is no such field, or the name is not right or is taken.
+    pub fn rename_in(
+        &mut self,
+        at: &Container,
+        index: usize,
+        to: &str,
+    ) -> Result<Edit, DraftError> {
+        self.check_new_name(at, to, Some(index))?;
         let from = self.guarded(|d| {
             let field = d
-                .fields
+                .fields_mut(at)?
                 .get_mut(index)
                 .ok_or(DraftError::NoSuchField(index))?;
             Ok(std::mem::replace(&mut field.id, to.to_owned()))
         })?;
         Ok(Edit::Rename {
+            at: at.clone(),
             index,
             from,
             to: to.to_owned(),
@@ -548,21 +772,154 @@ impl Draft {
     ///
     /// There is no such field, or the kind is not right.
     pub fn retype(&mut self, index: usize, to: Kind) -> Result<Edit, DraftError> {
+        self.retype_in(&Container::Top, index, to)
+    }
+
+    /// Give the field at `index` of the schema or of a type another kind.
+    ///
+    /// # Errors
+    ///
+    /// There is no such field, or the kind is not right.
+    pub fn retype_in(
+        &mut self,
+        at: &Container,
+        index: usize,
+        to: Kind,
+    ) -> Result<Edit, DraftError> {
         to.check()?;
         let from = self.guarded(|d| {
             let field = d
-                .fields
+                .fields_mut(at)?
                 .get_mut(index)
                 .ok_or(DraftError::NoSuchField(index))?;
             Ok(std::mem::replace(&mut field.kind, to.clone()))
         })?;
-        Ok(Edit::Retype { index, from, to })
+        Ok(Edit::Retype {
+            at: at.clone(),
+            index,
+            from,
+            to,
+        })
     }
 
     /// Change the byte order of the draft.
     pub fn set_endian(&mut self, to: Endian) -> Edit {
         let from = std::mem::replace(&mut self.endian, to);
         Edit::ByteOrder { from, to }
+    }
+
+    /// Take `count` fields from `start` of the schema or of a type and make them a new type called `type_id`, with a field
+    /// called `field_id` of that type where they were. With no fields the type is empty, and the field is put at `start`.
+    ///
+    /// # Errors
+    ///
+    /// The names are not right or are taken (the name of a type is not another type's, one that the schema imports, or the
+    /// schema's own), the fields are not there, a bit field is among them, or the change would break a count that a repeat
+    /// reads.
+    pub fn group_in(
+        &mut self,
+        at: &Container,
+        start: usize,
+        count: usize,
+        type_id: &str,
+        field_id: &str,
+    ) -> Result<Edit, DraftError> {
+        self.check_new_type_name(type_id)?;
+        let fields = self.fields_in(at);
+        if start + count > fields.len() {
+            return Err(DraftError::NoSuchField(start + count));
+        }
+        let grouped: Vec<Field> = fields
+            .get(start..start + count)
+            .ok_or(DraftError::NoSuchField(start + count))?
+            .to_vec();
+        if grouped.iter().any(|f| matches!(f.kind, Kind::Bits(_))) {
+            return Err(DraftError::Size(
+                "bit fields cannot be made a type yet".to_owned(),
+            ));
+        }
+        check_name(field_id)?;
+        let taken = fields
+            .iter()
+            .enumerate()
+            .any(|(i, f)| f.id == field_id && !(start..start + count).contains(&i));
+        if taken {
+            return Err(DraftError::Duplicate(field_id.to_owned()));
+        }
+        let bytes = grouped.iter().map(|f| f.kind.size()).sum();
+        let edit = Edit::Group {
+            at: at.clone(),
+            start,
+            fields: grouped.clone(),
+            type_id: type_id.to_owned(),
+            field_id: field_id.to_owned(),
+        };
+        self.guarded(|d| {
+            d.fields_mut(at)?.splice(
+                start..start + count,
+                [Field {
+                    id: field_id.to_owned(),
+                    kind: Kind::Type {
+                        id: type_id.to_owned(),
+                        size: None,
+                        bytes,
+                    },
+                }],
+            );
+            d.types.push(TypeDef {
+                id: type_id.to_owned(),
+                fields: grouped,
+            });
+            Ok(())
+        })?;
+        Ok(edit)
+    }
+
+    /// The inverse of [`group_in`](Self::group_in): the field at `start` of the schema or of a type, which has a type that the
+    /// schema defines, is replaced by that type's fields, and the type goes.
+    ///
+    /// # Errors
+    ///
+    /// The field is not there or has no type of the schema, or another field has the type too (it is named).
+    pub fn ungroup_in(&mut self, at: &Container, start: usize) -> Result<Edit, DraftError> {
+        let Some(field) = self.fields_in(at).get(start) else {
+            return Err(DraftError::NoSuchField(start));
+        };
+        let field_id = field.id.clone();
+        let Kind::Type { id: type_id, .. } = &field.kind else {
+            return Err(DraftError::Type(format!(
+                "{field_id} does not have a type that this schema defines"
+            )));
+        };
+        let type_id = type_id.clone();
+        let Some(def) = self.types.iter().find(|t| t.id == type_id) else {
+            return Err(DraftError::Type(format!(
+                "{type_id} is not a type that this schema defines"
+            )));
+        };
+        let fields = def.fields.clone();
+        if let Some((_, other)) = self
+            .uses_of(&type_id)
+            .into_iter()
+            .find(|(c, f)| !(c == at && f == &field_id))
+        {
+            return Err(DraftError::Type(format!(
+                "the type {type_id} is used by the field {other} too: it cannot be taken apart"
+            )));
+        }
+        let edit = Edit::Ungroup {
+            at: at.clone(),
+            start,
+            fields: fields.clone(),
+            type_id: type_id.clone(),
+            field_id,
+        };
+        self.guarded(|d| {
+            d.fields_mut(at)?.splice(start..=start, fields);
+            d.types.retain(|t| t.id != type_id);
+            Ok(())
+        })?;
+        Ok(edit)
     }
 
     /// Do (again) a change that was made before, or take one back with
@@ -573,19 +930,32 @@ impl Draft {
     /// The change does not fit the draft as it is now.
     pub fn apply(&mut self, edit: &Edit) -> Result<Edit, DraftError> {
         match edit {
-            Edit::Insert { index, field } => self.insert(*index, field.clone()),
-            Edit::Remove { index, .. } => self.remove(*index),
-            Edit::Rename { index, to, .. } => self.rename(*index, to),
-            Edit::Retype { index, to, .. } => self.retype(*index, to.clone()),
+            Edit::Insert { at, index, field } => self.insert_in(at, *index, field.clone()),
+            Edit::Remove { at, index, .. } => self.remove_in(at, *index),
+            Edit::Rename { at, index, to, .. } => self.rename_in(at, *index, to),
+            Edit::Retype { at, index, to, .. } => self.retype_in(at, *index, to.clone()),
             Edit::ByteOrder { to, .. } => Ok(self.set_endian(*to)),
+            Edit::Group {
+                at,
+                start,
+                fields,
+                type_id,
+                field_id,
+            } => self.group_in(at, *start, fields.len(), type_id, field_id),
+            Edit::Ungroup { at, start, .. } => self.ungroup_in(at, *start),
         }
     }
 
     /// A name that a field can have: right, and not another field's.
-    fn check_new_name(&self, name: &str, except: Option<usize>) -> Result<(), DraftError> {
+    fn check_new_name(
+        &self,
+        at: &Container,
+        name: &str,
+        except: Option<usize>,
+    ) -> Result<(), DraftError> {
         check_name(name)?;
         if self
-            .fields
+            .fields_in(at)
             .iter()
             .enumerate()
             .any(|(i, f)| f.id == name && Some(i) != except)
@@ -595,20 +965,46 @@ impl Draft {
         Ok(())
     }
 
+    /// A name that a new type can have: right, and not the name of a type of the schema, of one that it imports, or of the
+    /// schema.
+    ///
+    /// # Errors
+    ///
+    /// What is wrong with it.
+    pub fn check_new_type_name(&self, name: &str) -> Result<(), DraftError> {
+        check_name(name)?;
+        if self.has_type(name) {
+            return Err(DraftError::Type(format!(
+                "the schema has a type called {name} already"
+            )));
+        }
+        if self.imports().iter().any(|i| i == name) {
+            return Err(DraftError::Type(format!(
+                "{name} is a type that the schema imports"
+            )));
+        }
+        if name == self.id {
+            return Err(DraftError::Type(format!(
+                "{name} is the name of the schema"
+            )));
+        }
+        Ok(())
+    }
+
     /// The ids of the types of the type paths that the fields use, once each, in the order they are first used: what the
-    /// schema imports.
+    /// schema imports. The types that the schema defines are not among them.
     #[must_use]
     pub fn imports(&self) -> Vec<String> {
         let mut out: Vec<String> = Vec::new();
-        for field in &self.fields {
-            let kind = match &field.kind {
-                Kind::Repeat { inner, .. } => inner.as_ref(),
-                other => other,
-            };
-            if let Kind::Type { id, .. } = kind
-                && !out.contains(id)
-            {
-                out.push(id.clone());
+        let lists = std::iter::once(&self.fields).chain(self.types.iter().map(|t| &t.fields));
+        for fields in lists {
+            for field in fields {
+                if let Some(id) = used_type(&field.kind)
+                    && !self.has_type(id)
+                    && !out.iter().any(|o| o == id)
+                {
+                    out.push(id.to_owned());
+                }
             }
         }
         out
@@ -629,21 +1025,35 @@ impl Draft {
                 let _ = writeln!(out, "  - {id}");
             }
         }
-        if self.fields.is_empty() {
-            out.push_str("seq: []\n");
-            return out;
-        }
-        out.push_str("seq:\n");
-        for (field, (start, end)) in self.fields.iter().zip(self.layout()) {
-            if matches!(field.kind, Kind::Bits(_)) {
-                let _ = writeln!(out, "  # bits {start}..{end} (byte {:#x})", start / 8);
-            } else {
-                let _ = writeln!(out, "  # {:#x}..{:#x}", start / 8, end.div_ceil(8));
+        self.write_seq(&mut out, &Container::Top, "");
+        if !self.types.is_empty() {
+            out.push_str("types:\n");
+            for def in &self.types {
+                let _ = writeln!(out, "  {}:", def.id);
+                self.write_seq(&mut out, &Container::Type(def.id.clone()), "    ");
             }
-            let _ = writeln!(out, "  - id: {}", field.id);
-            write_kind(&mut out, &field.kind);
         }
         out
+    }
+
+    /// The `seq` of the schema or of a type, with each field's place as a comment; `pad` is the indent of the type.
+    fn write_seq(&self, out: &mut String, at: &Container, pad: &str) {
+        let fields = self.fields_in(at);
+        if fields.is_empty() {
+            let _ = writeln!(out, "{pad}seq: []");
+            return;
+        }
+        let _ = writeln!(out, "{pad}seq:");
+        let inner = format!("{pad}    ");
+        for (field, (start, end)) in fields.iter().zip(self.layout_in(at)) {
+            if matches!(field.kind, Kind::Bits(_)) {
+                let _ = writeln!(out, "{pad}  # bits {start}..{end} (byte {:#x})", start / 8);
+            } else {
+                let _ = writeln!(out, "{pad}  # {:#x}..{:#x}", start / 8, end.div_ceil(8));
+            }
+            let _ = writeln!(out, "{pad}  - id: {}", field.id);
+            write_kind(out, &field.kind, &inner);
+        }
     }
 
     /// The schema as text without its comments: what the draft says, not where in this file
@@ -714,6 +1124,19 @@ impl Draft {
                 at += 1;
             }
         }
+        // the names of the types that the schema defines, which a field may have as its type before they are read
+        let locals: Vec<String> = lines
+            .iter()
+            .skip_while(|(_, l)| *l != "types:")
+            .skip(1)
+            .filter_map(|(_, l)| {
+                l.strip_prefix("  ")
+                    .filter(|rest| !rest.starts_with(' '))
+                    .and_then(|rest| rest.strip_suffix(':'))
+            })
+            .map(str::to_owned)
+            .collect();
+        let known: Vec<String> = imports.iter().chain(&locals).cloned().collect();
         let Some((number, line)) = lines.get(at) else {
             return Err("the schema has no seq".to_owned());
         };
@@ -721,32 +1144,62 @@ impl Draft {
             at += 1;
         } else if line == &"seq:" {
             at += 1;
-            while let Some((number, line)) = lines.get(at) {
-                let Some(id) = line.strip_prefix("  - id: ") else {
-                    return refuse(*number, line, "this is not a field of the seq");
-                };
-                at += 1;
-                let mut keys: Vec<(usize, &str, String)> = Vec::new();
-                while let Some((number, line)) = lines.get(at) {
-                    let Some(key_line) = line.strip_prefix("    ") else {
-                        break;
-                    };
-                    let Some((key, value)) = key_line.split_once(": ") else {
-                        return refuse(*number, line, "this is not a key: value");
-                    };
-                    keys.push((*number, key, value.to_owned()));
-                    at += 1;
-                }
-                let kind = kind_from_keys(&keys, *number, id, &imports)?;
-                draft
-                    .push(Field {
-                        id: id.to_owned(),
-                        kind,
-                    })
-                    .map_err(|e| format!("field {id}: {e}"))?;
+            let (fields, next) = read_fields(&lines, at, "  - id: ", "    ", &known)?;
+            at = next;
+            for field in fields {
+                let id = field.id.clone();
+                draft.push(field).map_err(|e| format!("field {id}: {e}"))?;
             }
         } else {
             return refuse(*number, line, "a flat seq was expected");
+        }
+        if lines.get(at).is_some_and(|(_, l)| *l == "types:") {
+            at += 1;
+            while let Some((number, line)) = lines.get(at) {
+                let Some(name) = line
+                    .strip_prefix("  ")
+                    .filter(|rest| !rest.starts_with(' '))
+                    .and_then(|rest| rest.strip_suffix(':'))
+                else {
+                    break;
+                };
+                at += 1;
+                // not `check_new_type_name`: the fields that have the type are read before it, and look like imports of it
+                check_name(name).map_err(|e| format!("line {number}: {e}"))?;
+                if draft.has_type(name) || name == draft.id {
+                    return Err(format!(
+                        "line {number}: the type {name} is defined twice, or is the name of the schema"
+                    ));
+                }
+                draft.types.push(TypeDef {
+                    id: name.to_owned(),
+                    fields: Vec::new(),
+                });
+                let Some((number, line)) = lines.get(at) else {
+                    return Err(format!("the type {name} has no seq"));
+                };
+                if line == &"    seq: []" {
+                    at += 1;
+                } else if line == &"    seq:" {
+                    at += 1;
+                    let (fields, next) =
+                        read_fields(&lines, at, "      - id: ", "        ", &known)?;
+                    at = next;
+                    for field in fields {
+                        let id = field.id.clone();
+                        draft
+                            .insert_in(
+                                &Container::Type(name.to_owned()),
+                                draft.fields_in(&Container::Type(name.to_owned())).len(),
+                                field,
+                            )
+                            .map_err(|e| format!("field {id} of the type {name}: {e}"))?;
+                    }
+                } else {
+                    return refuse(*number, line, "a flat seq was expected in a type");
+                }
+            }
+            draft.check_cycles().map_err(|e| e.to_string())?;
         }
         if let Some((number, line)) = lines.get(at) {
             return refuse(*number, line, "this is not part of a seq of fields");
@@ -757,70 +1210,202 @@ impl Draft {
     /// Set the lengths that depend on the file from the trace of a parse of it with this
     /// schema: how many bytes a text that ends takes, how many elements a repeat has.
     pub fn fit_to_trace(&mut self, trace: &doe::parser::trace::TraceNode) {
-        for (field, node) in self.fields.iter_mut().zip(&trace.children) {
-            match &mut field.kind {
-                Kind::Terminated { sample, .. } => {
-                    if let Some(span) = node.span.filter(|s| !s.is_empty()) {
-                        *sample = (span.end - span.start).div_ceil(8);
-                    }
-                }
-                Kind::Type { bytes, .. } => {
-                    if let Some(span) = node.span.filter(|s| !s.is_empty()) {
-                        *bytes = (span.end - span.start).div_ceil(8);
-                    }
-                }
-                Kind::Repeat { inner, sample, .. } => {
-                    if !node.children.is_empty() {
-                        *sample = node.children.len() as u64;
-                    }
-                    // the bytes of a repeated type are all of its elements'
-                    if let Kind::Type { bytes, .. } = inner.as_mut()
-                        && let Some(span) = node.span.filter(|s| !s.is_empty())
-                    {
-                        *bytes = (span.end - span.start).div_ceil(8);
-                    }
-                }
-                _ => {}
+        // the types are fitted from the first instance that the parse has of each: a worklist, since a type's fields can
+        // have other types of the schema
+        let mut pending: Vec<(String, doe::parser::trace::TraceNode)> = Vec::new();
+        fit_fields(&mut self.fields, &trace.children, &mut pending);
+        let mut done: Vec<String> = Vec::new();
+        while let Some((id, node)) = pending.pop() {
+            if done.contains(&id) {
+                continue;
+            }
+            done.push(id.clone());
+            if let Some(def) = self.types.iter_mut().find(|t| t.id == id) {
+                fit_fields(&mut def.fields, &node.children, &mut pending);
             }
         }
     }
 
     /// The counts of repeated fields must be integers that are read before the field.
     fn check_counts(&self) -> Result<(), DraftError> {
-        for (index, field) in self.fields.iter().enumerate() {
-            let Kind::Repeat {
-                count: Count::Field(name),
-                ..
-            } = &field.kind
-            else {
-                continue;
-            };
-            let counted =
-                self.fields.iter().take(index).any(|f| {
+        let lists = std::iter::once(&self.fields).chain(self.types.iter().map(|t| &t.fields));
+        for fields in lists {
+            for (index, field) in fields.iter().enumerate() {
+                let Kind::Repeat {
+                    count: Count::Field(name),
+                    ..
+                } = &field.kind
+                else {
+                    continue;
+                };
+                let counted = fields.iter().take(index).any(|f| {
                     &f.id == name && matches!(f.kind, Kind::Unsigned(_) | Kind::Signed(_))
                 });
-            if !counted {
-                return Err(DraftError::Size(format!(
-                    "{} is repeated as many times as {name}, which has to be an integer field before it",
-                    field.id
+                if !counted {
+                    return Err(DraftError::Size(format!(
+                        "{} is repeated as many times as {name}, which has to be an integer field before it",
+                        field.id
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// A type of the schema must not contain itself, however far away.
+    fn check_cycles(&self) -> Result<(), DraftError> {
+        for def in &self.types {
+            let mut path = vec![def.id.clone()];
+            if let Some(cycle) = self.cycle_from(&def.id, &mut path) {
+                return Err(DraftError::Type(format!(
+                    "the type {} would contain itself ({})",
+                    def.id,
+                    cycle.join(" > ")
                 )));
             }
         }
         Ok(())
     }
 
-    /// Run `change` on the fields, and keep it only if the counts are still right.
+    fn cycle_from(&self, id: &str, path: &mut Vec<String>) -> Option<Vec<String>> {
+        let def = self.types.iter().find(|t| t.id == id)?;
+        for field in &def.fields {
+            let Some(next) = used_type(&field.kind) else {
+                continue;
+            };
+            if path.first().is_some_and(|first| first == next) {
+                let mut cycle = path.clone();
+                cycle.push(next.to_owned());
+                return Some(cycle);
+            }
+            if !self.has_type(next) || path.iter().any(|p| p == next) {
+                continue;
+            }
+            path.push(next.to_owned());
+            if let Some(cycle) = self.cycle_from(next, path) {
+                return Some(cycle);
+            }
+            path.pop();
+        }
+        None
+    }
+
+    /// Run `change` on the fields, and keep it only if the counts are still right and no type contains itself.
     fn guarded<T>(
         &mut self,
         change: impl FnOnce(&mut Draft) -> Result<T, DraftError>,
     ) -> Result<T, DraftError> {
-        let before = self.fields.clone();
-        let result = change(self).and_then(|value| self.check_counts().map(|()| value));
+        let before = (self.fields.clone(), self.types.clone());
+        let result = change(self).and_then(|value| {
+            self.check_counts()?;
+            self.check_cycles()?;
+            Ok(value)
+        });
         if result.is_err() {
-            self.fields = before;
+            (self.fields, self.types) = before;
         }
         result
     }
+}
+
+/// The id of the type that a kind has, as itself or as the element of a repeat.
+fn used_type(kind: &Kind) -> Option<&str> {
+    match kind {
+        Kind::Type { id, .. } => Some(id),
+        Kind::Repeat { inner, .. } => match inner.as_ref() {
+            Kind::Type { id, .. } => Some(id),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Set the lengths that depend on the file in `fields` from the trace nodes of a parse of them, and note the first instance of
+/// each type of the schema that they have (to fit its own fields).
+fn fit_fields(
+    fields: &mut [Field],
+    nodes: &[doe::parser::trace::TraceNode],
+    pending: &mut Vec<(String, doe::parser::trace::TraceNode)>,
+) {
+    for (field, node) in fields.iter_mut().zip(nodes) {
+        match &mut field.kind {
+            Kind::Terminated { sample, .. } => {
+                if let Some(span) = node.span.filter(|s| !s.is_empty()) {
+                    *sample = (span.end - span.start).div_ceil(8);
+                }
+            }
+            Kind::Type { id, bytes, .. } => {
+                if let Some(span) = node.span.filter(|s| !s.is_empty()) {
+                    *bytes = (span.end - span.start).div_ceil(8);
+                }
+                pending.push((id.clone(), node.clone()));
+            }
+            Kind::Repeat { inner, sample, .. } => {
+                if !node.children.is_empty() {
+                    *sample = node.children.len() as u64;
+                }
+                // the bytes of a repeated type are all of its elements'; its fields are fitted from the first element
+                if let Kind::Type { id, bytes, .. } = inner.as_mut() {
+                    if let Some(span) = node.span.filter(|s| !s.is_empty()) {
+                        *bytes = (span.end - span.start).div_ceil(8);
+                    }
+                    if let Some(first) = node.children.first() {
+                        pending.push((id.clone(), first.clone()));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// The fields of a seq that start at `at`: each `- id:` line (`item` is what comes before the id) and the `key: value` lines that follow it
+/// (`keys` is the indent they have). Returns them and where the seq ends.
+fn read_fields(
+    lines: &[(usize, &str)],
+    mut at: usize,
+    item: &str,
+    keys: &str,
+    known: &[String],
+) -> Result<(Vec<Field>, usize), String> {
+    let mut out = Vec::new();
+    while let Some((number, line)) = lines.get(at) {
+        let Some(id) = line.strip_prefix(item) else {
+            // a line that is not indented as far as a field is: the end of this seq (`types:`, the next type)
+            let indent = line.len() - line.trim_start().len();
+            if indent < item.len() - item.trim_start().len() {
+                break;
+            }
+            return Err(format!(
+                "line {number}, {:?}: this is not a field of the seq; the builder goes on only with a schema it made",
+                line.trim()
+            ));
+        };
+        at += 1;
+        let mut found: Vec<(usize, &str, String)> = Vec::new();
+        while let Some((number, line)) = lines.get(at) {
+            let Some(key_line) = line.strip_prefix(keys) else {
+                break;
+            };
+            if key_line.starts_with(' ') {
+                break;
+            }
+            let Some((key, value)) = key_line.split_once(": ") else {
+                return Err(format!(
+                    "line {number}, {:?}: this is not a key: value; the builder goes on only with a schema it made",
+                    line.trim()
+                ));
+            };
+            found.push((*number, key, value.to_owned()));
+            at += 1;
+        }
+        let kind = kind_from_keys(&found, *number, id, known)?;
+        out.push(Field {
+            id: id.to_owned(),
+            kind,
+        });
+    }
+    Ok((out, at))
 }
 
 /// The kind that the keys of a field in a schema of the builder say.
@@ -922,60 +1507,60 @@ fn kind_from_keys(
 }
 
 /// Write the lines that say what a field is (the `id` is written already).
-fn write_kind(out: &mut String, kind: &Kind) {
+fn write_kind(out: &mut String, kind: &Kind, pad: &str) {
     match kind {
         Kind::Unsigned(n) => {
-            let _ = writeln!(out, "    type: u{n}");
+            let _ = writeln!(out, "{pad}type: u{n}");
         }
         Kind::Signed(n) => {
-            let _ = writeln!(out, "    type: s{n}");
+            let _ = writeln!(out, "{pad}type: s{n}");
         }
         Kind::Float(n) => {
-            let _ = writeln!(out, "    type: f{n}");
+            let _ = writeln!(out, "{pad}type: f{n}");
         }
         Kind::Bytes(len) => {
-            let _ = writeln!(out, "    size: {len}");
+            let _ = writeln!(out, "{pad}size: {len}");
         }
         Kind::Text { len, encoding } => {
-            let _ = writeln!(out, "    type: str");
-            let _ = writeln!(out, "    size: {len}");
-            let _ = writeln!(out, "    encoding: {encoding}");
+            let _ = writeln!(out, "{pad}type: str");
+            let _ = writeln!(out, "{pad}size: {len}");
+            let _ = writeln!(out, "{pad}encoding: {encoding}");
         }
         Kind::Bits(n) => {
-            let _ = writeln!(out, "    type: b{n}");
+            let _ = writeln!(out, "{pad}type: b{n}");
         }
         Kind::Contents(bytes) => {
             let list: Vec<String> = bytes.iter().map(|b| format!("{b:#04x}")).collect();
-            let _ = writeln!(out, "    contents: [{}]", list.join(", "));
+            let _ = writeln!(out, "{pad}contents: [{}]", list.join(", "));
         }
         Kind::Terminated {
             terminator,
             encoding,
             ..
         } => {
-            let _ = writeln!(out, "    type: str");
-            let _ = writeln!(out, "    terminator: {terminator}");
-            let _ = writeln!(out, "    encoding: {encoding}");
+            let _ = writeln!(out, "{pad}type: str");
+            let _ = writeln!(out, "{pad}terminator: {terminator}");
+            let _ = writeln!(out, "{pad}encoding: {encoding}");
         }
         Kind::Type { id, size, .. } => {
-            let _ = writeln!(out, "    type: {id}");
+            let _ = writeln!(out, "{pad}type: {id}");
             if let Some(size) = size {
-                let _ = writeln!(out, "    size: {size}");
+                let _ = writeln!(out, "{pad}size: {size}");
             }
         }
         Kind::Repeat { inner, count, .. } => {
-            write_kind(out, inner);
+            write_kind(out, inner, pad);
             match count {
                 Count::Fixed(n) => {
-                    let _ = writeln!(out, "    repeat: expr");
-                    let _ = writeln!(out, "    repeat-expr: {n}");
+                    let _ = writeln!(out, "{pad}repeat: expr");
+                    let _ = writeln!(out, "{pad}repeat-expr: {n}");
                 }
                 Count::Field(name) => {
-                    let _ = writeln!(out, "    repeat: expr");
-                    let _ = writeln!(out, "    repeat-expr: {name}");
+                    let _ = writeln!(out, "{pad}repeat: expr");
+                    let _ = writeln!(out, "{pad}repeat-expr: {name}");
                 }
                 Count::ToEnd => {
-                    let _ = writeln!(out, "    repeat: eos");
+                    let _ = writeln!(out, "{pad}repeat: eos");
                 }
             }
         }
@@ -1442,8 +2027,8 @@ mod tests {
                 "line 4",
             ),
             (
-                "meta:\n  id: t\n  endian: le\nseq:\n  - id: a\n    type: u1\ntypes:\n  x:\n    seq: []\n",
-                "line 7",
+                "meta:\n  id: t\n  endian: le\nseq:\n  - id: a\n    type: u1\ntypes:\n  x:\n    seq:\n      - id: b\n        type: u1\n        if: y\n",
+                "line 12",
             ),
             (
                 "meta:\n  id: t\n  endian: le\nseq:\n  - id: a\n    type: u1\n    if: x\n",
@@ -1466,5 +2051,260 @@ mod tests {
         }
         let empty = Draft::from_yaml("meta:\n  id: t\n  endian: be\nseq: []\n").unwrap();
         assert_eq!((empty.fields().len(), empty.endian()), (0, Endian::Big));
+    }
+
+    // ── the types of the schema ──────────────────────────────────────────────
+
+    fn u(id: &str, n: u8) -> Field {
+        field(id, Kind::Unsigned(n))
+    }
+
+    fn typed(id: &str, type_id: &str) -> Field {
+        field(
+            id,
+            Kind::Type {
+                id: type_id.to_owned(),
+                size: None,
+                bytes: 0,
+            },
+        )
+    }
+
+    /// `a` u1, `b` u2, `c` u1.
+    fn three() -> Draft {
+        let mut draft = Draft::new("t").unwrap();
+        for f in [u("a", 1), u("b", 2), u("c", 1)] {
+            draft.push(f).unwrap();
+        }
+        draft
+    }
+
+    #[test]
+    fn fields_become_a_type_and_the_schema_reads_the_same_bytes() {
+        let mut draft = three();
+        let data = [9, 0x34, 0x12, 7];
+        let edit = draft
+            .group_in(&Container::Top, 1, 2, "pair", "pair_1")
+            .unwrap();
+        assert!(matches!(edit, Edit::Group { start: 1, .. }));
+        assert_eq!(draft.fields().len(), 2);
+        assert_eq!(draft.fields()[1].id, "pair_1");
+        assert_eq!(draft.types().len(), 1);
+        assert_eq!(
+            draft.fields_in(&Container::Type("pair".to_owned())).len(),
+            2
+        );
+        // the type's size is what its fields took, so the fields after it are where they were
+        assert_eq!(draft.fields()[1].kind.size(), 3);
+        assert_eq!(draft.end(), 4);
+        let value = parse(&draft, &data);
+        assert_eq!(get(&value, "a"), &Value::UInt(9));
+        let pair = get(&value, "pair_1");
+        assert_eq!(get(pair, "b"), &Value::UInt(0x1234));
+        assert_eq!(get(pair, "c"), &Value::UInt(7));
+        // the schema says it with `types:`, and the builder reads it back
+        let yaml = draft.to_yaml();
+        assert!(yaml.contains("types:\n  pair:\n    seq:\n"), "{yaml}");
+        assert!(yaml.contains("      - id: b\n        type: u2\n"), "{yaml}");
+        assert!(
+            !yaml.contains("imports:"),
+            "a type of the schema is not imported:\n{yaml}"
+        );
+        let read = Draft::from_yaml(&yaml).unwrap();
+        assert_eq!(read.to_text(), draft.to_text());
+        assert_eq!(read.types(), draft.types());
+    }
+
+    #[test]
+    fn grouping_can_be_taken_back_and_done_again_and_a_type_can_be_taken_apart() {
+        let mut draft = three();
+        let before = draft.to_text();
+        let edit = draft
+            .group_in(&Container::Top, 0, 3, "all", "all_1")
+            .unwrap();
+        assert_ne!(draft.to_text(), before);
+        draft.apply(&edit.inverse()).unwrap();
+        assert_eq!(draft.to_text(), before);
+        assert_eq!(draft.types().len(), 0);
+        draft.apply(&edit).unwrap();
+        assert_eq!(draft.types().len(), 1);
+        // taking it apart is the same as taking the grouping back
+        let apart = draft.ungroup_in(&Container::Top, 0).unwrap();
+        assert_eq!(draft.to_text(), before);
+        draft.apply(&apart.inverse()).unwrap();
+        assert_eq!(draft.types().len(), 1);
+        assert_eq!(draft.fields().len(), 1);
+    }
+
+    #[test]
+    fn an_empty_type_takes_fields_and_is_used_again_and_repeated() {
+        let mut draft = Draft::new("t").unwrap();
+        draft.push(u("count", 1)).unwrap();
+        draft
+            .group_in(&Container::Top, 1, 0, "entry", "entry_1")
+            .unwrap();
+        let entry = Container::Type("entry".to_owned());
+        draft.insert_in(&entry, 0, u("kind", 1)).unwrap();
+        draft.insert_in(&entry, 1, u("size", 2)).unwrap();
+        assert_eq!(draft.end_in(&entry), 3);
+        // another field of the same type, repeated by the count
+        draft
+            .retype(
+                1,
+                Kind::Repeat {
+                    inner: Box::new(Kind::Type {
+                        id: "entry".to_owned(),
+                        size: None,
+                        bytes: 6,
+                    }),
+                    count: Count::Field("count".to_owned()),
+                    sample: 2,
+                },
+            )
+            .unwrap();
+        assert_eq!(draft.fields()[1].kind.size(), 6);
+        assert_eq!(
+            draft.uses_of("entry"),
+            [(Container::Top, "entry_1".to_owned())]
+        );
+        let value = parse(&draft, &[2, 1, 0x10, 0, 2, 0x20, 0]);
+        let Value::Array(entries) = get(&value, "entry_1") else {
+            panic!("{value:?}");
+        };
+        assert_eq!(entries.len(), 2, "{value:?}");
+        // a field of the type can be renamed, changed and taken out, by itself
+        draft.rename_in(&entry, 0, "tag").unwrap();
+        draft.retype_in(&entry, 1, Kind::Unsigned(1)).unwrap();
+        draft.remove_in(&entry, 1).unwrap();
+        assert_eq!(draft.fields_in(&entry).len(), 1);
+        assert!(draft.to_text().contains("      - id: tag"));
+        let read = Draft::from_yaml(&draft.to_yaml()).unwrap();
+        assert_eq!(read.to_text(), draft.to_text());
+    }
+
+    #[test]
+    fn names_that_are_taken_types_in_use_bits_counts_and_cycles_are_refused_with_the_reason() {
+        let mut draft = three();
+        draft
+            .group_in(&Container::Top, 1, 1, "inner", "inner_1")
+            .unwrap();
+        // a name that is taken
+        let error = draft
+            .group_in(&Container::Top, 0, 1, "inner", "x")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("a type called inner already"), "{error}");
+        assert!(
+            draft
+                .group_in(&Container::Top, 0, 1, "t", "x")
+                .unwrap_err()
+                .to_string()
+                .contains("name of the schema")
+        );
+        assert!(draft.group_in(&Container::Top, 0, 1, "Bad", "x").is_err());
+        // a field name that another field has
+        let error = draft
+            .group_in(&Container::Top, 0, 1, "other", "c")
+            .unwrap_err();
+        assert_eq!(error, DraftError::Duplicate("c".to_owned()));
+        // a type that is imported cannot have a new type's name
+        let mut with_import = three();
+        with_import.push(typed("t1", "lib")).unwrap();
+        assert!(
+            with_import
+                .group_in(&Container::Top, 0, 1, "lib", "x")
+                .unwrap_err()
+                .to_string()
+                .contains("imports")
+        );
+        // a type that two fields have cannot be taken apart, and the other field is named
+        draft.push(typed("inner_2", "inner")).unwrap();
+        let error = draft
+            .ungroup_in(&Container::Top, 1)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("used by the field inner_2"), "{error}");
+        // bit fields
+        let mut bits = Draft::new("b").unwrap();
+        bits.push(field("flags", Kind::Bits(3))).unwrap();
+        assert!(
+            bits.group_in(&Container::Top, 0, 1, "f", "f_1")
+                .unwrap_err()
+                .to_string()
+                .contains("bit fields")
+        );
+        // grouping the field that a repeat counts by leaves the repeat without its count
+        let mut counted = Draft::new("c").unwrap();
+        counted.push(u("n", 1)).unwrap();
+        counted
+            .push(field(
+                "items",
+                Kind::Repeat {
+                    inner: Box::new(Kind::Unsigned(1)),
+                    count: Count::Field("n".to_owned()),
+                    sample: 1,
+                },
+            ))
+            .unwrap();
+        let error = counted
+            .group_in(&Container::Top, 0, 1, "head", "head_1")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("repeated as many times as n"), "{error}");
+        assert_eq!(counted.fields().len(), 2, "nothing changed");
+        assert_eq!(counted.types().len(), 0);
+        // a type that would contain itself, through another
+        let mut cycle = Draft::new("c").unwrap();
+        cycle.push(u("a", 1)).unwrap();
+        cycle.push(u("b", 1)).unwrap();
+        cycle
+            .group_in(&Container::Top, 0, 1, "one", "one_1")
+            .unwrap();
+        cycle
+            .group_in(&Container::Top, 1, 1, "two", "two_1")
+            .unwrap();
+        let one = Container::Type("one".to_owned());
+        cycle.insert_in(&one, 1, typed("t2", "two")).unwrap();
+        let error = cycle
+            .insert_in(&Container::Type("two".to_owned()), 1, typed("t1", "one"))
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("would contain itself") && error.contains("one > two > one"),
+            "{error}"
+        );
+        assert!(
+            cycle
+                .insert_in(&one, 2, typed("me", "one"))
+                .unwrap_err()
+                .to_string()
+                .contains("would contain itself")
+        );
+    }
+
+    #[test]
+    fn a_schema_with_types_that_use_types_and_the_library_is_read_back() {
+        let mut draft = Draft::new("outer").unwrap();
+        draft.push(typed("lib_1", "lib")).unwrap();
+        draft.push(u("n", 1)).unwrap();
+        draft
+            .group_in(&Container::Top, 1, 1, "inner", "inner_1")
+            .unwrap();
+        draft
+            .group_in(&Container::Top, 0, 2, "wrap", "wrap_1")
+            .unwrap();
+        let yaml = draft.to_yaml();
+        // `wrap` has a library type and a type of the schema; only the library type is imported
+        assert_eq!(draft.imports(), ["lib"]);
+        assert_eq!(yaml.matches("  - lib\n").count(), 1, "{yaml}");
+        assert_eq!(yaml.matches("  inner:").count(), 1);
+        let read = Draft::from_yaml(&yaml).unwrap();
+        assert_eq!(read.to_text(), draft.to_text());
+        assert_eq!(read.types().len(), 2);
+        // a type that is defined twice, or one that is not defined, is not a schema the builder made
+        let twice = yaml.replace("  wrap:\n", "  inner:\n");
+        assert!(Draft::from_yaml(&twice).is_err());
+        let missing = yaml.replace("    type: inner\n", "    type: nothing\n");
+        assert!(Draft::from_yaml(&missing).is_err());
     }
 }

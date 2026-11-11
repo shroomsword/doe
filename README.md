@@ -1880,13 +1880,15 @@ It takes no `TYPE_OR_SCHEMA` and is not the same as `--watch`. If `OUT.yaml` is
 there and the builder made it, the viewer goes on with it: it is read back, and the
 lengths that the file decides (text that ends, repeats) are taken from `FILE`. A
 schema that the builder did not make, or that has anything it cannot give back
-(`types`, `instances`, `if`...), is refused and the line is named, rather than
-losing a part of it.
+(`instances`, `if`...), is refused and the line is named, rather than
+losing a part of it. A schema with `types:` of the shape the builder writes (a flat `seq` for each type) is read back.
 
 | Key | Does |
 |-----|------|
 | `v`, then the movement keys | select the bytes the next field is (its length is the selection's) |
-| `a` | add a field where the schema ends |
+| `a` | add a field where the schema ends (with the tree focused and a field that has a type of the schema selected, into that type; with a field of a type selected, into that type after it) |
+| `Z` | make the fields of the selected bytes (or the selected field) a **new type** of the schema; it asks for the name |
+| `O` | take the type of the selected field apart: its fields take the field's place |
 | `A` | add a field at the cursor, with a `skip_1` field of the bytes before it |
 | `u`, `Ctrl-R` | take the last change back, do it again |
 | `d` | remove the selected field (the last at once, another after a second `d`) |
@@ -1907,6 +1909,7 @@ the *name*; `Enter` takes what is proposed and `Esc` gives up.
 | `str` | text of a length | the length, the encoding, whether it is repeated |
 | `strz` | text that ends with a byte | the terminator (`0`), the encoding; the length is found in the file (within 64 KiB) |
 | `magic` | a signature: bytes the file must have (`contents:`), which `doe` uses to find the schema | the bytes in hex (the selection is proposed) |
+| `new` | a **new empty type** of the schema and a field that has it: it asks for the name of the type, then of the field; select the field and press `a` in the tree to add fields into the type | the name of the type, the name of the field |
 | `b1` to `b64` | a bit field; the ones that follow each other share bytes, and the cursor moves by bits to where the next goes on | |
 | `type`, or the id of a type | a type of the type paths (`-I`, the config): `type` opens the list of the types (filter with `/`, `Enter` chooses, `Esc` gives none), and the id of a type can be typed instead | the size of the window it is read from (`Enter` for as much as it needs), whether it is repeated |
 
@@ -1916,7 +1919,9 @@ be a lower case name that no other field has. A field can be **repeated**: the
 question takes a number, the name of an earlier integer field (a count read from the
 file), or `eos` for until the end of the file (which has to be a whole number of
 elements); a field that is the count of a repeat cannot be removed, renamed or made
-something else while the repeat uses it. A field of a **type of the type paths** is written as `type: png_header` and the schema gets an `imports:` entry for it
+something else while the repeat uses it. **New types.** `Z` takes the fields that the selected bytes are exactly (`v`, then the movement keys; the selection has to start and end at the edges of fields), or the selected field, out of the schema and makes them a type with the name that is asked for; a field that has the new type takes their place, so the file reads as it did and the tree shows the type's fields under it. The new type is written in the schema (`types:`, one file, nothing more on the type paths) and is offered first in the list of types of the kind `type`, or can be typed, to be the type of another field, and repeated (a number, an earlier integer field, `eos`: a list of entries is a header and an entry type). Fields of a type are added, renamed, changed and removed by selecting them in the tree (`a`, `r`, `c`, `d`), and `u` undoes every one of these changes. A name that another type, a type the schema imports or the schema has is refused; a type that another field has cannot be taken apart (the message names the field); a change that would make a type contain itself, or leave a repeat without the count it reads, is refused with the reason; bit fields cannot be grouped yet, and a repeat by the value of a field is made in the fields of the schema itself, not in a type, for now.
+
+A field of a **type of the type paths** is written as `type: png_header` and the schema gets an `imports:` entry for it
 (once for each type), so the saved schema compiles with the same type paths; its bytes in the file are what the type reads (or the
 window, with a size), and the next field starts after them. A type that takes parameters is not offered (the builder cannot give
 them a value yet), the schema being built cannot import itself, and a type that imports the schema (a cycle), or that does not

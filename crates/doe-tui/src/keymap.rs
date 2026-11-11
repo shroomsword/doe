@@ -27,6 +27,12 @@ pub enum Action {
     ByteColours,
     /// Show the description of each field after its value, or not.
     Descriptions,
+    /// While building: make the fields of the selected bytes (or the selected field) a new type of the schema.
+    GroupFields,
+    /// While building: take the type of the selected field apart: its fields take the field's place.
+    UngroupField,
+    /// While building, in the tree: add a field into the selected type, or where the schema ends.
+    TreeAddField,
     /// Make the focused pane fill the screen, or put both panes back.
     Fullscreen,
     /// Show the next layer of a file that holds another file (a `.tar.gz` is gzip, then the tar it holds).
@@ -222,6 +228,18 @@ pub const BINDINGS: &[Binding] = &[
         help: "make the focused pane fill the screen, or put both panes back (Esc puts them back too, before it leaves; Tab then moves to the other pane, which fills the screen)",
     },
     Binding {
+        keys: &[ch('Z')],
+        scope: Scope::Anywhere,
+        action: Action::GroupFields,
+        help: "with --build: make the fields of the selected bytes (or the selected field) a new type of the schema, which other fields can have; it asks for the name",
+    },
+    Binding {
+        keys: &[ch('O')],
+        scope: Scope::Anywhere,
+        action: Action::UngroupField,
+        help: "with --build: take the type of the selected field apart (a type of the schema that no other field has): its fields take the place of the field",
+    },
+    Binding {
         keys: &[ch('L')],
         scope: Scope::Anywhere,
         action: Action::Layers,
@@ -382,6 +400,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Tree,
         action: Action::TreeRight,
         help: "open a node, or go into it (on \"N more…\" show more)",
+    },
+    Binding {
+        keys: &[ch('a')],
+        scope: Scope::Tree,
+        action: Action::TreeAddField,
+        help: "with --build: add a field into the selected field's type when that is a type of the schema, else where the schema ends",
     },
     Binding {
         keys: &[plain(KeyCode::Left), ch('h')],
