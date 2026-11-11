@@ -1908,6 +1908,7 @@ the *name*; `Enter` takes what is proposed and `Esc` gives up.
 | `strz` | text that ends with a byte | the terminator (`0`), the encoding; the length is found in the file (within 64 KiB) |
 | `magic` | a signature: bytes the file must have (`contents:`), which `doe` uses to find the schema | the bytes in hex (the selection is proposed) |
 | `b1` to `b64` | a bit field; the ones that follow each other share bytes, and the cursor moves by bits to where the next goes on | |
+| `type`, or the id of a type | a type of the type paths (`-I`, the config): `type` opens the list of the types (filter with `/`, `Enter` chooses, `Esc` gives none), and the id of a type can be typed instead | the size of the window it is read from (`Enter` for as much as it needs), whether it is repeated |
 
 The kind that is proposed is the integer of the size of the selection (1, 2, 4 or 8
 bytes), else `bytes`, else `u1`; the name is proposed from the kind (`u2_1`) and has to
@@ -1915,7 +1916,11 @@ be a lower case name that no other field has. A field can be **repeated**: the
 question takes a number, the name of an earlier integer field (a count read from the
 file), or `eos` for until the end of the file (which has to be a whole number of
 elements); a field that is the count of a repeat cannot be removed, renamed or made
-something else while the repeat uses it. A field that does not fit in the rest of the
+something else while the repeat uses it. A field of a **type of the type paths** is written as `type: png_header` and the schema gets an `imports:` entry for it
+(once for each type), so the saved schema compiles with the same type paths; its bytes in the file are what the type reads (or the
+window, with a size), and the next field starts after them. A type that takes parameters is not offered (the builder cannot give
+them a value yet), the schema being built cannot import itself, and a type that imports the schema (a cycle), or that does not
+fit the file, is refused with the reason, like any other field. A field that does not fit in the rest of the
 file is refused, and so is any change that makes the schema longer than the file:
 the question is asked again, or everything stays as it was.
 

@@ -83,6 +83,10 @@ struct FieldDialog {
     terminator: u8,
     /// How often the field is repeated, once asked.
     repeat: Option<Count>,
+    /// The id of the type of the field, when its kind is a type of the type paths.
+    type_id: String,
+    /// The size of the window that such a field is read from, once asked.
+    size: Option<u64>,
 }
 
 impl FieldDialog {
@@ -99,6 +103,8 @@ impl FieldDialog {
             magic: Vec::new(),
             terminator: 0,
             repeat: None,
+            type_id: String::new(),
+            size: None,
         }
     }
 }
@@ -208,6 +214,8 @@ pub struct App {
     remove_was_armed: Option<usize>,
     /// The questions of a field that is being added, while they are asked.
     field_dialog: Option<FieldDialog>,
+    /// The questions of a field whose kind is being chosen from the types of the type paths (the browser of types is open).
+    field_pick: Option<FieldDialog>,
     /// Hex that `y` asked to be put on the clipboard, until the event loop does it.
     clipboard: Option<String>,
     /// The schema that is being built, when the viewer was started with `--build`.
@@ -349,6 +357,7 @@ impl App {
             remove_armed: None,
             remove_was_armed: None,
             field_dialog: None,
+            field_pick: None,
             clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
@@ -425,6 +434,7 @@ impl App {
             remove_armed: None,
             remove_was_armed: None,
             field_dialog: None,
+            field_pick: None,
             clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
@@ -483,6 +493,7 @@ impl App {
             remove_armed: None,
             remove_was_armed: None,
             field_dialog: None,
+            field_pick: None,
             clipboard: None,
             quit_armed: false,
             quit_was_armed: false,
@@ -1010,10 +1021,19 @@ impl App {
         };
         match outcome {
             TypesOutcome::Nothing => {}
-            TypesOutcome::Close => self.types = None,
+            TypesOutcome::Close => {
+                self.types = None;
+                if self.field_pick.is_some() {
+                    self.picked_library_type(None);
+                }
+            }
             TypesOutcome::Choose(id) => {
                 self.types = None;
-                self.choose_available(&id);
+                if self.field_pick.is_some() {
+                    self.picked_library_type(Some(&id));
+                } else {
+                    self.choose_available(&id);
+                }
             }
         }
     }
@@ -2223,9 +2243,36 @@ impl App {
             app.open_prompt_with(step, text);
         };
         match step {
-            Kind::FieldKind => match field_dialog::parse_kind(text) {
-                Some(kind) => dialog.kind = kind,
-                None => return refused(self, dialog, format!("{text:?} is not a kind of field")),
+            Kind::FieldKind => {
+                let word = text.trim();
+                if word.eq_ignore_ascii_case(field_dialog::TYPE_WORD) {
+                    self.pick_library_type(dialog);
+                    return;
+                }
+                match field_dialog::parse_kind(text) {
+                    Some(kind) => dialog.kind = kind,
+                    // the id of a type of the type paths, typed
+                    None => match self.library_type(word) {
+                        Ok(Some(id)) => {
+                            field_dialog::TYPE_WORD.clone_into(&mut dialog.kind);
+                            dialog.type_id = id;
+                        }
+                        Ok(None) => {
+                            return refused(
+                                self,
+                                dialog,
+                                format!(
+                                    "{text:?} is not a kind of field or a type of the type paths"
+                                ),
+                            );
+                        }
+                        Err(message) => return refused(self, dialog, message),
+                    },
+                }
+            }
+            Kind::FieldSize => match field_dialog::parse_size(text) {
+                Ok(size) => dialog.size = size,
+                Err(message) => return refused(self, dialog, message),
             },
             Kind::FieldLength => match field_dialog::parse_length(text) {
                 Ok(n) => dialog.length = Some(n),
@@ -2254,6 +2301,11 @@ impl App {
             }
             Kind::Search | Kind::Goto | Kind::SaveEntry => return,
         }
+        self.continue_field(dialog, step);
+    }
+
+    /// Ask what comes after the question `step`, or go on to the name when there is nothing more to ask.
+    fn continue_field(&mut self, dialog: FieldDialog, step: Kind) {
         match field_dialog::next(&dialog.kind, step) {
             Some(next) => {
                 let proposed = Self::propose_answer(next, &dialog);
@@ -2261,6 +2313,83 @@ impl App {
                 self.open_prompt_with(next, &proposed);
             }
             None => self.after_kind(dialog),
+        }
+    }
+
+    /// The id of a type of the type paths that a field can have: `Ok(None)` when `id` is not one. A type that takes
+    /// parameters, and the schema being built itself, cannot be used.
+    fn library_type(&self, id: &str) -> Result<Option<String>, String> {
+        let Some(options) = self.options.as_ref() else {
+            return Ok(None);
+        };
+        let Ok(found) = doe::config::discover_types(&options.include_paths) else {
+            return Ok(None);
+        };
+        let Some(available) = found.iter().find(|t| t.id == id) else {
+            return Ok(None);
+        };
+        if self.builder.as_ref().is_some_and(|b| b.draft.id() == id) {
+            return Err(format!(
+                "{id} is the schema that is being built: a schema cannot import itself"
+            ));
+        }
+        let takes_parameters = std::fs::read_to_string(&available.source)
+            .ok()
+            .and_then(|text| doe::schema::raw::RawSchema::from_yaml_str(&text).ok())
+            .is_some_and(|raw| !raw.params.is_empty());
+        if takes_parameters {
+            return Err(format!(
+                "{id} takes parameters, which the builder cannot give yet: it is not offered"
+            ));
+        }
+        Ok(Some(available.id.clone()))
+    }
+
+    /// The kind `type`: choose a type of the type paths in the browser of types, then go on with the questions.
+    fn pick_library_type(&mut self, dialog: FieldDialog) {
+        let include_paths = self
+            .options
+            .as_ref()
+            .map(|o| o.include_paths.clone())
+            .unwrap_or_default();
+        if include_paths.is_empty() {
+            self.notice = Some("there are no type paths: give one with -I".to_owned());
+            self.field_dialog = Some(dialog);
+            self.open_prompt_with(Kind::FieldKind, "");
+            return;
+        }
+        self.types = Some(TypeBrowser::read(&include_paths));
+        self.notice = Some("choose the type of the field (Enter), or Esc for none".to_owned());
+        self.field_pick = Some(dialog);
+    }
+
+    /// A type was chosen in the browser of types for a field, or none.
+    fn picked_library_type(&mut self, chosen: Option<&str>) {
+        let Some(mut dialog) = self.field_pick.take() else {
+            return;
+        };
+        let Some(id) = chosen else {
+            self.notice = Some("no type chosen".to_owned());
+            self.field_dialog = Some(dialog);
+            self.open_prompt_with(Kind::FieldKind, "");
+            return;
+        };
+        match self.library_type(id) {
+            Ok(Some(id)) => {
+                field_dialog::TYPE_WORD.clone_into(&mut dialog.kind);
+                dialog.type_id = id;
+                self.continue_field(dialog, Kind::FieldKind);
+            }
+            Ok(None) => {
+                self.notice = Some(format!("{id} is not a type of the type paths"));
+                self.field_dialog = Some(dialog);
+                self.open_prompt_with(Kind::FieldKind, "");
+            }
+            Err(message) => {
+                self.notice = Some(message);
+                self.field_dialog = Some(dialog);
+                self.open_prompt_with(Kind::FieldKind, "");
+            }
         }
     }
 
@@ -2280,8 +2409,18 @@ impl App {
 
     /// The last question: the name, proposed from the kind.
     fn ask_name(&mut self, dialog: FieldDialog) {
+        let from_type: String;
         let base = if field_dialog::bits_of(&dialog.kind).is_some() {
             "bits"
+        } else if dialog.kind == field_dialog::TYPE_WORD {
+            // the id of the type as a name: lower case, letters, digits and _
+            from_type = dialog
+                .type_id
+                .to_ascii_lowercase()
+                .chars()
+                .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+                .collect();
+            from_type.as_str()
         } else {
             dialog.kind.as_str()
         };
@@ -2303,6 +2442,8 @@ impl App {
             magic: dialog.magic.clone(),
             terminator: dialog.terminator,
             text_sample: 0,
+            type_id: dialog.type_id.clone(),
+            size: dialog.size,
         };
         if dialog.kind == "strz" {
             answers.text_sample = self.measure_terminated(dialog.at, dialog.terminator)?;
@@ -2314,6 +2455,8 @@ impl App {
         let sample = match &count {
             Count::Fixed(n) => *n,
             Count::Field(name) => self.value_of_field(name, dialog)?,
+            // the elements of a type are counted by the parse
+            Count::ToEnd if matches!(base, DraftKind::Type { .. }) => 1,
             Count::ToEnd => {
                 let size = self.bytes.as_ref().map_or(0, FileBytes::size);
                 let each = base.size();
