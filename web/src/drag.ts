@@ -1,12 +1,14 @@
-// Dragging a pane by its title bar to put it before or after another one. It uses pointer events, not the browser's
-// drag and drop, so that it works with a mouse, a pen and a finger, shows what is being dragged and where it will go,
-// scrolls the page near its edges, and can be cancelled with Esc. The page decides what a drop means (`drop`); this
-// only finds the pane that is under the pointer and which half of it.
+// Dragging a pane by its title bar to dock it. It uses pointer events, not the browser's drag and drop, so that it works with
+// a mouse, a pen and a finger, shows what is being dragged and where it will go, and can be cancelled with Esc. While a pane
+// is dragged the panes area shows the eight positions of a drop (the four corners and the four sides); the one under the
+// pointer lights up and the outline of the layout that dropping there makes is drawn. A drop on the middle of another pane
+// swaps the two. The page decides what a drop means (`drop`, `swap`).
 
-import type { PaneName } from './layout.js';
+import { type Movable, ZONES, type Zone, ZONE_NAMES, dockTo, isCorner, rects, swapIn } from './dock.js';
+import type { Dock, PaneName } from './layout.js';
 
 export interface DragPane {
-  name: PaneName;
+  name: Movable;
   section: HTMLElement;
   /** What the dragged copy says. */
   label: string;
@@ -14,25 +16,49 @@ export interface DragPane {
 
 export interface DragOptions {
   panes: readonly DragPane[];
-  /** The panes that are on the screen (a closed pane cannot be dropped on). */
-  shown(): readonly PaneName[];
-  /** The pointer was released over `target`: before it or after it (`swap` with Shift held: take its place). */
-  drop(name: PaneName, target: PaneName, after: boolean, swap: boolean): void;
+  /** The panes of the dock that are on the screen: a closed pane is not in the area and cannot be dropped on. */
+  shown(): ReadonlySet<Movable>;
+  /** The dock now, or what the wide window has, to start from. */
+  dock(): Dock;
+  /** Whether the window is too narrow to dock: the panes are one under the other and there is nothing to drop on. */
+  narrow(): boolean;
+  /** Whether a pane is in a place where it can be dragged (it is not while another pane is maximized). */
+  enabled(): boolean;
+  /** The pointer was released over a position. */
+  drop(name: Movable, zone: Zone): void;
+  /** The pointer was released over another pane: the two take each other's places. */
+  swap(name: Movable, target: Movable): void;
 }
 
 /** The parts of a title bar that are controls: a press on them is not the start of a drag. */
 const CONTROLS = 'button, input, select, textarea, label, a, .pane-search';
 /** How far the pointer moves before a press is a drag. */
 const THRESHOLD = 5;
-/** How near the window's edge the page scrolls, and by how much a frame. */
-const EDGE = 48;
-const SPEED = 14;
+
+/** Where each position is in the overlay, as percentages of its width and height. */
+const BOXES: Record<Zone, { x: number; y: number; w: number; h: number }> = {
+  tl: { x: 0, y: 0, w: 26, h: 26 },
+  t: { x: 26, y: 0, w: 48, h: 16 },
+  tr: { x: 74, y: 0, w: 26, h: 26 },
+  l: { x: 0, y: 26, w: 16, h: 48 },
+  r: { x: 84, y: 26, w: 16, h: 48 },
+  bl: { x: 0, y: 74, w: 26, h: 26 },
+  b: { x: 26, y: 84, w: 48, h: 16 },
+  br: { x: 74, y: 74, w: 26, h: 26 },
+};
+
+/** The positions that a drop can be on: the corners need all three panes shown, the sides two. */
+export function offered(shown: number): Zone[] {
+  if (shown < 2) return [];
+  return ZONES.filter((zone) => shown >= 3 || !isCorner(zone));
+}
 
 export class PaneDrag {
-  private active: { name: PaneName; pointer: number; x: number; y: number; started: boolean; ghost: HTMLElement | null } | null = null;
-  private line: HTMLElement | null = null;
-  private target: { name: PaneName; after: boolean } | null = null;
-  private frame = 0;
+  private active: { name: Movable; pointer: number; x: number; y: number; started: boolean; ghost: HTMLElement | null } | null = null;
+  private overlay: HTMLElement | null = null;
+  private zones = new Map<Zone, HTMLElement>();
+  private outline: HTMLElement | null = null;
+  private target: { zone: Zone } | { swap: Movable } | null = null;
 
   constructor(private readonly options: DragOptions) {
     for (const pane of options.panes) {
@@ -46,6 +72,7 @@ export class PaneDrag {
     if (event.target.closest(CONTROLS)) return;
     // a finger drags from the grip only, so that the rest of the title bar still scrolls the page
     if (event.pointerType !== 'mouse' && !event.target.closest('.pane-grip')) return;
+    if (this.options.narrow() || !this.options.enabled() || offered(this.options.shown().size).length === 0) return;
     this.active = { name: pane.name, pointer: event.pointerId, x: event.clientX, y: event.clientY, started: false, ghost: null };
     window.addEventListener('pointermove', this.move);
     window.addEventListener('pointerup', this.up);
@@ -68,8 +95,20 @@ export class PaneDrag {
     drag.x = event.clientX;
     drag.y = event.clientY;
     this.aim(event.clientX, event.clientY);
-    this.scroll(event.clientY);
   };
+
+  /** The area that the panes above Status fill, in the window. */
+  private area(): DOMRect | null {
+    let box: DOMRect | null = null;
+    for (const pane of this.options.panes) {
+      if (!this.options.shown().has(pane.name) || pane.section.hidden) continue;
+      const mine = pane.section.getBoundingClientRect();
+      box = box
+        ? new DOMRect(Math.min(box.left, mine.left), Math.min(box.top, mine.top), Math.max(box.right, mine.right) - Math.min(box.left, mine.left), Math.max(box.bottom, mine.bottom) - Math.min(box.top, mine.top))
+        : mine;
+    }
+    return box;
+  }
 
   private begin(drag: NonNullable<PaneDrag['active']>): void {
     drag.started = true;
@@ -83,59 +122,72 @@ export class PaneDrag {
     ghost.textContent = pane?.label ?? '';
     document.body.append(ghost);
     drag.ghost = ghost;
-    const line = document.createElement('div');
-    line.className = 'drop-line';
-    line.setAttribute('aria-hidden', 'true');
-    line.hidden = true;
-    document.body.append(line);
-    this.line = line;
+    const area = this.area();
+    if (!area) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'dock-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+    Object.assign(overlay.style, { left: `${area.left}px`, top: `${area.top}px`, width: `${area.width}px`, height: `${area.height}px` });
+    const outline = document.createElement('div');
+    outline.className = 'dock-outline';
+    overlay.append(outline);
+    this.outline = outline;
+    for (const zone of offered(this.options.shown().size)) {
+      const box = BOXES[zone];
+      const el = document.createElement('div');
+      el.className = 'dock-zone';
+      el.dataset.zone = zone;
+      el.textContent = ZONE_NAMES[zone];
+      Object.assign(el.style, { left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` });
+      overlay.append(el);
+      this.zones.set(zone, el);
+    }
+    document.body.append(overlay);
+    this.overlay = overlay;
   }
 
-  /** The pane under the pointer, and the half of it: the one nearer its start (before) or its end (after). */
+  /** What is under the pointer: a position of the area, the middle of another pane (to swap), or nothing. */
   private aim(x: number, y: number): void {
-    const shown = this.options.shown();
+    const drag = this.active;
+    const area = this.overlay?.getBoundingClientRect();
+    this.target = null;
+    if (!drag || !area || x < area.left || x > area.right || y < area.top || y > area.bottom) return this.show();
+    const fx = ((x - area.left) / area.width) * 100;
+    const fy = ((y - area.top) / area.height) * 100;
+    for (const zone of this.zones.keys()) {
+      const box = BOXES[zone];
+      if (fx >= box.x && fx <= box.x + box.w && fy >= box.y && fy <= box.y + box.h) {
+        this.target = { zone };
+        return this.show();
+      }
+    }
+    // the middle: the pane that is there, if it is another one that is shown
     const hit = document.elementFromPoint(x, y)?.closest<HTMLElement>('main > section');
-    const pane = hit ? this.options.panes.find((candidate) => candidate.section === hit) : undefined;
-    if (!pane || !hit || pane.name === this.active?.name || !shown.includes(pane.name)) {
-      this.target = null;
-      if (this.line) this.line.hidden = true;
-      return;
-    }
-    const box = hit.getBoundingClientRect();
-    const main = hit.parentElement?.getBoundingClientRect();
-    // a pane that spans the width (the low fourth place, or the third in two columns, or a one-column page) is
-    // before or after another one up and down; the others side by side, left and right
-    const across = main !== undefined && box.width > main.width * 0.85;
-    const after = across ? y > box.top + box.height / 2 : x > box.left + box.width / 2;
-    this.target = { name: pane.name, after };
-    const line = this.line;
-    if (!line) return;
-    line.hidden = false;
-    if (across) {
-      line.style.left = `${box.left}px`;
-      line.style.width = `${box.width}px`;
-      line.style.height = '4px';
-      line.style.top = `${(after ? box.bottom : box.top) - 2}px`;
-    } else {
-      line.style.top = `${box.top}px`;
-      line.style.height = `${box.height}px`;
-      line.style.width = '4px';
-      line.style.left = `${(after ? box.right : box.left) - 2}px`;
-    }
+    const other = this.options.panes.find((pane) => pane.section === hit);
+    if (other && other.name !== drag.name && this.options.shown().has(other.name)) this.target = { swap: other.name };
+    this.show();
   }
 
-  /** Scroll the page while the pointer is near the top or the bottom of the window (the one-column page is taller than it). */
-  private scroll(y: number): void {
-    cancelAnimationFrame(this.frame);
-    const by = y < EDGE ? -SPEED : y > window.innerHeight - EDGE ? SPEED : 0;
-    if (by === 0 || !this.active?.started) return;
-    const step = (): void => {
-      if (!this.active?.started) return;
-      window.scrollBy(0, by);
-      this.aim(this.active.x, this.active.y);
-      this.frame = requestAnimationFrame(step);
-    };
-    this.frame = requestAnimationFrame(step);
+  /** Light the position that is aimed at and draw the layout that a drop there makes. */
+  private show(): void {
+    const drag = this.active;
+    for (const [zone, el] of this.zones) el.classList.toggle('hot', this.target !== null && 'zone' in this.target && this.target.zone === zone);
+    const outline = this.outline;
+    if (!outline || !drag) return;
+    outline.replaceChildren();
+    const target = this.target;
+    if (!target) return;
+    const dock = this.options.dock();
+    const tree = 'zone' in target ? dockTo(dock.tree, drag.name, target.zone) : swapIn(dock.tree, drag.name, target.swap);
+    if (!tree) return;
+    const names: Record<PaneName, string> = { schema: 'Schema', parsed: 'Parsed', bytes: 'Bytes', status: 'Status' };
+    for (const [pane, box] of rects(tree, this.options.shown())) {
+      const el = document.createElement('div');
+      el.className = `dock-ghost${pane === drag.name ? ' moving' : ''}`;
+      Object.assign(el.style, { left: `${box.x0 * 100}%`, top: `${box.y0 * 100}%`, width: `${(box.x1 - box.x0) * 100}%`, height: `${(box.y1 - box.y0) * 100}%` });
+      el.textContent = names[pane];
+      outline.append(el);
+    }
   }
 
   private readonly up = (event: PointerEvent): void => {
@@ -144,7 +196,9 @@ export class PaneDrag {
     const target = drag.started ? this.target : null;
     const name = drag.name;
     this.end();
-    if (target) this.options.drop(name, target.name, target.after, event.shiftKey);
+    if (!target) return;
+    if ('zone' in target) this.options.drop(name, target.zone);
+    else this.options.swap(name, target.swap);
   };
 
   private readonly cancel = (): void => this.end();
@@ -157,14 +211,15 @@ export class PaneDrag {
   };
 
   private end(): void {
-    cancelAnimationFrame(this.frame);
     window.removeEventListener('pointermove', this.move);
     window.removeEventListener('pointerup', this.up);
     window.removeEventListener('pointercancel', this.cancel);
     window.removeEventListener('keydown', this.key, true);
     this.active?.ghost?.remove();
-    this.line?.remove();
-    this.line = null;
+    this.overlay?.remove();
+    this.overlay = null;
+    this.outline = null;
+    this.zones.clear();
     this.target = null;
     this.active = null;
     document.body.classList.remove('pane-dragging');

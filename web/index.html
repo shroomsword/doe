@@ -156,12 +156,16 @@
       </div>
       <div id="panes-body">
         <ul id="panes-list"></ul>
-        <p class="note">A closed pane keeps what it shows. The choice is kept in this browser with the places of the panes.</p>
-        <h4 id="tiles-title">Arrangement</h4>
-        <label>Start from <select id="tiles-preset"></select></label>
-        <div id="tiles-editor" aria-labelledby="tiles-title"></div>
-        <p class="note" id="tiles-note"></p>
+        <p class="note">A closed pane keeps what it shows. The choice is kept in this browser with the places of the panes. Drag a pane by its title bar to a corner or a side of the panes area to dock it there, or press P to choose the place from a list.</p>
       </div>
+    </dialog>
+    <dialog id="dock-dialog" aria-labelledby="dock-title">
+      <div class="browse-bar">
+        <h3 id="dock-title">Place the pane</h3>
+        <button id="dock-close" type="button">Close</button>
+      </div>
+      <p class="note">Choose where the pane goes in the area above Status. The other panes fill the rest. Dragging the pane by its title bar to one of these places does the same.</p>
+      <div id="dock-grid" role="group" aria-label="The eight places"></div>
     </dialog>
     <dialog id="columns-dialog" aria-labelledby="columns-title">
       <div class="browse-bar">

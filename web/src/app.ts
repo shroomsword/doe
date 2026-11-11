@@ -20,9 +20,10 @@ import { RADIXES, Radixes, isRadix } from './radix.js';
 import { type Attempt, type Deps, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
 import { type Layer, MAX_LAYERS, describeLayers, payloadName } from './layers.js';
 import { TreeView } from './tree.js';
-import { type Layout, type Mode, type PaneName, type Sizes, PANE_NAMES, TILE_PRESETS, applyLayout, defaultLayout, isDefault, layoutText, loadLayout, moved, movedAcross, movedInRow, saveLayout, shown, swapped, tilesOf, withSizes, withTiles, withVisible } from './layout.js';
+import { type Layout, type Mode, type PaneName, type Sizes, PANE_NAMES, applyLayout, currentMode, defaultLayout, dockOf, isDefault, loadLayout, saveLayout, shown, shownMovable, swapped, withDock, withSizes, withVisible } from './layout.js';
+import { type Movable, type Zone, ZONE_NAMES, dockTo, isMovable, zoneOf } from './dock.js';
 import { Splitters } from './resize.js';
-import { PaneDrag } from './drag.js';
+import { PaneDrag, offered } from './drag.js';
 import { buildByteKinds } from './kinds.js';
 import { ALGORITHMS, FilesView, cycleAlgorithm } from './files.js';
 import { highlightStyle } from './highlight.js';
@@ -1218,7 +1219,7 @@ export class App {
     this.layoutChanged(false);
     element('layout-reset').addEventListener('click', () => this.resetLayout());
     element('panes-button').addEventListener('click', () => this.perform('panes'));
-    element('tiles-preset').addEventListener('change', () => this.choosePreset(element<HTMLSelectElement>('tiles-preset').value));
+    element('dock-close').addEventListener('click', () => element<HTMLDialogElement>('dock-dialog').close());
     element('panes-close').addEventListener('click', () => element<HTMLDialogElement>('panes-dialog').close());
     // every pane has a button at the top right of its title bar that closes it
     for (const name of PANES) {
@@ -1247,17 +1248,24 @@ export class App {
     }
     // a grip at the left of each title bar shows that the pane can be dragged; the empty part of the bar drags too (with a mouse)
     for (const name of PANES) {
+      // Status is fixed along the bottom: it is not dragged
+      if (!isMovable(name)) continue;
       const grip = document.createElement('span');
       grip.className = 'pane-grip';
-      grip.title = `Drag to put the ${NAMES[name]} pane before or after another (Shift swaps them), or use Alt+Shift+h, j, k, l`;
+      grip.title = `Drag to dock the ${NAMES[name]} pane at a corner or a side, or on another pane to swap them. Click (or press P) to choose the place from a list`;
+      grip.addEventListener('click', () => this.openPlaceDialog(name));
       grip.setAttribute('aria-hidden', 'true');
       grip.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" focusable="false"><path fill="currentColor" d="M8 5a1.8 1.8 0 1 1 0 .01zM16 5a1.8 1.8 0 1 1 0 .01zM8 12a1.8 1.8 0 1 1 0 .01zM16 12a1.8 1.8 0 1 1 0 .01zM8 19a1.8 1.8 0 1 1 0 .01zM16 19a1.8 1.8 0 1 1 0 .01z"/></svg>';
       element(PANE_IDS[name]).querySelector('.pane-title')?.prepend(grip);
     }
     new PaneDrag({
-      panes: PANES.map((name) => ({ name, section: element(PANE_IDS[name]), label: NAMES[name] })),
-      shown: () => shown(this.layout),
-      drop: (name, target, after, swap) => this.dropPane(name, target, after, swap),
+      panes: PANES.filter(isMovable).map((name) => ({ name, section: element(PANE_IDS[name]), label: NAMES[name] })),
+      shown: () => shownMovable(this.layout),
+      dock: () => dockOf(this.layout),
+      narrow: () => currentMode() === 'narrow',
+      enabled: () => this.maximized === null,
+      drop: (name, zone) => this.dockPane(name, zone),
+      swap: (name, target) => this.swapPanes(name, target),
     });
   }
 
@@ -1303,20 +1311,99 @@ export class App {
     putBackSelection(had, selection);
   }
 
-  /** A pane was dropped on another with the mouse: before it or after it (with Shift held, in its place). */
-  private dropPane(name: PaneName, target: PaneName, after: boolean, swap: boolean): void {
+  /** A pane was dropped on a position of the area (or chosen from the list of them): dock it there. */
+  private dockPane(name: Movable, zone: Zone): void {
     if (this.maximized) return;
-    if (swap) {
-      this.swapPanes(name, target);
-      return;
-    }
-    const next = moved(this.layout, name, target, after);
-    if (layoutText(next) === layoutText(this.layout)) return;
-    this.commit(next, `${NAMES[name]} moved ${after ? 'after' : 'before'} ${NAMES[target]}`);
+    const dock = dockOf(this.layout);
+    const tree = dockTo(dock.tree, name, zone);
+    if (!tree) return;
+    const next = withDock(this.layout, { ...dock, tree });
+    this.commit(next, `${NAMES[name]} docked at the ${ZONE_NAMES[zone]}: ${this.describeDock(next)}`);
+  }
+
+  /** "Schema left, Parsed top right, Bytes bottom right" for a screen reader. */
+  private describeDock(layout: Layout): string {
+    const tree = dockOf(layout).tree;
+    const open = shownMovable(layout);
+    const parts = [...open].map((pane) => {
+      const zone = zoneOf(tree, pane);
+      return `${NAMES[pane]} ${zone ? ZONE_NAMES[zone] : 'in the middle'}`;
+    });
+    return parts.join(', ');
   }
 
   private swapPanes(a: PaneName, b: PaneName): void {
+    if (!isMovable(a) || !isMovable(b)) {
+      element('layout-live').textContent = 'The Status pane is fixed along the bottom';
+      return;
+    }
     this.commit(swapped(this.layout, a, b), `${NAMES[a]} and ${NAMES[b]} swapped places`);
+  }
+
+  /** The list of the eight positions, for choosing the place of a pane with the keyboard. */
+  private openPlaceDialog(name: PaneName = this.currentPane()): void {
+    if (!isMovable(name)) {
+      element('layout-live').textContent = 'The Status pane is fixed along the bottom';
+      return;
+    }
+    if (this.maximized) {
+      element('layout-live').textContent = 'A pane is maximized: press f or Esc to restore the others';
+      return;
+    }
+    const count = shownMovable(this.layout).size;
+    if (currentMode() === 'narrow' || offered(count).length === 0) {
+      element('layout-live').textContent = currentMode() === 'narrow' ? 'The panes are one under the other in a narrow window: there is nothing to dock to' : 'There is no other pane to dock against';
+      return;
+    }
+    const allowed = new Set(offered(count));
+    element('dock-title').textContent = `Place the ${NAMES[name]} pane`;
+    const grid = element('dock-grid');
+    const cells: HTMLElement[] = [];
+    const layout: (Zone | null)[] = ['tl', 't', 'tr', 'l', null, 'r', 'bl', 'b', 'br'];
+    for (const zone of layout) {
+      if (zone === null) {
+        const here = document.createElement('div');
+        here.className = 'dock-here';
+        here.textContent = NAMES[name];
+        cells.push(here);
+        continue;
+      }
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = ZONE_NAMES[zone];
+      button.dataset.zone = zone;
+      button.disabled = !allowed.has(zone) || dockTo(dockOf(this.layout).tree, name, zone) === null;
+      button.addEventListener('click', () => {
+        element<HTMLDialogElement>('dock-dialog').close();
+        this.dockPane(name, zone);
+        this.focusPane(name);
+      });
+      cells.push(button);
+    }
+    grid.replaceChildren(...cells);
+    const dialog = element<HTMLDialogElement>('dock-dialog');
+    dialog.showModal();
+    // the arrow keys move over the nine places like a map
+    grid.onkeydown = (event: KeyboardEvent) => {
+      const buttons = [...grid.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+      const at = buttons.findIndex((b) => b === document.activeElement);
+      const index = layout.findIndex((z) => z === (document.activeElement as HTMLElement | null)?.dataset.zone);
+      const move: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -3, ArrowDown: 3 };
+      const delta = move[event.key];
+      if (delta === undefined || at < 0) return;
+      for (let step = 1; step < 9; step += 1) {
+        const next = index + delta * step;
+        const zone = layout[next];
+        if (next < 0 || next > 8 || (Math.abs(delta) === 1 && Math.floor(next / 3) !== Math.floor(index / 3))) break;
+        const button = zone ? grid.querySelector<HTMLButtonElement>(`button[data-zone="${zone}"]:not(:disabled)`) : null;
+        if (button) {
+          event.preventDefault();
+          button.focus();
+          return;
+        }
+      }
+    };
+    grid.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
   }
 
   /** The pane moved one place in a direction: it takes the place of the pane that is there. */
@@ -1333,7 +1420,8 @@ export class App {
 
   /** The sizes of a mode were set by a separator (or put back to the default): keep them, and say what they are. */
   private setSizes(mode: Mode, sizes: Sizes | undefined, message: string): void {
-    this.layout = withSizes(this.layout, mode, sizes);
+    // a separator of the dock changes the dock, not the sizes of a mode
+    this.layout = sizes?.dock ? withDock(this.layout, sizes.dock) : withSizes(this.layout, mode, sizes);
     saveLayout(this.layout);
     this.layoutChanged(true, message);
   }
@@ -1581,76 +1669,6 @@ export class App {
     const active = document.activeElement instanceof HTMLInputElement ? document.activeElement.dataset.pane : undefined;
     list.replaceChildren(...rows);
     if (active) list.querySelector<HTMLInputElement>(`input[data-pane="${active}"]`)?.focus();
-    this.tilesList();
-  }
-
-  /** The arrangement of the panes in rows: the presets, and a row-by-row editor with buttons for every move. */
-  private tilesList(): void {
-    const select = element<HTMLSelectElement>('tiles-preset');
-    const rows = tilesOf(this.layout);
-    const current = this.layout.tiles ? JSON.stringify(this.layout.tiles) : null;
-    const preset = TILE_PRESETS.find((p) => (p.rows === null ? current === null : JSON.stringify(p.rows) === current));
-    select.replaceChildren(...TILE_PRESETS.map((p) => new Option(p.label, p.id, false, p === preset)));
-    if (!preset) select.append(new Option('Custom', 'custom', false, true));
-    select.value = preset?.id ?? 'custom';
-    const editor = element('tiles-editor');
-    const focused = document.activeElement instanceof HTMLButtonElement && editor.contains(document.activeElement) ? document.activeElement.dataset.key : undefined;
-    editor.replaceChildren(
-      ...rows.map((row, index) => {
-        const group = document.createElement('div');
-        group.className = 'tile-row';
-        group.setAttribute('role', 'group');
-        group.setAttribute('aria-label', `Row ${index + 1}`);
-        for (const name of row) {
-          const chip = document.createElement('span');
-          chip.className = 'tile-chip';
-          const label = document.createElement('strong');
-          label.textContent = `${NAMES[name]}${this.isShown(name) ? '' : ' (closed)'}`;
-          chip.append(label);
-          const moves: { act: string; text: string; title: string; to: PaneName[][] | null }[] = [
-            { act: 'left', text: '\u25c0', title: 'to the left', to: movedInRow(rows, name, -1) },
-            { act: 'right', text: '\u25b6', title: 'to the right', to: movedInRow(rows, name, 1) },
-            { act: 'up', text: '\u25b2', title: 'to the row above (the top, in a row of its own, from the first row)', to: movedAcross(rows, name, -1) },
-            { act: 'down', text: '\u25bc', title: 'to the row under (the bottom, in a row of its own, from the last row)', to: movedAcross(rows, name, 1) },
-          ];
-          for (const move of moves) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.textContent = move.text;
-            button.dataset.key = `${name}-${move.act}`;
-            button.setAttribute('aria-label', `Move ${NAMES[name]} ${move.title.split(' (')[0]}`);
-            button.title = `Move ${NAMES[name]} ${move.title}`;
-            button.disabled = move.to === null;
-            const target = move.to;
-            button.addEventListener('click', () => {
-              if (target) this.commit(withTiles(this.layout, target), `${NAMES[name]} moved ${move.title.split(' (')[0]}: ${this.describeTiles(target)}`);
-            });
-            chip.append(button);
-          }
-          group.append(chip);
-        }
-        return group;
-      }),
-    );
-    if (focused) {
-      const again = editor.querySelector<HTMLButtonElement>(`button[data-key="${focused}"]`);
-      if (again && !again.disabled) again.focus();
-      else editor.querySelector<HTMLButtonElement>(`button[data-key^="${focused.split('-')[0]}-"]:not(:disabled)`)?.focus();
-    }
-    element('tiles-note').textContent = this.layout.tiles ? 'The panes are in these rows in a window that is wide enough; a narrow window puts them one under the other, in this order.' : 'The panes are placed by the width of the window. Move one, or choose an arrangement, to place them in rows.';
-  }
-
-  /** "Row 1: Schema. Row 2: Parsed and Bytes. Row 3: Status." for a screen reader. */
-  private describeTiles(rows: PaneName[][]): string {
-    return rows.map((row, i) => `row ${i + 1}: ${row.map((n) => NAMES[n]).join(' and ')}`).join('; ');
-  }
-
-  private choosePreset(id: string): void {
-    const preset = TILE_PRESETS.find((p) => p.id === id);
-    if (!preset) return;
-    const next = withTiles(this.layout, preset.rows ?? undefined);
-    if (layoutText(next) === layoutText(this.layout)) return;
-    this.commit(next, preset.rows ? `The panes are in rows: ${this.describeTiles(preset.rows)}` : 'The panes are placed by the width of the window');
   }
 
   private perform(action: Action): void {
@@ -1798,6 +1816,9 @@ export class App {
         break;
       case 'descriptions':
         this.toggleDocs();
+        break;
+      case 'move-pane':
+        this.openPlaceDialog();
         break;
       case 'reload-types':
         if (this.local) void this.reloadLibraries(this.local);
