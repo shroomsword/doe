@@ -6,7 +6,8 @@
 // from the page each time. The sizes belong to the places, not to the panes (layout.ts), are proportions, and are kept
 // by the page (`change`) when a drag ends.
 
-import { type Layout, type Mode, type PaneName, type Sizes, applyTiles, columnWeights, currentMode, defaultRowWeight, rowWeights, tileRows } from './layout.js';
+import { DEFAULT_STATUS, type Movable, splitsOf, view, viewPanes, weightAt, withWeights } from './dock.js';
+import { type Dock, type Layout, type Mode, type PaneName, type Sizes, applyDock, currentMode, shown, shownMovable } from './layout.js';
 
 /** The least room a pane keeps, in rem: enough for its title bar and its buttons. */
 const MIN_WIDTH = 12;
@@ -19,9 +20,9 @@ const MAX_HEIGHT = 4;
 
 /** What a separator changes. `columns`: the widths of two columns that share a row; `rows`: how the wide layout's two rows
  * share the height; `height`: the height of one row of a layout that scrolls (the page gets longer or shorter). */
-type Kind = 'columns' | 'rows' | 'height' | 'tile-columns' | 'tile-rows';
+type Kind = 'columns' | 'rows' | 'height' | 'dock' | 'dock-status';
 
-const isVertical = (split: Split): boolean => split.kind === 'columns' || split.kind === 'tile-columns';
+const isVertical = (split: Split): boolean => split.kind === 'columns' || (split.kind === 'dock' && split.dir === 'row');
 
 interface Split {
   kind: Kind;
@@ -35,12 +36,14 @@ interface Split {
   /** How many columns the mode has (`columns`). */
   columns: number;
   mode: Mode;
-  /** Tiles: the row of the tiling (the index in `Layout.tiles`) the separator is in, or, for `tile-rows`, above. */
-  row?: number;
-  /** Tiles: the row under it (`tile-rows`). */
-  nextRow?: number;
-  /** Tiles: the indexes in the row of the panes that are shown (`tile-columns`). */
-  members?: number[];
+  /** The dock (`dock`): the split in the tree (the child index at each step from the root), which way it goes, the two children
+   * the separator is between (their indexes in the split, closed panes counted), and the panes of each side. */
+  path?: number[];
+  dir?: 'row' | 'col';
+  first?: number;
+  second?: number;
+  beforePanes?: PaneName[];
+  afterPanes?: PaneName[];
 }
 
 export interface SplitterOptions {
@@ -48,7 +51,7 @@ export interface SplitterOptions {
   /** The element the separators are put in: `position: absolute` over `main`. */
   host: HTMLElement;
   layout(): Layout;
-  /** The ids of the panes' elements: the tiles are drawn on them. */
+  /** The ids of the panes' elements: the dock is drawn on them. */
   ids: Record<PaneName, string>;
   /** The name of the pane in a place (1 to 4). */
   name(place: number): string;
@@ -97,8 +100,9 @@ export class Splitters {
   private paint(sizes: Sizes | undefined): void {
     const { main } = this.options;
     for (const name of ['--c1', '--c2', '--c3', '--r1', '--r2', '--h1', '--h2', '--h3', '--h4', '--max4']) main.style.removeProperty(name);
-    // the tiles, when the layout has them and the window is wide enough, are drawn instead of the places
-    if (applyTiles(main, this.options.ids, this.options.layout(), this.mode(), sizes)) return;
+    // the dock, when the layout has one and the window is wide enough, is drawn instead of the places
+    const layout = this.options.layout();
+    if (applyDock(main, this.options.ids, layout, this.mode(), sizes?.dock ?? layout.dock)) return;
     if (!sizes) return;
     sizes.cols?.forEach((weight, i) => main.style.setProperty(`--c${i + 1}`, `${weight.toFixed(4)}fr`));
     const mode = this.mode();
@@ -123,7 +127,7 @@ export class Splitters {
     const mode = this.mode();
     const out: Split[] = [];
     if (count < 2 || this.options.main.classList.contains('has-max')) return out;
-    if (this.options.main.dataset.tiled) return this.tileSplits(mode);
+    if (this.options.main.dataset.docked) return this.dockSplits(mode);
     const make = (kind: Kind, index: number, before: number, after: number, above: number[], columns: number): void => {
       out.push({ kind, index, before, after, above, columns, mode });
     };
@@ -141,28 +145,38 @@ export class Splitters {
     return out;
   }
 
-  /** The separators of the tiles: between the panes of a row, and between the rows. A place is the number of a pane among those shown. */
-  private tileSplits(mode: Mode): Split[] {
-    const rows = tileRows(this.options.layout());
+  /** The separators of the dock: between the children of each split of the panes that are shown, and between them and Status. */
+  private dockSplits(mode: Mode): Split[] {
+    const layout = this.options.layout();
+    const dock = layout.dock;
+    if (!dock) return [];
+    const tree = view(dock.tree, shownMovable(layout));
+    const open = shown(layout);
+    const slot = (names: PaneName[]): number => open.indexOf(names[0] ?? 'schema') + 1;
     const out: Split[] = [];
-    let place = 0;
-    const firstPlace: number[] = [];
-    rows.forEach((r) => {
-      firstPlace.push(place + 1);
-      place += r.panes.length;
-    });
-    rows.forEach((r, ri) => {
-      const first = firstPlace[ri] ?? 1;
-      for (let i = 0; i + 1 < r.panes.length; i += 1) {
-        out.push({ kind: 'tile-columns', index: i, before: first + i, after: first + i + 1, above: [], columns: r.panes.length, mode, row: r.row, members: r.members });
+    for (const split of splitsOf(tree)) {
+      for (let i = 0; i + 1 < split.children.length; i += 1) {
+        const before = viewPanes(split.children[i] as NonNullable<typeof tree>);
+        const after = viewPanes(split.children[i + 1] as NonNullable<typeof tree>);
+        out.push({ kind: 'dock', index: i, before: slot(before), after: slot(after), above: [], columns: 0, mode, path: split.path, dir: split.dir, first: split.from[i], second: split.from[i + 1], beforePanes: before, afterPanes: after });
       }
-      const next = rows[ri + 1];
-      if (next) {
-        const above = r.panes.map((_, i) => first + i);
-        out.push({ kind: 'tile-rows', index: ri, before: first, after: firstPlace[ri + 1] ?? first, above, columns: 0, mode, row: r.row, nextRow: next.row });
-      }
-    });
+    }
+    if (tree && !layout.hidden.includes('status')) {
+      out.push({ kind: 'dock-status', index: 0, before: slot(viewPanes(tree)), after: open.indexOf('status') + 1, above: [], columns: 0, mode, beforePanes: viewPanes(tree), afterPanes: ['status'] });
+    }
     return out;
+  }
+
+  /** The box, in pixels from the top left of `main`, that the panes `names` fill together. */
+  private box(names: readonly PaneName[]): { left: number; top: number; right: number; bottom: number } | null {
+    let box: { left: number; top: number; right: number; bottom: number } | null = null;
+    for (const name of names) {
+      const section = document.getElementById(this.options.ids[name]);
+      if (!section || section.hidden) continue;
+      const mine = { left: section.offsetLeft, top: section.offsetTop, right: section.offsetLeft + section.offsetWidth, bottom: section.offsetTop + section.offsetHeight };
+      box = box ? { left: Math.min(box.left, mine.left), top: Math.min(box.top, mine.top), right: Math.max(box.right, mine.right), bottom: Math.max(box.bottom, mine.bottom) } : mine;
+    }
+    return box;
   }
 
   private section(place: number): HTMLElement | null {
@@ -206,6 +220,10 @@ export class Splitters {
 
   /** Put the bar in its gutter, and say what it is at: the orientation and the share of the first side. */
   private position(bar: HTMLElement, split: Split): void {
+    if (split.kind === 'dock' || split.kind === 'dock-status') {
+      this.positionDock(bar, split);
+      return;
+    }
     const before = this.section(split.before);
     const after = this.section(split.after);
     if (!before || !after) return;
@@ -229,11 +247,43 @@ export class Splitters {
     this.values(bar, split);
   }
 
+  private positionDock(bar: HTMLElement, split: Split): void {
+    const before = this.box(split.beforePanes ?? []);
+    const after = this.box(split.afterPanes ?? []);
+    if (!before || !after) return;
+    const vertical = isVertical(split);
+    bar.setAttribute('aria-orientation', vertical ? 'vertical' : 'horizontal');
+    bar.dataset.orientation = vertical ? 'vertical' : 'horizontal';
+    const thick = parseFloat(getComputedStyle(bar).getPropertyValue('--splitter')) || 16;
+    if (vertical) {
+      const gutter = after.left - before.right;
+      const top = Math.min(before.top, after.top);
+      const bottom = Math.max(before.bottom, after.bottom);
+      Object.assign(bar.style, { left: `${before.right + gutter / 2 - thick / 2}px`, top: `${top}px`, width: `${thick}px`, height: `${bottom - top}px` });
+    } else {
+      const gutter = after.top - before.bottom;
+      const left = Math.min(before.left, after.left);
+      const right = Math.max(before.right, after.right);
+      Object.assign(bar.style, { top: `${before.bottom + gutter / 2 - thick / 2}px`, left: `${left}px`, height: `${thick}px`, width: `${right - left}px` });
+    }
+    this.values(bar, split);
+  }
+
   // ── the sizes in pixels ────────────────────────────────────────────────────
 
   /** The size of the first side and the room of both sides, in pixels, and the least the first side can have. */
   private measure(split: Split): { first: number; room: number; min: number; max: number } {
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    if (split.kind === 'dock' || split.kind === 'dock-status') {
+      const a = this.box(split.beforePanes ?? []);
+      const b = this.box(split.afterPanes ?? []);
+      if (!a || !b) return { first: 0, room: 0, min: 0, max: 0 };
+      const wide = isVertical(split);
+      const first = wide ? a.right - a.left : a.bottom - a.top;
+      const room = first + (wide ? b.right - b.left : b.bottom - b.top);
+      const min = Math.min((wide ? MIN_WIDTH : MIN_HEIGHT) * rem, room / 2);
+      return { first, room, min, max: room - min };
+    }
     const before = this.section(split.before);
     const after = this.section(split.after);
     if (!before || !after) return { first: 0, room: 0, min: 0, max: 0 };
@@ -244,7 +294,7 @@ export class Splitters {
       return { first, room, min, max: room - min };
     }
     const upper = this.section(split.above[0] ?? split.before);
-    if (split.kind === 'rows' || split.kind === 'tile-rows') {
+    if (split.kind === 'rows') {
       const first = (upper ?? before).getBoundingClientRect().height;
       const room = first + after.getBoundingClientRect().height;
       const min = Math.min(MIN_HEIGHT * rem, room / 2);
@@ -268,28 +318,9 @@ export class Splitters {
     const { room, min, max, first } = this.measure(split);
     const target = clamp(size, min, max);
     const out: Sizes = { ...base };
-    if (split.kind === 'tile-columns' && split.row !== undefined && split.members) {
-      const layout = this.options.layout();
-      const all = columnWeights(layout, base).map((row) => [...row]);
-      const row = all[split.row] ?? [];
-      const a = split.members[split.index] ?? 0;
-      const b = split.members[split.index + 1] ?? 0;
-      const pair = (row[a] ?? 1) + (row[b] ?? 1);
-      const share = room > 0 ? target / room : first / room;
-      row[a] = pair * share;
-      row[b] = pair - pair * share;
-      all[split.row] = row;
-      out.tileCols = all;
-      out.tileRows = rowWeights(layout, base);
-    } else if (split.kind === 'tile-rows' && split.row !== undefined && split.nextRow !== undefined) {
-      const layout = this.options.layout();
-      const heights = rowWeights(layout, base);
-      const pair = (heights[split.row] ?? 1) + (heights[split.nextRow] ?? 1);
-      const share = room > 0 ? target / room : first / room;
-      heights[split.row] = pair * share;
-      heights[split.nextRow] = pair - pair * share;
-      out.tileRows = heights;
-      out.tileCols = columnWeights(layout, base);
+    if (split.kind === 'dock' || split.kind === 'dock-status') {
+      const dock = this.options.layout().dock;
+      if (dock) out.dock = this.resizedDock(split, dock, room > 0 ? target / room : first / room);
     } else if (split.kind === 'columns') {
       const weights = Array.from({ length: split.columns }, (_, i) => base?.cols?.[i] ?? 1);
       const pair = (weights[split.index] ?? 1) + (weights[split.index + 1] ?? 1);
@@ -306,6 +337,19 @@ export class Splitters {
       out.rows = rows;
     }
     return out;
+  }
+
+  /** The dock with the first side of a dock separator at `share` of what the two sides have together. */
+  private resizedDock(split: Split, dock: Dock, share: number): Dock {
+    if (split.kind === 'dock-status') {
+      // the panes are 1 high together, Status is `status`: the panes are `share` of the pair
+      return { ...dock, status: Math.min(Math.max((1 - share) / Math.max(share, 0.01), 0.05), 20) };
+    }
+    const path = split.path ?? [];
+    const first = split.first ?? 0;
+    const second = split.second ?? 0;
+    const pair = weightAt(dock.tree, path, first) + weightAt(dock.tree, path, second);
+    return { ...dock, tree: withWeights(dock.tree, path, first, second, pair * share, pair - pair * share) };
   }
 
   // ── dragging ───────────────────────────────────────────────────────────────
@@ -439,21 +483,19 @@ export class Splitters {
     const split = this.splitOf(bar);
     const base = this.options.layout().sizes[split.mode];
     let sizes: Sizes | undefined = base ? { ...base } : undefined;
-    if (split.kind === 'tile-columns' && split.row !== undefined && split.members) {
-      const layout = this.options.layout();
-      const all = columnWeights(layout, base).map((row) => [...row]);
-      const row = all[split.row] ?? [];
-      row[split.members[split.index] ?? 0] = 1;
-      row[split.members[split.index + 1] ?? 0] = 1;
-      all[split.row] = row;
-      sizes = { ...base, tileCols: all.every((r) => r.every((w) => w === 1)) ? undefined : all };
-      if (!sizes.tileCols) delete sizes.tileCols;
-    } else if (split.kind === 'tile-rows' && split.row !== undefined && split.nextRow !== undefined) {
-      const layout = this.options.layout();
-      const heights = rowWeights(layout, base);
-      const rows = layout.tiles ?? [];
-      for (const index of [split.row, split.nextRow]) heights[index] = defaultRowWeight((rows[index] ?? []).filter((name) => !layout.hidden.includes(name)));
-      sizes = { ...base, tileRows: heights };
+    if (split.kind === 'dock' || split.kind === 'dock-status') {
+      const dock = this.options.layout().dock;
+      if (!dock) return;
+      // the two sides share what they have equally again, and Status has its low share
+      const next: Dock =
+        split.kind === 'dock-status'
+          ? { ...dock, status: DEFAULT_STATUS }
+          : this.resizedDock(split, dock, 0.5);
+      const sized: Sizes = { ...base, dock: next };
+      this.paint(sized);
+      this.options.change(split.mode, sized, `${this.options.name(split.before)} and ${this.options.name(split.after)}: the default sizes`);
+      this.sync();
+      return;
     } else if (sizes) {
       if (split.kind === 'columns' && sizes.cols) {
         const cols = [...sizes.cols];
@@ -469,7 +511,7 @@ export class Splitters {
       }
       if (!sizes.cols && !sizes.rows) sizes = undefined;
     }
-    if (sizes && !sizes.cols && !sizes.rows && !sizes.tileRows && !sizes.tileCols) sizes = undefined;
+    if (sizes && !sizes.cols && !sizes.rows) sizes = undefined;
     this.paint(sizes);
     const message = `${this.options.name(split.before)} and ${this.options.name(split.after)}: the default sizes`;
     this.options.change(split.mode, sizes, message);

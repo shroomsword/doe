@@ -1239,6 +1239,7 @@ the editor for its pane, closes a dialog and closes a search.
 | `R` | Put the panes back in their places, all shown, at their default sizes |
 | `x` | Close the focused pane (the Schema pane has its X button) |
 | `p` | Choose the panes that are shown |
+| `P` | Choose a place for the focused pane: a corner or a side of the panes area |
 | `f` | Maximize the focused pane, or restore it (Esc restores too) |
 | `/` | Search in the focused pane, or in the help when it is open |
 | `g` | Go to an offset in the bytes |
@@ -1262,33 +1263,28 @@ hexadecimal; `@#500` in decimal), which is also what `g` asks for; in
 text. In the help dialog `/` opens a search bar over its text: the matches are marked and counted, `Enter` and `Shift+Enter` go to the next and previous one, and `Esc` closes the bar (a second `Esc` closes the dialog).
 
 **The layout.** The four panes are in four places: three side by side and the fourth under them in a wide
-window, two columns with the third and fourth across in a medium one, one column in a narrow one. Drag a pane by
-the grip at the left of its title bar (with a mouse also by the empty part of the bar or its heading; with a finger
-or a pen by the grip) and drop it on the first or second half of another pane: it goes before or after that pane
-and the others shift, as a line at the edge of the target shows while you drag (hold `Shift` when you drop to
-swap the two panes instead). `Esc` cancels a drag, and the page scrolls when the pointer is near the top or the
-bottom of the window. `Alt+Shift+h`, `j`, `k` or `l` swap the pane that has
-the focus with the one next to it in that direction (the move is announced to a screen reader). The layout is
-kept in the browser's local storage and applied when the page loads; if the browser has no storage the page
-starts with the default layout. Once the layout is not the default, a button in the header and the key `R` put
-the panes back.
-
-**Tiles.** The panes can be arranged in **rows** that you choose, in a medium or wide window. `p` (or the panes
-button in the header) opens the *Panes* dialog, which has an *Arrangement* section: a list of ready arrangements
-(by the width of the window, which is the default; Schema on top with Parsed and Bytes beside each other and Status
-at the bottom; the three in a row with Status under them; two by two; one under the other; all in one row) and, row by row,
-the panes with buttons that move each one to the left or the right in its row, or to the row above or under (from the
-first or last row, when it shares the row, to a row of its own beyond it). Every pane is in exactly one row, a pane that
-is closed leaves its row, and a row with no pane shown is gone. A window that is too narrow (under 760 px) ignores the
-rows and puts the panes one under the other in the order of the rows; they come back when the window is wide again. A
-pane that is dragged by its title is put into the row of the pane it is dropped on, and `Alt+Shift+h`, `j`, `k` and `l`
-still swap two panes. In a row the panes have their own widths, and the rows their own heights, so a row with Parsed and
-Bytes can be split differently from the one above it; the Status pane alone in a row is low to begin with. The
-separators between the tiles work as the others do (drag, the arrow keys, `Enter` for the default), and the sizes are
-kept per window size like the others. The arrangement is kept in the browser with the rest of the layout (version 4 of
-the record; a record of an older version is the arrangement of the width of the window, and tiles that are not valid are
-ignored without losing the order or the sizes). In the medium window the rows share the height of the window instead of
-making the page longer. Reset (`R`) puts the default back.
+window, two columns with the third and fourth across in a medium one, one column in a narrow one. The **Status pane is
+fixed** along the bottom: it cannot be moved, only closed and maximized. **Schema, Parsed and Bytes** can be **docked**:
+drag one by the grip at the left of its title bar (with a mouse also by the empty part of the bar or its heading; with a
+finger or a pen by the grip) and the area above Status shows **eight positions**, the four corners and the four sides.
+The position under the pointer lights up and a dashed outline shows the layout that dropping there makes; `Esc` cancels.
+A **side** (left, right, top, bottom) makes the pane a strip of a third along that side, and the other panes keep their
+arrangement in what is left; the bottom is directly above Status. A **corner** gives the pane that quarter, and the
+other panes fill the rest in their reading order, one column at a time, so that with Schema, Parsed and Bytes side by
+side, dragging Parsed to the top right makes Schema the whole left half, Parsed the top right quarter and Bytes the bottom
+right quarter, with Status where it was. Dropping on the **middle of another pane** swaps the two. With only two panes
+shown the corners are not offered, and with one nothing is. A closed pane leaves the arrangement and comes back to where
+it was. The **same moves without the mouse**: `P` (or a click on the grip of a title bar) opens a list of the
+eight places, drawn as a map, which the arrows move over and `Enter` chooses; the move is announced to a screen reader
+("Parsed docked at the top right: Schema left, Parsed top right, Bytes bottom right"). `Alt+Shift+h`, `j`, `k` or `l`
+swap the pane that has the focus with the one next to it in that direction. A window that is too narrow (under 760 px)
+puts the panes one under the other, in the order of the arrangement, and does not offer docking; the arrangement comes
+back when the window is wide again, and in a medium window it fills the height of the window instead of making the page
+longer. The layout is kept in the browser's local storage and applied when the page loads (version 5 of the record, a
+tree of splits with a weight for each child; a record of version 4, which had rows of panes, is read as the nearest tree,
+and one that is not valid loses the arrangement and not the order or the sizes); if the browser has no storage the page
+starts with the default layout. Once the layout is not the default, a button in the header and the key `R` put the panes
+back.
 
 **Resizing the panes.** There is a separator in the gutter between each two neighbouring panes (a thin bar that
 turns blue under the pointer and when it has the focus). Drag it to make one pane wider (or taller) and its
@@ -1301,7 +1297,7 @@ side as far as the minimums allow, and `Enter` puts the split back to the defaul
 screen reader ("Schema 40%, Parsed 60%") and the separator has its share in `aria-valuenow`, with `aria-valuemin`
 and `aria-valuemax`. A finger or a pen drags a separator too (it is at least 24 px to hit on a touch screen).
 In the wide window the separators between the side-by-side panes set their widths, and the one above the low pane
-shares the height of the window with it; in the medium window the one between the columns sets their widths and
+shares the height of the window with it (a docked arrangement has a separator between every two neighbours of each split, and one above Status); in the medium window the one between the columns sets their widths and
 the ones between the rows set the height of the row above (the page gets longer or shorter, as it scrolls); in the
 narrow window each sets the height of the pane above it. The sizes are proportions, not pixels, and **the three
 layouts have their own**: what is set in the wide window is not used in the narrow one. They belong to the places,

@@ -2,7 +2,7 @@
 // caret of a search box.
 
 import { expect, test, type Page } from '@playwright/test';
-import { dragPane } from './pane-drag.js';
+import { dragToZone } from './pane-drag.js';
 
 test.use({ viewport: { width: 1400, height: 800 } });
 
@@ -107,7 +107,7 @@ test('a move by the keyboard and by dragging keeps the offsets, and the focus st
   await expectCaretAtEnd(page, 'Alt+Shift+h');
   // by the mouse
   const third = await scrollAll(page);
-  await dragPane(page, 'pane-hex', 'pane-editor', 'before');
+  await dragToZone(page, 'pane-hex', 'l');
   await expectKept(page, third, 'a drag');
 });
 

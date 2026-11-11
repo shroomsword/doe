@@ -1,7 +1,7 @@
 // The layout of the panes: moving them, and keeping where they are.
 
 import { expect, test, type Page } from '@playwright/test';
-import { dragPane } from './pane-drag.js';
+import { dragOnto } from './pane-drag.js';
 import { LAYOUT_KEY, defaultLayout, isDefault, layoutText, parseLayout, shown, swapped, withSizes, withVisible } from '../src/layout.js';
 
 test('a saved layout is read only when it is four different panes of this version', () => {
@@ -86,7 +86,7 @@ test.describe('in the page', () => {
   });
 
   test('dragging a title onto another pane with Shift held swaps them; it is kept after a reload, and the button puts it back', async ({ page }) => {
-    await dragPane(page, 'pane-editor', 'pane-hex', 'before', { shift: true });
+    await dragOnto(page, 'pane-editor', 'pane-hex');
     expect(await places(page)).toEqual(['pane-hex', 'pane-tree', 'pane-editor', 'pane-status']);
     // on the screen the bytes are the left column now
     const left = await page.locator('#pane-hex').boundingBox();
@@ -116,8 +116,10 @@ test.describe('in the page', () => {
     // at the right edge nothing moves
     await page.keyboard.press('Alt+Shift+KeyL');
     expect(await places(page)).toEqual(['pane-editor', 'pane-hex', 'pane-tree', 'pane-status']);
+    // Status is fixed along the bottom: it cannot take the place of the pane above it
     await page.keyboard.press('Alt+Shift+KeyJ');
-    expect(await places(page)).toEqual(['pane-editor', 'pane-hex', 'pane-status', 'pane-tree']);
+    expect(await places(page)).toEqual(['pane-editor', 'pane-hex', 'pane-tree', 'pane-status']);
+    await expect(page.locator('#layout-live')).toContainText('Status pane is fixed');
     await page.keyboard.press('Alt+Shift+KeyK');
     await page.keyboard.press('Alt+Shift+KeyH');
     await page.keyboard.press('Alt+Shift+KeyH');
@@ -134,7 +136,7 @@ test.describe('in the page', () => {
   });
 
   test('Tab goes through the panes in the order they are on the screen', async ({ page }) => {
-    await dragPane(page, 'pane-editor', 'pane-hex', 'before', { shift: true });
+    await dragOnto(page, 'pane-editor', 'pane-hex');
     await page.locator('#pane-hex').focus();
     const order: string[] = [];
     for (let i = 0; i < 2; i += 1) {
@@ -167,10 +169,10 @@ test.describe('in the page', () => {
   });
 
   test('in one column the saved order is the order from top to bottom', async ({ page }) => {
-    await dragPane(page, 'pane-editor', 'pane-status', 'before', { shift: true });
+    await dragOnto(page, 'pane-editor', 'pane-hex');
     await page.setViewportSize({ width: 500, height: 900 });
     const tops = await page.evaluate(() => [...document.querySelectorAll('main > section')].map((section) => [section.id, section.getBoundingClientRect().top]));
     const ids = tops.sort((a, b) => Number(a[1]) - Number(b[1])).map((entry) => entry[0]);
-    expect(ids).toEqual(['pane-status', 'pane-tree', 'pane-hex', 'pane-editor']);
+    expect(ids).toEqual(['pane-hex', 'pane-tree', 'pane-editor', 'pane-status']);
   });
 });

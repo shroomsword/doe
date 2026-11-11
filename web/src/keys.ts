@@ -36,6 +36,7 @@ export type Action =
   | 'reset-layout'
   | 'close-pane'
   | 'panes'
+  | 'move-pane'
   | 'maximize'
   | 'search'
   | 'goto'
@@ -90,6 +91,7 @@ export const KEYS: readonly Key[] = [
   { key: 'R', action: 'reset-layout', label: 'Put the panes back in their places, all shown, at their default sizes' },
   { key: 'x', action: 'close-pane', label: 'Close the focused pane (the Schema pane has its X button)' },
   { key: 'p', action: 'panes', label: 'Choose the panes that are shown' },
+  { key: 'P', action: 'move-pane', label: 'Choose a place for the focused pane: a corner or a side of the panes area' },
   { key: 'f', action: 'maximize', label: 'Maximize the focused pane, or restore it (Esc restores too)' },
   { key: '/', action: 'search', label: 'Search in the focused pane, or in the help when it is open' },
   { key: 'g', action: 'goto', label: 'Go to an offset in the bytes', needs: 'file' },
