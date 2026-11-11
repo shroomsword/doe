@@ -22,7 +22,7 @@ rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --version 0.2.130 --locked
 cd web
 npm ci
-npm run build        # dist/: index.html, main.js, chunks/ (the parsers of the preview), doe_wasm_bg.wasm
+npm run build        # dist/: index.html, main.js, chunks/ (the parsers of the preview), doe_wasm_bg.wasm, the icon
 npm run serve        # http://127.0.0.1:4173/
 ```
 
@@ -98,6 +98,8 @@ the time limit.
 | `src/editor.ts`, `src/tree.ts`, `src/hex.ts`, `src/problems.ts` | The four panes |
 | `src/model.ts` | The logic that needs no DOM: nodes and bytes, the size limit, positions |
 | `src/style.css` | The styles |
+| `favicon.svg` | The icon of the page: a hex dump with one byte selected, original artwork of this project (MIT like the rest), with a rule of its own for a dark tab bar. It is the only copy of the artwork |
+| `favicon.ico`, `apple-touch-icon.png` | The icon for browsers that do not take an SVG (16, 32 and 48 px in the `.ico`), and for a phone's home screen (180 px). Made from the SVG by `node make-icons.mjs` (it draws the SVG with the Chromium that Playwright installs); run it again after changing the SVG |
 | `src/wasm/` | The module and its glue, made by the build (not committed) |
 | `build.mjs`, `serve.mjs` | The build, and a static server for `dist/` |
 | `tests/` | Playwright tests: `model.spec.ts` (no browser), `smoke.spec.ts` (the module), `ide.spec.ts` (the page); `fixture.ts` is the small schema and file that the page tests load, since the page starts empty |

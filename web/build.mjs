@@ -49,6 +49,8 @@ await build({
 cpSync(join(web, 'src', 'wasm', 'doe_wasm_bg.wasm'), join(dist, 'doe_wasm_bg.wasm'));
 cpSync(join(web, 'index.html'), join(dist, 'index.html'));
 cpSync(join(web, 'src', 'style.css'), join(dist, 'style.css'));
+// the icon of the page: the SVG is the artwork, the others are made from it by make-icons.mjs
+for (const icon of ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png']) cpSync(join(web, icon), join(dist, icon));
 // The help: the web IDE and the schema sections of the README, made here so that
 // the page and the README of the same commit cannot get out of step (the build
 // fails when a section is missing, see help.mjs).

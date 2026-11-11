@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>doe</title>
+  <!-- A hex dump: two rows of byte cells and one of them selected. Original artwork for this project. -->
+  <style>
+    .bg { fill: #1a6fd4; stroke: none; }
+    .cell { fill: #ffffff; }
+    .pick { fill: #ffc857; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #14171b; stroke: #6aaeff; stroke-width: 3; }
+      .cell { fill: #6aaeff; }
+    }
+  </style>
+  <rect class="bg" x="1.5" y="1.5" width="61" height="61" rx="14"/>
+  <g>
+    <rect class="cell" x="8" y="16" width="14" height="14" rx="2.5"/>
+    <rect class="cell" x="25" y="16" width="14" height="14" rx="2.5"/>
+    <rect class="cell" x="42" y="16" width="14" height="14" rx="2.5"/>
+    <rect class="cell" x="8" y="33" width="14" height="14" rx="2.5"/>
+    <rect class="cell" x="25" y="33" width="14" height="14" rx="2.5"/>
+    <rect class="pick" x="42" y="33" width="14" height="14" rx="2.5"/>
+  </g>
+</svg>

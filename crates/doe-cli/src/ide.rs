@@ -362,6 +362,29 @@ mod tests {
         assert_eq!(content_type("gallery.json"), "application/json");
     }
 
+    #[test]
+    fn the_icon_has_its_content_types_and_is_served_by_the_binary() {
+        assert_eq!(content_type("favicon.svg"), "image/svg+xml");
+        assert_eq!(content_type("favicon.ico"), "image/x-icon");
+        assert_eq!(content_type("apple-touch-icon.png"), "image/png");
+        // a binary built without the page (no web/dist) has no files to serve
+        if !BUNDLED {
+            return;
+        }
+        for (path, kind) in [
+            ("/favicon.svg", "image/svg+xml"),
+            ("/favicon.ico", "image/x-icon"),
+            ("/apple-touch-icon.png", "image/png"),
+        ] {
+            let r = get(path, "Host: 127.0.0.1:9000");
+            assert_eq!(r.status, 200, "{path}");
+            assert_eq!(r.content_type, kind, "{path}");
+            assert!(r.body.len() > 100, "{path}");
+        }
+        // and the page policy lets it draw them
+        assert!(POLICY.contains("img-src 'self'"));
+    }
+
     fn local() -> Local {
         Local::new(&[], None).unwrap()
     }
