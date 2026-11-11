@@ -1207,7 +1207,9 @@ page that says that instead.
 The page can be driven from the keyboard; `K` lists the keys in the page. The
 letters work when the focus is not in a text field (the schema editor, a box),
 never with Ctrl, Alt or Meta held, and not while a dialog is open. `Esc` leaves
-the editor for its pane, closes a dialog and closes a search.
+the editor for its pane, closes a dialog and closes a search. A click outside a dialog closes it too, as `Esc`
+does (what was typed in it is not applied, as with `Esc`; a press inside that is let go outside, as when text is
+selected, does not close it).
 
 | Key | Does |
 |---|---|
