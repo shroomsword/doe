@@ -220,6 +220,11 @@ impl HexState {
         }
     }
 
+    /// How many bytes are on the screen.
+    pub fn screen_bytes(&self) -> u64 {
+        (self.bytes_per_line.max(1) as u64) * (self.lines.max(1) as u64)
+    }
+
     /// Show the byte at `offset`: nothing changes if it is in view, else it is
     /// put in the middle. The cursor goes to it.
     pub fn reveal(&mut self, offset: u64, size: u64) {

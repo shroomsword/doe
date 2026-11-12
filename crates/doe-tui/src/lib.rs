@@ -25,6 +25,7 @@ pub mod format;
 pub mod help;
 pub mod hex_view;
 pub mod highlight;
+pub mod history;
 pub mod inspect;
 pub mod keymap;
 pub mod kinds;

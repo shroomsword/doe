@@ -46,7 +46,9 @@ fn written(key: Key) -> Vec<String> {
         KeyCode::Delete => "Delete",
         other => panic!("{other:?} has no name in the test"),
     };
-    if key.ctrl {
+    if key.alt {
+        vec![format!("Alt-{name}")]
+    } else if key.ctrl {
         vec![format!("Ctrl-{name}")]
     } else {
         vec![name.to_owned()]
