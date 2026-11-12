@@ -60,6 +60,7 @@
             <button id="hash-toggle" type="button" class="icon" hidden aria-pressed="false" aria-haspopup="menu" aria-expanded="false" aria-label="Checksums" title="Choose the checksum shown for each file in the Files view: MD5, SHA-1 or none (m goes through them). Checksums for comparing files, not a security measure."><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path d="M9 3 7 21M17 3l-2 18M4 9h17M3 15h17" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
             <div id="hash-menu" role="menu" aria-label="Checksum" hidden></div>
             <button id="save" type="button" class="icon" disabled aria-label="Save" title="Save the parsed value as a file: choose the format and where"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2 1h9l3 3v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm1 1v4h8V2H3zm1 8v4h8v-4H4zm5-7h1.5v3H9V3z"/></svg></button>
+            <button id="copy-as-button" type="button" disabled aria-haspopup="dialog" title="Copy the selected field as its path, value, JSON, bytes, place or schema line">Copy as…</button>
             <label id="field-radix-box" hidden title="Write this field, in every element and every parse of this schema, in a radix of its own">This field
               <select id="field-radix">
                 <option value="">as above</option>
@@ -196,6 +197,23 @@
       <div id="keys-body">
         <p>The letters work when the focus is not in a text field (the schema editor, a box). <kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd> move between the panes. <kbd>Esc</kbd> leaves the editor for its pane, closes a dialog or a search; a click outside a dialog closes it too.</p>
         <table id="keys-table"></table>
+      </div>
+    </dialog>
+    <dialog id="copy-dialog" aria-labelledby="copy-title">
+      <div class="copy-body">
+        <h3 id="copy-title">Copy <span id="copy-name"></span> as…</h3>
+        <div id="copy-menu" role="menu" aria-label="Copy as">
+          <button type="button" role="menuitem" data-copy="p"><kbd>p</kbd> Path <small>entries[2].len</small></button>
+          <button type="button" role="menuitem" data-copy="v"><kbd>v</kbd> Value <small>as the tree shows it</small></button>
+          <button type="button" role="menuitem" data-copy="j"><kbd>j</kbd> JSON <small>as doe --json prints it</small></button>
+          <button type="button" role="menuitem" data-copy="x"><kbd>x</kbd> Hex <small>01 02</small></button>
+          <button type="button" role="menuitem" data-copy="X"><kbd>X</kbd> Hex, no spaces <small>0102</small></button>
+          <button type="button" role="menuitem" data-copy="c"><kbd>c</kbd> C array <small>unsigned char name[] = { … };</small></button>
+          <button type="button" role="menuitem" data-copy="o"><kbd>o</kbd> Offset and length <small>0x1f4+2</small></button>
+          <button type="button" role="menuitem" data-copy="s"><kbd>s</kbd> Schema field <small>len: u2 in entry</small></button>
+        </div>
+        <p id="copy-note" role="status"></p>
+        <div class="save-buttons"><button id="copy-cancel" type="button">Cancel</button></div>
       </div>
     </dialog>
     <dialog id="save-dialog" aria-labelledby="save-title">

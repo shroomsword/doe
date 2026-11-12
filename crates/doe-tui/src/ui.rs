@@ -661,6 +661,9 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     if let Some(prompt) = &app.prompt {
         prompt_line(frame, prompt, *theme);
     }
+    if app.copy_as {
+        copy_as_overlay(frame, app, *theme);
+    }
     if let Some(list) = &app.schemas {
         schemas_overlay(frame, list, &app.type_name, *theme);
     }
@@ -680,6 +683,42 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     if app.help {
         help(frame, app, *theme);
     }
+}
+
+/// The chooser of what `Y` copies: a box at the bottom with a letter for each choice.
+fn copy_as_overlay(frame: &mut Frame<'_>, app: &App, theme: Theme) {
+    let screen = frame.area();
+    let rows = u16::try_from(crate::app::COPY_FORMATS.len()).unwrap_or(8) + 2;
+    if screen.width < 30 || screen.height < rows + 2 {
+        return;
+    }
+    let width = 34.min(screen.width);
+    let area = Rect {
+        x: screen.x + screen.width.saturating_sub(width) / 2,
+        y: screen.y + screen.height.saturating_sub(rows + 1),
+        width,
+        height: rows,
+    };
+    clear(frame, area, theme);
+    let lines: Vec<Line<'_>> = crate::app::COPY_FORMATS
+        .iter()
+        .map(|(letter, name)| {
+            Line::from(vec![
+                Span::styled(format!(" {letter}  "), theme.title()),
+                Span::raw((*name).to_owned()),
+            ])
+        })
+        .collect();
+    let name = crate::format::truncate(&crate::format::safe(&app.tree.selected().name), 18);
+    frame.render_widget(
+        Paragraph::new(lines).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(theme.border(true))
+                .title(format!(" copy {name} as… (Esc cancels) ")),
+        ),
+        area,
+    );
 }
 
 /// The list of the colour themes, at the right edge so that the viewer behind
