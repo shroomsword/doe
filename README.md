@@ -1225,6 +1225,7 @@ selected, does not close it).
 | `i` | Add imports |
 | `d` | Detect the schema of the open file |
 | `s` | Save the parsed value |
+| `Y` | Copy the selected field as its path, value, JSON, bytes, place or schema line |
 | `F` | Switch the Parsed pane between the files of an archive and the tree of fields |
 | `m` | Show the MD5 of each file in the Files view, then the SHA-1, then the SHA-256, then hide them |
 | `M` | The previous checksum of the Files view (SHA-256, SHA-1, MD5, none) |
@@ -1382,6 +1383,16 @@ contrast under 3:1), the theme's text colour. A byte that two fields hold takes
 the colour of the one of the sequence, then of an instance, like the next-field keys of the terminal viewer. `b`, or the
 button at the left of the columns button in the title bar of the Bytes pane, turns the colours off and on; it is kept in the
 browser's local storage. The index of which field owns which byte is made after the tree is shown.
+
+**Copy as….** `Y`, or the *Copy as…* button in the title bar of the Parsed pane, asks how to copy the selected
+field and each choice has a letter: `p` its path (`entries[2].len`, written like an expression; `$` is the root alone;
+names are the ids of the schema, elements are `[index]` from 0), `v` its value as the tree shows it (in the radix of the
+field), `j` its JSON (what `doe --json` prints for it), `x` its bytes as hex with spaces (`01 02`), `X` as hex without
+(`0102`), `c` as a C array named after the path (`unsigned char entries_2_len[] = { 0x01, 0x02 };`), `o` where it is
+(`0x1f4+2`: offset and length; `0x1f4 bits 3..7` for a bit field) and `s` its line of the schema (`len: u2 in entry`).
+The page says what it copied in the status line and to screen readers. More than 1 MiB is refused with a message, never
+cut; a field read from the result of a `process:` has no bytes in the file, so only `p`, `v`, `j`, `o` and `s` work on
+it. When the browser does not let the page write to the clipboard, the text is shown selected, to copy by hand.
 
 **Columns of the Bytes pane.** `c`, or the columns button (an icon of a rectangle in three bands) in the title bar
 of the Bytes pane, opens a dialog in which the number of columns is entered: a column is one byte, so the number is the
@@ -1690,6 +1701,17 @@ forms it shows a field in: an integer in both byte orders if there are 1, 2, 4 o
 4096) as hex on the clipboard of the terminal with the OSC 52 escape sequence,
 which most terminals support, some only when it is turned on, and also says them
 in the status line. Reading the file again drops the selection.
+
+**Copy as.** `Y` copies the selected field, asking how with a box of letters (`Esc` cancels):
+`p` its path (`entries[2].len`, written like an expression and read back by the same rules;
+`$` is the root alone), `v` its value as the tree shows it, `j` its JSON (what `doe --json`
+prints for it), `x` its bytes as hex with spaces (`01 02`), `X` as hex without (`0102`), `c`
+as a C array named after the path (`unsigned char entries_2_len[] = { 0x01, 0x02 };`), `o`
+where it is (`0x1f4+2`: offset and length; `0x1f4 bits 3..7` for a bit field), and `s` its
+line of the schema (`len: u2 in entry`). The text goes to the clipboard of the terminal the
+way `y` does, and is said in the status line. More than 64 KiB is refused with a message,
+never cut; a field read from the result of a `process:` has no bytes in the file, so only
+`p`, `v`, `j`, `o` and `s` work on it.
 
 **Files of an archive.** When the schema says that the file is a file system (a `filesystem:` key, see
 [Archives as files](#archives-as-files): the library's `tar`, `ar` and `zip_archive` have it), the tree pane opens on the

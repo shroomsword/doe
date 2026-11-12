@@ -16,7 +16,8 @@ import { ProblemsView } from './problems.js';
 import { type Origin, SchemaList, editable, isKnownType, listing, parsedAs } from './schemas.js';
 import { type Work, codeOfHash, decodeWork, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
-import { RADIXES, Radixes, isRadix } from './radix.js';
+import { COPY_FORMATS, COPY_LIMIT, copyText, pathText } from './copyas.js';
+import { RADIXES, Radixes, integerText, isRadix } from './radix.js';
 import { type Attempt, type Deps, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
 import { type Layer, MAX_LAYERS, describeLayers, payloadName } from './layers.js';
 import { TreeView } from './tree.js';
@@ -96,6 +97,8 @@ export class App {
   private layerIndex = 0;
   private notice: Diagnostic | null = null;
   private trace: TraceNode | null = null;
+  /** The parsed value as JSON, as the last parse made it. */
+  private value: unknown = null;
   private selection: Path | null = null;
   private timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -595,6 +598,91 @@ export class App {
     note.classList.toggle('bad', bad);
   }
 
+  /** *Copy as…*: ask in what form the selected field is copied. */
+  private openCopyAs(): void {
+    const node = this.selection && this.trace ? nodeAt(this.trace, this.selection) : null;
+    if (!this.trace || !node) {
+      element('status').textContent = 'select a field to copy first';
+      element('layout-live').textContent = 'Select a field to copy first';
+      return;
+    }
+    element('copy-name').textContent = this.selection && this.selection.length > 0 ? pathText(this.trace, this.selection) : '$';
+    this.copyNote('');
+    element<HTMLDialogElement>('copy-dialog').showModal();
+    element<HTMLButtonElement>('copy-menu').querySelector<HTMLButtonElement>('button')?.focus();
+  }
+
+  private copyNote(text: string, bad = false): void {
+    const note = element('copy-note');
+    note.textContent = text;
+    note.classList.toggle('bad', bad);
+  }
+
+  /** Copy the selected field in the form that `letter` says, and tell where it went. */
+  private async copyAs(letter: string): Promise<void> {
+    const node = this.selection && this.trace ? nodeAt(this.trace, this.selection) : null;
+    if (!this.selection || !this.trace || !node) return;
+    const key = node.integer ? this.tree.fieldAt(this.selection) : null;
+    const shown = (key !== null ? integerText(node, this.radixes.of(key)) : null) ?? node.summary;
+    const made = copyText(letter, { root: this.trace, path: this.selection, value: this.value, bytes: this.bytes, shown });
+    if ('error' in made) {
+      this.copyNote(made.error, true);
+      return;
+    }
+    if (made.text.length > COPY_LIMIT) {
+      this.copyNote(`${made.text.length} characters is more than the ${COPY_LIMIT} that can be copied here: save the value, or use doe --json`, true);
+      return;
+    }
+    const name = COPY_FORMATS.find((format) => format.letter === letter)?.name ?? letter;
+    let message: string;
+    try {
+      await navigator.clipboard.writeText(made.text);
+      message = `copied ${name.toLowerCase()} of ${node.name}`;
+    } catch {
+      message = `the browser did not let the page write to the clipboard here: select the text below and copy it`;
+      this.copyShow(made.text, message);
+      return;
+    }
+    element<HTMLDialogElement>('copy-dialog').close();
+    element('status').textContent = message;
+    element('layout-live').textContent = message;
+  }
+
+  /** The clipboard is not allowed: show the text in the dialog, selected, so that it can be copied by hand. */
+  private copyShow(text: string, message: string): void {
+    this.copyNote(message, true);
+    let box = document.getElementById('copy-text') as HTMLTextAreaElement | null;
+    if (!box) {
+      box = document.createElement('textarea');
+      box.id = 'copy-text';
+      box.readOnly = true;
+      box.rows = 4;
+      box.setAttribute('aria-label', 'The text to copy');
+      element('copy-note').after(box);
+    }
+    box.value = text;
+    box.focus();
+    box.select();
+  }
+
+  private copyAsSetup(): void {
+    const dialog = element<HTMLDialogElement>('copy-dialog');
+    element('copy-as-button').addEventListener('click', () => this.perform('copy-as'));
+    element('copy-cancel').addEventListener('click', () => dialog.close());
+    element('copy-menu').addEventListener('click', (event) => {
+      const letter = (event.target as HTMLElement).closest<HTMLElement>('[data-copy]')?.dataset.copy;
+      if (letter) void this.copyAs(letter);
+    });
+    dialog.addEventListener('keydown', (event) => {
+      if (event.ctrlKey || event.altKey || event.metaKey) return;
+      if (COPY_FORMATS.some((format) => format.letter === event.key) && !(event.target instanceof HTMLTextAreaElement)) {
+        event.preventDefault();
+        void this.copyAs(event.key);
+      }
+    });
+    dialog.addEventListener('close', () => document.getElementById('copy-text')?.remove());
+  }
+
   private openSave(): void {
     if (element<HTMLButtonElement>('save').disabled) return;
     this.saveHandle = null;
@@ -897,6 +985,7 @@ export class App {
     this.layoutSetup();
     closeAllOnBackdropClick();
     this.columnsSetup();
+    this.copyAsSetup();
     element('files-toggle').addEventListener('click', () => this.toggleFiles());
     element('hash-toggle').addEventListener('click', () => this.openHashMenu());
     this.wireHashMenu();
@@ -911,6 +1000,7 @@ export class App {
       'theme-button': 'theme',
       cancel: 'cancel',
       'columns-button': 'columns',
+      'copy-as-button': 'copy-as',
       'detect-auto': 'auto',
       radix: 'radix',
     };
@@ -1712,6 +1802,9 @@ export class App {
       case 'save':
         this.openSave();
         break;
+      case 'copy-as':
+        this.openCopyAs();
+        break;
       case 'files':
         this.toggleFiles();
         break;
@@ -2315,6 +2408,8 @@ export class App {
     // a parse that failed must not go unseen because the Status pane is closed
     if (!response.ok || response.error) this.reveal('status');
     this.trace = response.trace;
+    this.value = response.value;
+    element<HTMLButtonElement>('copy-as-button').disabled = !response.trace;
     this.docs = response.docs;
     this.tree.setTrace(response.trace, response.docs);
     this.indexByteKinds(response.trace);

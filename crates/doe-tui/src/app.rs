@@ -34,6 +34,42 @@ const TERMINATOR_SEARCH: usize = 64 * 1024;
 
 /// The most bytes that `y` copies.
 pub const COPY_BYTES: usize = 4096;
+/// The most that `Y` copies, in bytes of the field or of the text.
+pub const COPY_LIMIT: usize = 64 * 1024;
+/// What `Y` can copy: the letter and what it makes, in the order of the chooser.
+pub const COPY_FORMATS: [(char, &str); 8] = [
+    ('p', "path"),
+    ('v', "value"),
+    ('j', "JSON"),
+    ('x', "hex"),
+    ('X', "hex, no spaces"),
+    ('c', "C array"),
+    ('o', "offset+length"),
+    ('s', "schema field"),
+];
+
+/// The type of the field as the schema writes it: `u2`, `s4`, `f8`, `b3`, `str`, `bytes`, or the name of the type.
+fn schema_kind(row: &crate::tree::Row) -> String {
+    use crate::tree::Shown;
+    let bits = row.span.map_or(0, |s| s.end.saturating_sub(s.start));
+    let sized = |letter: char| {
+        if bits.is_multiple_of(8) && bits > 0 {
+            format!("{letter}{}", bits / 8)
+        } else {
+            format!("b{bits}")
+        }
+    };
+    match (&row.shown, &row.type_name) {
+        (_, Some(name)) => name.rsplit("::").next().unwrap_or(name).to_owned(),
+        (Some(Shown::UInt(_) | Shown::Enum { .. }), _) => sized('u'),
+        (Some(Shown::SInt(_)), _) => sized('s'),
+        (Some(Shown::Float(_)), _) => sized('f'),
+        (Some(Shown::Bool(_)), _) => "b1".to_owned(),
+        (Some(Shown::Str { .. }), _) => "str".to_owned(),
+        (Some(Shown::Bytes { .. }), _) => "bytes".to_owned(),
+        (None, None) => "type".to_owned(),
+    }
+}
 
 /// How many fields a search looks at between two redraws of the screen.
 pub const SEARCH_STEP: usize = 5_000;
@@ -236,6 +272,8 @@ pub struct App {
     new_type_dialog: Option<FieldDialog>,
     /// Hex that `y` asked to be put on the clipboard, until the event loop does it.
     clipboard: Option<String>,
+    /// Whether the chooser of what to copy (`Y`) is open and waits for a letter.
+    pub copy_as: bool,
     /// The schema that is being built, when the viewer was started with `--build`.
     pub builder: Option<Builder>,
     /// Whether `q` was pressed on a schema that is not saved, so that a second one leaves.
@@ -380,6 +418,7 @@ impl App {
             group_plan: None,
             new_type_dialog: None,
             clipboard: None,
+            copy_as: false,
             quit_armed: false,
             quit_was_armed: false,
             overlap: None,
@@ -460,6 +499,7 @@ impl App {
             group_plan: None,
             new_type_dialog: None,
             clipboard: None,
+            copy_as: false,
             quit_armed: false,
             quit_was_armed: false,
             overlap: None,
@@ -522,6 +562,7 @@ impl App {
             group_plan: None,
             new_type_dialog: None,
             clipboard: None,
+            copy_as: false,
             quit_armed: false,
             quit_was_armed: false,
             overlap: None,
@@ -769,6 +810,15 @@ impl App {
         }
         if self.prompt.is_some() {
             self.prompt_key(&key);
+            return;
+        }
+        if self.copy_as {
+            self.copy_as = false;
+            if let KeyCode::Char(letter) = key.code {
+                self.copy_as_letter(letter);
+            } else {
+                self.notice = Some("nothing copied".to_owned());
+            }
             return;
         }
         if self.preview.is_some() {
@@ -1582,6 +1632,7 @@ impl App {
                 ));
             }
             Action::FieldRadix => self.cycle_field_radix(),
+            Action::CopyAs => self.copy_as = true,
             Action::HexLeft
             | Action::HexRight
             | Action::HexUp
@@ -3032,6 +3083,91 @@ impl App {
         self.clipboard = Some(hex);
     }
 
+    /// The text that copying the selected field as `letter` makes (see [`COPY_FORMATS`]), or why it cannot be made.
+    fn copy_text(&mut self, letter: char) -> Result<String, String> {
+        let row = self.tree.selected().clone();
+        let path = doe::copy::path_of(self.tree.node(&[]).ok_or("nothing is selected")?, &row.path);
+        match letter {
+            'p' => Ok(path),
+            'v' => match &row.shown {
+                // the text itself, without the quotes that the tree puts round it
+                Some(crate::tree::Shown::Str { text, cut: false }) => Ok(text.clone()),
+                _ => row
+                    .summary
+                    .clone()
+                    .ok_or_else(|| "this has no single value: j copies it as JSON".to_owned()),
+            },
+            'j' => {
+                let value = self
+                    .tree
+                    .value_at(&row.path)
+                    .ok_or("the value was not kept, so there is no JSON of it")?;
+                Ok(doe::render::json::render_pretty(value))
+            }
+            'x' | 'X' | 'c' => {
+                if row.processed {
+                    return Err("those bytes are decoded by a process: and are not in the file; o says where".to_owned());
+                }
+                let span = row.span.ok_or("this is computed and has no bytes")?;
+                if !span.start.is_multiple_of(8) || !span.end.is_multiple_of(8) {
+                    return Err("this is not a whole number of bytes: o says which bits".to_owned());
+                }
+                let len = usize::try_from((span.end - span.start) / 8).unwrap_or(usize::MAX);
+                if len > COPY_LIMIT {
+                    return Err(format!(
+                        "{len} bytes is more than the {COPY_LIMIT} that can be copied here: save it with s in the files, or use doe --json"
+                    ));
+                }
+                let bytes = self.bytes.as_mut().ok_or("the file is not open")?;
+                let data = bytes.window(span.start / 8, len).to_vec();
+                Ok(match letter {
+                    'x' => doe::copy::hex_spaced(&data),
+                    'X' => doe::copy::hex_continuous(&data),
+                    _ => doe::copy::c_array(&path, &data),
+                })
+            }
+            'o' => self
+                .tree
+                .node(&row.path)
+                .and_then(doe::copy::place)
+                .ok_or_else(|| "this is computed and is not in the file".to_owned()),
+            's' => {
+                let kind = schema_kind(&row);
+                let parent = row
+                    .path
+                    .split_last()
+                    .and_then(|(_, up)| self.tree.node(up))
+                    .and_then(|n| {
+                        n.type_name
+                            .as_deref()
+                            .map(|t| t.rsplit("::").next().unwrap_or(t).to_owned())
+                    });
+                Ok(doe::copy::schema_field(&row.name, &kind, parent.as_deref()))
+            }
+            other => Err(format!("{other} is not one of the choices")),
+        }
+    }
+
+    /// Copy the selected field as `letter` says, or say why not.
+    fn copy_as_letter(&mut self, letter: char) {
+        match self.copy_text(letter) {
+            Ok(text) if text.len() > COPY_LIMIT => {
+                self.notice = Some(format!(
+                    "{} bytes of text is more than the {COPY_LIMIT} that can be copied here: use doe --json",
+                    text.len()
+                ));
+            }
+            Ok(text) => {
+                self.notice = Some(format!(
+                    "copied: {}",
+                    crate::format::truncate(&crate::format::safe(&text.replace('\n', " ")), 100)
+                ));
+                self.clipboard = Some(text);
+            }
+            Err(message) => self.notice = Some(message),
+        }
+    }
+
     /// The text to put on the clipboard, if `y` asked for it since the last call.
     pub fn take_clipboard(&mut self) -> Option<String> {
         self.clipboard.take()
@@ -3223,6 +3359,49 @@ enums:
             data.extend(label.as_bytes());
         }
         data
+    }
+
+    /// Press `Y` and then `letter`, and what went to the clipboard.
+    fn copied(app: &mut App, letter: char) -> Option<String> {
+        app.take_clipboard();
+        key(app, KeyCode::Char('Y'));
+        assert!(app.copy_as);
+        key(app, KeyCode::Char(letter));
+        assert!(!app.copy_as);
+        app.take_clipboard()
+    }
+
+    #[test]
+    fn y_copies_the_selected_field_in_eight_ways() {
+        let (mut app, _dir) = app_for(REC, &rec_data());
+        app.tree.select_path(&[2, 1, 1]);
+        assert_eq!(copied(&mut app, 'p').as_deref(), Some("items[1].label"));
+        assert_eq!(copied(&mut app, 'v').as_deref(), Some("bB"));
+        assert_eq!(copied(&mut app, 'x').as_deref(), Some("62 42"));
+        assert_eq!(copied(&mut app, 'X').as_deref(), Some("6242"));
+        assert_eq!(
+            copied(&mut app, 'c').as_deref(),
+            Some("unsigned char items_1_label[] = { 0x62, 0x42 };")
+        );
+        assert_eq!(copied(&mut app, 'o').as_deref(), Some("0xa+2"));
+        assert_eq!(copied(&mut app, 's').as_deref(), Some("label: str in item"));
+        assert!(copied(&mut app, 'j').unwrap().contains("bB"));
+        // the path finds the field again
+        let root = app.tree.node(&[]).unwrap();
+        assert_eq!(
+            doe::copy::resolve(root, "items[1].label"),
+            Some(vec![2, 1, 1])
+        );
+        // a letter that is not a choice, and Esc, copy nothing
+        assert_eq!(copied(&mut app, 'q'), None);
+        key(&mut app, KeyCode::Char('Y'));
+        key(&mut app, KeyCode::Esc);
+        assert!(!app.copy_as);
+        assert_eq!(app.take_clipboard(), None);
+        // the root is $
+        app.tree.select_path(&[]);
+        assert_eq!(copied(&mut app, 'p').as_deref(), Some("$"));
+        assert_eq!(copied(&mut app, 'v'), None);
     }
 
     fn type_text(app: &mut App, text: &str) {

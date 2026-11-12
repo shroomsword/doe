@@ -16,6 +16,7 @@ export type Action =
   | 'imports'
   | 'detect'
   | 'save'
+  | 'copy-as'
   | 'files'
   | 'checksums'
   | 'checksums-back'
@@ -71,6 +72,7 @@ export const KEYS: readonly Key[] = [
   { key: 'i', action: 'imports', label: 'Add imports' },
   { key: 'd', action: 'detect', label: 'Detect the schema of the open file', needs: 'file' },
   { key: 's', action: 'save', label: 'Save the parsed value', needs: 'parsed' },
+  { key: 'Y', action: 'copy-as', label: 'Copy the selected field as its path, value, JSON, bytes, place or schema line', needs: 'parsed' },
   { key: 'F', action: 'files', label: 'Switch the Parsed pane between the files of an archive and the tree of fields', needs: 'filesystem' },
   { key: 'm', action: 'checksums', label: 'Show the MD5 of each file in the Files view, then the SHA-1, then the SHA-256, then hide them', needs: 'filesystem' },
   { key: 'M', action: 'checksums-back', label: 'The previous checksum of the Files view (SHA-256, SHA-1, MD5, none)', needs: 'filesystem' },

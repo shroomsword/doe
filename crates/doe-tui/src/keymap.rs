@@ -61,6 +61,8 @@ pub enum Action {
     Radix,
     /// Choose a radix for the selected integer field.
     FieldRadix,
+    /// Ask how to copy the selected field: its path, value, JSON, bytes, place or schema.
+    CopyAs,
     /// Tree: one row up.
     TreeUp,
     /// Tree: one row down.
@@ -304,6 +306,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::FieldRadix,
         help: "choose a radix for the selected integer field (every element, and after a reload)",
+    },
+    Binding {
+        keys: &[ch('Y')],
+        scope: Scope::Anywhere,
+        action: Action::CopyAs,
+        help: "copy the selected field as…: p path, v value, j JSON, x hex, X hex without spaces, c C array, o offset and length, s schema field (to the clipboard of the terminal, where it allows it)",
     },
     Binding {
         keys: &[ch('e')],

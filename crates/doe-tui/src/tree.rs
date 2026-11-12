@@ -390,7 +390,8 @@ impl TreeModel {
     }
 
     /// The value at `path`, if the parse kept it.
-    fn value_at(&self, path: &[usize]) -> Option<&Value> {
+    #[must_use]
+    pub fn value_at(&self, path: &[usize]) -> Option<&Value> {
         let mut node = &self.root;
         let mut value = self.value.as_ref();
         for &index in path {

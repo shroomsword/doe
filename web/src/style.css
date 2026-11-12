@@ -423,3 +423,15 @@ body.pane-resizing-col iframe, body.pane-resizing-row iframe, body.pane-resizing
 .layer small { color: var(--muted); font-family: var(--mono); font-size: 11px; }
 .layer[aria-current="true"] { border-color: var(--accent); background: var(--select); }
 
+
+/* the dialog that copies the selected field in a form of choice */
+#copy-dialog { width: min(26rem, calc(100vw - 32px)); padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
+#copy-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+.copy-body { display: flex; flex-direction: column; gap: .6rem; padding: 1rem; }
+.copy-body h3 { margin: 0; font-size: 1rem; }
+#copy-name { font-family: var(--mono, monospace); }
+#copy-menu { display: flex; flex-direction: column; gap: 2px; }
+#copy-menu button { display: flex; align-items: baseline; gap: .5rem; text-align: left; }
+#copy-menu small { margin-left: auto; opacity: .7; font-family: var(--mono, monospace); }
+#copy-note { margin: 0; min-height: 1.2em; }
+#copy-note.bad { color: var(--bad, #c00); }
