@@ -214,7 +214,7 @@ test('the server of doe --ide serves the icon, with the right content types, and
   });
   await page.goto('/');
   await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
-  for (const [path, type] of [['/favicon.svg', 'image/svg+xml'], ['/favicon.ico', 'image/x-icon'], ['/apple-touch-icon.png', 'image/png']]) {
+  for (const [path, type] of [['/favicon.svg', 'image/svg+xml'], ['/favicon.ico', 'image/x-icon'], ['/apple-touch-icon.png', 'image/png'], ['/logo.svg', 'image/svg+xml']]) {
     const response = await page.request.get(path as string);
     expect(response.status(), path).toBe(200);
     expect(response.headers()['content-type'], path).toBe(type);

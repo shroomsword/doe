@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>doe</title>
+  <style>
+    .body { fill: #1a6fd4; }
+    .ear-in { fill: #8dbbf2; }
+    .cream { fill: #eef3fa; }
+    .dark { fill: #0f1722; }
+    .glass { fill: #ffc857; }
+    .scan { stroke: #0f1722; stroke-opacity: .16; }
+    .shine { fill: #fff; fill-opacity: .55; }
+    .neon { stroke: #ffc857; fill: none; }
+    .hex { fill: #0f1722; }
+    @media (prefers-color-scheme: dark) {
+      .body { fill: #6aaeff; }
+      .ear-in { fill: #cfe3fb; }
+      .cream { fill: #dfe9f7; }
+      .dark { fill: #0b0e12; }
+      .hex { fill: #0b0e12; }
+    }
+  </style>
+  <!-- the doe faces left: everything but the digits is drawn facing right and mirrored -->
+  <g transform="matrix(-1 0 0 1 256 0)">
+    <path class="body" d="M98 114 C70 102 48 80 36 48 C72 50 102 72 120 102 Z"/>
+    <path class="ear-in" d="M96 106 C78 96 62 80 54 62 C80 66 98 80 110 98 Z"/>
+    <path class="body" d="M122 96 C104 72 100 44 114 18 C140 32 154 62 150 96 Z"/>
+    <path class="ear-in" d="M126 90 C116 70 114 50 120 34 C134 46 142 64 140 90 Z"/>
+    <path class="body" d="M70 252 C74 206 84 160 98 130 C104 102 130 86 158 88 C178 90 200 108 232 146 C244 158 238 168 226 168 C210 170 194 172 180 182 C168 192 160 216 156 252 Z"/>
+    <path class="cream" d="M208 136 L232 146 C244 158 238 168 226 168 C210 170 194 172 180 182 C190 164 200 148 208 136 Z"/>
+    <path class="cream" d="M180 182 C168 192 160 216 156 252 L126 252 C132 222 150 198 180 182 Z"/>
+    <path class="dark" d="M222 146 C232 148 238 156 232 162 C222 164 214 158 216 150 Z"/>
+    <path class="dark" d="M148 106 L94 122 L92 140 L150 124 Z"/>
+    <circle class="dark" cx="174" cy="118" r="31"/>
+    <circle class="glass" cx="174" cy="118" r="24"/>
+    <path class="scan" stroke-width="3" d="M153 110 H195 M151 119 H197 M154 128 H194"/>
+    <path class="shine" d="M160 106 C164 98 174 95 182 97 C174 98 166 102 162 110 Z"/>
+    <circle class="neon" cx="174" cy="118" r="36" stroke-width="2.5" stroke-opacity=".85"/>
+    <path class="dark" d="M140 108 L152 105 L150 134 L140 131 Z"/>
+    <circle class="glass" cx="145" cy="119" r="3"/>
+  </g>
+  <!-- the read-out in the lens: D0E in a 3 by 5 pixel font, not mirrored -->
+  <g class="hex">
+    <rect x="64.40" y="110.00" width="2.95" height="2.95"/>
+    <rect x="67.60" y="110.00" width="2.95" height="2.95"/>
+    <rect x="64.40" y="113.20" width="2.95" height="2.95"/>
+    <rect x="70.80" y="113.20" width="2.95" height="2.95"/>
+    <rect x="64.40" y="116.40" width="2.95" height="2.95"/>
+    <rect x="70.80" y="116.40" width="2.95" height="2.95"/>
+    <rect x="64.40" y="119.60" width="2.95" height="2.95"/>
+    <rect x="70.80" y="119.60" width="2.95" height="2.95"/>
+    <rect x="64.40" y="122.80" width="2.95" height="2.95"/>
+    <rect x="67.60" y="122.80" width="2.95" height="2.95"/>
+    <rect x="77.20" y="110.00" width="2.95" height="2.95"/>
+    <rect x="80.40" y="110.00" width="2.95" height="2.95"/>
+    <rect x="83.60" y="110.00" width="2.95" height="2.95"/>
+    <rect x="77.20" y="113.20" width="2.95" height="2.95"/>
+    <rect x="83.60" y="113.20" width="2.95" height="2.95"/>
+    <rect x="77.20" y="116.40" width="2.95" height="2.95"/>
+    <rect x="83.60" y="116.40" width="2.95" height="2.95"/>
+    <rect x="77.20" y="119.60" width="2.95" height="2.95"/>
+    <rect x="83.60" y="119.60" width="2.95" height="2.95"/>
+    <rect x="77.20" y="122.80" width="2.95" height="2.95"/>
+    <rect x="80.40" y="122.80" width="2.95" height="2.95"/>
+    <rect x="83.60" y="122.80" width="2.95" height="2.95"/>
+    <rect x="90.00" y="110.00" width="2.95" height="2.95"/>
+    <rect x="93.20" y="110.00" width="2.95" height="2.95"/>
+    <rect x="96.40" y="110.00" width="2.95" height="2.95"/>
+    <rect x="90.00" y="113.20" width="2.95" height="2.95"/>
+    <rect x="90.00" y="116.40" width="2.95" height="2.95"/>
+    <rect x="93.20" y="116.40" width="2.95" height="2.95"/>
+    <rect x="90.00" y="119.60" width="2.95" height="2.95"/>
+    <rect x="90.00" y="122.80" width="2.95" height="2.95"/>
+    <rect x="93.20" y="122.80" width="2.95" height="2.95"/>
+    <rect x="96.40" y="122.80" width="2.95" height="2.95"/>
+  </g>
+</svg>

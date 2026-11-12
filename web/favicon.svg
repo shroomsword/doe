@@ -1,22 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <title>doe</title>
-  <!-- A hex dump: two rows of byte cells and one of them selected. Original artwork for this project. -->
   <style>
-    .bg { fill: #1a6fd4; stroke: none; }
-    .cell { fill: #ffffff; }
-    .pick { fill: #ffc857; }
-    @media (prefers-color-scheme: dark) {
-      .bg { fill: #14171b; stroke: #6aaeff; stroke-width: 3; }
-      .cell { fill: #6aaeff; }
-    }
+    .bg { fill: #0f1722; }
+    .deer { fill: #6aaeff; }
+    .dark { fill: #0f1722; }
+    .glass { fill: #ffc857; }
+    @media (prefers-color-scheme: dark) { .bg { fill: #0b0e12; stroke: #6aaeff; stroke-width: 2.5; } }
   </style>
-  <rect class="bg" x="1.5" y="1.5" width="61" height="61" rx="14"/>
-  <g>
-    <rect class="cell" x="8" y="16" width="14" height="14" rx="2.5"/>
-    <rect class="cell" x="25" y="16" width="14" height="14" rx="2.5"/>
-    <rect class="cell" x="42" y="16" width="14" height="14" rx="2.5"/>
-    <rect class="cell" x="8" y="33" width="14" height="14" rx="2.5"/>
-    <rect class="cell" x="25" y="33" width="14" height="14" rx="2.5"/>
-    <rect class="pick" x="42" y="33" width="14" height="14" rx="2.5"/>
+  <rect class="bg" x="1.25" y="1.25" width="61.5" height="61.5" rx="14"/>
+  <g transform="translate(63 5) scale(-.225 .225)">
+    <path class="deer" d="M98 114 C70 102 48 80 36 48 C72 50 102 72 120 102 Z"/>
+    <path class="deer" d="M122 96 C104 72 100 44 114 18 C140 32 154 62 150 96 Z"/>
+    <path class="deer" d="M70 252 C74 206 84 160 98 130 C104 102 130 86 158 88 C178 90 200 108 232 146 C244 158 238 168 226 168 C210 170 194 172 180 182 C168 192 160 216 156 252 Z"/>
+    <path class="dark" d="M148 106 L94 122 L92 140 L150 124 Z"/>
+    <circle class="dark" cx="174" cy="118" r="36"/>
+    <circle class="glass" cx="174" cy="118" r="28"/>
   </g>
 </svg>

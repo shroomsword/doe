@@ -375,6 +375,7 @@ mod tests {
             ("/favicon.svg", "image/svg+xml"),
             ("/favicon.ico", "image/x-icon"),
             ("/apple-touch-icon.png", "image/png"),
+            ("/logo.svg", "image/svg+xml"),
         ] {
             let r = get(path, "Host: 127.0.0.1:9000");
             assert_eq!(r.status, 200, "{path}");
