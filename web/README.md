@@ -98,7 +98,8 @@ the time limit.
 | `src/editor.ts`, `src/tree.ts`, `src/hex.ts`, `src/problems.ts` | The four panes |
 | `src/model.ts` | The logic that needs no DOM: nodes and bytes, the size limit, positions |
 | `src/style.css` | The styles |
-| `favicon.svg` | The icon of the page: a hex dump with one byte selected, original artwork of this project (MIT like the rest), with a rule of its own for a dark tab bar. It is the only copy of the artwork |
+| `logo.svg` | The logo: a doe (a deer without antlers) in cyberpunk goggles whose lens reads `D0E`, original artwork of this project (MIT like the rest), with a rule of its own for a dark ground. It is at the top of the README and in the page header |
+| `favicon.svg` | The icon of the page, derived from the logo: the head and the goggles, cut down to what is legible at 16 px, on a rounded square (with an outline on a dark tab bar). It is the only copy of that artwork |
 | `favicon.ico`, `apple-touch-icon.png` | The icon for browsers that do not take an SVG (16, 32 and 48 px in the `.ico`), and for a phone's home screen (180 px). Made from the SVG by `node make-icons.mjs` (it draws the SVG with the Chromium that Playwright installs); run it again after changing the SVG |
 | `src/wasm/` | The module and its glue, made by the build (not committed) |
 | `build.mjs`, `serve.mjs` | The build, and a static server for `dist/` |

@@ -249,7 +249,7 @@ test('the page has an icon: the SVG, the .ico and the touch icon are linked and 
     ['icon', '/favicon.ico'],
     ['apple-touch-icon', '/apple-touch-icon.png'],
   ]);
-  const types: Record<string, string> = { '/favicon.svg': 'image/svg+xml', '/favicon.ico': 'image/x-icon', '/apple-touch-icon.png': 'image/png' };
+  const types: Record<string, string> = { '/favicon.svg': 'image/svg+xml', '/favicon.ico': 'image/x-icon', '/apple-touch-icon.png': 'image/png', '/logo.svg': 'image/svg+xml' };
   for (const [path, type] of Object.entries(types)) {
     const response = await page.request.get(path);
     expect(response.status(), path).toBe(200);
@@ -262,8 +262,29 @@ test('the page has an icon: the SVG, the .ico and the touch icon are linked and 
       expect(text.length).toBeLessThan(2048);
       expect(text).not.toMatch(/<script|xlink:href|href="http|url\(|@import/i);
     }
+    if (path === '/logo.svg') {
+      // the logo: small, no script, no reference to anything outside it
+      const text = body.toString('utf8');
+      expect(text.length).toBeLessThan(8192);
+      expect(text).not.toMatch(/<script|xlink:href|href="http|url\(|@import|<image/i);
+    }
     if (path === '/favicon.ico') expect([...body.subarray(0, 4)]).toEqual([0, 0, 1, 0]);
     if (path === '/apple-touch-icon.png') expect([...body.subarray(1, 4)]).toEqual([0x50, 0x4e, 0x47]);
   }
   expect(failed).toEqual([]);
+});
+
+test('the logo is in the header in front of the name, and it is drawn', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => (window as unknown as { doe?: { ready: boolean } }).doe?.ready === true);
+  const logo = page.locator('header h1 img.logo');
+  await expect(logo).toBeVisible();
+  // an image with no text of its own: the name next to it says what it is
+  await expect(logo).toHaveAttribute('alt', '');
+  const natural = await logo.evaluate((img) => (img as HTMLImageElement).naturalWidth);
+  expect(natural).toBeGreaterThan(0);
+  const [mark, heading] = await Promise.all([logo.boundingBox(), page.locator('header h1').boundingBox()]);
+  expect(mark!.width).toBeGreaterThanOrEqual(24);
+  expect(mark!.x).toBeLessThanOrEqual(heading!.x + 2);
+  await expect(page.locator('header h1')).toContainText('doe');
 });

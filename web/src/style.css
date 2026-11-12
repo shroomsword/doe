@@ -50,7 +50,8 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif; }
 header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px var(--gutter); padding: 8px var(--gutter); border-bottom: 1px solid var(--line); }
-h1 { font-size: 1.1rem; margin: 0; }
+h1 { font-size: 1.1rem; margin: 0; display: flex; align-items: center; gap: 8px; }
+h1 .logo { width: 28px; height: 28px; flex: none; }
 .icon-link { display: inline-flex; color: var(--muted); }
 .icon-link:hover, .icon-link:focus-visible { color: var(--fg, currentColor); }
 h1 small, h2 small { color: var(--muted); font-weight: normal; font-family: var(--mono); font-size: .85em; }

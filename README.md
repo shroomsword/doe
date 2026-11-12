@@ -1,5 +1,7 @@
 # doe
 
+<p align="center"><img src="web/logo.svg" width="144" height="144" alt="doe: a doe in cyberpunk goggles"></p>
+
 [![CI](https://github.com/shroomsword/doe/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shroomsword/doe/actions/workflows/ci.yml?query=branch%3Amain)
 [![Release](https://github.com/shroomsword/doe/actions/workflows/release.yml/badge.svg)](https://github.com/shroomsword/doe/actions/workflows/release.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fshroomsword.github.io%2Fdoe%2Fcoverage.json)](#test-coverage)

@@ -26,7 +26,7 @@ const sizes = [16, 32, 48];
 const images = [];
 for (const size of sizes) images.push(await render(svg, size));
 // the touch icon is a full square: the corners are the system's to round
-const square = svg.replace('x="1.5" y="1.5" width="61" height="61" rx="14"', 'x="0" y="0" width="64" height="64" rx="0"');
+const square = svg.replace('x="1.25" y="1.25" width="61.5" height="61.5" rx="14"', 'x="0" y="0" width="64" height="64" rx="0"');
 const touch = await render(square, 180);
 await browser.close();
 
