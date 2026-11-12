@@ -51,6 +51,10 @@ pub enum Action {
     SearchPrevious,
     /// Ask for an offset.
     Goto,
+    /// Go back to the place before the last jump.
+    JumpBack,
+    /// Go forward again after going back.
+    JumpForward,
     /// List the schemas and their types.
     Schemas,
     /// Browse the types that are available on the type paths.
@@ -163,14 +167,32 @@ pub struct Key {
     pub code: KeyCode,
     /// `Ctrl` or nothing.
     pub ctrl: bool,
+    /// `Alt` or nothing.
+    pub alt: bool,
 }
 
 const fn plain(code: KeyCode) -> Key {
-    Key { code, ctrl: false }
+    Key {
+        code,
+        ctrl: false,
+        alt: false,
+    }
 }
 
 const fn ctrl(code: KeyCode) -> Key {
-    Key { code, ctrl: true }
+    Key {
+        code,
+        ctrl: true,
+        alt: false,
+    }
+}
+
+const fn alt(code: KeyCode) -> Key {
+    Key {
+        code,
+        ctrl: false,
+        alt: true,
+    }
 }
 
 const fn ch(c: char) -> Key {
@@ -270,6 +292,18 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::SearchPrevious,
         help: "go to the previous match",
+    },
+    Binding {
+        keys: &[ctrl(KeyCode::Char('o')), alt(KeyCode::Left)],
+        scope: Scope::Anywhere,
+        action: Action::JumpBack,
+        help: "go back to where you were before the last jump (g); the places are kept for the session",
+    },
+    Binding {
+        keys: &[ctrl(KeyCode::Char('n')), alt(KeyCode::Right)],
+        scope: Scope::Anywhere,
+        action: Action::JumpForward,
+        help: "go forward again after going back",
     },
     Binding {
         keys: &[ch('g')],
@@ -568,7 +602,9 @@ pub const BINDINGS: &[Binding] = &[
 ];
 
 fn matches(key: Key, event: &KeyEvent) -> bool {
-    key.code == event.code && key.ctrl == event.modifiers.contains(KeyModifiers::CONTROL)
+    key.code == event.code
+        && key.ctrl == event.modifiers.contains(KeyModifiers::CONTROL)
+        && key.alt == event.modifiers.contains(KeyModifiers::ALT)
 }
 
 /// What `event` does when `pane` has the keys (`pane` is `Tree` or `Bytes`).
@@ -604,7 +640,9 @@ pub fn label(key: Key) -> String {
         KeyCode::End => "End".to_owned(),
         other => format!("{other:?}"),
     };
-    if key.ctrl {
+    if key.alt {
+        format!("Alt-{name}")
+    } else if key.ctrl {
         let name = if name.len() == 1 {
             name.to_uppercase()
         } else {
@@ -737,6 +775,7 @@ mod tests {
                 let key = Key {
                     code: event.code,
                     ctrl: event.modifiers.contains(KeyModifiers::CONTROL),
+                    alt: event.modifiers.contains(KeyModifiers::ALT),
                 };
                 let name = label(key);
                 let listed = help

@@ -274,6 +274,8 @@ pub struct App {
     clipboard: Option<String>,
     /// Whether the chooser of what to copy (`Y`) is open and waits for a letter.
     pub copy_as: bool,
+    /// The places jumped from, to go back to.
+    jumps: crate::history::History,
     /// The schema that is being built, when the viewer was started with `--build`.
     pub builder: Option<Builder>,
     /// Whether `q` was pressed on a schema that is not saved, so that a second one leaves.
@@ -419,6 +421,7 @@ impl App {
             new_type_dialog: None,
             clipboard: None,
             copy_as: false,
+            jumps: crate::history::History::default(),
             quit_armed: false,
             quit_was_armed: false,
             overlap: None,
@@ -500,6 +503,7 @@ impl App {
             new_type_dialog: None,
             clipboard: None,
             copy_as: false,
+            jumps: crate::history::History::default(),
             quit_armed: false,
             quit_was_armed: false,
             overlap: None,
@@ -563,6 +567,7 @@ impl App {
             new_type_dialog: None,
             clipboard: None,
             copy_as: false,
+            jumps: crate::history::History::default(),
             quit_armed: false,
             quit_was_armed: false,
             overlap: None,
@@ -1521,6 +1526,7 @@ impl App {
             ));
             return;
         }
+        let origin = self.here();
         match self.tree.find_byte(offset) {
             Some(path) => self.tree.select_path(&path),
             None => {
@@ -1530,6 +1536,70 @@ impl App {
             }
         }
         self.hex.reveal(offset, size);
+        self.jumped(origin);
+    }
+
+    /// Where the person is now: the byte under the cursor and the selected field.
+    fn here(&self) -> crate::history::Place {
+        crate::history::Place {
+            offset: self.hex.cursor(),
+            path: self.tree.selected_path().to_vec(),
+        }
+    }
+
+    /// A jump from `origin` has been made: keep both places, unless it did not leave the screen.
+    fn jumped(&mut self, origin: crate::history::Place) {
+        self.jumps.leave(origin);
+        let there = self.here();
+        self.jumps.arrive(there, self.hex.screen_bytes());
+    }
+
+    /// Back or forward to the nearest place that still exists (a reload with another schema can have removed it).
+    fn walk_history(&mut self, forward: bool) {
+        let here = self.here();
+        self.jumps.remember(here);
+        let size = self.bytes.as_ref().map_or(0, FileBytes::size);
+        let mut skipped = 0;
+        loop {
+            let Some(place) = self.jumps.walk(forward) else {
+                self.notice = Some(if skipped > 0 {
+                    "the other places are gone".to_owned()
+                } else if forward {
+                    "this is the newest place".to_owned()
+                } else {
+                    "this is the oldest place: g and the jumps after it make more".to_owned()
+                });
+                return;
+            };
+            if place.offset >= size {
+                self.jumps.drop_current();
+                skipped += 1;
+                continue;
+            }
+            if self.tree.node(&place.path).is_some() {
+                self.tree.select_path(&place.path);
+            } else if let Some(path) = self.tree.find_byte(place.offset) {
+                self.tree.select_path(&path);
+            }
+            self.hex.reveal(place.offset, size);
+            let name = self
+                .tree
+                .node(&[])
+                .map(|root| doe::copy::path_of(root, self.tree.selected_path()))
+                .unwrap_or_default();
+            self.notice = Some(format!(
+                "{} to {:#x} ({}){}",
+                if forward { "forward" } else { "back" },
+                place.offset,
+                format::safe(&name),
+                if skipped > 0 {
+                    format!(", {skipped} gone")
+                } else {
+                    String::new()
+                }
+            ));
+            return;
+        }
     }
 
     fn act(&mut self, action: Action) {
@@ -1616,6 +1686,8 @@ impl App {
                 None => self.notice = Some("nothing searched for yet: press /".to_owned()),
             },
             Action::Goto => self.open_prompt(Kind::Goto),
+            Action::JumpBack => self.walk_history(false),
+            Action::JumpForward => self.walk_history(true),
             Action::Schemas => self.open_schemas(),
             Action::Types => self.open_types(),
             Action::Themes => self.open_themes(),
@@ -3402,6 +3474,46 @@ enums:
         app.tree.select_path(&[]);
         assert_eq!(copied(&mut app, 'p').as_deref(), Some("$"));
         assert_eq!(copied(&mut app, 'v'), None);
+    }
+
+    #[test]
+    fn g_records_the_jump_and_ctrl_o_and_ctrl_n_walk_it() {
+        let schema = "id: big\nseq:\n  - id: head\n    type: u1\n  - id: body\n    size: 4000\n  - id: tail\n    type: u1\n";
+        let (mut app, _dir) = app_for(schema, &vec![7_u8; 4002]);
+        let ctrl = |app: &mut App, c: char| {
+            app.on_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL));
+        };
+        let alt = |app: &mut App, code: KeyCode| app.on_key(KeyEvent::new(code, KeyModifiers::ALT));
+        // nothing to go back to yet
+        ctrl(&mut app, 'o');
+        assert!(app.notice.as_deref().unwrap().contains("oldest"));
+        app.goto("0x800");
+        app.goto("0xe00");
+        // a hop within a screen is no place of its own
+        app.goto("0xe10");
+        assert_eq!(app.hex.cursor(), 0xe10);
+        ctrl(&mut app, 'o');
+        assert_eq!(app.hex.cursor(), 0x800);
+        assert!(app.notice.as_deref().unwrap().starts_with("back to 0x800"));
+        alt(&mut app, KeyCode::Left);
+        assert_eq!(app.hex.cursor(), 0);
+        ctrl(&mut app, 'o');
+        assert!(app.notice.as_deref().unwrap().contains("oldest"));
+        assert_eq!(app.hex.cursor(), 0);
+        ctrl(&mut app, 'n');
+        assert_eq!(app.hex.cursor(), 0x800);
+        alt(&mut app, KeyCode::Right);
+        assert_eq!(app.hex.cursor(), 0xe10);
+        ctrl(&mut app, 'n');
+        assert!(app.notice.as_deref().unwrap().contains("newest"));
+        // walking back and jumping again drops what was ahead; arrows record nothing
+        ctrl(&mut app, 'o');
+        app.goto("0x200");
+        ctrl(&mut app, 'n');
+        assert!(app.notice.as_deref().unwrap().contains("newest"));
+        key(&mut app, KeyCode::Down);
+        ctrl(&mut app, 'o');
+        assert_eq!(app.hex.cursor(), 0x800);
     }
 
     fn type_text(app: &mut App, text: &str) {

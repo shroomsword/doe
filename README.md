@@ -1797,7 +1797,7 @@ match, round the end of the tree. The search looks at the fields in steps betwee
 redraws, so a tree of millions of fields does not freeze the screen, and any key
 stops it. `g` asks for an offset (decimal, or `0x…` for hex), shows it in the
 bytes and selects the innermost field that holds it; an offset past the end of the
-file, or in the part of the file that was not parsed, says so. `?` lists every key; in that list `/` searches (`n` and `N` go on, `Esc` clears the search) and the arrow keys scroll.
+file, or in the part of the file that was not parsed, says so. A jump like this is remembered: Ctrl-O (or Alt-←) goes back to where you were and Ctrl-N (or Alt-→) forward again, as `Ctrl-O` and `Ctrl-I` do in vim (the terminal sends `Ctrl-I` as `Tab`, which switches panes). Only jumps are kept, not arrows, paging, searches or selecting a field in the tree; a jump that lands within one screen of the last place replaces it; the last 100 places are kept for the session, and going back and then jumping somewhere new drops the places ahead. A place that no longer exists after a reload is skipped with a note. `?` lists every key; in that list `/` searches (`n` and `N` go on, `Esc` clears the search) and the arrow keys scroll.
 
 `s` lists the **schemas** that are open: the one named on the command line first,
 then the files it imports (and they import), each with its id, when the file was
