@@ -772,11 +772,7 @@ impl<'reg> Engine<'reg> {
 
     /// The fields that decide where the field is and how long: what its `pos:` and `size:` read.
     fn decided_by(field: &CompiledField) -> Vec<Vec<String>> {
-        let mut out = field
-            .pos
-            .as_ref()
-            .map(expr::Expr::field_refs)
-            .unwrap_or_default();
+        let mut out = field.pos.as_ref().map_or_default(expr::Expr::field_refs);
         let size = match &field.kind {
             FieldKind::Bytes { size, .. }
             | FieldKind::Str {
