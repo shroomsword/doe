@@ -495,8 +495,7 @@ impl ParseContext {
         self.eval_ctx.pop_frame();
         self.scopes
             .get_mut(id)
-            .map(|scope| std::mem::take(&mut scope.values))
-            .unwrap_or_default()
+            .map_or_default(|scope| std::mem::take(&mut scope.values))
     }
 
     /// Bind a parsed field value in the current scope.

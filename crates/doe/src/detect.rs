@@ -644,8 +644,7 @@ fn source_from(
             || c.registry.filesystems.contains_key(&available.id)
     });
     let mut signatures = compiled
-        .map(|c| signatures_of(&c.registry, &available.id))
-        .unwrap_or_default()
+        .map_or_default(|c| signatures_of(&c.registry, &available.id))
         .into_iter();
     let magic = signatures.next().unwrap_or_default();
     Source {
