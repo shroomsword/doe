@@ -1,5 +1,8 @@
 // Follow a pointer: from a field that a `pos:` or `size:` reads to the value it places or sizes, and back.
 
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { type Page, expect, test } from '@playwright/test';
 import type { TraceNode } from '../src/doe.js';
 import { History, follow, startingAt } from '../src/pointers.js';
@@ -101,6 +104,27 @@ test.describe('in the page', () => {
     await page.locator('.tree-row .pointer').click();
     expect(await selectedName(page)).toBe('table');
     await expect(page.locator('#layout-live')).toContainText('→ 0x800: table');
+  });
+
+  test('the size of a member of the library\'s ar type leads to its data', async ({ page }) => {
+    const types = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'types');
+    await page.goto('/');
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.insertText(readFileSync(join(types, 'ar.yaml'), 'utf8'));
+    await page.setInputFiles('#open-input', { name: 'sample.a', mimeType: 'application/octet-stream', buffer: readFileSync(join(types, 'samples/sample.a')) });
+    await expect(page.locator('#status')).toContainText('sample.a');
+    // an archive opens as files; the pointer is in the tree of fields
+    await page.locator('#files-toggle').click();
+    for (const name of ['members', '[0]']) {
+      const row = page.locator('.tree-row', { has: page.locator('.name', { hasText: new RegExp(`^${name.replace(/[[\]]/g, '\\$&')}$`) }) }).first();
+      await row.locator('.toggle').click();
+    }
+    await page.locator('.tree-row', { has: page.locator('.name', { hasText: /^size_value$/ }) }).first().locator('.name').click();
+    await page.keyboard.press('Shift+J');
+    // the data starts after the 8 bytes of magic and the 60 of the header
+    await expect(page.locator('#status')).toContainText('→ 0x44');
+    expect(await selectedName(page)).toBe('data');
   });
 
   test('a field that is not a number says so, and nothing moves', async ({ page }) => {

@@ -300,3 +300,62 @@ fn a_table_that_points_outside_the_file_is_an_error_and_not_a_panic() {
     // either the value is read lazily and the table is missing, or the parse fails: not a panic
     let _ = decode(&bytes);
 }
+
+fn trace_of(bytes: &[u8]) -> doe::api::TraceOut {
+    let schema = std::fs::read_to_string(spec()).unwrap();
+    let request = serde_json::json!({ "schema": schema, "path": spec().to_str().unwrap() });
+    let response = doe::api::parse(&request.to_string(), bytes);
+    assert!(response.ok, "{:?}", response.error);
+    response.trace.unwrap()
+}
+
+fn node_at<'a>(
+    trace: &'a doe::api::TraceOut,
+    names: &[&str],
+) -> (&'a doe::api::TraceOut, Vec<usize>) {
+    let mut node = trace;
+    let mut path = Vec::new();
+    for name in names {
+        let at = node
+            .children
+            .iter()
+            .position(|c| c.name == *name)
+            .unwrap_or_else(|| panic!("no {name}"));
+        path.push(at);
+        node = &node.children[at];
+    }
+    (node, path)
+}
+
+#[test]
+fn a_section_header_points_at_its_body_and_the_header_at_the_table() {
+    let trace = trace_of(&executable());
+    let section = ["header", "section_headers", "[1]"];
+    let at = |last: &'static str| [&section[..], &[last]].concat();
+    let (offset, _) = node_at(&trace, &at("ofs_body"));
+    let target = offset
+        .points_to
+        .as_ref()
+        .expect("ofs_body points at the body");
+    assert_eq!(target.path, node_at(&trace, &at("body")).1);
+    // the section starts at byte 232
+    assert_eq!(target.start, 232 * 8);
+    let (size, _) = node_at(&trace, &at("len_body"));
+    assert_eq!(
+        size.points_to
+            .as_ref()
+            .expect("len_body measures the body")
+            .path,
+        target.path
+    );
+    // e_shoff leads to the table of section headers
+    let (shoff, _) = node_at(&trace, &["header", "ofs_section_headers"]);
+    let table = shoff
+        .points_to
+        .as_ref()
+        .expect("e_shoff points at the table");
+    assert_eq!(
+        table.path,
+        node_at(&trace, &["header", "section_headers"]).1
+    );
+}

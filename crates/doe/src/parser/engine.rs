@@ -784,7 +784,7 @@ impl<'reg> Engine<'reg> {
                 size: StrSize::Cut(cut),
                 ..
             } => cut.size.as_ref(),
-            FieldKind::TypeRef { size, .. } => size.as_ref(),
+            FieldKind::TypeRef { size, .. } | FieldKind::Switch { size, .. } => size.as_ref(),
             _ => None,
         };
         if let Some(SizeExpr::Dynamic(expr)) = size {
