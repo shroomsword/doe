@@ -279,8 +279,7 @@ impl FilesState {
     pub fn selected_path(&self) -> String {
         self.selected_node()
             .and_then(|id| self.nodes.get(id))
-            .map(|n| n.path.join("/"))
-            .unwrap_or_default()
+            .map_or_default(|n| n.path.join("/"))
     }
 
     /// One row up.
@@ -394,15 +393,11 @@ impl FilesState {
             }) else {
                 continue;
             };
-            let parents: Vec<Vec<String>> = self
-                .nodes
-                .get(id)
-                .map(|n| {
-                    (0..n.path.len())
-                        .map(|i| n.path.get(..i).unwrap_or_default().to_vec())
-                        .collect()
-                })
-                .unwrap_or_default();
+            let parents: Vec<Vec<String>> = self.nodes.get(id).map_or_default(|n| {
+                (0..n.path.len())
+                    .map(|i| n.path.get(..i).unwrap_or_default().to_vec())
+                    .collect()
+            });
             for parent in parents {
                 self.open.insert(parent);
             }
@@ -450,10 +445,7 @@ fn directory(
 }
 
 fn count(nodes: &mut [Node], id: usize) -> usize {
-    let children = nodes
-        .get(id)
-        .map(|n| n.children.clone())
-        .unwrap_or_default();
+    let children = nodes.get(id).map_or_default(|n| n.children.clone());
     let total = children.iter().map(|&c| 1 + count(nodes, c)).sum();
     if let Some(node) = nodes.get_mut(id) {
         node.count = total;
@@ -552,9 +544,9 @@ fn columns(entry: Option<&Entry>, directory: bool, files: &FilesState, width: us
     let size = if directory {
         String::new()
     } else {
-        entry.size.map(size_text).unwrap_or_default()
+        entry.size.map_or_default(size_text)
     };
-    let time = entry.mtime.map(time_text).unwrap_or_default();
+    let time = entry.mtime.map_or_default(time_text);
     let mode = mode_text(entry.mode, entry.kind);
     if let Some(algorithm) = files.algorithm {
         let hash = checksum_cell(entry, files, algorithm);

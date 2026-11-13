@@ -124,8 +124,7 @@ impl Hasher {
     pub fn finish(&mut self) -> String {
         self.inner
             .take()
-            .map(doe::filesystem::Hasher::finish)
-            .unwrap_or_default()
+            .map_or_default(doe::filesystem::Hasher::finish)
     }
 }
 
