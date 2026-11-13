@@ -2957,3 +2957,41 @@ fn the_size_of_an_ar_member_points_at_its_data() {
     // the data starts after the 8 bytes of magic and the 60 of the header
     assert_eq!(target.start, (8 + 60) * 8);
 }
+
+/// Where the field at `names` points, as the names of the nodes on the path to the target.
+fn pointer_of(trace: &doe::api::TraceOut, names: &[&str]) -> Option<(Vec<usize>, u64)> {
+    let mut node = trace;
+    for index in trace_path(trace, names) {
+        node = &node.children[index];
+    }
+    node.points_to.as_ref().map(|p| (p.path.clone(), p.start))
+}
+
+#[test]
+fn a_zip_entry_points_at_its_local_header_and_its_data() {
+    let schema = std::fs::read_to_string(types().join("zip_archive.yaml")).unwrap();
+    let data = std::fs::read(types().join("samples").join("sample.zip")).unwrap();
+    let request = serde_json::json!({ "schema": schema });
+    let response = doe::api::parse(&request.to_string(), &data);
+    assert!(response.ok, "{:?}", response.error);
+    let trace = response.trace.unwrap();
+    // the central directory's offset leads to the local header of the entry, and that is where the first one starts
+    let (path, start) = pointer_of(&trace, &["entries", "[0]", "ofs_local_header"])
+        .expect("ofs_local_header points at the local header");
+    assert_eq!(
+        path,
+        trace_path(&trace, &["entries", "[0]", "local_header"])
+    );
+    assert_eq!(start, 0);
+    // the compressed size measures the data that follows the local header
+    let (path, _) = pointer_of(&trace, &["entries", "[0]", "len_compressed"])
+        .expect("len_compressed points at the data");
+    assert_eq!(path, trace_path(&trace, &["entries", "[0]", "data"]));
+    // the offset of the central directory, in the record at the end, leads to the first entry
+    let (path, _) = pointer_of(
+        &trace,
+        &["end_of_central_directory", "ofs_central_directory"],
+    )
+    .expect("ofs_central_directory points at the entries");
+    assert_eq!(path, trace_path(&trace, &["entries"]));
+}

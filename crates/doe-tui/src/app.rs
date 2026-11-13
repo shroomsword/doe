@@ -3618,6 +3618,35 @@ enums:
         assert!(app.notice.as_deref().unwrap().contains("does not point"));
     }
 
+    #[test]
+    fn j_follows_the_size_of_an_ar_member_to_its_data() {
+        let types = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../types");
+        let schema = std::fs::read_to_string(types.join("ar.yaml")).unwrap();
+        let data = std::fs::read(types.join("samples/sample.a")).unwrap();
+        let (mut app, _dir) = app_for(&schema, &data);
+        let path_of = |app: &App, names: &[&str]| {
+            let mut node = app.tree.node(&[]).unwrap();
+            let mut path = Vec::new();
+            for name in names {
+                let at = node.children.iter().position(|c| c.name == *name).unwrap();
+                path.push(at);
+                node = &node.children[at];
+            }
+            path
+        };
+        let size = path_of(&app, &["members", "[0]", "size_value"]);
+        let target = path_of(&app, &["members", "[0]", "data"]);
+        app.tree.select_path(&size);
+        assert!(app.tree.selected().points_to.is_some());
+        key(&mut app, KeyCode::Char('J'));
+        assert_eq!(
+            app.tree.names_to(app.tree.selected_path()),
+            app.tree.names_to(&target)
+        );
+        // the data starts after the 8 bytes of magic and the 60 of the header
+        assert_eq!(app.hex.cursor(), 8 + 60);
+    }
+
     fn type_text(app: &mut App, text: &str) {
         for c in text.chars() {
             key(app, KeyCode::Char(c));
