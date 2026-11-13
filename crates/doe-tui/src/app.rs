@@ -1547,8 +1547,7 @@ impl App {
         let named = |app: &Self, path: &[usize]| {
             app.tree
                 .node(&[])
-                .map(|root| format::safe(&doe::copy::path_of(root, path)))
-                .unwrap_or_default()
+                .map_or_default(|root| format::safe(&doe::copy::path_of(root, path)))
         };
         let known = self
             .tree
