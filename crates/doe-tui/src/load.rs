@@ -138,8 +138,7 @@ pub fn load(options: &Options) -> Result<Loaded, DoeError> {
 /// The reason nothing could be parsed, and at what stage.
 pub fn try_load(options: &Options) -> Result<Loaded, Box<LoadFailure>> {
     let seen = Arc::new(Mutex::new(Vec::new()));
-    let files =
-        |seen: &Arc<Mutex<Vec<PathBuf>>>| seen.lock().map(|s| s.clone()).unwrap_or_default();
+    let files = |seen: &Arc<Mutex<Vec<PathBuf>>>| seen.lock().map_or_default(|s| s.clone());
     let failed = |error: DoeError, stage: Stage, type_name: &str, size: u64| {
         Box::new(LoadFailure {
             error,

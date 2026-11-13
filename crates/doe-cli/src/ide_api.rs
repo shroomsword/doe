@@ -313,7 +313,7 @@ impl Local {
         if let Ok(schema) = compiler.read_schema(&found.source) {
             let _ = compiler.process_schema(&schema);
         }
-        let mut files = seen.lock().map(|m| m.clone()).unwrap_or_default();
+        let mut files = seen.lock().map_or_default(|m| m.clone());
         let Some(text) = files.remove(&found.source) else {
             return error(500, "could not read the schema\n");
         };

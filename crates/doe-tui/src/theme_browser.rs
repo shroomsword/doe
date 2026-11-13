@@ -246,8 +246,7 @@ fn user_entries(dir: Option<&Path>) -> Vec<Entry> {
         .map(|path| {
             let id = path
                 .file_stem()
-                .map(|s| s.to_string_lossy().into_owned())
-                .unwrap_or_default();
+                .map_or_default(|s| s.to_string_lossy().into_owned());
             match theme::load_file(&path) {
                 Ok(found) => Entry {
                     group: Group::Yours,

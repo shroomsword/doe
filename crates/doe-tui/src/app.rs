@@ -1585,8 +1585,7 @@ impl App {
             let name = self
                 .tree
                 .node(&[])
-                .map(|root| doe::copy::path_of(root, self.tree.selected_path()))
-                .unwrap_or_default();
+                .map_or_default(|root| doe::copy::path_of(root, self.tree.selected_path()));
             self.notice = Some(format!(
                 "{} to {:#x} ({}){}",
                 if forward { "forward" } else { "back" },
@@ -2226,10 +2225,9 @@ impl App {
                 let fields = self
                     .builder
                     .as_ref()
-                    .map(|b| b.draft.fields_in(&container).to_vec())
-                    .unwrap_or_default();
+                    .map_or_default(|b| b.draft.fields_in(&container).to_vec());
                 let after = fields.len().saturating_sub(index + 1);
-                let name = fields.get(index).map(|f| f.id.clone()).unwrap_or_default();
+                let name = fields.get(index).map_or_default(|f| f.id.clone());
                 if after > 0 && armed != Some(index) {
                     self.remove_armed = Some(index);
                     self.notice = Some(format!(
@@ -2289,8 +2287,7 @@ impl App {
             .builder
             .as_ref()
             .and_then(|b| b.draft.fields_in(&container).get(index))
-            .map(|f| f.id.clone())
-            .unwrap_or_default();
+            .map_or_default(|f| f.id.clone());
         let mut dialog = FieldDialog::new(DialogAction::Rename(index), 0);
         dialog.container = container;
         dialog.path = path;
@@ -2667,13 +2664,11 @@ impl App {
         let include_paths = self
             .options
             .as_ref()
-            .map(|o| o.include_paths.clone())
-            .unwrap_or_default();
+            .map_or_default(|o| o.include_paths.clone());
         let defined: Vec<String> = self
             .builder
             .as_ref()
-            .map(|b| b.draft.types().iter().map(|t| t.id.clone()).collect())
-            .unwrap_or_default();
+            .map_or_default(|b| b.draft.types().iter().map(|t| t.id.clone()).collect());
         if include_paths.is_empty() && defined.is_empty() {
             self.notice = Some("there are no type paths: give one with -I".to_owned());
             self.field_dialog = Some(dialog);
@@ -2749,8 +2744,7 @@ impl App {
         let proposed = self
             .builder
             .as_ref()
-            .map(|b| field_dialog::propose_name(&b.draft, base))
-            .unwrap_or_default();
+            .map_or_default(|b| field_dialog::propose_name(&b.draft, base));
         self.field_dialog = Some(dialog);
         self.open_prompt_with(Kind::FieldName, &proposed);
     }
@@ -2871,8 +2865,7 @@ impl App {
             let skipped = self
                 .builder
                 .as_ref()
-                .map(|b| field_dialog::propose_name(&b.draft, "skip"))
-                .unwrap_or_default();
+                .map_or_default(|b| field_dialog::propose_name(&b.draft, "skip"));
             let gap = Field {
                 id: skipped,
                 kind: DraftKind::Bytes(dialog.gap),
@@ -3033,16 +3026,12 @@ impl App {
             (container, index, 1, path)
         };
         self.group_plan = Some((container, start, count, path));
-        let proposed = self
-            .builder
-            .as_ref()
-            .map(|b| {
-                (1..=1000)
-                    .map(|n| format!("group_{n}"))
-                    .find(|name| b.draft.check_new_type_name(name).is_ok())
-                    .unwrap_or_default()
-            })
-            .unwrap_or_default();
+        let proposed = self.builder.as_ref().map_or_default(|b| {
+            (1..=1000)
+                .map(|n| format!("group_{n}"))
+                .find(|name| b.draft.check_new_type_name(name).is_ok())
+                .unwrap_or_default()
+        });
         self.open_prompt_with(Kind::TypeName, &proposed);
     }
 
@@ -3054,22 +3043,18 @@ impl App {
         path: &[usize],
         type_name: &str,
     ) {
-        let field_id = self
-            .builder
-            .as_ref()
-            .map(|b| {
-                let taken: Vec<String> = b
-                    .draft
-                    .fields_in(container)
-                    .iter()
-                    .map(|f| f.id.clone())
-                    .collect();
-                (1..=1000)
-                    .map(|n| format!("{type_name}_{n}"))
-                    .find(|name| !taken.contains(name))
-                    .unwrap_or_default()
-            })
-            .unwrap_or_default();
+        let field_id = self.builder.as_ref().map_or_default(|b| {
+            let taken: Vec<String> = b
+                .draft
+                .fields_in(container)
+                .iter()
+                .map(|f| f.id.clone())
+                .collect();
+            (1..=1000)
+                .map(|n| format!("{type_name}_{n}"))
+                .find(|name| !taken.contains(name))
+                .unwrap_or_default()
+        });
         let container = container.clone();
         match self.edit_draft(|d| d.group_in(&container, start, count, type_name, &field_id)) {
             Ok(()) => {
