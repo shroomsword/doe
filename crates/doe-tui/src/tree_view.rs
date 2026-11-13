@@ -99,6 +99,9 @@ fn pieces(row: &Row, theme: Theme, radix: Radix) -> Vec<Piece> {
         out.push((format::shown(shown, row.bits(), radix), theme.value(shown)));
     }
     // the description of the field: its first line, dim; the row is cut to the width of the pane, so it is never wrapped
+    if let Some(byte) = row.points_to {
+        out.push((format!("  → {byte:#x}"), theme.dim()));
+    }
     if let Some(doc) = row
         .doc
         .as_deref()

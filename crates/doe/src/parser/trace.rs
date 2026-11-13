@@ -79,6 +79,9 @@ pub struct TraceNode {
     /// (`process:`), not in the input. The field with the `process:` itself has
     /// the offsets of the input; what is read from its result does not.
     pub processed: bool,
+    /// The fields whose values decide where this one is or how long (what its `pos:` and `size:` read), as the
+    /// schema writes them: `["ofs_data"]`, `["_parent", "hdr", "ofs"]`. [`TraceNode::pointer_map`] resolves them.
+    pub decided_by: Vec<Vec<String>>,
     /// The values inside this one.
     pub children: Vec<TraceNode>,
 }
@@ -102,8 +105,109 @@ impl TraceNode {
             failed: false,
             problem: None,
             processed: false,
+            decided_by: Vec::new(),
             children: Vec::new(),
         }
+    }
+
+    /// For each field that decides where another node is or how long (its `pos:` or `size:` reads it), the
+    /// paths of the nodes it decides, outermost first. The key is the path of the field, as indexes of children.
+    /// The names are resolved the way the schema's expressions are: a name is a field of the type the node is in,
+    /// `_parent` the type that holds that, `_root` the root.
+    pub fn pointer_map(&self) -> HashMap<Vec<usize>, Vec<Vec<usize>>> {
+        let mut map: HashMap<Vec<usize>, Vec<Vec<usize>>> = HashMap::new();
+        // one path buffer for the whole walk: a tree of millions of nodes allocates nothing per node
+        let mut path: Vec<usize> = Vec::new();
+        let mut stack: Vec<(&TraceNode, usize)> = vec![(self, 0)];
+        while let Some((node, next)) = stack.pop() {
+            if next == 0 && !node.decided_by.is_empty() && !node.processed {
+                for names in &node.decided_by {
+                    if let Some(field) = self.resolve_ref(&path, names)
+                        && field != path
+                    {
+                        map.entry(field).or_default().push(path.clone());
+                    }
+                }
+            }
+            if let Some(child) = node.children.get(next) {
+                stack.push((node, next + 1));
+                path.push(next);
+                stack.push((child, 0));
+            } else {
+                path.pop();
+            }
+        }
+        for targets in map.values_mut() {
+            targets.sort_by(|a, b| a.len().cmp(&b.len()).then_with(|| a.cmp(b)));
+            targets.dedup();
+        }
+        map
+    }
+
+    /// The node that `names` read from the node at `from` means, as a path.
+    fn resolve_ref(&self, from: &[usize], names: &[String]) -> Option<Vec<usize>> {
+        // the type the node is in: its parent, which is a struct node
+        let mut at: Vec<usize> = from.get(..from.len().checked_sub(1)?)?.to_vec();
+        let mut rest = names;
+        while let Some((name, tail)) = rest.split_first() {
+            match name.as_str() {
+                "_root" => at.clear(),
+                "_parent" => {
+                    // out of the struct, out of the element or field that holds it, to the type around that
+                    at.pop()?;
+                    if self.at(&at)?.name.starts_with('[') {
+                        at.pop()?;
+                    }
+                }
+                _ => {
+                    let node = self.at(&at)?;
+                    match node.children.iter().position(|c| &c.name == name) {
+                        Some(i) => at.push(i),
+                        None => break,
+                    }
+                }
+            }
+            rest = tail;
+        }
+        // the last segments may be members of a value (`name.length`): the node before them is the field
+        if at.is_empty() && !names.is_empty() && names.first().map(String::as_str) != Some("_root")
+        {
+            return None;
+        }
+        Some(at)
+    }
+
+    fn at(&self, path: &[usize]) -> Option<&TraceNode> {
+        let mut node = self;
+        for &i in path {
+            node = node.children.get(i)?;
+        }
+        Some(node)
+    }
+
+    /// The outermost node that starts at the byte `offset`, as a path; a guess at what a number that is an offset means.
+    pub fn starting_at(&self, offset: u64) -> Option<Vec<usize>> {
+        let want = offset.checked_mul(8)?;
+        let mut best: Option<Vec<usize>> = None;
+        let mut stack: Vec<(Vec<usize>, &TraceNode)> = vec![(Vec::new(), self)];
+        while let Some((path, node)) = stack.pop() {
+            if node.processed {
+                continue;
+            }
+            if node.span.is_some_and(|s| s.start == want)
+                && best
+                    .as_ref()
+                    .is_none_or(|b| (path.len(), &path) < (b.len(), b))
+            {
+                best = Some(path.clone());
+            }
+            for (i, child) in node.children.iter().enumerate() {
+                let mut at = path.clone();
+                at.push(i);
+                stack.push((at, child));
+            }
+        }
+        best
     }
 
     /// The innermost node whose range holds the byte at `offset`, with the path
@@ -274,6 +378,7 @@ impl TraceBuilder {
                 failed: false,
                 problem: None,
                 processed: self.processed > 0,
+                decided_by: Vec::new(),
                 children: Vec::new(),
             },
             children: Vec::new(),
@@ -288,6 +393,18 @@ impl TraceBuilder {
             entry.children.push(index);
         }
         index
+    }
+
+    /// Note the fields that decide where the node being read is and how long (its `pos:` and `size:`).
+    pub(crate) fn decided_by(&mut self, refs: Vec<Vec<String>>) {
+        if refs.is_empty() {
+            return;
+        }
+        if let Some(&index) = self.open.last()
+            && let Some(entry) = self.entries.get_mut(index)
+        {
+            entry.node.decided_by = refs;
+        }
     }
 
     /// Say what is wrong with the value that is being read (the innermost node that is open).

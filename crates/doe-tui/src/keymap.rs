@@ -51,6 +51,8 @@ pub enum Action {
     SearchPrevious,
     /// Ask for an offset.
     Goto,
+    /// Jump to the value that the selected field places or sizes.
+    FollowPointer,
     /// Go back to the place before the last jump.
     JumpBack,
     /// Go forward again after going back.
@@ -292,6 +294,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::SearchPrevious,
         help: "go to the previous match",
+    },
+    Binding {
+        keys: &[ch('J')],
+        scope: Scope::Anywhere,
+        action: Action::FollowPointer,
+        help: "jump to what the selected field points at: the value its pos: places or its size: measures (a number that is an offset is a guess; Ctrl-O comes back)",
     },
     Binding {
         keys: &[ctrl(KeyCode::Char('o')), alt(KeyCode::Left)],

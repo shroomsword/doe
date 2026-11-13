@@ -721,3 +721,76 @@ fn find_all_gives_the_field_first_and_then_the_instances_that_hold_the_byte() {
     // a byte that nothing holds
     assert_eq!(root.find_all(9), Vec::<Vec<usize>>::new());
 }
+
+/// The path of the node at `names` from `root`.
+fn path_to(root: &TraceNode, names: &[&str]) -> Vec<usize> {
+    let mut node = root;
+    let mut path = Vec::new();
+    for name in names {
+        let at = node
+            .children
+            .iter()
+            .position(|c| c.name == *name)
+            .unwrap_or_else(|| panic!("no {name}"));
+        path.push(at);
+        node = &node.children[at];
+    }
+    path
+}
+
+#[test]
+fn a_field_that_places_or_sizes_another_is_a_pointer_to_it() {
+    let yaml = indoc! {"
+        meta:
+          id: t
+          endian: le
+        seq:
+          - id: ofs_table
+            type: u1
+          - id: len_name
+            type: u1
+          - id: name
+            type: str
+            size: len_name
+            encoding: ASCII
+          - id: hdr
+            type: header
+        instances:
+          table:
+            pos: ofs_table
+            type: u1
+            repeat: expr
+            repeat-expr: 2
+        types:
+          header:
+            seq:
+              - id: rel
+                type: u1
+            instances:
+              body:
+                pos: _parent.ofs_table + rel
+                type: u1
+    "};
+    // ofs_table = 6; len_name = 2; "ab"; rel = 1; table at 6: [9, 8]; body at 7
+    let data = [6, 2, b'a', b'b', 1, 0, 9, 8];
+    let root = trace(yaml, &data);
+    let map = root.pointer_map();
+    let ofs = path_to(&root, &["ofs_table"]);
+    let len = path_to(&root, &["len_name"]);
+    let rel = path_to(&root, &["hdr", "rel"]);
+    // ofs_table places `table` and, through the relative offset, `body`; the outermost target comes first
+    assert_eq!(
+        map[&ofs],
+        vec![path_to(&root, &["table"]), path_to(&root, &["hdr", "body"])]
+    );
+    // len_name sizes `name`
+    assert_eq!(map[&len], vec![path_to(&root, &["name"])]);
+    // so does the field `rel` that is added to it
+    assert_eq!(map[&rel], vec![path_to(&root, &["hdr", "body"])]);
+    // a number that is nothing's pointer is not in the map
+    assert!(!map.contains_key(&path_to(&root, &["name"])));
+    // the guess: the outermost node that starts at a byte
+    assert_eq!(root.starting_at(6), Some(path_to(&root, &["table"])));
+    assert_eq!(root.starting_at(2), Some(path_to(&root, &["name"])));
+    assert_eq!(root.starting_at(100), None);
+}

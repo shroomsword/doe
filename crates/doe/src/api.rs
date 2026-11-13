@@ -137,8 +137,21 @@ pub struct TraceOut {
     /// For an integer (or an enum, which is one): the number with all its
     /// digits, so that a viewer can show it in another radix.
     pub integer: Option<IntegerOut>,
+    /// For a field that decides where another value is or how long (its `pos:` or `size:` reads it): where that is.
+    pub points_to: Option<PointsTo>,
     /// The parts inside.
     pub children: Vec<TraceOut>,
+}
+
+/// What a field points at: the node that its value places or sizes.
+#[derive(Debug, Serialize)]
+pub struct PointsTo {
+    /// The path of the node, as indexes of children from the root.
+    pub path: Vec<usize>,
+    /// The first bit of the node.
+    pub start: u64,
+    /// How many other nodes the field also decides.
+    pub more: usize,
 }
 
 /// An integer of the trace, for a viewer that shows it in a radix of its own
@@ -599,6 +612,7 @@ fn parse_with<'a>(
     });
     let mut trace = trace_out(&outcome.trace);
     annotate(&mut trace, outcome.value.as_ref());
+    attach_pointers(&mut trace, &outcome.trace);
     let docs = crate::doc::field_docs(&compiled.compiler.registry, &outcome.trace);
     ParseResponse {
         docs,
@@ -723,7 +737,44 @@ fn trace_out(node: &TraceNode) -> TraceOut {
         processed: node.processed,
         summary: None,
         integer: None,
+        points_to: None,
         children: node.children.iter().map(trace_out).collect(),
+    }
+}
+
+/// Say, on each field that places or sizes another value, where that is.
+fn attach_pointers(out: &mut TraceOut, root: &TraceNode) {
+    for (field, targets) in root.pointer_map() {
+        let Some(first) = targets.first() else {
+            continue;
+        };
+        let mut node = root;
+        for &i in first {
+            let Some(child) = node.children.get(i) else {
+                break;
+            };
+            node = child;
+        }
+        let Some(span) = node.span else {
+            continue;
+        };
+        let mut target = &mut *out;
+        let mut found = true;
+        for &i in &field {
+            if let Some(child) = target.children.get_mut(i) {
+                target = child;
+            } else {
+                found = false;
+                break;
+            }
+        }
+        if found {
+            target.points_to = Some(PointsTo {
+                path: first.clone(),
+                start: span.start,
+                more: targets.len() - 1,
+            });
+        }
     }
 }
 

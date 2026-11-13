@@ -72,6 +72,51 @@ pub enum Expr {
     Binary(BinaryOp, Box<Expr>, Box<Expr>),
 }
 
+impl Expr {
+    /// The fields the expression reads, as the names it writes them with (`["_parent", "hdr", "ofs"]`),
+    /// in order, once each. `_index`, `_io` and `_` are not fields.
+    pub fn field_refs(&self) -> Vec<Vec<String>> {
+        fn walk(expr: &Expr, out: &mut Vec<Vec<String>>) {
+            match expr {
+                Expr::Field(names) => {
+                    if names
+                        .first()
+                        .is_some_and(|n| !matches!(n.as_str(), "_index" | "_io" | "_"))
+                        && !out.contains(names)
+                    {
+                        out.push(names.clone());
+                    }
+                }
+                Expr::Array(items) => {
+                    for e in items {
+                        walk(e, out);
+                    }
+                }
+                Expr::Member(e, _) | Expr::Unary(_, e) => walk(e, out),
+                Expr::Call(e, _, args) => {
+                    walk(e, out);
+                    for a in args {
+                        walk(a, out);
+                    }
+                }
+                Expr::Index(a, b) | Expr::Binary(_, a, b) => {
+                    walk(a, out);
+                    walk(b, out);
+                }
+                Expr::Ternary(a, b, c) => {
+                    walk(a, out);
+                    walk(b, out);
+                    walk(c, out);
+                }
+                Expr::Int(_) | Expr::Float(_) | Expr::Bool(_) | Expr::Str(_) | Expr::Enum(_) => {}
+            }
+        }
+        let mut out = Vec::new();
+        walk(self, &mut out);
+        out
+    }
+}
+
 /// A unary operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
