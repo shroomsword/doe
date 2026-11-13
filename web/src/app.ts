@@ -16,6 +16,7 @@ import { ProblemsView } from './problems.js';
 import { type Origin, SchemaList, editable, isKnownType, listing, parsedAs } from './schemas.js';
 import { type Work, codeOfHash, decodeWork, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
+import { History, type Place, follow, startByte } from './pointers.js';
 import { COPY_FORMATS, COPY_LIMIT, copyText, pathText } from './copyas.js';
 import { RADIXES, Radixes, integerText, isRadix } from './radix.js';
 import { type Attempt, type Deps, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
@@ -97,6 +98,8 @@ export class App {
   private layerIndex = 0;
   private notice: Diagnostic | null = null;
   private trace: TraceNode | null = null;
+  /** The places jumped from, to go back to. */
+  private readonly jumps = new History();
   /** The parsed value as JSON, as the last parse made it. */
   private value: unknown = null;
   private selection: Path | null = null;
@@ -149,6 +152,7 @@ export class App {
       element('tree'),
       (path) => this.select(path, 'tree'),
       (key) => this.radixes.of(key),
+      (path) => this.followPointer(path),
     );
     this.archive = new FilesView(element('files'), {
       select: (path) => this.select(path, 'files'),
@@ -598,6 +602,60 @@ export class App {
     note.classList.toggle('bad', bad);
   }
 
+  /** Say something in the status line and to screen readers. */
+  private say(text: string): void {
+    element('status').textContent = text;
+    element('layout-live').textContent = text;
+  }
+
+  /** Where the person is: the byte the selected field starts at, and the field. */
+  private here(): Place {
+    const node = this.selection && this.trace ? nodeAt(this.trace, this.selection) : null;
+    return { offset: (node && startByte(node)) ?? 0, path: this.selection ?? [] };
+  }
+
+  /** *Jump to what a field points at*: the value its `pos:` places or its `size:` measures, or (a guess) the value that starts at its number. */
+  private followPointer(path: Path | null): void {
+    if (!this.trace || !path) {
+      this.say('select a field first');
+      return;
+    }
+    const found = follow(this.trace, path, this.bytes?.length ?? this.hex.source.length);
+    if ('error' in found) {
+      this.say(found.error);
+      return;
+    }
+    const origin = this.here();
+    this.select(found.path, 'tree');
+    this.jumps.leave(origin);
+    this.jumps.arrive(this.here(), this.columns * 16);
+    const name = pathText(this.trace, found.path);
+    this.say(`→ 0x${found.offset.toString(16)}: ${name}${found.more > 0 ? ` (${found.more} more are decided by this field)` : ''}${found.guess ? ' — a guess: a value starts here, the schema does not say that this field points at it' : ''} (Alt+← comes back)`);
+  }
+
+  /** Back or forward to the nearest place that still exists. */
+  private walkJumps(forward: boolean): void {
+    if (!this.trace) return;
+    this.jumps.remember(this.here());
+    let skipped = 0;
+    for (;;) {
+      const place = this.jumps.walk(forward);
+      if (!place) {
+        this.say(skipped > 0 ? 'the other places are gone' : forward ? 'this is the newest place' : 'this is the oldest place: jumping makes more');
+        return;
+      }
+      const node = nodeAt(this.trace, place.path);
+      if (!node) {
+        this.jumps.dropCurrent();
+        skipped += 1;
+        continue;
+      }
+      this.select(place.path, 'tree');
+      this.say(`${forward ? 'forward' : 'back'} to 0x${place.offset.toString(16)} (${pathText(this.trace, place.path)})${skipped > 0 ? `, ${skipped} gone` : ''}`);
+      return;
+    }
+  }
+
   /** *Copy as…*: ask in what form the selected field is copied. */
   private openCopyAs(): void {
     const node = this.selection && this.trace ? nodeAt(this.trace, this.selection) : null;
@@ -1021,8 +1079,8 @@ export class App {
   private onKey(event: KeyboardEvent): void {
     if (event.defaultPrevented || event.isComposing || event.repeat) return;
     if (event.ctrlKey || event.metaKey) return;
-    // Alt works only with Shift and a letter: the keys that move a pane
-    if (event.altKey && !(event.shiftKey && keyName(event).startsWith('Alt+Shift+'))) return;
+    // Alt works only with Shift and a letter (the keys that move a pane) and with the arrows (back and forward)
+    if (event.altKey && !(event.shiftKey && keyName(event).startsWith('Alt+Shift+')) && !keyName(event).startsWith('Alt+Arrow')) return;
     if (document.querySelector('dialog[open]')) return;
     if (event.key === 'Escape') {
       // out of the editor, to its pane, so that the keys work again
@@ -1804,6 +1862,15 @@ export class App {
         break;
       case 'copy-as':
         this.openCopyAs();
+        break;
+      case 'follow':
+        this.followPointer(this.selection);
+        break;
+      case 'jump-back':
+        this.walkJumps(false);
+        break;
+      case 'jump-forward':
+        this.walkJumps(true);
         break;
       case 'files':
         this.toggleFiles();

@@ -43,6 +43,8 @@ export class TreeView {
     parent: HTMLElement,
     private readonly onSelect: (path: Path) => void,
     private readonly radixOf: (key: string) => Radix = () => 'dec',
+    /** The arrow of a field that points was clicked. */
+    private readonly onFollow: (path: Path) => void = () => undefined,
   ) {
     this.element = document.createElement('div');
     this.element.className = 'tree';
@@ -160,6 +162,7 @@ export class TreeView {
           node.type ? `<span class="type">${escape(node.type)}</span>` : '',
           text !== null ? `<span class="summary ${node.integer ? (node.integer.name === null ? 'number' : 'enum') : (valueKind(text) ?? '')}">${escape(text)}</span>` : '',
           row.doc ? `<span class="doc" title="${escape(row.doc)}">${escape(firstLine(row.doc))}</span>` : '',
+          node.points_to ? `<span class="pointer" role="button" title="Jump to what this field points at (J)">→ 0x${Math.floor(node.points_to.start / 8).toString(16)}</span>` : '',
           range ? `<span class="range">${escape(range)}</span>` : node.instance ? '<span class="range">computed</span>' : '',
           node.failed ? '<span class="flag">failed here</span>' : '',
           node.problem ? `<span class="flag" title="${escape(node.problem)}">not valid text</span>` : '',
@@ -179,6 +182,11 @@ export class TreeView {
       this.render();
       return;
     }
+    if ((event.target as HTMLElement).closest('.pointer') !== null) {
+      this.onSelect(row.path);
+      this.onFollow(row.path);
+      return;
+    }
     const onToggle = (event.target as HTMLElement).closest('.toggle') !== null;
     if (onToggle && row.node.children.length > 0) {
       const id = key(row.path);
@@ -191,6 +199,8 @@ export class TreeView {
   }
 
   private keydown(event: KeyboardEvent): void {
+    // Alt with an arrow is the page's back and forward
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     const index = this.rows.findIndex((row) => row.more === undefined && this.selected !== null && key(row.path) === key(this.selected));
     const row = this.rows[index];
     const move = (to: number): void => {

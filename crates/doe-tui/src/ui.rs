@@ -2355,7 +2355,7 @@ instances:
     fn the_help_lists_the_keys_and_fits_or_says_that_it_does_not() {
         let (mut app, _dir) = app();
         app.help = true;
-        let (lines, _) = draw_app(&mut app, 100, 100);
+        let (lines, _) = draw_app(&mut app, 100, 130);
         for needle in [
             "keys",
             "Anywhere",

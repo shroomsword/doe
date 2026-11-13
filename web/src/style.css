@@ -435,3 +435,7 @@ body.pane-resizing-col iframe, body.pane-resizing-row iframe, body.pane-resizing
 #copy-menu small { margin-left: auto; opacity: .7; font-family: var(--mono, monospace); }
 #copy-note { margin: 0; min-height: 1.2em; }
 #copy-note.bad { color: var(--bad, #c00); }
+
+/* the arrow after a field that points at another value */
+.tree-row .pointer { color: var(--muted); margin-left: 8px; cursor: pointer; }
+.tree-row .pointer:hover { text-decoration: underline; }

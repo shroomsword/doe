@@ -46,6 +46,8 @@ export interface TraceNode {
   summary: string | null;
   /** For an integer or an enum: the number in decimal with all its digits, and the member's name. */
   integer: { value: string; name: string | null } | null;
+  /** For a field that places or sizes another value: the node, where it starts (bits) and how many others the field decides. */
+  points_to?: { path: number[]; start: number; more: number } | null;
   children: TraceNode[];
 }
 

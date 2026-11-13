@@ -2920,3 +2920,40 @@ fn tga_image_reads_the_files_pillow_writes_that_have_no_extension_area() {
         }
     }
 }
+
+/// The node of `trace` at the names `path` (`members`, `[0]`, `data`), with its path of indexes.
+fn trace_path(trace: &doe::api::TraceOut, names: &[&str]) -> Vec<usize> {
+    let mut node = trace;
+    let mut path = Vec::new();
+    for name in names {
+        let at = node
+            .children
+            .iter()
+            .position(|c| c.name == *name)
+            .unwrap_or_else(|| panic!("no {name}"));
+        path.push(at);
+        node = &node.children[at];
+    }
+    path
+}
+
+#[test]
+fn the_size_of_an_ar_member_points_at_its_data() {
+    let schema = std::fs::read_to_string(types().join("ar.yaml")).unwrap();
+    let data = std::fs::read(types().join("samples").join("sample.a")).unwrap();
+    let request = serde_json::json!({ "schema": schema });
+    let response = doe::api::parse(&request.to_string(), &data);
+    assert!(response.ok, "{:?}", response.error);
+    let trace = response.trace.unwrap();
+    let mut node = &trace;
+    for index in trace_path(&trace, &["members", "[0]", "size_value"]) {
+        node = &node.children[index];
+    }
+    let target = node
+        .points_to
+        .as_ref()
+        .expect("size_value points at the data");
+    assert_eq!(target.path, trace_path(&trace, &["members", "[0]", "data"]));
+    // the data starts after the 8 bytes of magic and the 60 of the header
+    assert_eq!(target.start, (8 + 60) * 8);
+}

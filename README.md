@@ -1225,6 +1225,9 @@ selected, does not close it).
 | `i` | Add imports |
 | `d` | Detect the schema of the open file |
 | `s` | Save the parsed value |
+| `J` | Jump to what the selected field points at (the value its `pos:` places or its `size:` measures; a number that is an offset is a guess) |
+| `Alt+ArrowLeft` | Go back to where you were before the last jump |
+| `Alt+ArrowRight` | Go forward again after going back |
 | `Y` | Copy the selected field as its path, value, JSON, bytes, place or schema line |
 | `F` | Switch the Parsed pane between the files of an archive and the tree of fields |
 | `m` | Show the MD5 of each file in the Files view, then the SHA-1, then the SHA-256, then hide them |
@@ -1383,6 +1386,14 @@ contrast under 3:1), the theme's text colour. A byte that two fields hold takes
 the colour of the one of the sequence, then of an instance, like the next-field keys of the terminal viewer. `b`, or the
 button at the left of the columns button in the title bar of the Bytes pane, turns the colours off and on; it is kept in the
 browser's local storage. The index of which field owns which byte is made after the tree is shown.
+
+**Follow a pointer.** A field that the schema's `pos:` or `size:` reads — the offset of a table, the size of
+a block — places or measures another value, and the tree shows an arrow after it (`→ 0x800`). `J`, or a click on the arrow, selects that
+value and shows its bytes; the status line says where, and how many other values the field also decides (the jump goes to the
+outermost). A relative offset (`pos: base + rel`) points from both fields. An integer with no such link is a guess: `J`
+goes to the outermost value that starts at its number and says that it is a guess; a number past the end of the file, or at which nothing
+starts, is said and nothing moves. `Alt+←` and `Alt+→` go back and forward through the places jumped from (the last 100; a jump after going
+back drops the places ahead), as `Ctrl-O` and `Ctrl-N` do in the terminal viewer.
 
 **Copy as….** `Y`, or the *Copy as…* button in the title bar of the Parsed pane, asks how to copy the selected
 field and each choice has a letter: `p` its path (`entries[2].len`, written like an expression; `$` is the root alone;
@@ -1797,7 +1808,7 @@ match, round the end of the tree. The search looks at the fields in steps betwee
 redraws, so a tree of millions of fields does not freeze the screen, and any key
 stops it. `g` asks for an offset (decimal, or `0x…` for hex), shows it in the
 bytes and selects the innermost field that holds it; an offset past the end of the
-file, or in the part of the file that was not parsed, says so. A jump like this is remembered: Ctrl-O (or Alt-←) goes back to where you were and Ctrl-N (or Alt-→) forward again, as `Ctrl-O` and `Ctrl-I` do in vim (the terminal sends `Ctrl-I` as `Tab`, which switches panes). Only jumps are kept, not arrows, paging, searches or selecting a field in the tree; a jump that lands within one screen of the last place replaces it; the last 100 places are kept for the session, and going back and then jumping somewhere new drops the places ahead. A place that no longer exists after a reload is skipped with a note. `?` lists every key; in that list `/` searches (`n` and `N` go on, `Esc` clears the search) and the arrow keys scroll.
+file, or in the part of the file that was not parsed, says so. `J` jumps to what the selected field points at (the value its `pos:` places or its `size:` measures, shown as `→ 0x800` after the field; a number that is an offset with no such link is a guess, and says so; an offset past the end of the file is said and nothing moves), and a jump like this is remembered: Ctrl-O (or Alt-←) goes back to where you were and Ctrl-N (or Alt-→) forward again, as `Ctrl-O` and `Ctrl-I` do in vim (the terminal sends `Ctrl-I` as `Tab`, which switches panes). Only jumps are kept, not arrows, paging, searches or selecting a field in the tree; a jump that lands within one screen of the last place replaces it; the last 100 places are kept for the session, and going back and then jumping somewhere new drops the places ahead. A place that no longer exists after a reload is skipped with a note. `?` lists every key; in that list `/` searches (`n` and `N` go on, `Esc` clears the search) and the arrow keys scroll.
 
 `s` lists the **schemas** that are open: the one named on the command line first,
 then the files it imports (and they import), each with its id, when the file was

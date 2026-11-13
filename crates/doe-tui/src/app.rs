@@ -1539,6 +1539,92 @@ impl App {
         self.jumped(origin);
     }
 
+    /// `J`: jump to what the selected field points at. A field that the schema's `pos:` or `size:` reads points at the
+    /// value it places or sizes; an integer that is neither is a guess, the outermost value that starts at its number.
+    fn follow_pointer(&mut self) {
+        let row = self.tree.selected().clone();
+        let size = self.bytes.as_ref().map_or(0, FileBytes::size);
+        let named = |app: &Self, path: &[usize]| {
+            app.tree
+                .node(&[])
+                .map(|root| format::safe(&doe::copy::path_of(root, path)))
+                .unwrap_or_default()
+        };
+        let known = self
+            .tree
+            .pointer_target(&row.path)
+            .map(|(path, more)| (path.to_vec(), more));
+        let (target, more, guess) = if let Some((path, more)) = known {
+            (path, more, false)
+        } else {
+            let number = match row.shown {
+                Some(crate::tree::Shown::UInt(n)) => Some(i128::from(n)),
+                Some(crate::tree::Shown::SInt(n)) => Some(i128::from(n)),
+                Some(crate::tree::Shown::Enum { value, .. }) => Some(value),
+                _ => None,
+            };
+            let Some(number) = number else {
+                self.notice = Some("this field does not point at anything".to_owned());
+                return;
+            };
+            let Ok(offset) = u64::try_from(number) else {
+                self.notice = Some(format!("{number} is not an offset"));
+                return;
+            };
+            if offset >= size {
+                self.notice = Some(format!(
+                    "{offset:#x} is past the end of the file ({size} bytes)"
+                ));
+                return;
+            }
+            let found = self
+                .tree
+                .node(&[])
+                .and_then(|root| root.starting_at(offset))
+                .filter(|path| !path.is_empty() && *path != row.path);
+            let Some(path) = found else {
+                self.notice = Some(format!(
+                    "nothing starts at {offset:#x}: the schema does not say that this field points anywhere"
+                ));
+                return;
+            };
+            (path, 0, true)
+        };
+        let Some(offset) = self
+            .tree
+            .node(&target)
+            .and_then(|n| n.span)
+            .map(|s| s.start_byte())
+        else {
+            self.notice = Some("what it points at is not in the file".to_owned());
+            return;
+        };
+        if offset >= size {
+            self.notice = Some(format!(
+                "{offset:#x} is past the end of the file ({size} bytes)"
+            ));
+            return;
+        }
+        let origin = self.here();
+        self.tree.select_path(&target);
+        self.hex.reveal(offset, size);
+        self.jumped(origin);
+        self.notice = Some(format!(
+            "→ {offset:#x}: {}{}{} (Ctrl-O comes back)",
+            named(self, &target),
+            if more > 0 {
+                format!(" ({more} more are decided by this field)")
+            } else {
+                String::new()
+            },
+            if guess {
+                " — a guess: a value starts here, the schema does not say that this field points at it"
+            } else {
+                ""
+            }
+        ));
+    }
+
     /// Where the person is now: the byte under the cursor and the selected field.
     fn here(&self) -> crate::history::Place {
         crate::history::Place {
@@ -1685,6 +1771,7 @@ impl App {
                 None => self.notice = Some("nothing searched for yet: press /".to_owned()),
             },
             Action::Goto => self.open_prompt(Kind::Goto),
+            Action::FollowPointer => self.follow_pointer(),
             Action::JumpBack => self.walk_history(false),
             Action::JumpForward => self.walk_history(true),
             Action::Schemas => self.open_schemas(),
@@ -3499,6 +3586,37 @@ enums:
         key(&mut app, KeyCode::Down);
         ctrl(&mut app, 'o');
         assert_eq!(app.hex.cursor(), 0x800);
+    }
+
+    #[test]
+    fn j_follows_a_pointer_and_ctrl_o_comes_back() {
+        let schema = "id: p\nmeta:\n  endian: le\nseq:\n  - id: ofs\n    type: u2\n  - id: other\n    type: u2\n  - id: gap\n    size: 0x7fc\ninstances:\n  table:\n    pos: ofs\n    type: u1\n    repeat: expr\n    repeat-expr: 2\n";
+        let mut data = vec![0_u8; 0x802];
+        data[0] = 0x00;
+        data[1] = 0x08;
+        data[2] = 0xff;
+        data[3] = 0xff;
+        let (mut app, _dir) = app_for(schema, &data);
+        // the field that places `table` shows where
+        app.tree.select_path(&[0]);
+        assert_eq!(app.tree.selected().points_to, Some(0x800));
+        assert_eq!(app.tree.selected_path(), [0]);
+        key(&mut app, KeyCode::Char('J'));
+        assert_eq!(app.hex.cursor(), 0x800);
+        assert_eq!(app.tree.names_to(app.tree.selected_path()), ["p", "table"]);
+        assert!(app.notice.as_deref().unwrap().starts_with("→ 0x800: table"));
+        app.on_key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::CONTROL));
+        assert_eq!(app.hex.cursor(), 0);
+        assert_eq!(app.tree.selected_path(), [0]);
+        // a number that points nowhere in the file is said, and nothing moves
+        app.tree.select_path(&[1]);
+        key(&mut app, KeyCode::Char('J'));
+        assert!(app.notice.as_deref().unwrap().contains("past the end"));
+        assert_eq!(app.hex.cursor(), 0);
+        // a field that is not a number points at nothing
+        app.tree.select_path(&[]);
+        key(&mut app, KeyCode::Char('J'));
+        assert!(app.notice.as_deref().unwrap().contains("does not point"));
     }
 
     fn type_text(app: &mut App, text: &str) {

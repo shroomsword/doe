@@ -163,12 +163,16 @@ pub struct Row {
     pub openable: bool,
     /// Whether it is open.
     pub open: bool,
+    /// For a field that places or sizes another value: the byte that value starts at.
+    pub points_to: Option<u64>,
 }
 
 /// The tree, its open nodes and its selection.
 #[derive(Debug)]
 pub struct TreeModel {
     root: TraceNode,
+    /// For each field that places or sizes other values: the paths of those, outermost first.
+    pointers: HashMap<Vec<usize>, Vec<Vec<usize>>>,
     value: Option<Value>,
     open: HashSet<Vec<usize>>,
     /// Which children of a node have rows (`start..end`), when it is not the first [`CHUNK`].
@@ -228,6 +232,7 @@ fn row_of(
         processed: node.processed,
         openable: !node.children.is_empty(),
         open,
+        points_to: None,
     }
 }
 
@@ -249,6 +254,7 @@ fn marker_row(kind: RowKind, parent: &[usize], name: String) -> Row {
         doc: None,
         openable: false,
         open: false,
+        points_to: None,
     }
 }
 
@@ -311,6 +317,7 @@ impl TreeModel {
     pub fn new(root: TraceNode, value: Option<Value>) -> Self {
         let mut model = TreeModel {
             fallback: row_of(&root, value.as_ref(), &[], false, None),
+            pointers: root.pointer_map(),
             root,
             value,
             open: HashSet::from([Vec::new()]),
@@ -387,6 +394,13 @@ impl TreeModel {
             node = node.children.get(index)?;
         }
         Some(node)
+    }
+
+    /// What the field at `path` places or sizes: the outermost such node, and how many others there are.
+    #[must_use]
+    pub fn pointer_target(&self, path: &[usize]) -> Option<(&[usize], usize)> {
+        let targets = self.pointers.get(path)?;
+        Some((targets.first()?.as_slice(), targets.len() - 1))
     }
 
     /// The value at `path`, if the parse kept it.
@@ -597,7 +611,15 @@ impl TreeModel {
             .filter(|_| self.show_docs)
             .and_then(|ty| doe::doc::doc_of(&self.docs, Some(ty), &node.name))
             .map(str::to_owned);
-        rows.push(row_of(node, value, path, open, doc));
+        let mut row = row_of(node, value, path, open, doc);
+        row.points_to = self
+            .pointers
+            .get(path.as_slice())
+            .and_then(|targets| targets.first())
+            .and_then(|target| self.node(target))
+            .and_then(|target| target.span)
+            .map(|span| span.start_byte());
+        rows.push(row);
         if !open {
             return;
         }

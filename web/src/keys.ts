@@ -17,6 +17,9 @@ export type Action =
   | 'detect'
   | 'save'
   | 'copy-as'
+  | 'follow'
+  | 'jump-back'
+  | 'jump-forward'
   | 'files'
   | 'checksums'
   | 'checksums-back'
@@ -72,6 +75,9 @@ export const KEYS: readonly Key[] = [
   { key: 'i', action: 'imports', label: 'Add imports' },
   { key: 'd', action: 'detect', label: 'Detect the schema of the open file', needs: 'file' },
   { key: 's', action: 'save', label: 'Save the parsed value', needs: 'parsed' },
+  { key: 'J', action: 'follow', label: 'Jump to what the selected field points at: the value its pos: places or its size: measures (a number that is an offset is a guess)', needs: 'parsed' },
+  { key: 'Alt+ArrowLeft', action: 'jump-back', label: 'Go back to where you were before the last jump', needs: 'parsed' },
+  { key: 'Alt+ArrowRight', action: 'jump-forward', label: 'Go forward again after going back', needs: 'parsed' },
   { key: 'Y', action: 'copy-as', label: 'Copy the selected field as its path, value, JSON, bytes, place or schema line', needs: 'parsed' },
   { key: 'F', action: 'files', label: 'Switch the Parsed pane between the files of an archive and the tree of fields', needs: 'filesystem' },
   { key: 'm', action: 'checksums', label: 'Show the MD5 of each file in the Files view, then the SHA-1, then the SHA-256, then hide them', needs: 'filesystem' },
@@ -111,6 +117,7 @@ export const KEYS: readonly Key[] = [
 export function keyName(event: Pick<KeyboardEvent, 'key' | 'shiftKey'> & Partial<Pick<KeyboardEvent, 'altKey' | 'code'>>): string {
   // Alt+Shift and a letter: the letter that the key is (on some keyboards Alt makes `event.key` another character)
   if (event.altKey && event.shiftKey && event.code?.startsWith('Key')) return `Alt+Shift+${event.code.slice(3).toLowerCase()}`;
+  if (event.altKey && !event.shiftKey && event.key.startsWith('Arrow')) return `Alt+${event.key}`;
   return event.key.length > 1 && event.shiftKey ? `Shift+${event.key}` : event.key;
 }
 

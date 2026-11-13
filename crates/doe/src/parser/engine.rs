@@ -443,6 +443,7 @@ impl<'reg> Engine<'reg> {
             let depth = ctx.trace().map(|trace| {
                 let depth = trace.depth();
                 trace.begin(&field.id, start_bits);
+                trace.decided_by(Self::decided_by(field));
                 depth
             });
             let value = match self.parse_field(field, ty, cursor, ctx) {
@@ -767,6 +768,37 @@ impl<'reg> Engine<'reg> {
                 Ok(held) => return Ok(held),
             }
         }
+    }
+
+    /// The fields that decide where the field is and how long: what its `pos:` and `size:` read.
+    fn decided_by(field: &CompiledField) -> Vec<Vec<String>> {
+        let mut out = field
+            .pos
+            .as_ref()
+            .map(expr::Expr::field_refs)
+            .unwrap_or_default();
+        let size = match &field.kind {
+            FieldKind::Bytes { size, .. }
+            | FieldKind::Str {
+                size: StrSize::Fixed(size),
+                ..
+            } => Some(size),
+            FieldKind::BytesCut { cut, .. }
+            | FieldKind::Str {
+                size: StrSize::Cut(cut),
+                ..
+            } => cut.size.as_ref(),
+            FieldKind::TypeRef { size, .. } => size.as_ref(),
+            _ => None,
+        };
+        if let Some(SizeExpr::Dynamic(expr)) = size {
+            for names in expr.field_refs() {
+                if !out.contains(&names) {
+                    out.push(names);
+                }
+            }
+        }
+        out
     }
 
     /// `pos:` reads the whole field (every repeat) somewhere else, then puts
@@ -1462,6 +1494,9 @@ impl<'reg> Engine<'reg> {
         let depth = ctx.trace().map(|trace| {
             let depth = trace.depth();
             trace.begin_instance(&instance.id, start_bits);
+            if let InstanceKind::Read(field) = &instance.kind {
+                trace.decided_by(Self::decided_by(field));
+            }
             depth
         });
         let computed = self.compute_instance(ty, instance, cursor, ctx);
