@@ -490,21 +490,17 @@ impl TraceBuilder {
         }
         let mut innermost = true;
         while let Some(index) = self.open.pop() {
-            let end = self
-                .entries
-                .get(index)
-                .map(|entry| {
-                    entry
-                        .children
-                        .iter()
-                        .filter_map(|&child| self.entries.get(child))
-                        .filter(|child| !child.moved && !child.node.is_instance)
-                        .filter_map(|child| child.node.span.map(|span| span.end))
-                        .max()
-                        .unwrap_or(entry.start)
-                        .max(entry.start)
-                })
-                .unwrap_or_default();
+            let end = self.entries.get(index).map_or_default(|entry| {
+                entry
+                    .children
+                    .iter()
+                    .filter_map(|&child| self.entries.get(child))
+                    .filter(|child| !child.moved && !child.node.is_instance)
+                    .filter_map(|child| child.node.span.map(|span| span.end))
+                    .max()
+                    .unwrap_or(entry.start)
+                    .max(entry.start)
+            });
             if let Some(entry) = self.entries.get_mut(index) {
                 entry.node.span = Some(Span {
                     start: entry.start,
