@@ -1053,8 +1053,7 @@ impl Compiler {
             return match find_schema(self.source.as_ref(), import, rest, &dirs) {
                 Err(DoeError::SchemaNotFound { name, mut searched }) => {
                     let roots = importing_dir
-                        .map(|dir| folders_below_include_path(dir, &self.include_paths))
-                        .unwrap_or_default();
+                        .map_or_default(|dir| folders_below_include_path(dir, &self.include_paths));
                     let roots: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
                     match find_schema(self.source.as_ref(), import, rest, &roots) {
                         Ok(found) => Ok(found),
@@ -1905,8 +1904,7 @@ fn compile_valid(raw: &RawField, ctx: &FieldCtx<'_>) -> Result<Option<CompiledVa
         .transpose()?;
     let expr_instances = expr
         .as_ref()
-        .map(|e| instance_refs(&[e], ctx.instances))
-        .unwrap_or_default();
+        .map_or_default(|e| instance_refs(&[e], ctx.instances));
     Ok(Some(CompiledValid {
         eq: rules.eq.as_ref().map(rule).transpose()?,
         min: rules.min.as_ref().map(rule).transpose()?,
