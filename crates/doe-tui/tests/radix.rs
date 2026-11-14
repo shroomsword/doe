@@ -77,6 +77,7 @@ fn fixture() -> Fixture {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        restore: None,
         radix: None,
     };
     Fixture { _dir: dir, options }

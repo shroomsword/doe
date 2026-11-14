@@ -45,6 +45,12 @@ impl TreeView {
         self.top
     }
 
+    /// Put the first row shown at `top` (a view that was kept); the next drawing keeps the selection in view.
+    pub fn set_top(&mut self, top: usize) {
+        self.top = top;
+        self.free = None;
+    }
+
     /// Scroll by `delta` rows (the wheel), as far as the `len` rows allow, without moving the selection (`selected`):
     /// the view stays where it is put until the selection changes.
     pub fn scroll_by(&mut self, delta: isize, selected: usize, len: usize) {

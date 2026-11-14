@@ -50,6 +50,7 @@ fn building() -> (App, tempfile::TempDir) {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        restore: None,
         radix: None,
     };
     let (options, builder) = prepare_build(&options, &dir.path().join("built.yaml")).unwrap();
@@ -298,6 +299,7 @@ fn the_saved_schema_compiles_with_the_library_and_parses_a_real_file() {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        restore: None,
         radix: None,
     };
     let (options, builder) = prepare_build(&options, &dir.path().join("archive.yaml")).unwrap();

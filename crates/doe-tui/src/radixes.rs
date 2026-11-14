@@ -61,6 +61,20 @@ impl Radixes {
         next
     }
 
+    /// The radix that each field with one of its own has, by the key of the field, in a fixed order (to be kept).
+    #[must_use]
+    pub fn own_list(&self) -> Vec<(String, Radix)> {
+        let mut list: Vec<(String, Radix)> =
+            self.fields.iter().map(|(k, r)| (k.clone(), *r)).collect();
+        list.sort_by(|a, b| a.0.cmp(&b.0));
+        list
+    }
+
+    /// Give a field a radix of its own (one that was kept).
+    pub fn set_own(&mut self, field: &str, radix: Radix) {
+        self.fields.insert(field.to_owned(), radix);
+    }
+
     /// How many fields have a radix of their own.
     #[must_use]
     pub fn fields(&self) -> usize {

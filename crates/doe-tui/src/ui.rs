@@ -2713,6 +2713,7 @@ instances:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            restore: None,
             radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
@@ -2759,6 +2760,7 @@ instances:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            restore: None,
             radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
@@ -2809,6 +2811,7 @@ instances:
                 theme_on_command_line: false,
                 transparent: None,
                 mouse: true,
+                restore: None,
                 radix: None,
             };
             let failure = crate::load::try_load(&options).unwrap_err();

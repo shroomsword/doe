@@ -50,6 +50,7 @@ fn options(dir: &Path) -> Options {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        restore: None,
         radix: None,
     }
 }
@@ -301,6 +302,7 @@ fn w_says_so_when_nothing_is_being_built() {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        restore: None,
         radix: None,
     };
     let mut app = App::new(options.file.clone(), load(&options).unwrap());

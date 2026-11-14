@@ -704,6 +704,8 @@ impl App {
             }
         }
         self.notice = None;
+        // the first parse is done: back to where you were
+        self.restore_state();
     }
 
     /// The files whose change means a reload: the schema and what it imports, and the file.
@@ -799,6 +801,211 @@ impl App {
             self.show_selected_field();
         }
         self.notice = Some("read again".to_owned());
+    }
+
+    /// The store of where you were, when the options give a directory for it and this is a viewer of a file and a schema
+    /// that is kept: not the viewer that builds a schema, and not a layer of another file (which is in a temporary one).
+    fn restore_store(&self) -> Option<(crate::restore::Store, String)> {
+        let options = self.options.as_ref()?;
+        let dir = options.restore.as_ref()?;
+        if self.builder.is_some() || self.layer_index.is_some() || options.outer_file.is_some() {
+            return None;
+        }
+        let key = crate::restore::key_of(&self.file, &options.type_or_schema, &self.type_name);
+        Some((crate::restore::Store::new(dir), key))
+    }
+
+    /// Where you are, to be kept: `None` when nothing was parsed.
+    fn state_record(&self, key: String) -> Option<crate::restore::Record> {
+        use crate::restore::{
+            BytesRecord, RadixRecord, Record, TreeRecord, ViewRecord, WindowRecord,
+        };
+        if self.loading || self.report.as_ref().is_some_and(|r| r.fatal) {
+            return None;
+        }
+        let root = self.tree.node(&[])?;
+        let path = |p: &[usize]| doe::copy::path_of(root, p);
+        let metadata = std::fs::metadata(&self.file).ok();
+        Some(Record {
+            version: crate::restore::VERSION,
+            key,
+            file_size: metadata.as_ref().map_or(self.size, std::fs::Metadata::len),
+            file_mtime: metadata
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .and_then(|d| i64::try_from(d.as_secs()).ok())
+                .unwrap_or(0),
+            tree: TreeRecord {
+                open: self.tree.open_paths().iter().map(|p| path(p)).collect(),
+                windows: self
+                    .tree
+                    .window_list()
+                    .iter()
+                    .map(|(p, (start, end))| WindowRecord {
+                        path: path(p),
+                        start: *start,
+                        end: *end,
+                    })
+                    .collect(),
+                selected: path(self.tree.selected_path()),
+                first_row: self.view.top(),
+            },
+            bytes: BytesRecord {
+                cursor: self.hex.cursor(),
+                top: self.hex.top(),
+                range_from: self.hex.range_start(),
+            },
+            view: ViewRecord {
+                focus: match self.focus {
+                    Focus::Tree => "tree",
+                    Focus::Hex => "bytes",
+                }
+                .to_owned(),
+                fullscreen: self.fullscreen,
+                inspector: self.inspector,
+                files: self.files_wanted,
+                byte_colours: self.byte_colours,
+                descriptions: self.tree.docs_shown(),
+                markdown_rendered: self.markdown_rendered,
+                checksums: self
+                    .files
+                    .as_ref()
+                    .and_then(|f| f.algorithm)
+                    .map(|a| a.label().to_owned()),
+                radix: self.radixes.global.name().to_owned(),
+            },
+            radixes: self
+                .radixes
+                .own_list()
+                .into_iter()
+                .map(|(field, radix)| RadixRecord {
+                    field,
+                    radix: radix.name().to_owned(),
+                })
+                .collect(),
+        })
+    }
+
+    /// Keep where you are, for the next time this file is opened with this schema. Nothing is said if it cannot be.
+    pub fn save_state(&self) {
+        let Some((store, key)) = self.restore_store() else {
+            return;
+        };
+        if let Some(record) = self.state_record(key) {
+            store.write(&record);
+        }
+    }
+
+    /// Put back where you were with this file and schema, if it was kept: what is not there any more is skipped, and the
+    /// notice says so. A parse that failed keeps the failed field selected.
+    fn restore_state(&mut self) {
+        let Some((store, key)) = self.restore_store() else {
+            return;
+        };
+        if self.loading || self.report.as_ref().is_some_and(|r| r.fatal) {
+            return;
+        }
+        let Some(record) = store.read(&key) else {
+            return;
+        };
+        let gone = self.apply_record(&record);
+        let metadata = std::fs::metadata(&self.file).ok();
+        let same_file = metadata.as_ref().is_some_and(|m| {
+            m.len() == record.file_size
+                && m.modified()
+                    .ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .and_then(|d| i64::try_from(d.as_secs()).ok())
+                    .unwrap_or(0)
+                    == record.file_mtime
+        });
+        self.notice = Some(match (gone, same_file) {
+            (0, true) => "restored where you were".to_owned(),
+            (0, false) => "restored where you were (the file has changed since)".to_owned(),
+            (n, true) => {
+                format!("restored where you were ({n} places are gone: the schema changed)")
+            }
+            (n, false) => format!(
+                "restored where you were ({n} places are gone: the schema or the file changed)"
+            ),
+        });
+    }
+
+    /// Put `record` on the viewer; how many of its places are not there any more.
+    fn apply_record(&mut self, record: &crate::restore::Record) -> usize {
+        let mut gone = 0;
+        let size = self.bytes.as_ref().map_or(0, FileBytes::size);
+        let resolve = |tree: &TreeModel, text: &str| -> Option<Vec<usize>> {
+            doe::copy::resolve(tree.node(&[])?, text)
+        };
+        let mut open = Vec::new();
+        for text in &record.tree.open {
+            match resolve(&self.tree, text) {
+                Some(path) => open.push(path),
+                None => gone += 1,
+            }
+        }
+        let mut windows = Vec::new();
+        for window in &record.tree.windows {
+            match resolve(&self.tree, &window.path) {
+                Some(path) => windows.push((path, (window.start, window.end))),
+                None => gone += 1,
+            }
+        }
+        self.tree.restore_state(open, windows);
+        match resolve(&self.tree, &record.tree.selected) {
+            Some(path) => self.tree.select_path(&path),
+            None => gone += 1,
+        }
+        self.view.set_top(record.tree.first_row);
+        self.hex.restore(
+            record.bytes.cursor,
+            record.bytes.top,
+            record.bytes.range_from,
+            size,
+        );
+        let view = &record.view;
+        self.fullscreen = view.fullscreen;
+        self.inspector = view.inspector;
+        self.files_wanted = view.files;
+        self.byte_colours = view.byte_colours;
+        self.tree.set_docs_shown(view.descriptions);
+        self.markdown_rendered = view.markdown_rendered;
+        self.focus = if view.focus == "bytes" {
+            Focus::Hex
+        } else {
+            Focus::Tree
+        };
+        if let (Some(files), Some(label)) = (self.files.as_mut(), view.checksums.as_deref())
+            && let Some(algorithm) = Algorithm::ALL.iter().find(|a| a.label() == label)
+        {
+            files.algorithm = Some(*algorithm);
+            let ranges = files.checksum_ranges();
+            files.checksums.start(&self.file, *algorithm, &ranges);
+        }
+        if let Ok(radix) = view.radix.parse() {
+            self.radixes.global = radix;
+        }
+        for own in &record.radixes {
+            if let Ok(radix) = own.radix.parse() {
+                self.radixes.set_own(&own.field, radix);
+            }
+        }
+        // a parse that failed: the failed field is the one to look at, as the message says
+        if self.error.is_some()
+            && let Some(path) = self.tree.failed_path()
+        {
+            self.tree.select_path(&path);
+            self.hex.reveal(
+                self.tree
+                    .selected()
+                    .span
+                    .map_or(self.hex.cursor(), |s| s.start / 8),
+                size,
+            );
+        }
+        // the bytes show the cursor where the record had it, unless the tree is somewhere else
+        gone
     }
 
     /// Try what is likely to fix the parse that failed, with the schema as it is on disk: if a change helps, say so in
@@ -3766,6 +3973,7 @@ pub(crate) mod tests {
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            restore: None,
             radix: None,
         };
         (App::new(file, load(&options).unwrap()), dir)
@@ -3818,6 +4026,7 @@ pub(crate) mod tests {
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            restore: None,
             radix: None,
         };
         let loaded = load(&options).unwrap();
@@ -4456,6 +4665,7 @@ seq:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            restore: None,
             radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
@@ -4759,6 +4969,7 @@ types:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            restore: None,
             radix: None,
         };
         let mut app = App::new(options.file.clone(), load(&options).unwrap());
@@ -4822,6 +5033,7 @@ types:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            restore: None,
             radix: None,
         }
     }
@@ -5011,6 +5223,7 @@ types:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            restore: None,
             radix: None,
         })
         .unwrap();

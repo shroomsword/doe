@@ -34,6 +34,7 @@ fn options(dir: &tempfile::TempDir) -> Options {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        restore: None,
         radix: None,
     }
 }

@@ -309,6 +309,11 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         theme_on_command_line: cli.theme.is_some(),
         transparent: transparent_setting(cli, config),
         mouse: !cli.no_mouse && config.mouse.unwrap_or(true),
+        restore: if cli.no_restore || config.restore == Some(false) {
+            None
+        } else {
+            Config::state_dir()
+        },
     };
     match &cli.build {
         Some(out) => doe_tui::run_build(&options, out),

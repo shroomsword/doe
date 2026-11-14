@@ -497,6 +497,30 @@ fn the_default_types_directory_is_searched_last_and_once() {
 }
 
 #[test]
+fn restore_is_unset_or_a_boolean() {
+    assert_eq!(Config::default().restore, None);
+    for (text, wanted) in [
+        ("restore = true", Some(true)),
+        ("restore = false", Some(false)),
+    ] {
+        let mut f = NamedTempFile::new().unwrap();
+        writeln!(f, "{text}").unwrap();
+        assert_eq!(Config::load(f.path()).unwrap().restore, wanted, "{text}");
+    }
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "restore = 1").unwrap();
+    assert!(Config::load(f.path()).is_err(), "a number is not a boolean");
+}
+
+#[test]
+fn the_state_directory_is_below_the_state_home() {
+    // this test does not change the environment: it only says what the directory is called
+    if let Some(dir) = Config::state_dir() {
+        assert_eq!(dir.file_name().and_then(|n| n.to_str()), Some("doe"));
+    }
+}
+
+#[test]
 fn mouse_is_unset_or_a_boolean() {
     assert_eq!(Config::default().mouse, None);
     for (text, wanted) in [("mouse = true", Some(true)), ("mouse = false", Some(false))] {
