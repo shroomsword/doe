@@ -444,6 +444,7 @@ impl<'reg> Engine<'reg> {
                 let depth = trace.depth();
                 trace.begin(&field.id, start_bits);
                 trace.decided_by(Self::decided_by(field));
+                trace.points_to(&field.points_to);
                 depth
             });
             let value = match self.parse_field(field, ty, cursor, ctx) {
@@ -1490,8 +1491,12 @@ impl<'reg> Engine<'reg> {
         let depth = ctx.trace().map(|trace| {
             let depth = trace.depth();
             trace.begin_instance(&instance.id, start_bits);
-            if let InstanceKind::Read(field) = &instance.kind {
-                trace.decided_by(Self::decided_by(field));
+            match &instance.kind {
+                InstanceKind::Read(field) => {
+                    trace.decided_by(Self::decided_by(field));
+                    trace.points_to(&field.points_to);
+                }
+                InstanceKind::Value { .. } => trace.points_to(&instance.points_to),
             }
             depth
         });
