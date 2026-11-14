@@ -62,43 +62,8 @@ use crate::terminal::{Guard, Signals};
 use crate::ui::Theme;
 use crate::watch::Watch;
 
-/// How a comparison of two files is drawn.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum CompareView {
-    /// The tree of the first file, marked with what differs, and what only the second has under its parents.
-    #[default]
-    Annotated,
-    /// The two trees side by side.
-    SideBySide,
-}
-
-/// The text is not the name of a way to draw a comparison.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UnknownCompareView(pub String);
-
-impl std::fmt::Display for UnknownCompareView {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "unknown way to show a comparison `{}`; use annotated or side-by-side",
-            self.0
-        )
-    }
-}
-
-impl std::error::Error for UnknownCompareView {}
-
-impl std::str::FromStr for CompareView {
-    type Err = UnknownCompareView;
-
-    fn from_str(text: &str) -> Result<Self, Self::Err> {
-        match text.to_ascii_lowercase().as_str() {
-            "annotated" | "marks" => Ok(CompareView::Annotated),
-            "side-by-side" | "side_by_side" | "split" => Ok(CompareView::SideBySide),
-            _ => Err(UnknownCompareView(text.to_owned())),
-        }
-    }
-}
+/// How a comparison of two files is drawn (see [`doe::compare::View`]).
+pub use doe::compare::View as CompareView;
 
 /// The second file of a comparison, and how it is drawn.
 #[derive(Debug, Clone, PartialEq, Eq)]
