@@ -1462,6 +1462,7 @@ Options:
       --transparent          With `--tui`: leave the background of the screen to the terminal (a translucent or blurred one shows through), and use the theme's colours for the text; the selection, the status bar and the marks keep theirs (the `transparent` key of the config file, or of a theme file, changes that; `--no-transparent` overrides them)
       --no-transparent       With `--tui`: use the background of the theme, whatever the config file or the theme file says about `transparent`
       --no-mouse             With `--tui`: leave the mouse to the terminal, so that its own selection and copy work (the `mouse` key of the config file turns the viewer's mouse off too). Without it the viewer takes clicks, the wheel and drags; `z` in the viewer switches the mouse off and on
+      --no-footer            With `--tui`: start without the row of the keys that matter now under the panes (the `footer` key of the config file hides it too); `K` in the viewer shows and hides it
       --no-restore           With `--tui`: do not remember where you were, and do not put it back (the viewer keeps the open nodes, the selection, the cursor, the scroll and the view settings of each file and schema in the state directory, and restores them when the same file is opened with the same schema; the `restore` key of the config file turns it off too)
       --radix <RADIX>        With `--tui`: the radix in which integers are first shown, `dec` (the default), `hex`, `bin` or `oct`; `x` in the viewer goes through them, and `X` chooses one for the selected field (the `radix` key of the config file changes the default)
       --ide                  Serve the web IDE on this machine and print its address, instead of parsing a file. Only the loopback address is used. A FILE is offered to the page as the input, however large it is; the types found through the include paths and the config are offered too
@@ -1631,14 +1632,25 @@ says which bytes and bits they are; a field that is read from the result of a
 `process:` is not in the file's bytes, and the title says so. Only the lines in
 view are read, so a file of many gigabytes opens and scrolls at once.
 
+**The keys that matter now.** The row under the panes, above the status bar, lists the keys that matter for what you are
+doing: `↑↓ move · → open · / search · Y copy as · g goto · J follow · Tab bytes · q quit · ? all keys` for the tree,
+`←→↑↓ move · v select · y copy · g goto · b bits · Tab tree · …` for the bytes, `… Enter preview · y copy sum · F fields · m MD5 …` for
+the files of an archive (the checksum column is named by its algorithm), the builder's keys first (`a add field · u undo ·
+w save`) while a schema is being built, `o try the fix` first when a change was found that helps a failed parse, and
+`f restore` first while a pane fills the screen. It follows the pane that has the keys, and is one line: on a narrow terminal parts
+are dropped from the end, but `q quit` and `? all keys` stay. A click on a part presses its key. It is made from the table of keys
+that the help is made from, so it cannot show a key that is not bound. A terminal under 12 rows tall has no room for it; `--no-footer`
+(or `footer = false` in the config file) starts without it, and `K` shows and hides it. A key that takes another key shows what the
+next one does: after `Y`, a box lists `p path`, `v value`, `j JSON`, `x hex`, `X hex, no spaces`, `c C array`, `o offset+length` and
+`s schema field`; the choice is made by its letter or a click, and `Esc` (or a click elsewhere) puts the box away.
+
 **The mouse.** The viewer takes the mouse where the terminal reports it, and nothing the keyboard does is taken away.
 A click on a row of the tree (or of the files of an archive) selects it and gives that pane the keys; a click on the `▸`/`▾`
 before a name, or a double click on the row, opens or closes it (on a file of the files, the preview). A click on a byte, in the
 hex or in the text, puts the cursor there, which selects its field in the tree; a drag over bytes selects them as `v` does, and
 the title says how many. The wheel scrolls the pane under the pointer, three rows a notch, without moving the selection: the
-view stays where it was put until a key moves the selection, and then comes back to it. A click on a part of the key hint on the bottom
-border of the tree pane presses its key: `q quit`, `Tab switch pane`, `i inspector`, `F files/fields`, and `m MD5` (the algorithm
-of the checksum column of the files, which the click goes through); a part that the pane is too narrow to show is not there to
+view stays where it was put until a key moves the selection, and then comes back to it. A click on a part of the row of keys under the panes presses
+that key (see below); a part that the terminal is too narrow to show is not there to
 click. A pointer that only moves does nothing, and while a dialog, a list or the help is open the mouse leaves them alone. `--no-mouse` (or `mouse = false` in the config
 file) never asks the terminal for the mouse, so its own selection and copy work as in any program; `z` gives the mouse back to
 the terminal while the viewer is open, and takes it again, which is also the way to copy text in a terminal where Shift-drag
@@ -1685,12 +1697,13 @@ highlighted in the second pane, and the status line says where they are):
 │     ▾ [0]  demo::record                                                           █│
 │         kind = text (1)                                                           █│
 │         size = 11                                                                 ║│
-└ q quit · Tab switch pane · i inspector ────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────────────────────┘
 ┌ size: bytes 0x0000000e..0x0000000f ────────────────────────────────────────────────┐
 │00000000  44 4f 45 31 03 00 05 02  64 65 6d 6f 00 01 0b 00  DOE1....demo....        │
 │00000010  68 65 6c 6c 6f 20 77 6f  72 6c 64 02 08 00 89 8a  hello world.....        │
 │00000020  8b 8c 8d 8e 8f 90                                 ......                  │
 └ 38 bytes ──────────────────────────────────────────────────────────────────────────┘
+ ↑↓ move · → open · / search · Y copy as · g goto · J follow · Tab bytes · q quit · ? all keys
  demo/records/[0]/size · unsigned integer · @0xe (14) · 2 bytes (… demo.bin · 38 bytes
 ```
 
@@ -1777,7 +1790,7 @@ field or entry that was selected.
 
 `m` adds a column of **checksums** to the files, after the size: the MD5 (32 digits), and pressed again the SHA-1 (40 digits),
 then the SHA-256 (64 digits), and once more it goes away; `M` goes the other way. In a pane too narrow for the 64 digits of a SHA-256
-the column shows the first 16 and an ellipsis (`y` still copies the whole digest). The algorithm is named in the hint at the bottom of the pane and on the
+the column shows the first 16 and an ellipsis (`y` still copies the whole digest). The algorithm is named in the row of keys (`m MD5`) and on the
 status line. `…` shows while a thread reads the file and makes them (the screen stays alive and shows each as it comes), `—`
 for a file with none (the schema gives no contents, or the stored bytes are not the file, as for a deflated zip entry; the
 status line says why when you move onto it), nothing for a directory. The digests made for one algorithm are kept, so going
@@ -2281,6 +2294,7 @@ level = "debug"
 | `include_paths` | list of paths | Directories searched for bare type names, in order. `~/` is expanded. | `-I`/`--include-path` (these come first) |
 | `default_types` | `true`, `false` | Whether the directory made by `doe --install-types` (`~/.doe/types`) is searched after `include_paths`. Default `true`; `false` leaves it out. | |
 | `theme` | text | The colour theme of `doe --tui`: a built-in id, a file in the `themes` directory next to this file, or a path (see [Themes](#themes)). Default: the terminal's own colours. | `--theme` |
+| `footer` | `true`, `false` | Whether `doe --tui` shows the row of the keys that matter now, under the panes (see [Terminal viewer](#terminal-viewer)). With `false` it starts without it (`K` in the viewer shows it). Default: `true`. | `--no-footer` |
 | `restore` | `true`, `false` | Whether `doe --tui` remembers where you were with each file and schema, and puts it back when they are opened again (see [Terminal viewer](#terminal-viewer)). With `false` it neither reads nor writes the state directory. Default: `true`. | `--no-restore` |
 | `mouse` | `true`, `false` | Whether `doe --tui` takes the mouse: clicks, the wheel and drags (see [Terminal viewer](#terminal-viewer)). With `false` the terminal keeps it, and its own selection and copy work. Default: `true`. | `--no-mouse` |
 | `transparent` | `true`, `false` | Whether `doe --tui` leaves the background of the screen to the terminal, so that a translucent one shows through (see [Themes](#themes)). Overrides the `transparent` key of a theme file. Default: what the theme says, which is off for the built-in themes. | `--transparent`, `--no-transparent` |

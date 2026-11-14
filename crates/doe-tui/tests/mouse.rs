@@ -34,6 +34,7 @@ fn options(dir: &tempfile::TempDir) -> Options {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        footer: true,
         restore: None,
         radix: None,
     }
@@ -381,7 +382,7 @@ fn a_click_on_an_entry_of_the_files_selects_it_and_the_tree_and_the_bytes_follow
     let types = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../types");
     let mut options = options(&tempfile::tempdir().unwrap());
     options.file = types.join("samples/sample.tar");
-    options.type_or_schema = "tar".to_owned();
+    "tar".clone_into(&mut options.type_or_schema);
     options.include_paths = vec![types];
     let mut app = App::new(options.file.clone(), load(&options).unwrap());
     app.options = Some(options);
@@ -409,7 +410,7 @@ fn text_under(terminal: &Terminal<TestBackend>, rect: ratatui::layout::Rect) -> 
 }
 
 #[test]
-fn each_part_of_the_hint_is_where_it_is_drawn_and_a_click_presses_its_key() {
+fn each_part_of_the_footer_is_where_it_is_drawn_and_a_click_presses_its_key() {
     let (mut app, _dir) = app();
     let terminal = draw_now(&mut app, 120, 24);
     let hints = app.hits.hints.clone();
@@ -417,37 +418,56 @@ fn each_part_of_the_hint_is_where_it_is_drawn_and_a_click_presses_its_key() {
         .iter()
         .map(|(rect, _)| text_under(&terminal, *rect))
         .collect();
-    assert_eq!(texts, ["q quit", "Tab switch pane", "i inspector"]);
+    assert_eq!(
+        texts,
+        [
+            "↑↓ move",
+            "→ open",
+            "/ search",
+            "Y copy as",
+            "g goto",
+            "J follow",
+            "Tab bytes",
+            "q quit",
+            "? all keys"
+        ]
+    );
     // the focus: Tab switches it
     assert_eq!(app.focus, Focus::Tree);
-    let (rect, _) = hints[1];
+    let (rect, _) = hints[6];
     assert!(click(&mut app, rect.x + 2, rect.y));
     assert_eq!(app.focus, Focus::Hex);
-    // the inspector
-    let (rect, _) = hints[2];
-    assert!(!app.inspector);
+    // the help
+    draw_now(&mut app, 120, 24);
+    let (rect, _) = *app.hits.hints.last().unwrap();
     click(&mut app, rect.x, rect.y);
-    assert!(app.inspector);
+    assert!(app.help);
+    app.help = false;
+    app.focus = Focus::Tree;
     // the last cell of a part is the part's, the separator after it is not
     draw_now(&mut app, 120, 24);
     let (rect, _) = app.hits.hints[2];
     click(&mut app, rect.x + rect.width - 1, rect.y);
-    assert!(!app.inspector);
+    assert!(
+        app.prompt.is_some(),
+        "the click on / search opened the search"
+    );
     assert!(
         app.hits
             .target(rect.x + rect.width, rect.y)
             .is_none_or(|t| !matches!(t, doe_tui::mouse::Target::Hint(_)))
     );
+    key(&mut app, KeyCode::Esc);
     // quit
     draw_now(&mut app, 120, 24);
-    let (rect, _) = app.hits.hints[0];
+    let (rect, _) = app.hits.hints[7];
     assert!(!app.quit);
     click(&mut app, rect.x, rect.y);
     assert!(app.quit);
 }
 
 #[test]
-fn the_hint_of_a_full_screen_and_of_a_narrow_pane_has_only_parts_that_are_drawn() {
+fn the_footer_of_a_full_screen_and_of_a_narrow_terminal_has_only_parts_that_are_drawn() {
     let (mut app, _dir) = app();
     app.fullscreen = true;
     app.focus = Focus::Tree;
@@ -458,43 +478,46 @@ fn the_hint_of_a_full_screen_and_of_a_narrow_pane_has_only_parts_that_are_drawn(
         .map(|(rect, _)| text_under(&terminal, *rect))
         .collect();
     assert_eq!(
-        texts,
-        [
-            "q quit",
-            "f or Esc restore",
-            "Tab other pane",
-            "i inspector"
-        ]
+        texts.first().map(String::as_str),
+        Some("f restore"),
+        "{texts:?}"
     );
-    click(&mut app, hints[1].0.x, hints[1].0.y);
-    assert!(
-        !app.fullscreen,
-        "the part that says f or Esc restores both panes"
-    );
-    // a pane too narrow for the whole hint: what is cut is not a part to click
+    click(&mut app, hints[0].0.x, hints[0].0.y);
+    assert!(!app.fullscreen, "the part that says f restores both panes");
+    // a terminal too narrow for the whole footer: what is cut is not a part to click, and the two last stay
     let (mut app, _dir) = app_with(SCHEMA, &[1, 0, 2, 0, 3, 0, 4, 5]);
-    let terminal = draw_now(&mut app, 50, 12);
-    let pane = app.hits.tree_pane.unwrap();
+    let terminal = draw_now(&mut app, 40, 14);
+    let texts: Vec<String> = app
+        .hits
+        .hints
+        .iter()
+        .map(|(rect, _)| text_under(&terminal, *rect))
+        .collect();
+    assert_eq!(
+        texts.last().map(String::as_str),
+        Some("? all keys"),
+        "{texts:?}"
+    );
+    assert_eq!(
+        texts.iter().rev().nth(1).map(String::as_str),
+        Some("q quit")
+    );
     for (rect, _) in &app.hits.hints {
-        assert!(
-            rect.x + rect.width < pane.x + pane.width,
-            "{rect:?} is on the border"
-        );
-        let text = text_under(&terminal, *rect);
-        assert!(!text.trim().is_empty(), "{rect:?}");
+        assert!(rect.x + rect.width <= 40, "{rect:?}");
     }
 }
 
 #[test]
-fn the_checksum_part_of_the_hint_of_the_files_goes_to_the_next_algorithm() {
+fn the_checksum_part_of_the_footer_of_the_files_goes_to_the_next_algorithm() {
     let types = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../types");
     let mut options = options(&tempfile::tempdir().unwrap());
     options.file = types.join("samples/sample.tar");
-    options.type_or_schema = "tar".to_owned();
+    "tar".clone_into(&mut options.type_or_schema);
     options.include_paths = vec![types];
     let mut app = App::new(options.file.clone(), load(&options).unwrap());
     app.options = Some(options);
     app.mouse_on = true;
+    app.focus = Focus::Tree;
     let terminal = draw_now(&mut app, 200, 16);
     let texts: Vec<String> = app
         .hits
@@ -504,10 +527,20 @@ fn the_checksum_part_of_the_hint_of_the_files_goes_to_the_next_algorithm() {
         .collect();
     assert_eq!(
         texts,
-        ["q quit", "Tab switch pane", "i inspector", "F files/fields"]
+        [
+            "↑↓ move",
+            "→ open",
+            "Enter preview",
+            "y copy sum",
+            "/ search",
+            "Tab bytes",
+            "F fields",
+            "m checksums",
+            "q quit",
+            "? all keys"
+        ]
     );
-    // `m` shows the column, and the hint names its algorithm
-    app.focus = Focus::Tree;
+    // `m` shows the column, and the footer names its algorithm
     key(&mut app, KeyCode::Char('m'));
     assert!(
         app.files.as_ref().unwrap().algorithm.is_some(),
@@ -515,16 +548,17 @@ fn the_checksum_part_of_the_hint_of_the_files_goes_to_the_next_algorithm() {
         app.notice
     );
     let terminal = draw_now(&mut app, 200, 16);
-    let (rect, _) = *app.hits.hints.last().unwrap();
+    let (rect, _) = app.hits.hints[7];
     let shown = text_under(&terminal, rect);
     assert!(shown.starts_with("m "), "{shown}");
+    assert_ne!(shown, "m checksums");
     let before = app.files.as_ref().unwrap().algorithm;
     click(&mut app, rect.x, rect.y);
     assert_ne!(app.files.as_ref().unwrap().algorithm, before);
-    // the part for the Files goes to the fields
+    // the part for the fields goes to the fields
     draw_now(&mut app, 200, 16);
-    let files = app.hits.hints[3].0;
+    let fields = app.hits.hints[6].0;
     assert!(app.files_shown());
-    click(&mut app, files.x, files.y);
+    click(&mut app, fields.x, fields.y);
     assert!(!app.files_shown());
 }

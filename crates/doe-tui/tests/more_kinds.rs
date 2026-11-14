@@ -53,6 +53,7 @@ fn building() -> (App, tempfile::TempDir) {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        footer: true,
         restore: None,
         radix: None,
     };

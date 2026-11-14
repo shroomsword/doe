@@ -89,6 +89,12 @@ pub struct Config {
     #[serde(default)]
     pub restore: Option<bool>,
 
+    /// Whether the terminal viewer (`doe --tui`) shows the row of the keys that
+    /// matter now, under the panes. With `false` it starts without it (`K` in the
+    /// viewer shows it). `--no-footer` overrides it. On when unset.
+    #[serde(default)]
+    pub footer: Option<bool>,
+
     /// The radix in which the terminal viewer (`doe --tui`) first shows
     /// integers: `dec`, `hex`, `bin` or `oct`. `--radix` overrides it.
     #[serde(default)]

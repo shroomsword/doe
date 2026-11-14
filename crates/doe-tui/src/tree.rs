@@ -1005,6 +1005,7 @@ pub(crate) mod tests {
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            footer: true,
             restore: None,
             radix: None,
         })

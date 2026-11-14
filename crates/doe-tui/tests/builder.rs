@@ -34,6 +34,7 @@ fn building() -> (App, tempfile::TempDir) {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        footer: true,
         restore: None,
         radix: None,
     };
@@ -169,6 +170,7 @@ fn the_ordinary_viewer_has_no_builder_and_leaves_at_once() {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        footer: true,
         restore: None,
         radix: None,
     };

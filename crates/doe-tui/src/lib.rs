@@ -99,6 +99,9 @@ pub struct Options {
     /// Whether the viewer takes the mouse (clicks, the wheel, drags): false for `--no-mouse` or `mouse = false` in the
     /// config. When it is false the terminal's own selection and copy work as in any program.
     pub mouse: bool,
+    /// Whether the viewer shows the row of keys that matter under the panes (`--no-footer` or `footer = false` in the
+    /// config file start with it hidden; `K` shows and hides it).
+    pub footer: bool,
     /// The directory where the viewer keeps where you were, for each file and schema, and reads it from when the
     /// file is opened again: `Config::state_dir`, unless `--no-restore` or `restore = false` in the config, which
     /// leave it `None` (nothing is read or written).
@@ -233,6 +236,7 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
         app.builder = Some(builder);
         app.focus = app::Focus::Hex;
     }
+    app.footer_on = options.footer;
     app.mouse_on = options.mouse;
     app.mouse_refused = !options.mouse;
     app.radixes = radixes::Radixes::new(options.radix.unwrap_or_default());

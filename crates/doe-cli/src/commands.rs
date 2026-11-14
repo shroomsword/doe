@@ -309,6 +309,7 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         theme_on_command_line: cli.theme.is_some(),
         transparent: transparent_setting(cli, config),
         mouse: !cli.no_mouse && config.mouse.unwrap_or(true),
+        footer: !cli.no_footer && config.footer.unwrap_or(true),
         restore: if cli.no_restore || config.restore == Some(false) {
             None
         } else {

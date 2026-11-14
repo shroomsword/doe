@@ -141,6 +141,8 @@ pub enum Action {
     ToggleByteOrder,
     /// Building a schema: save it.
     Save,
+    /// Show or hide the row of keys under the panes.
+    ToggleFooter,
 }
 
 /// Where a binding applies.
@@ -364,6 +366,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::ToggleReport,
         help: "show or hide the message about a parse that failed",
+    },
+    Binding {
+        keys: &[ch('K')],
+        scope: Scope::Anywhere,
+        action: Action::ToggleFooter,
+        help: "show or hide the row of keys that matter now, under the panes (--no-footer and footer = false in the config file start with it hidden)",
     },
     Binding {
         keys: &[ch('z')],
@@ -719,6 +727,246 @@ pub const PROMPT_HELP: &[(&str, &str)] = &[
     ("paste", "inserts the text (one line)"),
 ];
 
+// ── The footer: the keys that matter now ───────────────────────────────────────────────────────────────────────
+
+/// Where the viewer is, as far as the keys that matter are concerned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Situation {
+    /// Nothing can be done but leave and read the help: the file is being parsed, or nothing could be parsed.
+    Waiting,
+    /// A line is being typed (a search, a jump).
+    Prompt,
+    /// A list, a dialog, the preview of a file of an archive or the help has the screen (most of them cover the footer,
+    /// and have their own keys on their border).
+    Dialog,
+    /// The tree of fields or the bytes have the keys.
+    Panes,
+}
+
+/// What the footer depends on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "the switches that decide which keys matter, one field each"
+)]
+pub struct FooterContext {
+    /// Where the viewer is.
+    pub situation: Situation,
+    /// The pane that has the keys.
+    pub pane: Scope,
+    /// Whether the files of an archive are shown in the place of the tree of fields.
+    pub files_shown: bool,
+    /// Whether the file is an archive (so that `F` has something to switch to).
+    pub archive: bool,
+    /// The label of the algorithm of the checksum column, when it is shown.
+    pub checksums: Option<&'static str>,
+    /// Whether a schema is being built.
+    pub building: bool,
+    /// Whether the parse failed and a change was found that helps.
+    pub fix: bool,
+    /// Whether a pane fills the screen.
+    pub fullscreen: bool,
+}
+
+/// A part of the footer: the keys, what they do, and the action that a click on it presses (none for the keys of a
+/// preview or a prompt, which are not in the table of bindings).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FooterPart {
+    /// The keys, as the help writes them (`↑↓`, `Tab`, `/`).
+    pub keys: String,
+    /// What they do, in a word or two.
+    pub label: String,
+    /// What a click presses.
+    pub action: Option<Action>,
+}
+
+impl FooterPart {
+    /// The width of the part as it is drawn: `keys label`.
+    #[must_use]
+    pub fn width(&self) -> usize {
+        crate::format::width(&self.keys) + 1 + crate::format::width(&self.label)
+    }
+}
+
+/// A part of a context: the actions whose first keys are shown together, and what they do.
+type Entry = (&'static [Action], &'static str);
+
+const TREE_PARTS: &[Entry] = &[
+    (&[Action::TreeUp, Action::TreeDown], "move"),
+    (&[Action::TreeRight], "open"),
+    (&[Action::Search], "search"),
+    (&[Action::CopyAs], "copy as"),
+    (&[Action::Goto], "goto"),
+    (&[Action::FollowPointer], "follow"),
+    (&[Action::ToggleFocus], "bytes"),
+];
+
+const FILES_PARTS: &[Entry] = &[
+    (&[Action::TreeUp, Action::TreeDown], "move"),
+    (&[Action::TreeRight], "open"),
+    (&[Action::TreeToggle], "preview"),
+    (&[Action::CopyChecksum], "copy sum"),
+    (&[Action::Search], "search"),
+    (&[Action::ToggleFocus], "bytes"),
+];
+
+const BYTES_PARTS: &[Entry] = &[
+    (
+        &[
+            Action::HexLeft,
+            Action::HexRight,
+            Action::HexUp,
+            Action::HexDown,
+        ],
+        "move",
+    ),
+    (&[Action::HexSelect], "select"),
+    (&[Action::HexCopy], "copy"),
+    (&[Action::Goto], "goto"),
+    (&[Action::HexBits], "bits"),
+    (&[Action::ToggleFocus], "tree"),
+];
+
+/// The first key of `action` in `pane`, or in both, as the help writes it.
+#[must_use]
+pub fn first_key(pane: Scope, action: Action) -> Option<String> {
+    [pane, Scope::Anywhere].into_iter().find_map(|scope| {
+        BINDINGS
+            .iter()
+            .find(|b| b.scope == scope && b.action == action)
+            .and_then(|b| b.keys.first())
+            .map(|k| label(*k))
+    })
+}
+
+fn bound(pane: Scope, entry: &Entry) -> Option<FooterPart> {
+    let (actions, text) = entry;
+    let keys: Option<String> = actions.iter().map(|a| first_key(pane, *a)).collect();
+    Some(FooterPart {
+        keys: keys?,
+        label: (*text).to_owned(),
+        action: actions.first().copied(),
+    })
+}
+
+fn literal(keys: &str, label: &str) -> FooterPart {
+    FooterPart {
+        keys: keys.to_owned(),
+        label: label.to_owned(),
+        action: None,
+    }
+}
+
+/// The footer for a context: the few keys that matter, most useful first, the last one always the help. Each key is the
+/// first one of its action in [`BINDINGS`], so the footer cannot say a key that is not bound.
+#[must_use]
+pub fn footer(ctx: &FooterContext) -> Vec<FooterPart> {
+    let help = || bound(ctx.pane, &(&[Action::Help], "all keys"));
+    let quit = || bound(ctx.pane, &(&[Action::Quit], "quit"));
+    let mut parts: Vec<FooterPart> = match ctx.situation {
+        Situation::Waiting => Vec::new(),
+        Situation::Prompt => {
+            return vec![literal("Enter", "accept"), literal("Esc", "cancel")];
+        }
+        Situation::Dialog => {
+            return vec![literal("Esc", "close")];
+        }
+        Situation::Panes => {
+            let mut parts = Vec::new();
+            if ctx.fullscreen {
+                parts.extend(bound(ctx.pane, &(&[Action::Fullscreen], "restore")));
+            }
+            if ctx.fix {
+                parts.extend(bound(ctx.pane, &(&[Action::TryFix], "try the fix")));
+            }
+            if ctx.building {
+                let add: &'static [Action] = if ctx.pane == Scope::Bytes {
+                    &[Action::HexAddField]
+                } else {
+                    &[Action::TreeAddField]
+                };
+                for entry in [
+                    (add, "add field"),
+                    (&[Action::Undo][..], "undo"),
+                    (&[Action::Save][..], "save"),
+                ] {
+                    parts.extend(bound(ctx.pane, &entry));
+                }
+            }
+            let list = match (ctx.pane, ctx.files_shown) {
+                (Scope::Bytes, _) => BYTES_PARTS,
+                (_, true) => FILES_PARTS,
+                (_, false) => TREE_PARTS,
+            };
+            parts.extend(list.iter().filter_map(|e| bound(ctx.pane, e)));
+            // the other view of an archive
+            if ctx.archive {
+                let label = if ctx.files_shown { "fields" } else { "files" };
+                parts.extend(bound(ctx.pane, &(&[Action::Files], label)));
+            }
+            // the checksum column is named, and `m` goes through the algorithms
+            if ctx.files_shown && ctx.pane != Scope::Bytes {
+                let text = ctx.checksums.unwrap_or("checksums");
+                parts.extend(bound(ctx.pane, &(&[Action::Checksums], text)));
+            }
+            parts
+        }
+    };
+    parts.extend(quit());
+    parts.extend(help());
+    parts
+}
+
+/// The parts that fit in `width` cells, as the footer is drawn (a space before, ` · ` between): parts are dropped from
+/// the end, but the last two (leaving, and the help) stay.
+#[must_use]
+pub fn fit(mut parts: Vec<FooterPart>, width: usize) -> Vec<FooterPart> {
+    let total = |parts: &[FooterPart]| {
+        1 + parts.iter().map(FooterPart::width).sum::<usize>()
+            + FOOTER_SEPARATOR.chars().count() * parts.len().saturating_sub(1)
+    };
+    while parts.len() > 2 && total(&parts) > width {
+        let at = parts.len() - 3;
+        parts.remove(at);
+    }
+    parts
+}
+
+/// What separates the parts of the footer.
+pub const FOOTER_SEPARATOR: &str = " · ";
+
+// ── The which-key pop-up ────────────────────────────────────────────────────────────────────────────────────────
+
+/// A key that takes another key, and what the other key can be.
+#[derive(Debug, Clone, Copy)]
+pub struct Chord {
+    /// The action of the first key.
+    pub prefix: Action,
+    /// The second keys and what each does, in the order of the box.
+    pub choices: &'static [(char, &'static str)],
+}
+
+/// The keys that take another key.
+pub const CHORDS: &[Chord] = &[Chord {
+    prefix: Action::CopyAs,
+    choices: &[
+        ('p', "path"),
+        ('v', "value"),
+        ('j', "JSON"),
+        ('x', "hex"),
+        ('X', "hex, no spaces"),
+        ('c', "C array"),
+        ('o', "offset+length"),
+        ('s', "schema field"),
+    ],
+}];
+
+/// The chord that `prefix` starts, if it starts one.
+#[must_use]
+pub fn chord(prefix: Action) -> Option<&'static Chord> {
+    CHORDS.iter().find(|c| c.prefix == prefix)
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(
@@ -887,5 +1135,184 @@ mod tests {
         // shift does not change a key
         let shifted = KeyEvent::new(KeyCode::Char('G'), KeyModifiers::SHIFT);
         assert_eq!(lookup(Scope::Tree, &shifted), Some(Action::TreeEnd));
+    }
+
+    /// Every context that the footer is made for.
+    fn contexts() -> Vec<FooterContext> {
+        let mut all = Vec::new();
+        for pane in [Scope::Tree, Scope::Bytes] {
+            for files_shown in [false, true] {
+                for archive in [false, true] {
+                    for building in [false, true] {
+                        for fix in [false, true] {
+                            for checksums in [None, Some("SHA-256")] {
+                                all.push(FooterContext {
+                                    situation: Situation::Panes,
+                                    pane,
+                                    files_shown: files_shown && archive,
+                                    archive,
+                                    checksums,
+                                    building,
+                                    fix,
+                                    fullscreen: !fix && building,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for situation in [Situation::Waiting, Situation::Prompt, Situation::Dialog] {
+            all.push(FooterContext {
+                situation,
+                pane: Scope::Tree,
+                files_shown: false,
+                archive: false,
+                checksums: None,
+                building: false,
+                fix: false,
+                fullscreen: false,
+            });
+        }
+        all
+    }
+
+    #[test]
+    fn every_part_of_a_footer_is_bound_in_the_table_of_keys() {
+        for ctx in contexts() {
+            let parts = footer(&ctx);
+            for part in &parts {
+                match part.action {
+                    Some(action) => {
+                        // the keys that are shown are the first keys of the actions that the context reads
+                        let first = first_key(ctx.pane, action).unwrap_or_else(|| {
+                            panic!("{action:?} is not bound for {:?}: {ctx:?}", ctx.pane)
+                        });
+                        assert!(part.keys.starts_with(&first), "{part:?} in {ctx:?}");
+                    }
+                    None => assert!(
+                        matches!(ctx.situation, Situation::Prompt | Situation::Dialog),
+                        "only the keys of a prompt or a dialog are not in the table: {part:?}"
+                    ),
+                }
+            }
+            // the lists lose no part for want of a binding
+            if ctx.situation == Situation::Panes {
+                let list = match (ctx.pane, ctx.files_shown) {
+                    (Scope::Bytes, _) => BYTES_PARTS,
+                    (_, true) => FILES_PARTS,
+                    (_, false) => TREE_PARTS,
+                };
+                for entry in list {
+                    assert!(bound(ctx.pane, entry).is_some(), "{entry:?} in {ctx:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_footer_is_cut_to_the_width_and_keeps_the_help() {
+        for ctx in contexts() {
+            for width in [80, 60, 40, 24] {
+                let parts = fit(footer(&ctx), width);
+                let text: usize = 1
+                    + parts.iter().map(FooterPart::width).sum::<usize>()
+                    + FOOTER_SEPARATOR.chars().count() * (parts.len() - 1);
+                if ctx.situation == Situation::Panes {
+                    assert_eq!(
+                        parts.last().map(|p| p.label.as_str()),
+                        Some("all keys"),
+                        "{ctx:?}"
+                    );
+                    // two parts are the least: the one before the help, and the help
+                    assert!(
+                        text <= width || parts.len() == 2,
+                        "{text} > {width}: {parts:?}"
+                    );
+                }
+            }
+        }
+        // the first parts are the ones that stay
+        let ctx = contexts()
+            .into_iter()
+            .find(|c| {
+                c.situation == Situation::Panes
+                    && c.pane == Scope::Tree
+                    && !c.building
+                    && !c.fix
+                    && !c.archive
+            })
+            .unwrap();
+        let narrow = fit(footer(&ctx), 30);
+        assert_eq!(narrow.first().map(|p| p.label.as_str()), Some("move"));
+    }
+
+    #[test]
+    fn the_footer_of_each_context_is_what_the_issue_says() {
+        let text = |ctx: &FooterContext| {
+            fit(footer(ctx), 200)
+                .iter()
+                .map(|p| format!("{} {}", p.keys, p.label))
+                .collect::<Vec<_>>()
+                .join(" · ")
+        };
+        let mut ctx = FooterContext {
+            situation: Situation::Panes,
+            pane: Scope::Tree,
+            files_shown: false,
+            archive: false,
+            checksums: None,
+            building: false,
+            fix: false,
+            fullscreen: false,
+        };
+        assert_eq!(
+            text(&ctx),
+            "↑↓ move · → open · / search · Y copy as · g goto · J follow · Tab bytes · q quit · ? all keys"
+        );
+        ctx.pane = Scope::Bytes;
+        assert_eq!(
+            text(&ctx),
+            "←→↑↓ move · v select · y copy · g goto · b bits · Tab tree · q quit · ? all keys"
+        );
+        ctx.pane = Scope::Tree;
+        ctx.archive = true;
+        ctx.files_shown = true;
+        ctx.checksums = Some("MD5");
+        assert_eq!(
+            text(&ctx),
+            "↑↓ move · → open · Enter preview · y copy sum · / search · Tab bytes · F fields · m MD5 · q quit · ? all keys"
+        );
+        ctx.archive = false;
+        ctx.files_shown = false;
+        ctx.building = true;
+        ctx.fix = true;
+        assert!(text(&ctx).starts_with("o try the fix · a add field · u undo · w save · ↑↓ move"));
+        ctx.fix = false;
+        ctx.building = false;
+        ctx.fullscreen = true;
+        assert!(
+            text(&ctx).starts_with("f restore · ↑↓ move"),
+            "{}",
+            text(&ctx)
+        );
+    }
+
+    #[test]
+    fn the_chords_have_a_letter_for_each_choice_and_no_letter_twice() {
+        for chord in CHORDS {
+            let mut seen = std::collections::HashSet::new();
+            for (letter, label) in chord.choices {
+                assert!(seen.insert(*letter), "{letter} twice in {:?}", chord.prefix);
+                assert_ne!(*label, "");
+            }
+            assert!(
+                BINDINGS.iter().any(|b| b.action == chord.prefix),
+                "the first key of {:?} is not bound",
+                chord.prefix
+            );
+        }
+        assert_eq!(chord(Action::CopyAs).map(|c| c.choices.len()), Some(8));
+        assert!(chord(Action::Goto).is_none());
     }
 }

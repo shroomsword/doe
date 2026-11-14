@@ -54,6 +54,7 @@ impl Fixture {
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            footer: true,
             restore: restore.then(|| self.state.path().to_path_buf()),
             radix: None,
         }

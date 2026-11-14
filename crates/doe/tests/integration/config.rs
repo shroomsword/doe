@@ -497,6 +497,22 @@ fn the_default_types_directory_is_searched_last_and_once() {
 }
 
 #[test]
+fn footer_is_unset_or_a_boolean() {
+    assert_eq!(Config::default().footer, None);
+    for (text, wanted) in [
+        ("footer = true", Some(true)),
+        ("footer = false", Some(false)),
+    ] {
+        let mut f = NamedTempFile::new().unwrap();
+        writeln!(f, "{text}").unwrap();
+        assert_eq!(Config::load(f.path()).unwrap().footer, wanted, "{text}");
+    }
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "footer = \"off\"").unwrap();
+    assert!(Config::load(f.path()).is_err(), "text is not a boolean");
+}
+
+#[test]
 fn restore_is_unset_or_a_boolean() {
     assert_eq!(Config::default().restore, None);
     for (text, wanted) in [
