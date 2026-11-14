@@ -7,6 +7,7 @@
 use ratatui::layout::Rect;
 
 use crate::app::Focus;
+use crate::keymap::Action;
 
 /// The rows of a list (the tree, or the files) as they were last drawn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,7 +38,7 @@ pub struct HexHit {
 }
 
 /// Where the last drawing put what.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Hits {
     /// The pane of the tree, with its border.
     pub tree_pane: Option<Rect>,
@@ -47,6 +48,8 @@ pub struct Hits {
     pub rows: Option<RowsHit>,
     /// The lines of bytes.
     pub hex: Option<HexHit>,
+    /// The parts of the key hint on the border of the tree pane, each with the key that a click on it presses.
+    pub hints: Vec<(Rect, Action)>,
 }
 
 /// What is under a cell.
@@ -63,6 +66,8 @@ pub enum Target {
     },
     /// A byte of the file.
     Byte(u64),
+    /// A part of the key hint: a click on it presses its key.
+    Hint(Action),
     /// A pane, where nothing more exact is under the cell.
     Pane(Focus),
 }
@@ -78,6 +83,9 @@ impl Hits {
     /// What is under the cell at `column`, `row` (from the top left of the screen).
     #[must_use]
     pub fn target(&self, column: u16, row: u16) -> Option<Target> {
+        if let Some((_, action)) = self.hints.iter().find(|(r, _)| inside(*r, column, row)) {
+            return Some(Target::Hint(*action));
+        }
         if let Some(rows) = self.rows.filter(|r| inside(r.area, column, row)) {
             let index = rows.first + usize::from(row - rows.area.y);
             if index < rows.len {
@@ -239,6 +247,7 @@ mod tests {
                 files: false,
             }),
             hex: None,
+            hints: Vec::new(),
         };
         assert_eq!(
             hits.target(4, 1),

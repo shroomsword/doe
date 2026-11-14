@@ -1106,6 +1106,8 @@ impl App {
                 self.follow_cursor();
                 self.drag_from = Some(offset);
             }
+            // the key that the hint shows
+            Some(Target::Hint(action)) => self.act(action),
             Some(Target::Pane(focus)) => self.focus = focus,
             None => return false,
         }

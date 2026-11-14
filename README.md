@@ -1635,8 +1635,10 @@ A click on a row of the tree (or of the files of an archive) selects it and give
 before a name, or a double click on the row, opens or closes it (on a file of the files, the preview). A click on a byte, in the
 hex or in the text, puts the cursor there, which selects its field in the tree; a drag over bytes selects them as `v` does, and
 the title says how many. The wheel scrolls the pane under the pointer, three rows a notch, without moving the selection: the
-view stays where it was put until a key moves the selection, and then comes back to it. A pointer that only moves does nothing,
-and while a dialog, a list or the help is open the mouse leaves them alone. `--no-mouse` (or `mouse = false` in the config
+view stays where it was put until a key moves the selection, and then comes back to it. A click on a part of the key hint on the bottom
+border of the tree pane presses its key: `q quit`, `Tab switch pane`, `i inspector`, `F files/fields`, and `m MD5` (the algorithm
+of the checksum column of the files, which the click goes through); a part that the pane is too narrow to show is not there to
+click. A pointer that only moves does nothing, and while a dialog, a list or the help is open the mouse leaves them alone. `--no-mouse` (or `mouse = false` in the config
 file) never asks the terminal for the mouse, so its own selection and copy work as in any program; `z` gives the mouse back to
 the terminal while the viewer is open, and takes it again, which is also the way to copy text in a terminal where Shift-drag
 is not offered. The mouse is given back to the terminal wherever the viewer ends, a panic and a signal included.
