@@ -517,6 +517,12 @@ pub struct RawField {
     #[serde(default)]
     pub pos: Option<StringOrInt>,
 
+    /// The field or instance that the number read here points at: the viewers jump from this field to it
+    /// (`points-to: table`). It says what `pos:` and `size:` do not, for a number that is an offset or a size
+    /// of something that another field reads.
+    #[serde(rename = "points-to", default)]
+    pub points_to: Option<String>,
+
     /// What the value read may be; the parse fails if it is anything else. A
     /// bare value stands for `eq`.
     #[serde(default)]
@@ -741,6 +747,12 @@ pub struct RawInstance {
     #[serde(default)]
     pub pos: Option<StringOrInt>,
 
+    /// The field or instance that the number read here points at: the viewers jump from this field to it
+    /// (`points-to: table`). It says what `pos:` and `size:` do not, for a number that is an offset or a size
+    /// of something that another field reads.
+    #[serde(rename = "points-to", default)]
+    pub points_to: Option<String>,
+
     /// What the value read may be; the parse fails if it is anything else. A
     /// bare value stands for `eq`.
     #[serde(default)]
@@ -789,6 +801,7 @@ impl RawInstance {
             repeat_until: self.repeat_until.clone(),
             if_expr: self.if_expr.clone(),
             pos: self.pos.clone(),
+            points_to: self.points_to.clone(),
             valid: self.valid.clone(),
             enum_ref: self.enum_ref.clone(),
             doc: self.doc.clone(),

@@ -1368,6 +1368,7 @@ fn missing_nested_type_in_registry_is_unknown_type_error() {
                 repeat: RepeatMode::Once,
                 if_expr: None,
                 pos: None,
+                points_to: Vec::new(),
                 uses_instances: vec![],
                 reads_itself: false,
                 parent_up: None,

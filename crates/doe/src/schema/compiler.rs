@@ -655,6 +655,7 @@ impl Compiler {
                 kind: InstanceKind::Read(Box::new(field)),
                 io,
                 reads_position: false,
+                points_to: Vec::new(),
             });
         };
         if raw.reads() {
@@ -687,6 +688,7 @@ impl Compiler {
         Ok(CompiledInstance {
             io: None,
             reads_position,
+            points_to: compile_points_to(raw.points_to.as_deref(), id, ctx)?,
             id: id.to_owned(),
             kind: InstanceKind::Value {
                 doc: raw.doc.clone(),
@@ -751,6 +753,7 @@ impl Compiler {
             .as_ref()
             .map(|p| compile_expr(&p.as_str(), ctx))
             .transpose()?;
+        let points_to = compile_points_to(raw.points_to.as_deref(), &raw.id, ctx)?;
 
         // Validate enum reference if present
         if let Some(enum_name) = &raw.enum_ref
@@ -770,6 +773,7 @@ impl Compiler {
             repeat,
             if_expr,
             pos,
+            points_to,
             enum_ref: raw.enum_ref.clone(),
             uses_instances: Vec::new(),
             reads_itself: false,
@@ -1341,6 +1345,27 @@ fn type_exprs(ty: &CompiledType) -> Vec<&expr::Expr> {
 }
 
 /// The paths of the fields the expressions refer to (`_parent.x.y`).
+/// What a `points-to:` names: the fields of the expression, which must be at least one.
+fn compile_points_to(text: Option<&str>, id: &str, ctx: &FieldCtx<'_>) -> Result<Vec<Vec<String>>> {
+    let Some(text) = text else {
+        return Ok(Vec::new());
+    };
+    let bad = |message: String| DoeError::FieldError {
+        field: id.to_owned(),
+        context: ctx.parent_fqn.to_owned(),
+        message,
+    };
+    let refs = compile_expr(text, ctx)
+        .map_err(|e| bad(format!("'points-to': {e}")))?
+        .field_refs();
+    if refs.is_empty() {
+        return Err(bad(format!(
+            "'points-to' names a field or an instance, and '{text}' names none"
+        )));
+    }
+    Ok(refs)
+}
+
 /// Whether a path of an expression asks where a stream is: `_io.pos`, `_io.eof`,
 /// also through `_parent` and `_root`, or `_io` taken whole.
 fn reads_stream_position(path: &[String]) -> bool {

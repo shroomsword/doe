@@ -154,6 +154,8 @@ pub struct CompiledField {
     pub if_expr: Option<Expr>,
     /// Compiled `pos:` expression, if present: where to read the field.
     pub pos: Option<Expr>,
+    /// What `points-to:` names, as the names the schema writes: the fields this one points at.
+    pub points_to: Vec<Vec<String>>,
     /// Name of the enum to apply, if present.
     pub enum_ref: Option<String>,
     /// Instances of the same type that the field's expressions use, which are
@@ -239,6 +241,9 @@ pub struct CompiledInstance {
     /// worked out when it is first used and, if nothing uses it, when the
     /// whole input has been read, as the reference compiler's parsers do.
     pub reads_position: bool,
+    /// What `points-to:` names on a computed (`value:`) instance, as the names the schema writes; a read
+    /// instance has it in its field.
+    pub points_to: Vec<Vec<String>>,
 }
 
 /// The stream an instance is read from.

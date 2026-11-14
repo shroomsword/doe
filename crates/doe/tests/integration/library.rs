@@ -2958,6 +2958,52 @@ fn the_size_of_an_ar_member_points_at_its_data() {
     assert_eq!(target.start, (8 + 60) * 8);
 }
 
+fn trace_of_schema(schema: &str, data: &[u8]) -> doe::api::TraceOut {
+    let request = serde_json::json!({ "schema": schema });
+    let response = doe::api::parse(&request.to_string(), data);
+    assert!(response.ok, "{:?}", response.error);
+    response.trace.unwrap()
+}
+
+#[test]
+fn points_to_names_what_a_number_points_at_when_pos_and_size_do_not() {
+    // the offset is in units of four bytes: no `pos:` reads `slot` alone, so only the schema can say
+    let schema = "id: p\nmeta:\n  endian: le\nseq:\n  - id: slot\n    type: u1\n    points-to: table\n  - id: units\n    type: u1\n    points-to: nothing_here\n  - id: gap\n    size: 6\ninstances:\n  table:\n    pos: slot * 4\n    type: u1\n  nothing_here:\n    value: 0\n";
+    let data = [2, 0, 0, 0, 0, 0, 0, 0, 0xaa, 0xbb];
+    let trace = trace_of_schema(schema, &data);
+    let (path, start) = pointer_of(&trace, &["slot"]).expect("slot points at the table");
+    assert_eq!(path, trace_path(&trace, &["table"]));
+    assert_eq!(start, 8 * 8);
+}
+
+#[test]
+fn points_to_on_a_computed_value_and_a_target_that_is_not_there() {
+    let schema = "id: p\nseq:\n  - id: raw\n    type: u1\n  - id: body\n    size: 2\ninstances:\n  where:\n    value: raw + 1\n    points-to: body\n  lost:\n    value: raw\n    points-to: _parent.no_such_field\n";
+    let trace = trace_of_schema(schema, &[1, 7, 8]);
+    let (path, _) = pointer_of(&trace, &["where"]).expect("the value points at the body");
+    assert_eq!(path, trace_path(&trace, &["body"]));
+    // a name that is not there points at nothing, and the parse is fine
+    assert!(pointer_of(&trace, &["lost"]).is_none());
+}
+
+#[test]
+fn points_to_without_a_name_is_a_schema_error() {
+    let schema = "id: p\nseq:\n  - id: a\n    type: u1\n    points-to: 4\n";
+    let request = serde_json::json!({ "schema": schema });
+    let response = doe::api::parse(&request.to_string(), &[1]);
+    assert!(!response.ok);
+    let said: Vec<&str> = response
+        .diagnostics
+        .iter()
+        .chain(response.error.iter())
+        .map(|d| d.message.as_str())
+        .collect();
+    assert!(
+        said.iter().any(|m| m.contains("points-to")),
+        "the error says which key: {said:?}"
+    );
+}
+
 /// Where the field at `names` points, as the names of the nodes on the path to the target.
 fn pointer_of(trace: &doe::api::TraceOut, names: &[&str]) -> Option<(Vec<usize>, u64)> {
     let mut node = trace;

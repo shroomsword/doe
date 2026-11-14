@@ -82,6 +82,9 @@ pub struct TraceNode {
     /// The fields whose values decide where this one is or how long (what its `pos:` and `size:` read), as the
     /// schema writes them: `["ofs_data"]`, `["_parent", "hdr", "ofs"]`. [`TraceNode::pointer_map`] resolves them.
     pub decided_by: Vec<Vec<String>>,
+    /// The fields that the schema says this one points at (`points-to:`), as it writes them, resolved like
+    /// `decided_by` by [`TraceNode::pointer_map`].
+    pub points_to: Vec<Vec<String>>,
     /// The values inside this one.
     pub children: Vec<TraceNode>,
 }
@@ -106,6 +109,7 @@ impl TraceNode {
             problem: None,
             processed: false,
             decided_by: Vec::new(),
+            points_to: Vec::new(),
             children: Vec::new(),
         }
     }
@@ -120,6 +124,16 @@ impl TraceNode {
         let mut path: Vec<usize> = Vec::new();
         let mut stack: Vec<(&TraceNode, usize)> = vec![(self, 0)];
         while let Some((node, next)) = stack.pop() {
+            if next == 0 && !node.points_to.is_empty() && !node.processed {
+                // the schema says so: the field points at what it names, which has to be there
+                for names in &node.points_to {
+                    if let Some(target) = self.resolve_exact(&path, names)
+                        && target != path
+                    {
+                        map.entry(path.clone()).or_default().push(target);
+                    }
+                }
+            }
             if next == 0 && !node.decided_by.is_empty() && !node.processed {
                 for names in &node.decided_by {
                     if let Some(field) = self.resolve_ref(&path, names)
@@ -144,8 +158,19 @@ impl TraceNode {
         map
     }
 
+    /// The node that `names` read from the node at `from` means, as a path; `None` if one of the names is not there.
+    fn resolve_exact(&self, from: &[usize], names: &[String]) -> Option<Vec<usize>> {
+        self.resolve(from, names, true)
+    }
+
     /// The node that `names` read from the node at `from` means, as a path.
     fn resolve_ref(&self, from: &[usize], names: &[String]) -> Option<Vec<usize>> {
+        self.resolve(from, names, false)
+    }
+
+    /// The node that `names` read from the node at `from` means, as a path. When `exact`, a name that is not
+    /// there is `None`; otherwise the rest are taken to be members of a value (`name.length`).
+    fn resolve(&self, from: &[usize], names: &[String], exact: bool) -> Option<Vec<usize>> {
         // the type the node is in: its parent, which is a struct node
         let mut at: Vec<usize> = from.get(..from.len().checked_sub(1)?)?.to_vec();
         let mut rest = names;
@@ -163,6 +188,7 @@ impl TraceNode {
                     let node = self.at(&at)?;
                     match node.children.iter().position(|c| &c.name == name) {
                         Some(i) => at.push(i),
+                        None if exact => return None,
                         None => break,
                     }
                 }
@@ -379,6 +405,7 @@ impl TraceBuilder {
                 problem: None,
                 processed: self.processed > 0,
                 decided_by: Vec::new(),
+                points_to: Vec::new(),
                 children: Vec::new(),
             },
             children: Vec::new(),
@@ -404,6 +431,18 @@ impl TraceBuilder {
             && let Some(entry) = self.entries.get_mut(index)
         {
             entry.node.decided_by = refs;
+        }
+    }
+
+    /// Note the fields that the schema says the node being read points at (`points-to:`).
+    pub(crate) fn points_to(&mut self, refs: &[Vec<String>]) {
+        if refs.is_empty() {
+            return;
+        }
+        if let Some(&index) = self.open.last()
+            && let Some(entry) = self.entries.get_mut(index)
+        {
+            entry.node.points_to = refs.to_vec();
         }
     }
 

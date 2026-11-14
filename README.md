@@ -318,6 +318,7 @@ it the integer 0 or 1 and names it; the wider ones are unsigned integers. As in 
 | `parent` | `_parent` (or `_parent._parent`): the type the field reads gets the parent of the type the field is in, as its `_parent` (see [Instances](#instances)) |
 | `process` | Transform the bytes of the field's `size` window before they are parsed: `xor(key)` (an integer or a byte sequence, repeated), `rol(n)`, `ror(n)` (rotate each byte), `zlib` (a zlib stream, RFC 1950), `deflate` (a raw deflate stream, RFC 1951) or `gzip` (gzip data, RFC 1952: every member, with its header read and its CRC-32 and size checked) or `brotli` (a Brotli stream, RFC 7932: the tables of a WOFF 2 font, the body of a `Content-Encoding: br` response; bytes after the end of the stream are not looked at), `bzip2` (every stream, the CRCs checked), `xz` (every stream and its padding; the LZMA2 data, the delta and branch filters, and the CRC32, CRC64 or SHA-256 checks verified), `lzma` (a `.lzma` file, LZMA alone), `lzip` (every member, the CRC-32 and the sizes checked) or `zstd` (every frame, skippable frames skipped, the content checksum verified). For `bytes`, `str` and user types that have a `size` or `size-eos`. They all decompress into memory up to 256 MiB, enforced while decoding; a larger result, or data that is not what the process says, is an error that names the field |
 | `pos:` | Read the field at this byte offset instead of the current position; see [Seeking](#seeking) |
+| `points-to:` | The field or instance that this number points at (`points-to: table`, `points-to: _parent.data`), for an offset or a size that no `pos:` or `size:` reads as it is (an offset in units of four bytes, a size that is a count). The viewers show the arrow and `J` jumps there, as for a `pos:`; a name that is not there points at nothing. It is not a check: the parse does not use it. See *Follow a pointer* in the web IDE section |
 | `valid:` | Fail the parse unless the value read satisfies the rules; see [Validating values](#validating-values) |
 | `enum:` | Map the parsed integer to a named variant. `name` is an enum visible in the type; `type::name` is one declared in another type (a nested path is allowed) |
 | `contents:` | Assert fixed bytes (magic numbers, file signatures) |
@@ -1389,7 +1390,7 @@ browser's local storage. The index of which field owns which byte is made after 
 
 **Follow a pointer.** A field that the schema's `pos:` or `size:` reads — the offset of a table, the size of
 a block — places or measures another value, and the tree shows an arrow after it (`→ 0x800`). `J`, or a click on the arrow, selects that
-value and shows its bytes; the status line says where, and how many other values the field also decides (the jump goes to the
+value and shows its bytes (a field can also name its target with `points-to:`, which a `pos:` or `size:` does not need); the status line says where, and how many other values the field also decides (the jump goes to the
 outermost). A relative offset (`pos: base + rel`) points from both fields. An integer with no such link is a guess: `J`
 goes to the outermost value that starts at its number and says that it is a guess; a number past the end of the file, or at which nothing
 starts, is said and nothing moves. `Alt+←` and `Alt+→` go back and forward through the places jumped from (the last 100; a jump after going

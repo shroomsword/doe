@@ -3647,6 +3647,20 @@ enums:
         assert_eq!(app.hex.cursor(), 8 + 60);
     }
 
+    #[test]
+    fn j_follows_what_points_to_names() {
+        // the offset is in units of four bytes: only `points-to:` says that `slot` leads to `table`
+        let schema = "id: p\nseq:\n  - id: slot\n    type: u1\n    points-to: table\n  - id: gap\n    size: 0x7ff\ninstances:\n  table:\n    pos: slot * 0x400\n    type: u1\n";
+        let mut data = vec![0_u8; 0x801];
+        data[0] = 2;
+        let (mut app, _dir) = app_for(schema, &data);
+        app.tree.select_path(&[0]);
+        assert_eq!(app.tree.selected().points_to, Some(0x800));
+        key(&mut app, KeyCode::Char('J'));
+        assert_eq!(app.tree.names_to(app.tree.selected_path()), ["p", "table"]);
+        assert!(app.notice.as_deref().unwrap().starts_with("→ 0x800: table"));
+    }
+
     fn type_text(app: &mut App, text: &str) {
         for c in text.chars() {
             key(app, KeyCode::Char(c));
