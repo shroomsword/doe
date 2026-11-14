@@ -25,6 +25,7 @@ fn options(file: PathBuf, type_or_schema: &str) -> Options {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     }

@@ -1462,6 +1462,8 @@ Options:
       --transparent          With `--tui`: leave the background of the screen to the terminal (a translucent or blurred one shows through), and use the theme's colours for the text; the selection, the status bar and the marks keep theirs (the `transparent` key of the config file, or of a theme file, changes that; `--no-transparent` overrides them)
       --no-transparent       With `--tui`: use the background of the theme, whatever the config file or the theme file says about `transparent`
       --no-mouse             With `--tui`: leave the mouse to the terminal, so that its own selection and copy work (the `mouse` key of the config file turns the viewer's mouse off too). Without it the viewer takes clicks, the wheel and drags; `z` in the viewer switches the mouse off and on
+      --compare <FILE>       With `--tui`: compare FILE with this file, parsed with the same schema: the fields that differ, were added or were removed are marked, and so are the bytes (`>` and `<` go to the next and the previous difference, `=` leaves out what is the same, `V` shows the other file, `|` switches the way it is drawn)
+      --compare-view <VIEW>  With `--compare`: how the comparison is drawn at first: `annotated` (the tree of the first file with marks; the default) or `side-by-side` (the two trees); the `compare-view` key of the config file changes the default
       --no-footer            With `--tui`: start without the row of the keys that matter now under the panes (the `footer` key of the config file hides it too); `K` in the viewer shows and hides it
       --no-restore           With `--tui`: do not remember where you were, and do not put it back (the viewer keeps the open nodes, the selection, the cursor, the scroll and the view settings of each file and schema in the state directory, and restores them when the same file is opened with the same schema; the `restore` key of the config file turns it off too)
       --radix <RADIX>        With `--tui`: the radix in which integers are first shown, `dec` (the default), `hex`, `bin` or `oct`; `x` in the viewer goes through them, and `X` chooses one for the selected field (the `radix` key of the config file changes the default)
@@ -1631,6 +1633,23 @@ that shares it with a neighbour) is underlined instead. The title of the pane
 says which bytes and bits they are; a field that is read from the result of a
 `process:` is not in the file's bytes, and the title says so. Only the lines in
 view are read, so a file of many gigabytes opens and scrolls at once.
+
+**Comparing two files.** `doe --tui A --compare B` parses both files with the same schema and shows where they differ.
+The comparison is **by field path** (`entries[2].len`), not by offset: a field that moved because an earlier one grew is the
+same field, and is not a difference. The elements of a list are matched by index, so the extra elements of the longer list
+are differences, and so is the length of the list (matching by a key field is not done yet). The tree is the tree of A,
+**marked**: `≠` a field whose value differs (or whose type, or whose list's length, does), `±` a field with differences
+below it (and how many), `−` a field or element that only A has, and `+ name = value` rows at the end of a parent for what
+only B has. The title says `A: 3 of 1204 fields differ · 1 only in A · 2 only in B`, or `A: identical`. The bytes that differ
+are underlined, by matched field: where the two fields have the same length, the bytes that differ, and where they do not,
+the whole of each. `>` and `<` go to the next and the previous difference (in the bytes pane, the next run of bytes that
+differ); `=` leaves out the fields that are the same, and shows them again; `V` makes the other file the one that is shown,
+with the tree and the bytes at the same field, and `V` again goes back (the title and the bytes pane say which file it
+is); the inspector shows the value of the other file. `|` (or `--compare-view side-by-side`, or `compare_view =
+"side-by-side"` in the config file) draws the two trees side by side, under the names of the files, with the same fields
+open and the same field selected in both; the keys act on the tree on the left, and `V` swaps the two. `r` reads both files
+again. The second file is read, parsed and compared once the first is there; both are read by range, so a file of any
+size can be compared, at the cost of walking both trees.
 
 **The keys that matter now.** The row under the panes, above the status bar, lists the keys that matter for what you are
 doing: `↑↓ move · → open · / search · Y copy as · g goto · J follow · Tab bytes · q quit · ? all keys` for the tree,
@@ -2294,6 +2313,7 @@ level = "debug"
 | `include_paths` | list of paths | Directories searched for bare type names, in order. `~/` is expanded. | `-I`/`--include-path` (these come first) |
 | `default_types` | `true`, `false` | Whether the directory made by `doe --install-types` (`~/.doe/types`) is searched after `include_paths`. Default `true`; `false` leaves it out. | |
 | `theme` | text | The colour theme of `doe --tui`: a built-in id, a file in the `themes` directory next to this file, or a path (see [Themes](#themes)). Default: the terminal's own colours. | `--theme` |
+| `compare_view` | `annotated`, `side-by-side` | How `doe --tui FILE --compare OTHER` first draws the comparison (see [Terminal viewer](#terminal-viewer)): the tree of the first file with marks (the default), or the two trees side by side. `|` in the viewer switches. | `--compare-view` |
 | `footer` | `true`, `false` | Whether `doe --tui` shows the row of the keys that matter now, under the panes (see [Terminal viewer](#terminal-viewer)). With `false` it starts without it (`K` in the viewer shows it). Default: `true`. | `--no-footer` |
 | `restore` | `true`, `false` | Whether `doe --tui` remembers where you were with each file and schema, and puts it back when they are opened again (see [Terminal viewer](#terminal-viewer)). With `false` it neither reads nor writes the state directory. Default: `true`. | `--no-restore` |
 | `mouse` | `true`, `false` | Whether `doe --tui` takes the mouse: clicks, the wheel and drags (see [Terminal viewer](#terminal-viewer)). With `false` the terminal keeps it, and its own selection and copy work. Default: `true`. | `--no-mouse` |

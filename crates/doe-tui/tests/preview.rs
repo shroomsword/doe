@@ -67,6 +67,7 @@ fn app_of(dir: &Path, files: &[(&str, &[u8])]) -> App {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };

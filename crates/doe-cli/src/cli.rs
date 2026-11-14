@@ -226,6 +226,17 @@ pub(crate) struct Cli {
     #[arg(long, requires = "tui")]
     pub(crate) no_restore: bool,
 
+    /// With `--tui`: compare FILE with this file, parsed with the same schema: the fields that differ, were added or were
+    /// removed are marked, and so are the bytes (`>` and `<` go to the next and the previous difference, `=` leaves out what
+    /// is the same, `V` shows the other file, `|` switches the way it is drawn).
+    #[arg(long, value_name = "FILE", requires = "tui")]
+    pub(crate) compare: Option<PathBuf>,
+
+    /// With `--compare`: how the comparison is drawn at first: `annotated` (the tree of the first file with marks; the
+    /// default) or `side-by-side` (the two trees); the `compare-view` key of the config file changes the default.
+    #[arg(long, value_name = "VIEW", requires = "compare", value_parser = clap::value_parser!(doe_tui::CompareView))]
+    pub(crate) compare_view: Option<doe_tui::CompareView>,
+
     /// With `--tui`: start without the row of the keys that matter now under the panes (the `footer` key of the config
     /// file hides it too); `K` in the viewer shows and hides it.
     #[arg(long, requires = "tui")]

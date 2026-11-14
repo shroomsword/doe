@@ -377,6 +377,7 @@ mod tests {
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: None,
             radix: None,
         }

@@ -72,6 +72,7 @@ fn app(dir: &Path, schema: &str) -> App {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };

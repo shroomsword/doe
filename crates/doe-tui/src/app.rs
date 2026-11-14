@@ -64,6 +64,8 @@ fn schema_kind(row: &crate::tree::Row) -> String {
 /// How many fields a search looks at between two redraws of the screen.
 pub const SEARCH_STEP: usize = 5_000;
 
+pub mod compare;
+
 /// How many rows (or lines of bytes) the wheel scrolls by a notch.
 const WHEEL_ROWS: isize = 3;
 /// The longest time between two clicks on a row that is a double click.
@@ -222,6 +224,8 @@ pub struct App {
     fix: Option<doe::explain::Suggestion>,
     /// What the last drawing put where, for the mouse.
     pub hits: crate::mouse::Hits,
+    /// A second file that the first is compared with (`--compare`).
+    pub compare: Option<compare::Compared>,
     /// Whether the row of keys under the panes is shown (`K` switches it).
     pub footer_on: bool,
     /// Whether the viewer takes the mouse now (`z` switches it).
@@ -438,6 +442,7 @@ impl App {
             layer_guard: None,
             fix: None,
             hits: crate::mouse::Hits::default(),
+            compare: None,
             footer_on: true,
             mouse_on: false,
             mouse_refused: false,
@@ -542,6 +547,7 @@ impl App {
             layer_guard: None,
             fix: None,
             hits: crate::mouse::Hits::default(),
+            compare: None,
             footer_on: true,
             mouse_on: false,
             mouse_refused: false,
@@ -614,6 +620,7 @@ impl App {
             layer_guard: None,
             fix: None,
             hits: crate::mouse::Hits::default(),
+            compare: None,
             footer_on: true,
             mouse_on: false,
             mouse_refused: false,
@@ -727,8 +734,16 @@ impl App {
             self.notice = Some("nothing to read again from".to_owned());
             return;
         };
+        // the first file is read again, so it is the one shown
+        if self.compare.as_ref().is_some_and(|c| c.swapped) {
+            self.toggle_other_file();
+        }
         match load::try_load(&options) {
-            Ok(loaded) => self.adopt(loaded),
+            Ok(loaded) => {
+                self.adopt(loaded);
+                // and the second one, and how they differ
+                self.reload_compare();
+            }
             Err(failure) => self.reload_failed(&failure, &options),
         }
     }
@@ -756,6 +771,8 @@ impl App {
 
     /// Take a new parse in the place of the old, keeping the place.
     fn adopt(&mut self, loaded: Loaded) {
+        // a comparison is of the files as they were read: it is made again by whoever reads them again
+        self.compare = None;
         let was_broken = self.report.as_ref().is_some_and(|r| r.fatal) || self.loading;
         self.loading = false;
         self.loading_since = None;
@@ -802,7 +819,12 @@ impl App {
     fn restore_store(&self) -> Option<(crate::restore::Store, String)> {
         let options = self.options.as_ref()?;
         let dir = options.restore.as_ref()?;
-        if self.builder.is_some() || self.layer_index.is_some() || options.outer_file.is_some() {
+        if self.builder.is_some()
+            || self.layer_index.is_some()
+            || options.outer_file.is_some()
+            || options.compare.is_some()
+            || self.compare.is_some()
+        {
             return None;
         }
         let key = crate::restore::key_of(&self.file, &options.type_or_schema, &self.type_name);
@@ -1148,6 +1170,12 @@ impl App {
     /// - a prompt takes the key as text or as an edit of it;
     /// - otherwise the pane that has the keys, then the keys for both.
     pub fn on_key(&mut self, key: KeyEvent) {
+        self.handle_key(key);
+        // in a comparison side by side, the other tree follows
+        self.sync_other();
+    }
+
+    fn handle_key(&mut self, key: KeyEvent) {
         self.notice = None;
         self.quit_was_armed = std::mem::take(&mut self.quit_armed);
         self.remove_was_armed = self.remove_armed.take();
@@ -1246,6 +1274,7 @@ impl App {
             building: self.builder.is_some(),
             fix: self.fix.is_some(),
             fullscreen: self.fullscreen,
+            comparing: self.compare.is_some(),
         }
     }
 
@@ -1292,6 +1321,12 @@ impl App {
 
     /// A mouse event. True when the screen may have changed (a pointer that only moves changes nothing).
     pub fn on_mouse(&mut self, event: MouseEvent) -> bool {
+        let changed = self.handle_mouse(event);
+        self.sync_other();
+        changed
+    }
+
+    fn handle_mouse(&mut self, event: MouseEvent) -> bool {
         if !self.mouse_on || self.loading {
             return false;
         }
@@ -2365,6 +2400,11 @@ impl App {
             }
             Action::ToggleReport => self.show_report = !self.show_report,
             Action::ToggleMouse => self.toggle_mouse(),
+            Action::NextDifference => self.go_to_difference(true),
+            Action::PreviousDifference => self.go_to_difference(false),
+            Action::OnlyDifferences => self.toggle_only_differences(),
+            Action::OtherFile => self.toggle_other_file(),
+            Action::CompareView => self.toggle_compare_view(),
             Action::ToggleFooter => {
                 self.footer_on = !self.footer_on;
                 self.notice = Some(
@@ -4032,6 +4072,7 @@ pub(crate) mod tests {
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: None,
             radix: None,
         };
@@ -4086,6 +4127,7 @@ pub(crate) mod tests {
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: None,
             radix: None,
         };
@@ -4726,6 +4768,7 @@ seq:
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: None,
             radix: None,
         };
@@ -5031,6 +5074,7 @@ types:
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: None,
             radix: None,
         };
@@ -5096,6 +5140,7 @@ types:
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: None,
             radix: None,
         }
@@ -5287,6 +5332,7 @@ types:
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: None,
             radix: None,
         })

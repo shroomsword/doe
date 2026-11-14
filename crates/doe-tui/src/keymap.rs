@@ -143,6 +143,16 @@ pub enum Action {
     Save,
     /// Show or hide the row of keys under the panes.
     ToggleFooter,
+    /// In a comparison: go to the next difference.
+    NextDifference,
+    /// In a comparison: go to the previous difference.
+    PreviousDifference,
+    /// In a comparison: leave out the fields that are the same, or show them again.
+    OnlyDifferences,
+    /// In a comparison: make the other file the current one, or go back to the first.
+    OtherFile,
+    /// In a comparison: the two trees side by side, or the tree of the first file with marks.
+    CompareView,
 }
 
 /// Where a binding applies.
@@ -366,6 +376,36 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::ToggleReport,
         help: "show or hide the message about a parse that failed",
+    },
+    Binding {
+        keys: &[ch('>')],
+        scope: Scope::Anywhere,
+        action: Action::NextDifference,
+        help: "when comparing two files (--compare): the next difference: in the tree the next field that differs, in the bytes the next run of bytes that differ",
+    },
+    Binding {
+        keys: &[ch('<')],
+        scope: Scope::Anywhere,
+        action: Action::PreviousDifference,
+        help: "when comparing two files: the previous difference",
+    },
+    Binding {
+        keys: &[ch('=')],
+        scope: Scope::Anywhere,
+        action: Action::OnlyDifferences,
+        help: "when comparing two files: leave out the fields that are the same, or show them again",
+    },
+    Binding {
+        keys: &[ch('V')],
+        scope: Scope::Anywhere,
+        action: Action::OtherFile,
+        help: "when comparing two files: make the other file the one shown (its tree and its bytes, at the same field), or go back to the first",
+    },
+    Binding {
+        keys: &[ch('|')],
+        scope: Scope::Anywhere,
+        action: Action::CompareView,
+        help: "when comparing two files: the two trees side by side, or the tree of the first file with marks and what only the second has",
     },
     Binding {
         keys: &[ch('K')],
@@ -766,6 +806,8 @@ pub struct FooterContext {
     pub fix: bool,
     /// Whether a pane fills the screen.
     pub fullscreen: bool,
+    /// Whether a second file is being compared with the first.
+    pub comparing: bool,
 }
 
 /// A part of the footer: the keys, what they do, and the action that a click on it presses (none for the keys of a
@@ -878,6 +920,10 @@ pub fn footer(ctx: &FooterContext) -> Vec<FooterPart> {
             }
             if ctx.fix {
                 parts.extend(bound(ctx.pane, &(&[Action::TryFix], "try the fix")));
+            }
+            if ctx.comparing {
+                parts.extend(bound(ctx.pane, &(&[Action::NextDifference], "next diff")));
+                parts.extend(bound(ctx.pane, &(&[Action::OtherFile], "other file")));
             }
             if ctx.building {
                 let add: &'static [Action] = if ctx.pane == Scope::Bytes {
@@ -1155,6 +1201,7 @@ mod tests {
                                     building,
                                     fix,
                                     fullscreen: !fix && building,
+                                    comparing: fix || checksums.is_some(),
                                 });
                             }
                         }
@@ -1172,6 +1219,7 @@ mod tests {
                 building: false,
                 fix: false,
                 fullscreen: false,
+                comparing: false,
             });
         }
         all
@@ -1265,6 +1313,7 @@ mod tests {
             building: false,
             fix: false,
             fullscreen: false,
+            comparing: false,
         };
         assert_eq!(
             text(&ctx),
@@ -1290,6 +1339,13 @@ mod tests {
         assert!(text(&ctx).starts_with("o try the fix · a add field · u undo · w save · ↑↓ move"));
         ctx.fix = false;
         ctx.building = false;
+        ctx.comparing = true;
+        assert!(
+            text(&ctx).starts_with("> next diff · V other file · ↑↓ move"),
+            "{}",
+            text(&ctx)
+        );
+        ctx.comparing = false;
         ctx.fullscreen = true;
         assert!(
             text(&ctx).starts_with("f restore · ↑↓ move"),

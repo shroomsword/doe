@@ -400,6 +400,46 @@ pub fn hex_line_with(
     kinds: Option<&ByteKinds>,
     theme: &Theme,
 ) -> Line<'static> {
+    hex_line_changed(
+        offset,
+        data,
+        per_line,
+        digits,
+        selection,
+        cursor,
+        by_bits,
+        range,
+        kinds,
+        &[],
+        theme,
+    )
+}
+
+/// Whether the byte at `at` is in one of `changed` (sorted, not overlapping ranges `[first, end)`).
+fn is_changed(changed: &[(u64, u64)], at: u64) -> bool {
+    let index = changed.partition_point(|r| r.1 <= at);
+    changed.get(index).is_some_and(|r| r.0 <= at)
+}
+
+/// The same, with the bytes in `changed` (the ranges that differ from another file) in the style of a change.
+#[must_use]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the parts of one line of the pane; grouping them would only move them"
+)]
+pub fn hex_line_changed(
+    offset: u64,
+    data: &[u8],
+    per_line: usize,
+    digits: usize,
+    selection: Option<&Selection>,
+    cursor: Option<u64>,
+    by_bits: bool,
+    range: Option<(u64, u64)>,
+    kinds: Option<&ByteKinds>,
+    changed: &[(u64, u64)],
+    theme: &Theme,
+) -> Line<'static> {
     // the colour of the field a byte belongs to; the cursor and the range of `v` keep their own styles over it
     let kind_style = |index: usize, here: Cover| -> Style {
         let at = offset + index as u64;
@@ -425,6 +465,9 @@ pub fn hex_line_with(
         let here = cover(index);
         let on_cursor = cursor == Some(at) && byte.is_some();
         let mut style = byte_style(here, on_cursor, *theme).patch(kind_style(index, here));
+        if byte.is_some() && is_changed(changed, at) {
+            style = style.patch(theme.changed_bytes());
+        }
         if range.is_some_and(|(first, last)| (first..=last).contains(&at)) && byte.is_some() {
             style = style.patch(theme.hex_range());
         }
@@ -455,6 +498,9 @@ pub fn hex_line_with(
                 let at = offset + index as u64;
                 let mut style = byte_style(cover(index), cursor == Some(at), *theme)
                     .patch(kind_style(index, cover(index)));
+                if is_changed(changed, at) {
+                    style = style.patch(theme.changed_bytes());
+                }
                 if range.is_some_and(|(first, last)| (first..=last).contains(&at)) {
                     style = style.patch(theme.hex_range());
                 }
@@ -479,6 +525,7 @@ pub fn render(
     selected: Option<&Row>,
     focused: bool,
     kinds: Option<&ByteKinds>,
+    changed: &[(u64, u64)],
     theme: &Theme,
 ) {
     let size = bytes.size();
@@ -501,7 +548,7 @@ pub fn render(
             break;
         }
         let data = bytes.window(offset, per_line).to_vec();
-        lines.push(hex_line_with(
+        lines.push(hex_line_changed(
             offset,
             &data,
             per_line,
@@ -511,6 +558,7 @@ pub fn render(
             state.bit.is_some(),
             state.selected_range(),
             kinds,
+            changed,
             theme,
         ));
     }
@@ -562,6 +610,7 @@ mod tests {
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: None,
             radix: None,
         })
@@ -610,6 +659,7 @@ mod tests {
                     row,
                     focused,
                     None,
+                    &[],
                     &Theme::new(false),
                 );
             })

@@ -62,6 +62,53 @@ use crate::terminal::{Guard, Signals};
 use crate::ui::Theme;
 use crate::watch::Watch;
 
+/// How a comparison of two files is drawn.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CompareView {
+    /// The tree of the first file, marked with what differs, and what only the second has under its parents.
+    #[default]
+    Annotated,
+    /// The two trees side by side.
+    SideBySide,
+}
+
+/// The text is not the name of a way to draw a comparison.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnknownCompareView(pub String);
+
+impl std::fmt::Display for UnknownCompareView {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "unknown way to show a comparison `{}`; use annotated or side-by-side",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for UnknownCompareView {}
+
+impl std::str::FromStr for CompareView {
+    type Err = UnknownCompareView;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        match text.to_ascii_lowercase().as_str() {
+            "annotated" | "marks" => Ok(CompareView::Annotated),
+            "side-by-side" | "side_by_side" | "split" => Ok(CompareView::SideBySide),
+            _ => Err(UnknownCompareView(text.to_owned())),
+        }
+    }
+}
+
+/// The second file of a comparison, and how it is drawn.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Comparing {
+    /// The file to compare the first one with.
+    pub file: PathBuf,
+    /// Whether the two trees are side by side; otherwise the tree of the first file is marked with what differs.
+    pub side_by_side: bool,
+}
+
 /// What the viewer is asked to show.
 #[derive(Debug, Clone)]
 #[allow(
@@ -102,6 +149,8 @@ pub struct Options {
     /// Whether the viewer shows the row of keys that matter under the panes (`--no-footer` or `footer = false` in the
     /// config file start with it hidden; `K` shows and hides it).
     pub footer: bool,
+    /// A second file to compare the first with, parsed with the same schema (`--compare`).
+    pub compare: Option<Comparing>,
     /// The directory where the viewer keeps where you were, for each file and schema, and reads it from when the
     /// file is opened again: `Config::state_dir`, unless `--no-restore` or `restore = false` in the config, which
     /// leave it `None` (nothing is read or written).
@@ -244,6 +293,12 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
     app.theme_id = options.theme.as_deref().map(theme::simple);
     let loader = spawn_load(options.clone());
     let mut loader = Some(loader);
+    // the second file of a comparison is parsed in another thread too, with the same schema
+    let mut other_loader = options.compare.as_ref().map(|comparing| {
+        let mut other = options.clone();
+        other.file.clone_from(&comparing.file);
+        spawn_load(other)
+    });
     let mut watch: Option<Watch> = None;
     let signals = Signals::install().context("could not install the signal handlers")?;
     let (guard, mut terminal) =
@@ -319,6 +374,23 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
                 if options.watch {
                     watch = Some(Watch::new(app.watched_files()));
                 }
+                dirty = true;
+            }
+        }
+        // The second file is parsed too: it is compared when the first one is there to compare it with.
+        if loader.is_none()
+            && let Some(receiver) = &other_loader
+        {
+            let result = match receiver.try_recv() {
+                Ok(result) => Some(result),
+                Err(std::sync::mpsc::TryRecvError::Empty) => None,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    Some(Err(Box::new(load::LoadFailure::stopped(options))))
+                }
+            };
+            if let Some(result) = result {
+                app.finish_compare(result);
+                other_loader = None;
                 dirty = true;
             }
         }

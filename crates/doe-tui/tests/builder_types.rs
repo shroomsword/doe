@@ -51,6 +51,7 @@ fn building() -> (App, tempfile::TempDir) {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };
@@ -301,6 +302,7 @@ fn the_saved_schema_compiles_with_the_library_and_parses_a_real_file() {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };

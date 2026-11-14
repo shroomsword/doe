@@ -42,7 +42,28 @@ pub enum RowKind {
         /// How many are hidden.
         hidden: usize,
     },
+    /// In a comparison: a field or element that only the other file has, after the children of the parent that would
+    /// hold it. Its `path` is the parent's.
+    Ghost {
+        /// Its path in the other file's tree.
+        b_path: Vec<usize>,
+    },
 }
+
+/// A field or element that only the other file has, to be shown under its parent (see [`TreeModel::set_comparison`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GhostRow {
+    /// Its name in the other file's tree.
+    pub name: String,
+    /// Its path there.
+    pub b_path: Vec<usize>,
+    /// Its value as text, when it is a leaf.
+    pub summary: Option<String>,
+}
+
+/// The index that stands for "after the children" in the path of a difference that is a ghost (see
+/// [`TreeModel::difference_paths`]).
+pub const AFTER_CHILDREN: usize = usize::MAX;
 
 /// The longest text of a string that a row keeps; the rest is cut when the row is made.
 const MAX_SHOWN_CHARS: usize = 1024;
@@ -165,6 +186,10 @@ pub struct Row {
     pub open: bool,
     /// For a field that places or sizes another value: the byte that value starts at.
     pub points_to: Option<u64>,
+    /// In a comparison: how it differs from the other file; none if it is the same.
+    pub mark: Option<doe::compare::Mark>,
+    /// In a comparison: how many differences there are below it.
+    pub below: usize,
 }
 
 /// The tree, its open nodes and its selection.
@@ -177,6 +202,13 @@ pub struct TreeModel {
     open: HashSet<Vec<usize>>,
     /// Which children of a node have rows (`start..end`), when it is not the first [`CHUNK`].
     windows: HashMap<Vec<usize>, (usize, usize)>,
+    /// In a comparison: how each node differs from the other file, and how many differences are below it.
+    marks: HashMap<Vec<usize>, doe::compare::Mark>,
+    below: HashMap<Vec<usize>, usize>,
+    /// In a comparison: what only the other file has, by the path of the parent.
+    ghosts: HashMap<Vec<usize>, Vec<GhostRow>>,
+    /// In a comparison: whether the fields that are the same are left out.
+    only_diffs: bool,
     rows: Vec<Row>,
     /// The descriptions of the fields (`doc:`), by the type of the node that holds them and the name of the field.
     docs: FieldDocs,
@@ -233,6 +265,8 @@ fn row_of(
         openable: !node.children.is_empty(),
         open,
         points_to: None,
+        mark: None,
+        below: 0,
     }
 }
 
@@ -255,6 +289,8 @@ fn marker_row(kind: RowKind, parent: &[usize], name: String) -> Row {
         openable: false,
         open: false,
         points_to: None,
+        mark: None,
+        below: 0,
     }
 }
 
@@ -322,6 +358,10 @@ impl TreeModel {
             value,
             open: HashSet::from([Vec::new()]),
             windows: HashMap::new(),
+            marks: HashMap::new(),
+            below: HashMap::new(),
+            ghosts: HashMap::new(),
+            only_diffs: false,
             rows: Vec::new(),
             docs: FieldDocs::new(),
             show_docs: true,
@@ -329,6 +369,104 @@ impl TreeModel {
         };
         model.rebuild();
         model
+    }
+
+    /// Mark the nodes of this tree as a comparison with another file says (`side`: the marks of this file's nodes), and
+    /// show under their parents the fields and elements that only the other file has (`ghosts`, by the path of the
+    /// parent here; leave it empty to show none).
+    pub fn set_comparison(
+        &mut self,
+        side: &doe::compare::Side,
+        ghosts: HashMap<Vec<usize>, Vec<GhostRow>>,
+    ) {
+        self.marks.clone_from(&side.marks);
+        self.below.clone_from(&side.below);
+        self.ghosts = ghosts;
+        self.rebuild();
+    }
+
+    /// Show the ghosts that were given, or not.
+    pub fn set_ghosts(&mut self, ghosts: HashMap<Vec<usize>, Vec<GhostRow>>) {
+        self.ghosts = ghosts;
+        self.rebuild();
+    }
+
+    /// Forget the comparison: no marks, no ghosts, every field shown.
+    pub fn clear_comparison(&mut self) {
+        self.marks.clear();
+        self.below.clear();
+        self.ghosts.clear();
+        self.only_diffs = false;
+        self.rebuild();
+    }
+
+    /// In a comparison, leave out the fields that are the same (their ancestors stay), or show them again.
+    pub fn set_only_diffs(&mut self, on: bool) {
+        if on != self.only_diffs {
+            self.only_diffs = on;
+            self.rebuild();
+        }
+    }
+
+    /// Whether the fields that are the same are left out.
+    #[must_use]
+    pub fn only_diffs(&self) -> bool {
+        self.only_diffs
+    }
+
+    /// The nodes that differ in themselves (changed, or only in this file) and the places where the other file has
+    /// something more (a ghost: the path of its parent and [`AFTER_CHILDREN`]), in the order of the tree.
+    #[must_use]
+    pub fn difference_paths(&self) -> Vec<Vec<usize>> {
+        let mut paths: Vec<Vec<usize>> = self
+            .marks
+            .iter()
+            .filter(|(_, mark)| !matches!(mark, doe::compare::Mark::Inside))
+            .map(|(path, _)| path.clone())
+            .collect();
+        for parent in self.ghosts.keys() {
+            let mut at = parent.clone();
+            at.push(AFTER_CHILDREN);
+            paths.push(at);
+        }
+        paths.sort();
+        paths
+    }
+
+    /// Select a difference of [`difference_paths`](Self::difference_paths): a node, or the first ghost of a parent.
+    pub fn select_difference(&mut self, path: &[usize]) {
+        match path.split_last() {
+            Some((&AFTER_CHILDREN, parent)) => {
+                self.select_path(parent);
+                if let Some(position) = self
+                    .rows
+                    .iter()
+                    .position(|r| matches!(r.kind, RowKind::Ghost { .. }) && r.path == parent)
+                {
+                    self.selected = position;
+                }
+            }
+            _ => self.select_path(path),
+        }
+    }
+
+    /// The value of the node at `path` as text, if it is a single value.
+    #[must_use]
+    pub fn summary_at(&self, path: &[usize]) -> Option<String> {
+        self.value_at(path).and_then(value_summary)
+    }
+
+    /// Open exactly these nodes (and the root), as another tree has them open (side by side in a comparison).
+    pub fn mirror_open(&mut self, paths: Vec<Vec<usize>>) {
+        let mut open: HashSet<Vec<usize>> = paths
+            .into_iter()
+            .filter(|p| self.node(p).is_some_and(|n| !n.children.is_empty()))
+            .collect();
+        open.insert(Vec::new());
+        if open != self.open {
+            self.open = open;
+            self.rebuild();
+        }
     }
 
     /// The same tree with the descriptions of the fields of a parse (see [`doe::doc`]).
@@ -619,6 +757,8 @@ impl TreeModel {
             .and_then(|target| self.node(target))
             .and_then(|target| target.span)
             .map(|span| span.start_byte());
+        row.mark = self.marks.get(path.as_slice()).copied();
+        row.below = self.below.get(path.as_slice()).copied().unwrap_or(0);
         rows.push(row);
         if !open {
             return;
@@ -634,6 +774,11 @@ impl TreeModel {
         }
         for (index, child) in node.children.iter().enumerate().take(end).skip(start) {
             path.push(index);
+            // only the differences: what is the same is left out
+            if self.only_diffs && !self.marks.contains_key(path.as_slice()) {
+                path.pop();
+                continue;
+            }
             self.push_rows(
                 child,
                 child_value(value, index, &child.name),
@@ -649,6 +794,17 @@ impl TreeModel {
                 path,
                 format!("{} more…", len - end),
             ));
+        }
+        for ghost in self.ghosts.get(path.as_slice()).into_iter().flatten() {
+            let mut row = marker_row(
+                RowKind::Ghost {
+                    b_path: ghost.b_path.clone(),
+                },
+                path,
+                ghost.name.clone(),
+            );
+            row.summary.clone_from(&ghost.summary);
+            rows.push(row);
         }
     }
 
@@ -678,7 +834,8 @@ impl TreeModel {
                 self.open.insert(row.path);
                 self.rebuild();
             }
-            RowKind::Node => {}
+            // what only the other file has cannot be opened
+            RowKind::Node | RowKind::Ghost { .. } => {}
         }
     }
 
@@ -786,7 +943,7 @@ impl TreeModel {
     pub fn parent(&mut self) {
         let row = self.selected();
         let parent: &[usize] = match row.kind {
-            RowKind::More { .. } | RowKind::Earlier { .. } => &row.path,
+            RowKind::More { .. } | RowKind::Earlier { .. } | RowKind::Ghost { .. } => &row.path,
             RowKind::Node => match row.path.split_last() {
                 Some((_, parent)) => parent,
                 None => return,
@@ -1006,6 +1163,7 @@ pub(crate) mod tests {
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: None,
             radix: None,
         })

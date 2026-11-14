@@ -40,6 +40,7 @@ fn app() -> (App, tempfile::TempDir) {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };

@@ -2089,6 +2089,78 @@ mod tui_in_a_terminal {
     }
 
     #[test]
+    fn compare_needs_tui_and_a_view_needs_compare() {
+        doe()
+            .args(["--compare", "other", "file", "type"])
+            .assert()
+            .failure();
+        doe()
+            .args(["--tui", "--compare-view", "annotated", "file", "type"])
+            .assert()
+            .failure();
+        // a way to show it that is not one
+        doe()
+            .args([
+                "--tui",
+                "--compare",
+                "other",
+                "--compare-view",
+                "both",
+                "file",
+                "type",
+            ])
+            .assert()
+            .failure()
+            .stderr(predicates::str::contains("annotated"));
+    }
+
+    #[test]
+    fn a_config_file_that_names_a_way_to_show_a_comparison_that_does_not_exist_is_refused() {
+        let dir = TempDir::new().unwrap();
+        let config = dir.path().join("config.toml");
+        std::fs::write(&config, "compare_view = \"both\"\n").unwrap();
+        let (schema, binary) = simple_fixture(dir.path());
+        doe()
+            .arg("-c")
+            .arg(&config)
+            .args(["--tui", "--compare"])
+            .arg(&binary)
+            .arg(&binary)
+            .arg(&schema)
+            .assert()
+            .failure()
+            .stderr(predicates::str::contains(
+                "unknown way to show a comparison",
+            ));
+    }
+
+    #[test]
+    fn two_files_are_compared_in_the_viewer_in_either_way_and_it_is_left_with_q() {
+        let other = TempDir::new().unwrap();
+        let changed = other.path().join("b.bin");
+        std::fs::write(&changed, [0x07, 0x35, 0x12]).unwrap();
+        for view in ["annotated", "side-by-side"] {
+            let mut session = Session::start(
+                &[
+                    "--compare",
+                    changed.to_str().unwrap(),
+                    "--compare-view",
+                    view,
+                ],
+                &[],
+            );
+            session.wait_for("parsed");
+            // the second file is compared when it is parsed: the keys are the viewer's all the same
+            session.send(b"V");
+            session.send(b"|");
+            session.send(b"q");
+            let (success, seen) = session.finish();
+            assert!(success, "{view}");
+            assert_screen_restored(&seen);
+        }
+    }
+
+    #[test]
     fn no_footer_without_tui_is_refused() {
         doe()
             .args(["--no-footer", "file", "type"])

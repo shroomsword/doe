@@ -55,6 +55,7 @@ impl Fixture {
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: restore.then(|| self.state.path().to_path_buf()),
             radix: None,
         }

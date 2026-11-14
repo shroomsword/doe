@@ -36,6 +36,7 @@ fn building() -> (App, tempfile::TempDir) {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };
@@ -302,6 +303,7 @@ fn the_keys_say_so_when_nothing_is_being_built() {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };
