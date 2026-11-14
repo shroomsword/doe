@@ -535,6 +535,7 @@ fn the_screens_of(id: &str, depth: Depth) {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        footer: true,
         restore: None,
         radix: None,
     };
@@ -656,6 +657,7 @@ fn without_colour_a_theme_is_not_used() {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        footer: true,
         restore: None,
         radix: None,
     };
@@ -719,6 +721,7 @@ fn started_with(id: Option<&str>) -> (App, Theme, tempfile::TempDir, Options) {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        footer: true,
         restore: None,
         radix: None,
     };

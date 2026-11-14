@@ -50,6 +50,7 @@ fn building() -> (App, tempfile::TempDir) {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        footer: true,
         restore: None,
         radix: None,
     };
@@ -299,6 +300,7 @@ fn the_saved_schema_compiles_with_the_library_and_parses_a_real_file() {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        footer: true,
         restore: None,
         radix: None,
     };

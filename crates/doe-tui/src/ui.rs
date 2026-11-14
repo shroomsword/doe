@@ -403,45 +403,10 @@ const SMALLEST: u16 = 8;
 
 /// The status bar needs a line of its own below this height.
 const STATUS_MIN_HEIGHT: u16 = 6;
+/// The shortest terminal that has the row of keys under the panes.
+const FOOTER_MIN_HEIGHT: u16 = 12;
 /// The lines of an inspector that is shown below the bytes (more than this, and it takes the pane).
 const INSPECTOR_MAX_LINES: u16 = 12;
-
-/// What separates the parts of the key hint.
-const HINT_SEPARATOR: &str = " · ";
-
-/// The parts of the key hint under the tree, each with the key that a click on it presses.
-fn hint_parts(
-    two_panes: bool,
-    files: bool,
-    fullscreen: bool,
-    algorithm: Option<&str>,
-) -> Vec<(String, Action)> {
-    let part = |text: &str, action| (text.to_owned(), action);
-    let mut parts = vec![part("q quit", Action::Quit)];
-    if fullscreen {
-        parts.push(part("f or Esc restore", Action::Fullscreen));
-        parts.push(part("Tab other pane", Action::ToggleFocus));
-        parts.push(part("i inspector", Action::ToggleInspector));
-    } else {
-        if two_panes {
-            parts.push(part("Tab switch pane", Action::ToggleFocus));
-        }
-        parts.push(part("i inspector", Action::ToggleInspector));
-        if files {
-            parts.push(part("F files/fields", Action::Files));
-        }
-    }
-    if let Some(algorithm) = algorithm {
-        parts.push((format!("m {algorithm}"), Action::Checksums));
-    }
-    parts
-}
-
-/// The parts of the hint as the line that is drawn.
-fn hint_text(parts: &[(String, Action)]) -> String {
-    let texts: Vec<&str> = parts.iter().map(|(text, _)| text.as_str()).collect();
-    format!(" {} ", texts.join(HINT_SEPARATOR))
-}
 
 /// Draw the viewer: the tree of what was read, in a pane with the type in its
 /// title and how the parse went, and next to it (or below, on a narrow
@@ -465,6 +430,16 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         status_bar(frame, bar, app, *theme);
         area = rest;
     }
+    // the keys that matter now, over the whole width, on the row above the status bar
+    let footer_area =
+        if app.footer_on && frame.area().height >= FOOTER_MIN_HEIGHT && area.height > 3 {
+            let [rest, row] =
+                Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(area);
+            area = rest;
+            Some(row)
+        } else {
+            None
+        };
     let (tree_area, hex_area) = if area.width >= SIDE_BY_SIDE {
         let [left, right] =
             Layout::horizontal([Constraint::Percentage(45), Constraint::Percentage(55)])
@@ -496,6 +471,13 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     } else {
         Focus::Tree
     };
+    if let Some(row) = footer_area {
+        let pane = match focus {
+            Focus::Tree => keymap::Scope::Tree,
+            Focus::Hex => keymap::Scope::Bytes,
+        };
+        footer_row(frame, row, app, pane, *theme);
+    }
 
     let fatal = app.report.as_ref().is_some_and(|r| r.fatal);
     let status = if app.loading {
@@ -515,39 +497,6 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
             },
         }
     };
-    // the algorithm of the checksum column is named in the hint while the column is shown
-    let algorithm = app
-        .files
-        .as_ref()
-        .filter(|_| app.files_wanted)
-        .and_then(|f| f.algorithm);
-    let parts = hint_parts(
-        hex_area.is_some() || fullscreen,
-        app.files.is_some(),
-        fullscreen,
-        algorithm.map(doe::filesystem::Algorithm::label),
-    );
-    let hint = hint_text(&parts);
-    // a click on a part of the hint presses its key: the parts are on the bottom border of the pane, after its corner
-    if !tree_area.is_empty() && tree_area.height > 0 {
-        let right = tree_area
-            .x
-            .saturating_add(tree_area.width)
-            .saturating_sub(1);
-        let mut x = usize::from(tree_area.x) + 1 + format::width(" ");
-        for (text, action) in &parts {
-            let width = format::width(text);
-            let start = u16::try_from(x).unwrap_or(u16::MAX);
-            let end = u16::try_from(x + width).unwrap_or(u16::MAX).min(right);
-            if start < end {
-                app.hits.hints.push((
-                    Rect::new(start, tree_area.y + tree_area.height - 1, end - start, 1),
-                    *action,
-                ));
-            }
-            x += width + format::width(HINT_SEPARATOR);
-        }
-    }
     if !tree_area.is_empty() {
         let block = Block::default()
             .borders(Borders::ALL)
@@ -561,8 +510,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
                 Span::styled(if fullscreen { " · full screen" } else { "" }, theme.dim()),
                 Span::raw(" "),
             ]))
-            .title(Line::from(status).alignment(Alignment::Right))
-            .title_bottom(Line::from(Span::styled(hint, theme.dim())));
+            .title(Line::from(status).alignment(Alignment::Right));
         let inner = block.inner(tree_area);
         frame.render_widget(block, tree_area);
         // What went wrong is where the tree is (nothing was parsed), or under it.
@@ -764,10 +712,41 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     }
 }
 
+/// The row of the keys that matter now: `key label` parts, the first ones that fit, each pressed by a click.
+fn footer_row(frame: &mut Frame<'_>, area: Rect, app: &mut App, pane: keymap::Scope, theme: Theme) {
+    let ctx = app.footer_context(pane);
+    let parts = keymap::fit(keymap::footer(&ctx), usize::from(area.width));
+    let mut spans = vec![Span::raw(" ")];
+    let mut x = usize::from(area.x) + 1;
+    for (i, part) in parts.iter().enumerate() {
+        if i > 0 {
+            spans.push(Span::styled(keymap::FOOTER_SEPARATOR, theme.dim()));
+            x += format::width(keymap::FOOTER_SEPARATOR);
+        }
+        spans.push(Span::styled(part.keys.clone(), theme.title()));
+        spans.push(Span::styled(format!(" {}", part.label), theme.dim()));
+        if let Some(action) = part.action {
+            let start = u16::try_from(x).unwrap_or(u16::MAX);
+            let width = u16::try_from(part.width()).unwrap_or(u16::MAX);
+            let end = start
+                .saturating_add(width)
+                .min(area.x.saturating_add(area.width));
+            if start < end {
+                app.hits
+                    .hints
+                    .push((Rect::new(start, area.y, end - start, 1), action));
+            }
+        }
+        x += part.width();
+    }
+    frame.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
 /// The chooser of what `Y` copies: a box at the bottom with a letter for each choice.
-fn copy_as_overlay(frame: &mut Frame<'_>, app: &App, theme: Theme) {
+fn copy_as_overlay(frame: &mut Frame<'_>, app: &mut App, theme: Theme) {
+    let choices = keymap::chord(Action::CopyAs).map_or(&[][..], |c| c.choices);
     let screen = frame.area();
-    let rows = u16::try_from(crate::app::COPY_FORMATS.len()).unwrap_or(8) + 2;
+    let rows = u16::try_from(choices.len()).unwrap_or(8) + 2;
     if screen.width < 30 || screen.height < rows + 2 {
         return;
     }
@@ -779,7 +758,15 @@ fn copy_as_overlay(frame: &mut Frame<'_>, app: &App, theme: Theme) {
         height: rows,
     };
     clear(frame, area, theme);
-    let lines: Vec<Line<'_>> = crate::app::COPY_FORMATS
+    // a click on a choice presses its letter
+    for (i, (letter, _)) in choices.iter().enumerate() {
+        let y = area.y + 1 + u16::try_from(i).unwrap_or(0);
+        app.hits.choices.push((
+            Rect::new(area.x + 1, y, area.width.saturating_sub(2), 1),
+            *letter,
+        ));
+    }
+    let lines: Vec<Line<'_>> = choices
         .iter()
         .map(|(letter, name)| {
             Line::from(vec![
@@ -1795,7 +1782,7 @@ fn help(frame: &mut Frame<'_>, app: &App, theme: Theme) {
 }
 
 /// The shortest pane that has the message about a failed parse under the tree.
-const REPORT_MIN_HEIGHT: u16 = 10;
+const REPORT_MIN_HEIGHT: u16 = 9;
 /// The most rows of that message.
 const REPORT_MAX_ROWS: u16 = 8;
 
@@ -2013,7 +2000,7 @@ mod tests {
 
     #[test]
     fn the_title_has_the_type_and_the_parse() {
-        let (text, _) = screen(40, 8, true);
+        let (text, _) = screen(40, 12, true);
         let first = text.lines().next().unwrap();
         assert!(first.contains(" t "), "{text}");
         assert!(first.contains("parsed"), "{text}");
@@ -2031,7 +2018,7 @@ mod tests {
 
     #[test]
     fn the_tree_and_the_bytes_are_side_by_side_on_a_wide_terminal() {
-        let (text, terminal) = screen(100, 8, false);
+        let (text, terminal) = screen(100, 12, false);
         let lines = rows(&terminal);
         // the tree on the left, the bytes on the right, on the same rows
         let first = &lines[1];
@@ -2043,10 +2030,15 @@ mod tests {
             lines[0].contains("t: bytes 0x00000000..0x00000002"),
             "{text}"
         );
-        // the bar of the status is the last line; the bottoms of the panes are above it
-        let bottom = &lines[lines.len() - 2];
+        // the bar of the status is the last line, the keys that matter are above it, and the bottoms of the panes above them
+        let bottom = &lines[lines.len() - 3];
         assert!(bottom.contains("3 bytes"), "{text}");
-        assert!(bottom.contains("Tab switch pane"), "{text}");
+        let keys = &lines[lines.len() - 2];
+        assert!(
+            keys.contains("↑↓ move") && keys.contains("Tab bytes"),
+            "{text}"
+        );
+        assert!(keys.trim_end().ends_with("? all keys"), "{text}");
     }
 
     #[test]
@@ -2713,6 +2705,7 @@ instances:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            footer: true,
             restore: None,
             radix: None,
         };
@@ -2760,6 +2753,7 @@ instances:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            footer: true,
             restore: None,
             radix: None,
         };
@@ -2811,6 +2805,7 @@ instances:
                 theme_on_command_line: false,
                 transparent: None,
                 mouse: true,
+                footer: true,
                 restore: None,
                 radix: None,
             };

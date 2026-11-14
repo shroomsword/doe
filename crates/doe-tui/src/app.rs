@@ -37,17 +37,6 @@ const TERMINATOR_SEARCH: usize = 64 * 1024;
 pub const COPY_BYTES: usize = 4096;
 /// The most that `Y` copies, in bytes of the field or of the text.
 pub const COPY_LIMIT: usize = 64 * 1024;
-/// What `Y` can copy: the letter and what it makes, in the order of the chooser.
-pub const COPY_FORMATS: [(char, &str); 8] = [
-    ('p', "path"),
-    ('v', "value"),
-    ('j', "JSON"),
-    ('x', "hex"),
-    ('X', "hex, no spaces"),
-    ('c', "C array"),
-    ('o', "offset+length"),
-    ('s', "schema field"),
-];
 
 /// The type of the field as the schema writes it: `u2`, `s4`, `f8`, `b3`, `str`, `bytes`, or the name of the type.
 fn schema_kind(row: &crate::tree::Row) -> String {
@@ -233,6 +222,8 @@ pub struct App {
     fix: Option<doe::explain::Suggestion>,
     /// What the last drawing put where, for the mouse.
     pub hits: crate::mouse::Hits,
+    /// Whether the row of keys under the panes is shown (`K` switches it).
+    pub footer_on: bool,
     /// Whether the viewer takes the mouse now (`z` switches it).
     pub mouse_on: bool,
     /// Whether the mouse was refused for the run (`--no-mouse`, or `mouse = false` in the config): `z` cannot take it.
@@ -447,6 +438,7 @@ impl App {
             layer_guard: None,
             fix: None,
             hits: crate::mouse::Hits::default(),
+            footer_on: true,
             mouse_on: false,
             mouse_refused: false,
             mouse_change: None,
@@ -550,6 +542,7 @@ impl App {
             layer_guard: None,
             fix: None,
             hits: crate::mouse::Hits::default(),
+            footer_on: true,
             mouse_on: false,
             mouse_refused: false,
             mouse_change: None,
@@ -621,6 +614,7 @@ impl App {
             layer_guard: None,
             fix: None,
             hits: crate::mouse::Hits::default(),
+            footer_on: true,
             mouse_on: false,
             mouse_refused: false,
             mouse_change: None,
@@ -1217,6 +1211,44 @@ impl App {
         }
     }
 
+    /// What the footer is made for: where the viewer is, and what is shown.
+    #[must_use]
+    pub fn footer_context(&self, pane: keymap::Scope) -> keymap::FooterContext {
+        use keymap::Situation;
+        let situation = if self.help
+            || self.schemas.is_some()
+            || self.types.is_some()
+            || self.themes.is_some()
+            || self.field_dialog.is_some()
+            || self.new_type_dialog.is_some()
+            || self.copy_as
+            || self.preview.is_some()
+        {
+            Situation::Dialog
+        } else if self.prompt.is_some() {
+            Situation::Prompt
+        } else if self.loading || self.report.as_ref().is_some_and(|r| r.fatal) {
+            Situation::Waiting
+        } else {
+            Situation::Panes
+        };
+        keymap::FooterContext {
+            situation,
+            pane,
+            files_shown: self.files_shown(),
+            archive: self.files.is_some(),
+            checksums: self
+                .files
+                .as_ref()
+                .filter(|_| self.files_wanted)
+                .and_then(|f| f.algorithm)
+                .map(Algorithm::label),
+            building: self.builder.is_some(),
+            fix: self.fix.is_some(),
+            fullscreen: self.fullscreen,
+        }
+    }
+
     /// Whether a dialog, a list or a message has the screen: the mouse leaves it alone.
     fn modal(&self) -> bool {
         self.help
@@ -1260,7 +1292,22 @@ impl App {
 
     /// A mouse event. True when the screen may have changed (a pointer that only moves changes nothing).
     pub fn on_mouse(&mut self, event: MouseEvent) -> bool {
-        if !self.mouse_on || self.modal() || self.loading {
+        if !self.mouse_on || self.loading {
+            return false;
+        }
+        // the chooser of `Y` takes a click on a choice; a click anywhere else puts it away
+        if self.copy_as {
+            if let MouseEventKind::Down(MouseButton::Left) = event.kind {
+                self.copy_as = false;
+                match self.hits.target(event.column, event.row) {
+                    Some(Target::Choice(letter)) => self.copy_as_letter(letter),
+                    _ => self.notice = Some("nothing copied".to_owned()),
+                }
+                return true;
+            }
+            return false;
+        }
+        if self.modal() {
             return false;
         }
         let (column, row) = (event.column, event.row);
@@ -1316,7 +1363,7 @@ impl App {
             // the key that the hint shows
             Some(Target::Hint(action)) => self.act(action),
             Some(Target::Pane(focus)) => self.focus = focus,
-            None => return false,
+            Some(Target::Choice(_)) | None => return false,
         }
         true
     }
@@ -2318,6 +2365,17 @@ impl App {
             }
             Action::ToggleReport => self.show_report = !self.show_report,
             Action::ToggleMouse => self.toggle_mouse(),
+            Action::ToggleFooter => {
+                self.footer_on = !self.footer_on;
+                self.notice = Some(
+                    if self.footer_on {
+                        "the row of keys is shown (K hides it)"
+                    } else {
+                        "the row of keys is hidden (K shows it)"
+                    }
+                    .to_owned(),
+                );
+            }
             Action::TryFix => self.try_fix(),
             Action::Reload if self.builder.is_some() => self.rename_field(),
             Action::Reload => self.reload(),
@@ -3792,7 +3850,7 @@ impl App {
         self.clipboard = Some(hex);
     }
 
-    /// The text that copying the selected field as `letter` makes (see [`COPY_FORMATS`]), or why it cannot be made.
+    /// The text that copying the selected field as `letter` makes (see [`keymap::CHORDS`]), or why it cannot be made.
     fn copy_text(&mut self, letter: char) -> Result<String, String> {
         let row = self.tree.selected().clone();
         let path = doe::copy::path_of(self.tree.node(&[]).ok_or("nothing is selected")?, &row.path);
@@ -3973,6 +4031,7 @@ pub(crate) mod tests {
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            footer: true,
             restore: None,
             radix: None,
         };
@@ -4026,6 +4085,7 @@ pub(crate) mod tests {
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            footer: true,
             restore: None,
             radix: None,
         };
@@ -4665,6 +4725,7 @@ seq:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            footer: true,
             restore: None,
             radix: None,
         };
@@ -4969,6 +5030,7 @@ types:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            footer: true,
             restore: None,
             radix: None,
         };
@@ -5033,6 +5095,7 @@ types:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            footer: true,
             restore: None,
             radix: None,
         }
@@ -5223,6 +5286,7 @@ types:
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            footer: true,
             restore: None,
             radix: None,
         })

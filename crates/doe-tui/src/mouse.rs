@@ -50,6 +50,8 @@ pub struct Hits {
     pub hex: Option<HexHit>,
     /// The parts of the key hint on the border of the tree pane, each with the key that a click on it presses.
     pub hints: Vec<(Rect, Action)>,
+    /// The choices of the box that a key that takes another key shows, each with the letter that a click presses.
+    pub choices: Vec<(Rect, char)>,
 }
 
 /// What is under a cell.
@@ -68,6 +70,8 @@ pub enum Target {
     Byte(u64),
     /// A part of the key hint: a click on it presses its key.
     Hint(Action),
+    /// A choice of the box that a key that takes another key shows.
+    Choice(char),
     /// A pane, where nothing more exact is under the cell.
     Pane(Focus),
 }
@@ -83,6 +87,9 @@ impl Hits {
     /// What is under the cell at `column`, `row` (from the top left of the screen).
     #[must_use]
     pub fn target(&self, column: u16, row: u16) -> Option<Target> {
+        if let Some((_, letter)) = self.choices.iter().find(|(r, _)| inside(*r, column, row)) {
+            return Some(Target::Choice(*letter));
+        }
         if let Some((_, action)) = self.hints.iter().find(|(r, _)| inside(*r, column, row)) {
             return Some(Target::Hint(*action));
         }
@@ -248,6 +255,7 @@ mod tests {
             }),
             hex: None,
             hints: Vec::new(),
+            choices: Vec::new(),
         };
         assert_eq!(
             hits.target(4, 1),

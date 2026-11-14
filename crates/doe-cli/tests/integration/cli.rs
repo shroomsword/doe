@@ -1674,7 +1674,7 @@ mod tui_in_a_terminal {
     #[test]
     fn the_mouse_is_taken_and_given_back_before_the_screen_is_left() {
         let mut session = Session::start(&[], &[]);
-        session.wait_for("q quit");
+        session.wait_for("quit");
         session.send(b"q");
         let (success, seen) = session.finish();
         assert!(success);
@@ -1902,7 +1902,7 @@ mod tui_in_a_terminal {
     #[test]
     fn q_leaves_and_the_terminal_is_as_it_was() {
         let mut session = Session::start(&[], &[]);
-        session.wait_for("q quit");
+        session.wait_for("quit");
         session.send(b"q");
         let (success, seen) = session.finish();
         assert!(success);
@@ -1912,7 +1912,7 @@ mod tui_in_a_terminal {
     #[test]
     fn ctrl_c_leaves_too() {
         let mut session = Session::start(&[], &[]);
-        session.wait_for("q quit");
+        session.wait_for("quit");
         session.send(&[0x03]);
         let (success, seen) = session.finish();
         assert!(success);
@@ -1922,7 +1922,7 @@ mod tui_in_a_terminal {
     #[test]
     fn a_hangup_leaves_with_the_terminal_put_back() {
         let mut session = Session::start(&[], &[]);
-        session.wait_for("q quit");
+        session.wait_for("quit");
         // What the terminal closing does to the program.
         session.child.kill().unwrap();
         let (_, seen) = session.finish();
@@ -2089,6 +2089,34 @@ mod tui_in_a_terminal {
     }
 
     #[test]
+    fn no_footer_without_tui_is_refused() {
+        doe()
+            .args(["--no-footer", "file", "type"])
+            .assert()
+            .failure();
+    }
+
+    #[test]
+    fn no_footer_and_the_config_key_start_the_viewer_and_it_is_left_with_q() {
+        let mut session = Session::start(&["--no-footer"], &[]);
+        session.wait_for("parsed");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success);
+        assert_screen_restored(&seen);
+        let config = TempDir::new().unwrap();
+        let file = config.path().join("config.toml");
+        std::fs::write(&file, "footer = false\n").unwrap();
+        let mut session = Session::start(&["-c", file.to_str().unwrap()], &[]);
+        session.wait_for("parsed");
+        // K shows it again, and q leaves
+        session.send(b"K");
+        session.send(b"q");
+        let (success, _) = session.finish();
+        assert!(success);
+    }
+
+    #[test]
     fn no_restore_without_tui_is_refused() {
         doe()
             .args(["--no-restore", "file", "type"])
@@ -2117,7 +2145,7 @@ mod tui_in_a_terminal {
     /// What `doe --tui` printed with these options until it showed its first screen.
     fn first_screen(extra: &[&str], env: &[(&str, &str)]) -> String {
         let mut session = Session::start(extra, env);
-        session.wait_for("q quit");
+        session.wait_for("quit");
         session.send(b"q");
         session.finish().1
     }

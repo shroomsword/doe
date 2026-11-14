@@ -226,6 +226,11 @@ pub(crate) struct Cli {
     #[arg(long, requires = "tui")]
     pub(crate) no_restore: bool,
 
+    /// With `--tui`: start without the row of the keys that matter now under the panes (the `footer` key of the config
+    /// file hides it too); `K` in the viewer shows and hides it.
+    #[arg(long, requires = "tui")]
+    pub(crate) no_footer: bool,
+
     /// With `--tui`: the radix in which integers are first shown, `dec`
     /// (the default), `hex`, `bin` or `oct`; `x` in the viewer goes through
     /// them, and `X` chooses one for the selected field (the `radix` key of
