@@ -1706,15 +1706,13 @@ mod tui_in_a_terminal {
 
     /// The records that the viewer kept in the state directory `state`.
     fn kept_records(state: &Path) -> Vec<PathBuf> {
-        std::fs::read_dir(state.join("doe").join("viewer"))
-            .map(|entries| {
-                entries
-                    .filter_map(Result::ok)
-                    .map(|e| e.path())
-                    .filter(|p| p.extension().is_some_and(|x| x == "toml"))
-                    .collect()
-            })
-            .unwrap_or_default()
+        std::fs::read_dir(state.join("doe").join("viewer")).map_or_default(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .map(|e| e.path())
+                .filter(|p| p.extension().is_some_and(|x| x == "toml"))
+                .collect()
+        })
     }
 
     #[test]
