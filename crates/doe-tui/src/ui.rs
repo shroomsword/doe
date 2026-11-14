@@ -14,7 +14,7 @@ use crate::format;
 use crate::hex_view::{self, Cover};
 use crate::highlight::Kind;
 use crate::inspect;
-use crate::keymap;
+use crate::keymap::{self, Action};
 use crate::kinds::Kind as ByteKind;
 use crate::markdown::Style as MarkdownStyle;
 use crate::preview::Preview;
@@ -406,6 +406,43 @@ const STATUS_MIN_HEIGHT: u16 = 6;
 /// The lines of an inspector that is shown below the bytes (more than this, and it takes the pane).
 const INSPECTOR_MAX_LINES: u16 = 12;
 
+/// What separates the parts of the key hint.
+const HINT_SEPARATOR: &str = " · ";
+
+/// The parts of the key hint under the tree, each with the key that a click on it presses.
+fn hint_parts(
+    two_panes: bool,
+    files: bool,
+    fullscreen: bool,
+    algorithm: Option<&str>,
+) -> Vec<(String, Action)> {
+    let part = |text: &str, action| (text.to_owned(), action);
+    let mut parts = vec![part("q quit", Action::Quit)];
+    if fullscreen {
+        parts.push(part("f or Esc restore", Action::Fullscreen));
+        parts.push(part("Tab other pane", Action::ToggleFocus));
+        parts.push(part("i inspector", Action::ToggleInspector));
+    } else {
+        if two_panes {
+            parts.push(part("Tab switch pane", Action::ToggleFocus));
+        }
+        parts.push(part("i inspector", Action::ToggleInspector));
+        if files {
+            parts.push(part("F files/fields", Action::Files));
+        }
+    }
+    if let Some(algorithm) = algorithm {
+        parts.push((format!("m {algorithm}"), Action::Checksums));
+    }
+    parts
+}
+
+/// The parts of the hint as the line that is drawn.
+fn hint_text(parts: &[(String, Action)]) -> String {
+    let texts: Vec<&str> = parts.iter().map(|(text, _)| text.as_str()).collect();
+    format!(" {} ", texts.join(HINT_SEPARATOR))
+}
+
 /// Draw the viewer: the tree of what was read, in a pane with the type in its
 /// title and how the parse went, and next to it (or below, on a narrow
 /// terminal) the bytes of the file with the selected field marked; below
@@ -478,27 +515,39 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
             },
         }
     };
-    let hint = match (hex_area.is_some() || fullscreen, app.files.is_some()) {
-        (true, false) => " q quit · Tab switch pane · i inspector ",
-        (true, true) => " q quit · Tab switch pane · i inspector · F files/fields ",
-        (false, false) => " q quit · i inspector ",
-        (false, true) => " q quit · i inspector · F files/fields ",
-    };
-    let hint = if fullscreen {
-        " q quit · f or Esc restore · Tab other pane · i inspector "
-    } else {
-        hint
-    };
     // the algorithm of the checksum column is named in the hint while the column is shown
-    let hint = match app
+    let algorithm = app
         .files
         .as_ref()
         .filter(|_| app.files_wanted)
-        .and_then(|f| f.algorithm)
-    {
-        Some(algorithm) => format!("{} · m {} ", hint.trim_end(), algorithm.label()),
-        None => hint.to_owned(),
-    };
+        .and_then(|f| f.algorithm);
+    let parts = hint_parts(
+        hex_area.is_some() || fullscreen,
+        app.files.is_some(),
+        fullscreen,
+        algorithm.map(doe::filesystem::Algorithm::label),
+    );
+    let hint = hint_text(&parts);
+    // a click on a part of the hint presses its key: the parts are on the bottom border of the pane, after its corner
+    if !tree_area.is_empty() && tree_area.height > 0 {
+        let right = tree_area
+            .x
+            .saturating_add(tree_area.width)
+            .saturating_sub(1);
+        let mut x = usize::from(tree_area.x) + 1 + format::width(" ");
+        for (text, action) in &parts {
+            let width = format::width(text);
+            let start = u16::try_from(x).unwrap_or(u16::MAX);
+            let end = u16::try_from(x + width).unwrap_or(u16::MAX).min(right);
+            if start < end {
+                app.hits.hints.push((
+                    Rect::new(start, tree_area.y + tree_area.height - 1, end - start, 1),
+                    *action,
+                ));
+            }
+            x += width + format::width(HINT_SEPARATOR);
+        }
+    }
     if !tree_area.is_empty() {
         let block = Block::default()
             .borders(Borders::ALL)

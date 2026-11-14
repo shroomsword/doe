@@ -398,3 +398,132 @@ fn a_click_on_an_entry_of_the_files_selects_it_and_the_tree_and_the_bytes_follow
     assert_eq!(app.tree.selected_path(), entry.trace_path.as_slice());
     assert_eq!(app.focus, Focus::Tree);
 }
+
+/// The text on the screen under a rectangle.
+fn text_under(terminal: &Terminal<TestBackend>, rect: ratatui::layout::Rect) -> String {
+    let buffer = terminal.backend().buffer();
+    (rect.x..rect.x + rect.width)
+        .map(|x| buffer[(x, rect.y)].symbol())
+        .collect()
+}
+
+#[test]
+fn each_part_of_the_hint_is_where_it_is_drawn_and_a_click_presses_its_key() {
+    let (mut app, _dir) = app();
+    let terminal = draw_now(&mut app, 120, 24);
+    let hints = app.hits.hints.clone();
+    let texts: Vec<String> = hints
+        .iter()
+        .map(|(rect, _)| text_under(&terminal, *rect))
+        .collect();
+    assert_eq!(texts, ["q quit", "Tab switch pane", "i inspector"]);
+    // the focus: Tab switches it
+    assert_eq!(app.focus, Focus::Tree);
+    let (rect, _) = hints[1];
+    assert!(click(&mut app, rect.x + 2, rect.y));
+    assert_eq!(app.focus, Focus::Hex);
+    // the inspector
+    let (rect, _) = hints[2];
+    assert!(!app.inspector);
+    click(&mut app, rect.x, rect.y);
+    assert!(app.inspector);
+    // the last cell of a part is the part's, the separator after it is not
+    draw_now(&mut app, 120, 24);
+    let (rect, _) = app.hits.hints[2];
+    click(&mut app, rect.x + rect.width - 1, rect.y);
+    assert!(!app.inspector);
+    assert!(
+        app.hits
+            .target(rect.x + rect.width, rect.y)
+            .is_none_or(|t| !matches!(t, doe_tui::mouse::Target::Hint(_)))
+    );
+    // quit
+    draw_now(&mut app, 120, 24);
+    let (rect, _) = app.hits.hints[0];
+    assert!(!app.quit);
+    click(&mut app, rect.x, rect.y);
+    assert!(app.quit);
+}
+
+#[test]
+fn the_hint_of_a_full_screen_and_of_a_narrow_pane_has_only_parts_that_are_drawn() {
+    let (mut app, _dir) = app();
+    app.fullscreen = true;
+    app.focus = Focus::Tree;
+    let terminal = draw_now(&mut app, 120, 24);
+    let hints = app.hits.hints.clone();
+    let texts: Vec<String> = hints
+        .iter()
+        .map(|(rect, _)| text_under(&terminal, *rect))
+        .collect();
+    assert_eq!(
+        texts,
+        [
+            "q quit",
+            "f or Esc restore",
+            "Tab other pane",
+            "i inspector"
+        ]
+    );
+    click(&mut app, hints[1].0.x, hints[1].0.y);
+    assert!(
+        !app.fullscreen,
+        "the part that says f or Esc restores both panes"
+    );
+    // a pane too narrow for the whole hint: what is cut is not a part to click
+    let (mut app, _dir) = app_with(SCHEMA, &[1, 0, 2, 0, 3, 0, 4, 5]);
+    let terminal = draw_now(&mut app, 50, 12);
+    let pane = app.hits.tree_pane.unwrap();
+    for (rect, _) in &app.hits.hints {
+        assert!(
+            rect.x + rect.width < pane.x + pane.width,
+            "{rect:?} is on the border"
+        );
+        let text = text_under(&terminal, *rect);
+        assert!(!text.trim().is_empty(), "{rect:?}");
+    }
+}
+
+#[test]
+fn the_checksum_part_of_the_hint_of_the_files_goes_to_the_next_algorithm() {
+    let types = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../types");
+    let mut options = options(&tempfile::tempdir().unwrap());
+    options.file = types.join("samples/sample.tar");
+    options.type_or_schema = "tar".to_owned();
+    options.include_paths = vec![types];
+    let mut app = App::new(options.file.clone(), load(&options).unwrap());
+    app.options = Some(options);
+    app.mouse_on = true;
+    let terminal = draw_now(&mut app, 200, 16);
+    let texts: Vec<String> = app
+        .hits
+        .hints
+        .iter()
+        .map(|(rect, _)| text_under(&terminal, *rect))
+        .collect();
+    assert_eq!(
+        texts,
+        ["q quit", "Tab switch pane", "i inspector", "F files/fields"]
+    );
+    // `m` shows the column, and the hint names its algorithm
+    app.focus = Focus::Tree;
+    key(&mut app, KeyCode::Char('m'));
+    assert!(
+        app.files.as_ref().unwrap().algorithm.is_some(),
+        "{:?}",
+        app.notice
+    );
+    let terminal = draw_now(&mut app, 200, 16);
+    let (rect, _) = *app.hits.hints.last().unwrap();
+    let shown = text_under(&terminal, rect);
+    assert!(shown.starts_with("m "), "{shown}");
+    let before = app.files.as_ref().unwrap().algorithm;
+    click(&mut app, rect.x, rect.y);
+    assert_ne!(app.files.as_ref().unwrap().algorithm, before);
+    // the part for the Files goes to the fields
+    draw_now(&mut app, 200, 16);
+    let files = app.hits.hints[3].0;
+    assert!(app.files_shown());
+    click(&mut app, files.x, files.y);
+    assert!(!app.files_shown());
+}
