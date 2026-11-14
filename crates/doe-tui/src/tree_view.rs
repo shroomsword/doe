@@ -7,6 +7,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Scrollbar, ScrollbarOrientation, ScrollbarState};
 
+use doe::compare::Mark;
 use doe::radix::Radix;
 
 use crate::format;
@@ -91,10 +92,26 @@ fn pieces(row: &Row, theme: Theme, radix: Radix) -> Vec<Piece> {
         ("✗".to_owned(), theme.failed())
     } else if row.problem.is_some() {
         ("!".to_owned(), theme.failed())
+    } else if matches!(row.kind, RowKind::Ghost { .. }) {
+        ("+".to_owned(), theme.only_there())
     } else {
-        (" ".to_owned(), Style::default())
+        match row.mark {
+            Some(Mark::Changed) => ("≠".to_owned(), theme.changed()),
+            Some(Mark::Inside) => ("±".to_owned(), theme.changed()),
+            Some(Mark::Only) => ("−".to_owned(), theme.only_here()),
+            None => (" ".to_owned(), Style::default()),
+        }
     });
     out.push(("  ".repeat(row.depth), Style::default()));
+    if matches!(row.kind, RowKind::Ghost { .. }) {
+        // what only the other file has: its name and its value
+        out.push(("  ".to_owned(), Style::default()));
+        out.push((format::safe(&row.name), theme.only_there()));
+        if let Some(summary) = &row.summary {
+            out.push((format!(" = {}", format::safe(summary)), theme.dim()));
+        }
+        return out;
+    }
     if matches!(row.kind, RowKind::More { .. } | RowKind::Earlier { .. }) {
         out.push(("  ".to_owned(), Style::default()));
         out.push((format::safe(&row.name), theme.dim()));
@@ -112,6 +129,9 @@ fn pieces(row: &Row, theme: Theme, radix: Radix) -> Vec<Piece> {
         theme.name()
     };
     out.push((format::safe(&row.name), name_style));
+    if row.below > 0 {
+        out.push((format!("  {} differ", row.below), theme.changed()));
+    }
     // the root is named after its type: said once
     if let Some(type_name) = row.type_name.as_ref().filter(|t| **t != row.name) {
         out.push((format!("  {}", format::safe(type_name)), theme.type_name()));

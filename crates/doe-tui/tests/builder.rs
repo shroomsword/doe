@@ -35,6 +35,7 @@ fn building() -> (App, tempfile::TempDir) {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };
@@ -171,6 +172,7 @@ fn the_ordinary_viewer_has_no_builder_and_leaves_at_once() {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };

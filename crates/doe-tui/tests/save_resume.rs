@@ -51,6 +51,7 @@ fn options(dir: &Path) -> Options {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     }
@@ -304,6 +305,7 @@ fn w_says_so_when_nothing_is_being_built() {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };

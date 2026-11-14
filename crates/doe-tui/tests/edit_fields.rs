@@ -35,6 +35,7 @@ fn building() -> (App, tempfile::TempDir) {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };
@@ -308,6 +309,7 @@ fn a_key_that_needs_a_field_says_so_when_none_is_selected_and_nothing_changes_wi
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };

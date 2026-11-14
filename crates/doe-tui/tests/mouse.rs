@@ -35,6 +35,7 @@ fn options(dir: &tempfile::TempDir) -> Options {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     }

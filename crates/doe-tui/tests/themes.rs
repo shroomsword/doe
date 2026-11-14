@@ -536,6 +536,7 @@ fn the_screens_of(id: &str, depth: Depth) {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };
@@ -658,6 +659,7 @@ fn without_colour_a_theme_is_not_used() {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };
@@ -722,6 +724,7 @@ fn started_with(id: Option<&str>) -> (App, Theme, tempfile::TempDir, Options) {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };

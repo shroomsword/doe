@@ -86,6 +86,7 @@ fn the_keys_of_the_readme_build_the_schema_of_the_readme() {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };

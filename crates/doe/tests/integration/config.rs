@@ -497,6 +497,20 @@ fn the_default_types_directory_is_searched_last_and_once() {
 }
 
 #[test]
+fn compare_view_is_unset_or_text() {
+    assert_eq!(Config::default().compare_view, None);
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "compare_view = \"side-by-side\"").unwrap();
+    assert_eq!(
+        Config::load(f.path()).unwrap().compare_view.as_deref(),
+        Some("side-by-side")
+    );
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "compare_view = true").unwrap();
+    assert!(Config::load(f.path()).is_err(), "a boolean is not text");
+}
+
+#[test]
 fn footer_is_unset_or_a_boolean() {
     assert_eq!(Config::default().footer, None);
     for (text, wanted) in [

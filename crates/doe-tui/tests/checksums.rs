@@ -35,6 +35,7 @@ fn app(schema: &str, file: &Path) -> App {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };

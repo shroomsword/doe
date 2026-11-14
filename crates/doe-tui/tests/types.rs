@@ -68,6 +68,7 @@ fn app(f: &Fixture, type_name: &str) -> App {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     };

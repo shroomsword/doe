@@ -95,6 +95,13 @@ pub struct Config {
     #[serde(default)]
     pub footer: Option<bool>,
 
+    /// How the terminal viewer (`doe --tui FILE --compare OTHER`) first draws a
+    /// comparison: `annotated` (the tree of the first file with marks, and what only
+    /// the second has under its parents; the default) or `side-by-side` (the two
+    /// trees). `--compare-view` overrides it; `|` in the viewer switches.
+    #[serde(default)]
+    pub compare_view: Option<String>,
+
     /// The radix in which the terminal viewer (`doe --tui`) first shows
     /// integers: `dec`, `hex`, `bin` or `oct`. `--radix` overrides it.
     #[serde(default)]

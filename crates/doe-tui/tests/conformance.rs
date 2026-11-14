@@ -130,6 +130,7 @@ fn the_tree_and_the_bytes_agree_on_the_conformance_samples() {
                 transparent: None,
                 mouse: true,
                 footer: true,
+                compare: None,
                 restore: None,
                 radix: None,
             })

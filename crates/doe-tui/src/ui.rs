@@ -123,6 +123,31 @@ impl Theme {
         self.pick(|p| p.string, Color::Green)
     }
 
+    /// In a comparison: a field whose value differs from the other file's, and the bytes that differ.
+    #[must_use]
+    pub fn changed(self) -> Style {
+        self.pick(|p| p.accent, Color::Cyan)
+            .add_modifier(Modifier::BOLD)
+    }
+
+    /// In a comparison: the bytes of a field that differs.
+    #[must_use]
+    pub fn changed_bytes(self) -> Style {
+        self.changed().add_modifier(Modifier::UNDERLINED)
+    }
+
+    /// In a comparison: a field that this file has and the other does not.
+    #[must_use]
+    pub fn only_here(self) -> Style {
+        self.pick(|p| p.error, Color::Red)
+    }
+
+    /// In a comparison: a field that the other file has and this one does not.
+    #[must_use]
+    pub fn only_there(self) -> Style {
+        self.pick(|p| p.string, Color::Green)
+    }
+
     /// A parse that failed, and the row where it failed.
     #[must_use]
     pub fn bad(self) -> Style {
@@ -493,7 +518,17 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
                     Span::styled(" building · not saved ", theme.title())
                 }
                 Some(_) => Span::styled(" building ", theme.good()),
-                None => Span::styled(" parsed ", theme.good()),
+                None => match (app.compare_summary(), app.compare_letter()) {
+                    (Some(summary), Some(letter)) => {
+                        let style = if summary == "identical" {
+                            theme.good()
+                        } else {
+                            theme.changed()
+                        };
+                        Span::styled(format!(" {letter}: {summary} "), style)
+                    }
+                    _ => Span::styled(" parsed ", theme.good()),
+                },
             },
         }
     };
@@ -570,9 +605,44 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
                 files: true,
             });
         } else {
+            // two files side by side: this tree on the left, the other on the right, each under the name of its file
+            let rows_area = match app.compare.as_mut().filter(|c| c.side_by_side) {
+                Some(c) => {
+                    let [left, right] = Layout::horizontal([
+                        Constraint::Percentage(50),
+                        Constraint::Percentage(50),
+                    ])
+                    .areas(tree_inner);
+                    let [left_head, left_rows] =
+                        Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(left);
+                    let [right_head, right_rows] =
+                        Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(right);
+                    let (mine, other) = if c.swapped { ('B', 'A') } else { ('A', 'B') };
+                    let name = |file: &std::path::Path| {
+                        file.file_name().map_or_else(
+                            || file.display().to_string(),
+                            |n| n.to_string_lossy().into_owned(),
+                        )
+                    };
+                    for (head, letter, file, current) in [
+                        (left_head, mine, &app.file, true),
+                        (right_head, other, &c.file, false),
+                    ] {
+                        let text = format::truncate(
+                            &format!("{letter} · {}", format::safe(&name(file))),
+                            usize::from(head.width),
+                        );
+                        let style = if current { theme.title() } else { theme.dim() };
+                        frame.render_widget(Paragraph::new(Span::styled(text, style)), head);
+                    }
+                    tree_view::render(frame, right_rows, &c.tree, &mut c.view, theme, &app.radixes);
+                    left_rows
+                }
+                None => tree_inner,
+            };
             tree_view::render(
                 frame,
-                tree_inner,
+                rows_area,
                 &app.tree,
                 &mut app.view,
                 theme,
@@ -580,11 +650,11 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
             );
             // the scrollbar takes the last column when the rows do not all fit
             let len = app.tree.rows().len();
-            let scrollbar = len > usize::from(tree_inner.height) && tree_inner.width > 2;
+            let scrollbar = len > usize::from(rows_area.height) && rows_area.width > 2;
             app.hits.rows = Some(crate::mouse::RowsHit {
                 area: Rect {
-                    width: tree_inner.width.saturating_sub(u16::from(scrollbar)),
-                    ..tree_inner
+                    width: rows_area.width.saturating_sub(u16::from(scrollbar)),
+                    ..rows_area
                 },
                 first: app.view.top(),
                 len,
@@ -611,6 +681,9 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         }
         if let Some(bit) = app.hex.bit() {
             described = format!("{described} · bit {bit} of byte {:#x}", app.hex.cursor());
+        }
+        if let Some(letter) = app.compare_letter() {
+            described = format!("file {letter} · {described}");
         }
         if fullscreen {
             described = format!("full screen · {described}");
@@ -644,6 +717,12 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
             (Some(inner), None)
         };
         if let Some(bytes_area) = bytes_area {
+            // in a comparison: the bytes of this file that differ from the other
+            let changed: &[(u64, u64)] = match &app.compare {
+                Some(c) if c.swapped => &c.comparison.b.bytes,
+                Some(c) => &c.comparison.a.bytes,
+                None => &[],
+            };
             match app.bytes.as_mut() {
                 Some(bytes) => hex_view::render(
                     frame,
@@ -653,6 +732,7 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
                     Some(app.tree.selected()),
                     focus == Focus::Hex,
                     app.byte_kinds.as_ref().filter(|_| app.byte_colours),
+                    changed,
                     theme,
                 ),
                 None => frame.render_widget(Paragraph::new("could not open the file"), bytes_area),
@@ -1888,6 +1968,9 @@ fn inspector_lines(app: &mut App) -> Vec<(String, String)> {
             lines.push((String::new(), "…".to_owned()));
         }
     }
+    if let Some(other) = app.other_value() {
+        lines.push(("other file".to_owned(), format::safe(&other)));
+    }
     lines.extend(inspector_forms(app));
     lines
 }
@@ -2706,6 +2789,7 @@ instances:
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: None,
             radix: None,
         };
@@ -2754,6 +2838,7 @@ instances:
             transparent: None,
             mouse: true,
             footer: true,
+            compare: None,
             restore: None,
             radix: None,
         };
@@ -2806,6 +2891,7 @@ instances:
                 transparent: None,
                 mouse: true,
                 footer: true,
+                compare: None,
                 restore: None,
                 radix: None,
             };

@@ -176,6 +176,7 @@ fn a_million_fields_open_scroll_search_and_jump_within_the_budget() {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     })
@@ -403,6 +404,7 @@ fn a_file_of_gigabytes_opens_and_scrolls_without_being_read() {
         transparent: None,
         mouse: true,
         footer: true,
+        compare: None,
         restore: None,
         radix: None,
     })

@@ -310,6 +310,21 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         transparent: transparent_setting(cli, config),
         mouse: !cli.no_mouse && config.mouse.unwrap_or(true),
         footer: !cli.no_footer && config.footer.unwrap_or(true),
+        compare: match &cli.compare {
+            Some(file) => Some(doe_tui::Comparing {
+                file: file.clone(),
+                side_by_side: match cli.compare_view {
+                    Some(view) => view,
+                    None => config
+                        .compare_view
+                        .as_deref()
+                        .map(str::parse)
+                        .transpose()?
+                        .unwrap_or_default(),
+                } == doe_tui::CompareView::SideBySide,
+            }),
+            None => None,
+        },
         restore: if cli.no_restore || config.restore == Some(false) {
             None
         } else {
