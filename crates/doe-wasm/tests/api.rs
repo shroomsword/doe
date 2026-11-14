@@ -459,3 +459,101 @@ fn detect_order_ranks_by_signature_then_name_and_leaves_out_what_cannot_fit() {
     let bad: Value = serde_json::from_str(&doe_wasm::detect_order("{", &[])).unwrap();
     assert_eq!(bad["ok"], false);
 }
+
+fn compare(request: &Value, a: &[u8], b: &[u8]) -> Value {
+    serde_json::from_str(&doe_wasm::compare(&request.to_string(), a, b)).unwrap()
+}
+
+/// Two parses of `CHUNKS`: a text item, then the same with another body.
+const A: [u8; 6] = [1, 1, 2, b'h', b'i', 0];
+const B: [u8; 6] = [1, 1, 2, b'h', b'o', 0];
+
+#[test]
+fn two_files_that_are_the_same_are_identical() {
+    let answer = compare(&json!({ "schema": CHUNKS }), &A, &A);
+    assert_eq!(answer["ok"], true);
+    assert_eq!(answer["summary"]["identical"], true);
+    assert_eq!(answer["summary"]["changed"], 0);
+    assert_eq!(answer["ghosts"], json!([]));
+    assert_eq!(answer["a"]["bytes"], json!([]));
+    // no node has a mark
+    assert_eq!(answer["a"]["trace"]["diff"], Value::Null);
+}
+
+#[test]
+fn a_field_that_differs_is_marked_in_both_files_and_its_bytes_are_given() {
+    let answer = compare(&json!({ "schema": CHUNKS }), &A, &B);
+    assert_eq!(answer["ok"], true);
+    assert_eq!(answer["summary"]["identical"], false);
+    assert_eq!(answer["summary"]["changed"], 1);
+    for side in ["a", "b"] {
+        let root = &answer[side]["trace"];
+        assert_eq!(root["diff"], "inside");
+        assert_eq!(root["diff_below"], 1);
+        let items = &root["children"][1];
+        assert_eq!(items["name"], "items");
+        assert_eq!(items["diff"], "inside");
+        let body = &items["children"][0]["children"][2];
+        assert_eq!(body["name"], "body");
+        assert_eq!(body["diff"], "changed");
+    }
+    // the byte of the body that differs, in the file: `i` and `o`
+    assert_eq!(answer["a"]["bytes"], json!([[4, 5]]));
+    assert_eq!(answer["b"]["bytes"], json!([[4, 5]]));
+}
+
+#[test]
+fn an_element_that_only_the_second_file_has_is_a_ghost_under_the_list() {
+    let one = [1, 1, 1, b'x', 0];
+    let two = [2, 1, 1, b'x', 1, 1, b'y', 0];
+    let answer = compare(&json!({ "schema": CHUNKS }), &one, &two);
+    assert_eq!(answer["summary"]["only_b"], 1);
+    assert_eq!(answer["summary"]["only_a"], 0);
+    let ghosts = answer["ghosts"].as_array().unwrap();
+    assert_eq!(ghosts.len(), 1);
+    // under `items` (the second child of the root), as element [1], and the value is the one of the second file
+    assert_eq!(ghosts[0]["parent"], json!([1]));
+    assert_eq!(ghosts[0]["name"], "[1]");
+    assert_eq!(
+        answer["b"]["trace"]["children"][1]["children"][1]["diff"],
+        "only"
+    );
+}
+
+#[test]
+fn a_schema_that_does_not_compile_or_a_request_that_is_not_json_is_said() {
+    let answer = compare(&json!({ "schema": "seq: [" }), &A, &B);
+    assert_eq!(answer["ok"], false);
+    assert!(
+        !answer["diagnostics"].as_array().unwrap().is_empty(),
+        "the schema has a mistake: {answer}"
+    );
+    assert_eq!(answer["a"], Value::Null);
+    // a request that is not JSON
+    let answer: Value = serde_json::from_str(&doe_wasm::compare("not json", &A, &B)).unwrap();
+    assert_eq!(answer["ok"], false);
+}
+
+#[test]
+fn a_file_that_is_too_big_is_said_with_its_name_and_nothing_is_compared() {
+    // zeroed memory that is not touched: the size is checked before anything is read
+    let big = vec![0_u8; 256 * 1024 * 1024 + 1];
+    let answer = compare(&json!({ "schema": CHUNKS }), &A, &big);
+    assert_eq!(answer["ok"], false);
+    assert_eq!(answer["error"]["kind"], "input");
+    assert!(
+        answer["error"]["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("the second file: the input is"),
+        "{answer}"
+    );
+    assert_eq!(answer["a"], Value::Null);
+    let answer = compare(&json!({ "schema": CHUNKS }), &big, &A);
+    assert!(
+        answer["error"]["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("the first file:")
+    );
+}

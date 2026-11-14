@@ -139,6 +139,11 @@ pub struct TraceOut {
     pub integer: Option<IntegerOut>,
     /// For a field that decides where another value is or how long (its `pos:` or `size:` reads it): where that is.
     pub points_to: Option<PointsTo>,
+    /// In a comparison of two files (see [`compare`]): how this node differs from the one of the other file, `changed`,
+    /// `inside` (something below it differs) or `only` (the other file has nothing like it); none if it is the same.
+    pub diff: Option<&'static str>,
+    /// In a comparison: how many differences there are below this node, when there are.
+    pub diff_below: Option<usize>,
     /// The parts inside.
     pub children: Vec<TraceOut>,
 }
@@ -719,6 +724,217 @@ fn parse_input(request: &str, input: &Input<'_>, explain: bool) -> ParseResponse
     }
 }
 
+/// One of the two files of a comparison.
+#[derive(Debug, Serialize)]
+pub struct CompareSide {
+    /// Why the parse of this file stopped, if it did (what was read is compared all the same).
+    pub error: Option<Diagnostic>,
+    /// Where each part of the value came from, with how it differs from the other file in `diff`.
+    pub trace: TraceOut,
+    /// The bytes of this file that differ, as `[first, end)`: by matched field, not by offset.
+    pub bytes: Vec<[u64; 2]>,
+}
+
+/// A field or element that only file B has, shown under the parent in A's tree that would hold it.
+#[derive(Debug, Serialize)]
+pub struct GhostOut {
+    /// The path in A's tree of the node that would hold it, as indexes of children from the root.
+    pub parent: Vec<usize>,
+    /// Its name (`[3]` for an element).
+    pub name: String,
+    /// Its path in B's tree.
+    pub b_path: Vec<usize>,
+    /// Its value as text, when it is a leaf.
+    pub summary: Option<String>,
+}
+
+/// How many fields were compared and how they differ.
+#[derive(Debug, Serialize)]
+pub struct CompareSummary {
+    /// The fields of A.
+    pub fields_a: usize,
+    /// The fields of B.
+    pub fields_b: usize,
+    /// The fields whose value differs.
+    pub changed: usize,
+    /// The fields and elements that only A has.
+    pub only_a: usize,
+    /// The fields and elements that only B has.
+    pub only_b: usize,
+    /// Whether nothing differs.
+    pub identical: bool,
+}
+
+/// The answer to [`compare`].
+#[derive(Debug, Serialize)]
+pub struct CompareResponse {
+    /// Whether the schema compiled and both files could be compared.
+    pub ok: bool,
+    /// The id of the schema.
+    pub id: Option<String>,
+    /// What is wrong with the schema or the request.
+    pub diagnostics: Vec<Diagnostic>,
+    /// Why a file could not be read at all (too big, say).
+    pub error: Option<Diagnostic>,
+    /// The first file, with its marks.
+    pub a: Option<CompareSide>,
+    /// The second file, with its marks.
+    pub b: Option<CompareSide>,
+    /// What only B has, by the parent in A.
+    pub ghosts: Vec<GhostOut>,
+    /// The counts.
+    pub summary: Option<CompareSummary>,
+}
+
+/// Parse two files with the schema of a request and compare them by field: which differ, were added or were removed,
+/// and which bytes differ (see [`crate::compare`]). Both are in memory, so each is at most
+/// [`MAX_INPUT_BYTES`](crate::api).
+#[must_use]
+pub fn compare(request: &str, a: &[u8], b: &[u8]) -> CompareResponse {
+    let failed = |diagnostics: Vec<Diagnostic>, id: Option<String>, error: Option<Diagnostic>| {
+        CompareResponse {
+            ok: false,
+            id,
+            diagnostics,
+            error,
+            a: None,
+            b: None,
+            ghosts: Vec::new(),
+            summary: None,
+        }
+    };
+    let request = match request_from(request) {
+        Ok(request) => request,
+        Err(diagnostic) => return failed(vec![diagnostic], None, None),
+    };
+    let compiled = match compile(&request) {
+        Ok(compiled) => compiled,
+        Err(diagnostics) => return failed(diagnostics, None, None),
+    };
+    let id = Some(compiled.id.clone());
+    let type_name = request.type_name.as_deref().unwrap_or(&compiled.id);
+    let engine = Engine::new(&compiled.compiler.registry);
+    let mut outcomes = Vec::new();
+    for (name, bytes) in [("the first file", a), ("the second file", b)] {
+        let input = Input::Bytes(bytes);
+        let mut cursor = match input.cursor() {
+            Ok(cursor) => cursor,
+            Err(mut error) => {
+                error.message = format!("{name}: {}", error.message);
+                return failed(Vec::new(), id, Some(error));
+            }
+        };
+        match engine.parse_type_partial(type_name, &mut cursor) {
+            Ok(outcome) => outcomes.push(outcome),
+            Err(error) => {
+                let error = Diagnostic::new("input", format!("{name}: {error}"));
+                return failed(Vec::new(), id, Some(error));
+            }
+        }
+    }
+    let (Some(oa), Some(ob)) = (outcomes.first(), outcomes.get(1)) else {
+        return failed(Vec::new(), id, None);
+    };
+    let read_a = |offset: u64, len: usize| {
+        let start = usize::try_from(offset).ok()?;
+        a.get(start..start.checked_add(len)?).map(<[u8]>::to_vec)
+    };
+    let read_b = |offset: u64, len: usize| {
+        let start = usize::try_from(offset).ok()?;
+        b.get(start..start.checked_add(len)?).map(<[u8]>::to_vec)
+    };
+    let comparison = crate::compare::compare(
+        &crate::compare::Input {
+            trace: &oa.trace,
+            value: oa.value.as_ref(),
+            read: &read_a,
+        },
+        &crate::compare::Input {
+            trace: &ob.trace,
+            value: ob.value.as_ref(),
+            read: &read_b,
+        },
+    );
+    let side = |outcome: &crate::parser::engine::ParseOutcome, marks: &crate::compare::Side| {
+        let mut trace = trace_out(&outcome.trace);
+        annotate(&mut trace, outcome.value.as_ref());
+        for (path, mark) in &marks.marks {
+            if let Some(node) = trace_at(&mut trace, path) {
+                node.diff = Some(match mark {
+                    crate::compare::Mark::Changed => "changed",
+                    crate::compare::Mark::Inside => "inside",
+                    crate::compare::Mark::Only => "only",
+                });
+            }
+        }
+        for (path, below) in &marks.below {
+            if let Some(node) = trace_at(&mut trace, path) {
+                node.diff_below = Some(*below);
+            }
+        }
+        CompareSide {
+            error: outcome
+                .error
+                .as_ref()
+                .map(|error| Diagnostic::new("parse", error.to_string())),
+            trace,
+            bytes: marks.bytes.iter().map(|(f, e)| [*f, *e]).collect(),
+        }
+    };
+    let side_a = side(oa, &comparison.a);
+    let side_b = side(ob, &comparison.b);
+    let mut ghosts: Vec<GhostOut> = Vec::new();
+    for (parent, list) in &comparison.ghosts {
+        for ghost in list {
+            let summary =
+                trace_at_ref(&side_b.trace, &ghost.b_path).and_then(|n| n.summary.clone());
+            ghosts.push(GhostOut {
+                parent: parent.clone(),
+                name: ghost.name.clone(),
+                b_path: ghost.b_path.clone(),
+                summary,
+            });
+        }
+    }
+    // a fixed order, whatever the order of the map
+    ghosts.sort_by(|x, y| (&x.parent, &x.b_path).cmp(&(&y.parent, &y.b_path)));
+    let s = comparison.summary;
+    CompareResponse {
+        ok: true,
+        id,
+        diagnostics: Vec::new(),
+        error: None,
+        a: Some(side_a),
+        b: Some(side_b),
+        ghosts,
+        summary: Some(CompareSummary {
+            fields_a: s.fields_a,
+            fields_b: s.fields_b,
+            changed: s.changed,
+            only_a: s.only_a,
+            only_b: s.only_b,
+            identical: s.identical(),
+        }),
+    }
+}
+
+/// The node of a trace at `path` (indexes of children from the root), to change.
+fn trace_at<'t>(root: &'t mut TraceOut, path: &[usize]) -> Option<&'t mut TraceOut> {
+    let mut node = root;
+    for &i in path {
+        node = node.children.get_mut(i)?;
+    }
+    Some(node)
+}
+
+fn trace_at_ref<'t>(root: &'t TraceOut, path: &[usize]) -> Option<&'t TraceOut> {
+    let mut node = root;
+    for &i in path {
+        node = node.children.get(i)?;
+    }
+    Some(node)
+}
+
 /// The answer to [`export`].
 #[derive(Debug, Serialize)]
 pub struct ExportResponse {
@@ -824,6 +1040,8 @@ fn trace_out(node: &TraceNode) -> TraceOut {
         summary: None,
         integer: None,
         points_to: None,
+        diff: None,
+        diff_below: None,
         children: node.children.iter().map(trace_out).collect(),
     }
 }

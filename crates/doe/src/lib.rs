@@ -27,6 +27,7 @@
 //! - [`render::json::render_pretty`] — pretty-printed JSON renderer.
 
 pub mod api;
+pub mod compare;
 #[cfg(feature = "fs")]
 pub mod config;
 pub mod copy;
