@@ -158,6 +158,30 @@ impl TraceNode {
         map
     }
 
+    /// The node that `names` (as a schema writes them: `["_parent", "hdr", "len"]`) mean from the node at `from`, as
+    /// a path; `None` if one of the names is not there.
+    #[must_use]
+    pub fn resolve_names(&self, from: &[usize], names: &[String]) -> Option<Vec<usize>> {
+        self.resolve_exact(from, names)
+    }
+
+    /// The path of the node where the parse failed (the innermost one marked [`failed`](Self::failed)).
+    #[must_use]
+    pub fn failed_node(&self) -> Option<Vec<usize>> {
+        fn walk(node: &TraceNode, path: &mut Vec<usize>) -> bool {
+            for (i, child) in node.children.iter().enumerate() {
+                path.push(i);
+                if walk(child, path) {
+                    return true;
+                }
+                path.pop();
+            }
+            node.failed
+        }
+        let mut path = Vec::new();
+        walk(self, &mut path).then_some(path)
+    }
+
     /// The node that `names` read from the node at `from` means, as a path; `None` if one of the names is not there.
     fn resolve_exact(&self, from: &[usize], names: &[String]) -> Option<Vec<usize>> {
         self.resolve(from, names, true)
@@ -295,7 +319,8 @@ impl TraceNode {
     }
 
     /// The node at a path of child indexes.
-    fn node_at(&self, path: &[usize]) -> Option<&TraceNode> {
+    #[must_use]
+    pub fn node_at(&self, path: &[usize]) -> Option<&TraceNode> {
         let mut node = self;
         for &index in path {
             node = node.children.get(index)?;

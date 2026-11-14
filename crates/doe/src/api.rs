@@ -189,6 +189,8 @@ pub struct ParseResponse {
     pub filesystem: Option<crate::filesystem::Listing>,
     /// The descriptions (`doc:`) of the fields of the types the trace has, by type and field name (see [`crate::doc`]).
     pub docs: crate::doc::FieldDocs,
+    /// Where the parse broke and what might fix it, when it failed in a way that has a place (see [`crate::explain`]).
+    pub failure: Option<crate::explain::Failure>,
 }
 
 /// A schema and the compiler that has it.
@@ -534,33 +536,101 @@ pub fn check(request: &str) -> CheckResponse {
 
 /// Compile the schema of a request and parse `bytes` with it.
 pub fn parse(request: &str, bytes: &[u8]) -> ParseResponse {
-    if bytes.len() > MAX_INPUT_BYTES {
-        let message = format!(
-            "the input is {} bytes; the most that can be parsed here is {MAX_INPUT_BYTES}",
-            bytes.len()
-        );
-        return parse_with(request, || Err(Diagnostic::new("input", message)));
-    }
-    parse_with(request, || Ok(Cursor::new(bytes)))
+    parse_input(request, &Input::Bytes(bytes), true)
 }
 
 /// Compile the schema of a request and parse the file at `path` with it, read
 /// as the schema asks for it: there is no limit on its size.
 #[cfg(feature = "fs")]
 pub fn parse_file(request: &str, path: &Path) -> ParseResponse {
-    parse_with(request, || {
-        let input = |e: &dyn std::fmt::Display| {
-            Diagnostic::new("input", format!("could not read {}: {e}", path.display()))
-        };
-        let file = std::fs::File::open(path).map_err(|e| input(&e))?;
-        Cursor::from_file(file, path).map_err(|e| input(&e))
-    })
+    parse_input(request, &Input::File(path), true)
 }
 
-fn parse_with<'a>(
-    request: &str,
-    input: impl FnOnce() -> Result<Cursor<'a>, Diagnostic>,
-) -> ParseResponse {
+/// What a parse reads.
+enum Input<'a> {
+    Bytes(&'a [u8]),
+    #[cfg(feature = "fs")]
+    File(&'a Path),
+}
+
+impl Input<'_> {
+    fn cursor(&self) -> Result<Cursor<'_>, Diagnostic> {
+        match self {
+            Input::Bytes(bytes) => {
+                if bytes.len() > MAX_INPUT_BYTES {
+                    return Err(Diagnostic::new(
+                        "input",
+                        format!(
+                            "the input is {} bytes; the most that can be parsed here is {MAX_INPUT_BYTES}",
+                            bytes.len()
+                        ),
+                    ));
+                }
+                Ok(Cursor::new(bytes))
+            }
+            #[cfg(feature = "fs")]
+            Input::File(path) => {
+                let input = |e: &dyn std::fmt::Display| {
+                    Diagnostic::new("input", format!("could not read {}: {e}", path.display()))
+                };
+                let file = std::fs::File::open(path).map_err(|e| input(&e))?;
+                Cursor::from_file(file, path).map_err(|e| input(&e))
+            }
+        }
+    }
+
+    /// `len` bytes from `offset`, if the input has them.
+    fn read(&self, offset: u64, len: usize) -> Option<Vec<u8>> {
+        match self {
+            Input::Bytes(bytes) => {
+                let start = usize::try_from(offset).ok()?;
+                bytes
+                    .get(start..start.checked_add(len)?)
+                    .map(<[u8]>::to_vec)
+            }
+            #[cfg(feature = "fs")]
+            Input::File(path) => {
+                use std::io::{Read, Seek, SeekFrom};
+                let mut file = std::fs::File::open(path).ok()?;
+                file.seek(SeekFrom::Start(offset)).ok()?;
+                let mut out = vec![0; len];
+                file.read_exact(&mut out).ok()?;
+                Some(out)
+            }
+        }
+    }
+}
+
+/// The byte where the innermost failed value of a trace starts.
+fn failed_at(node: &TraceOut) -> Option<u64> {
+    node.children
+        .iter()
+        .find_map(failed_at)
+        .or_else(|| node.failed.then_some(node.start? / 8))
+}
+
+/// What a parse with the schema `text` instead of the one of `request` did, for [`crate::explain::explain`].
+fn reparse_with(request: &str, input: &Input<'_>, text: &str) -> crate::explain::Reparse {
+    use crate::explain::Reparse;
+    let Ok(mut value) = serde_json::from_str::<serde_json::Value>(request) else {
+        return Reparse::Unknown;
+    };
+    let Some(schema) = value.get_mut("schema") else {
+        return Reparse::Unknown;
+    };
+    *schema = serde_json::Value::String(text.to_owned());
+    let response = parse_input(&value.to_string(), input, false);
+    if response.ok {
+        return Reparse::Succeeds;
+    }
+    response
+        .trace
+        .as_ref()
+        .and_then(failed_at)
+        .map_or(Reparse::Unknown, Reparse::FailsAt)
+}
+
+fn parse_input(request: &str, input: &Input<'_>, explain: bool) -> ParseResponse {
     let failed = |diagnostics: Vec<Diagnostic>, id: Option<String>| ParseResponse {
         ok: false,
         id,
@@ -571,7 +641,9 @@ fn parse_with<'a>(
         problems: Vec::new(),
         filesystem: None,
         docs: crate::doc::FieldDocs::new(),
+        failure: None,
     };
+    let raw_request = request;
     let request = match request_from(request) {
         Ok(request) => request,
         Err(diagnostic) => return failed(vec![diagnostic], None),
@@ -582,7 +654,7 @@ fn parse_with<'a>(
     };
     let id = Some(compiled.id.clone());
     let type_name = request.type_name.as_deref().unwrap_or(&compiled.id);
-    let mut cursor = match input() {
+    let mut cursor = match input.cursor() {
         Ok(cursor) => cursor,
         Err(error) => {
             return ParseResponse {
@@ -614,9 +686,23 @@ fn parse_with<'a>(
     annotate(&mut trace, outcome.value.as_ref());
     attach_pointers(&mut trace, &outcome.trace);
     let docs = crate::doc::field_docs(&compiled.compiler.registry, &outcome.trace);
+    let failure = outcome
+        .error
+        .as_ref()
+        .filter(|_| explain)
+        .and_then(|error| {
+            crate::explain::explain(
+                error,
+                &outcome.trace,
+                &request.schema,
+                &|offset, len| input.read(offset, len),
+                &|text| reparse_with(raw_request, input, text),
+            )
+        });
     ParseResponse {
         docs,
         filesystem,
+        failure,
         ok: outcome.error.is_none(),
         id,
         diagnostics: Vec::new(),

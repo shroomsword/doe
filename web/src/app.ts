@@ -2466,7 +2466,14 @@ export class App {
 
   private show(response: ParseResponse): void {
     const problems: Diagnostic[] = [...response.diagnostics];
-    if (response.error) problems.push(response.error);
+    if (response.error) {
+      // the message that names the byte and the field says what the error said, and more
+      const failure = response.failure;
+      problems.push(failure ? { ...response.error, message: failure.message } : response.error);
+      for (const suggestion of failure?.suggestions ?? []) {
+        problems.push({ severity: 'error', kind: 'fix', message: `${suggestion.text}: click to try`, position: null, fix: suggestion.schema });
+      }
+    }
     problems.push(...response.problems);
     if (this.notice) problems.push(this.notice);
     this.diagnostics = response.diagnostics;
@@ -2487,6 +2494,11 @@ export class App {
       if (!same || !nodeAt(this.trace, this.selection)) this.selection = null;
     } else this.selection = null;
     this.select(this.selection, 'none');
+    // a parse that broke: the failed field, and the bytes at it, when nothing else is selected
+    if (response.failure && !this.selection && this.trace) {
+      const failed = this.pathToFailure(this.trace);
+      if (failed) this.select(failed, 'tree');
+    }
     this.status(response, problems.length);
     this.showFiles();
     this.showMarks();
@@ -2531,6 +2543,12 @@ export class App {
   }
 
   private pickProblem(item: Diagnostic): void {
+    if (item.kind === 'fix' && item.fix !== undefined) {
+      // the text of the main schema with the change, as one edit that can be undone
+      if (this.active !== null) this.showFile(this.schemaPath);
+      this.editor.setText(item.fix);
+      return;
+    }
     if (item.position) {
       // the position is in the main schema
       if (this.active !== null) this.showFile(this.schemaPath);

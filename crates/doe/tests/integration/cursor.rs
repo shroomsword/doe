@@ -497,7 +497,7 @@ mod file {
     #[test]
     fn overruns_and_bad_seeks_are_errors() {
         let (_dir, mut c) = open(&[1, 2, 3]);
-        assert!(matches!(c.read_bytes(4), Err(DoeError::Schema(m)) if m.contains("overrun")));
+        assert!(matches!(c.read_bytes(4), Err(DoeError::Overrun { .. })));
         assert!(c.peek_bytes(usize::MAX).is_err());
         assert!(c.skip(4).is_err());
         assert!(c.seek(4).is_err());

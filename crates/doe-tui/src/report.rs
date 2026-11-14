@@ -39,6 +39,8 @@ pub struct Report {
     pub causes: Vec<String>,
     /// Where in the schema, when that is known.
     pub place: Option<Place>,
+    /// What to try, each of them tried already: a line each.
+    pub hints: Vec<String>,
     /// Whether nothing at all could be parsed (the tree is empty), against a parse that stopped part of the way.
     pub fatal: bool,
 }
@@ -97,13 +99,19 @@ impl Report {
             headline,
             causes: chain(&failure.error),
             place,
+            hints: Vec::new(),
             fatal: true,
         }
     }
 
     /// The parse stopped at `field` (the names from the root), in the type `in_type`.
     #[must_use]
-    pub fn from_parse(error: &DoeError, field: &[String], in_type: Option<&str>) -> Report {
+    pub fn from_parse(
+        error: &DoeError,
+        field: &[String],
+        in_type: Option<&str>,
+        failure: Option<&doe::explain::Failure>,
+    ) -> Report {
         let at = if field.len() > 1 {
             let path = crate::status::field_path(field);
             match in_type {
@@ -113,10 +121,16 @@ impl Report {
         } else {
             String::new()
         };
+        let mut causes = chain(error);
+        // the message that names the byte and the field says what the error said, and more
+        if let (Some(failure), Some(first)) = (failure, causes.first_mut()) {
+            *first = format::safe(&failure.message);
+        }
         Report {
             headline: format!("the parse failed{at}"),
-            causes: chain(error),
+            causes,
             place: None,
+            hints: Vec::new(),
             fatal: false,
         }
     }
@@ -237,7 +251,7 @@ mod tests {
             .iter()
             .map(|s| (*s).to_owned())
             .collect();
-        let report = Report::from_parse(&error, &field, Some("rec::item"));
+        let report = Report::from_parse(&error, &field, Some("rec::item"), None);
         assert_eq!(
             report.headline,
             "the parse failed at rec/items/[2]/kind (in rec::item)"
@@ -251,7 +265,7 @@ mod tests {
             )
         );
         // a failure at the root has no field to name
-        let root = Report::from_parse(&error, &["rec".to_owned()], None);
+        let root = Report::from_parse(&error, &["rec".to_owned()], None, None);
         assert_eq!(root.headline, "the parse failed");
     }
 
@@ -262,6 +276,7 @@ mod tests {
             &error,
             &["x\x1by".to_owned(), "z".to_owned()],
             Some("t\x1b"),
+            None,
         );
         let all = format!("{} {:?}", report.headline, report.causes);
         assert!(!all.chars().any(char::is_control), "{all:?}");

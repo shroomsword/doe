@@ -41,6 +41,8 @@ pub enum Action {
     Help,
     /// Show or hide the message about a parse that failed.
     ToggleReport,
+    /// Read the file with the change that the message about a failed parse suggests.
+    TryFix,
     /// Read the schema and the file again.
     Reload,
     /// Ask for text to search for.
@@ -360,6 +362,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::ToggleReport,
         help: "show or hide the message about a parse that failed",
+    },
+    Binding {
+        keys: &[ch('o')],
+        scope: Scope::Anywhere,
+        action: Action::TryFix,
+        help: "try what the message about a failed parse suggests (the other byte order): the file is read that way, the schema is not changed",
     },
     Binding {
         keys: &[ch('u')],

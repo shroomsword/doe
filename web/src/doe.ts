@@ -20,9 +20,34 @@ export interface Position {
 
 export interface Diagnostic {
   severity: 'error';
-  kind: 'request' | 'yaml' | 'schema' | 'input' | 'parse' | 'text';
+  kind: 'request' | 'yaml' | 'schema' | 'input' | 'parse' | 'text' | 'fix';
   message: string;
   position: Position | null;
+  /** For a `fix`: the text of the schema with the change, which was tried and helps. */
+  fix?: string;
+}
+
+/** What the library says about where a parse broke (`doe::explain::Failure`). */
+export interface Failure {
+  kind: 'past_end' | 'partial_element' | 'contents';
+  /** The byte of the input where it broke. */
+  offset: number;
+  /** The failed value, as indexes of children from the root of the trace. */
+  path: number[];
+  /** The failed value, written as the schema does: `entries[2].len`. */
+  field: string;
+  /** What happened, with the byte and the field. */
+  message: string;
+  suggestions: Suggestion[];
+}
+
+/** A change to the schema that was tried, and helped. */
+export interface Suggestion {
+  id: string;
+  text: string;
+  /** The text of the schema with the change. */
+  schema: string;
+  result: 'succeeds' | 'goes further';
 }
 
 export interface CheckResponse {
@@ -64,6 +89,8 @@ export interface ParseResponse {
   filesystem?: Listing | null;
   /** The descriptions (`doc:`) of fields and instances, by the type of the node that holds them and then the field's name. */
   docs?: Docs;
+  /** Where the parse broke and what might fix it, when it failed in a way that has a place. */
+  failure?: Failure | null;
 }
 
 /** The descriptions of fields: `docs[type][name]`. */
