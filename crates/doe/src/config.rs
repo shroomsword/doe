@@ -74,6 +74,13 @@ pub struct Config {
     #[serde(default)]
     pub transparent: Option<bool>,
 
+    /// Whether the terminal viewer (`doe --tui`) takes the mouse: clicks, the
+    /// wheel and drags. With `false` it leaves the mouse to the terminal, whose
+    /// own selection and copy then work. `--no-mouse` overrides it. On when
+    /// unset.
+    #[serde(default)]
+    pub mouse: Option<bool>,
+
     /// The radix in which the terminal viewer (`doe --tui`) first shows
     /// integers: `dec`, `hex`, `bin` or `oct`. `--radix` overrides it.
     #[serde(default)]

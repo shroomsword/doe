@@ -49,6 +49,7 @@ fn options(dir: &Path) -> Options {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     }
 }
@@ -299,6 +300,7 @@ fn w_says_so_when_nothing_is_being_built() {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     };
     let mut app = App::new(options.file.clone(), load(&options).unwrap());

@@ -497,6 +497,19 @@ fn the_default_types_directory_is_searched_last_and_once() {
 }
 
 #[test]
+fn mouse_is_unset_or_a_boolean() {
+    assert_eq!(Config::default().mouse, None);
+    for (text, wanted) in [("mouse = true", Some(true)), ("mouse = false", Some(false))] {
+        let mut f = NamedTempFile::new().unwrap();
+        writeln!(f, "{text}").unwrap();
+        assert_eq!(Config::load(f.path()).unwrap().mouse, wanted, "{text}");
+    }
+    let mut f = NamedTempFile::new().unwrap();
+    writeln!(f, "mouse = \"no\"").unwrap();
+    assert!(Config::load(f.path()).is_err(), "text is not a boolean");
+}
+
+#[test]
 fn transparent_is_unset_or_a_boolean() {
     assert_eq!(Config::default().transparent, None);
     for (text, wanted) in [

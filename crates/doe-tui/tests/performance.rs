@@ -174,6 +174,7 @@ fn a_million_fields_open_scroll_search_and_jump_within_the_budget() {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     })
     .unwrap();
@@ -398,6 +399,7 @@ fn a_file_of_gigabytes_opens_and_scrolls_without_being_read() {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     })
     .unwrap();

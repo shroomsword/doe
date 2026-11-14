@@ -32,6 +32,7 @@ pub mod kinds;
 pub mod languages;
 pub mod load;
 pub mod markdown;
+pub mod mouse;
 pub mod preview;
 pub mod prompt;
 pub mod radixes;
@@ -62,6 +63,10 @@ use crate::watch::Watch;
 
 /// What the viewer is asked to show.
 #[derive(Debug, Clone)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "the options are the switches of the command line, one field each"
+)]
 pub struct Options {
     /// The binary file.
     pub file: PathBuf,
@@ -90,6 +95,9 @@ pub struct Options {
     /// Whether to leave the background of the screen to the terminal: `--transparent` or `--no-transparent`, else the
     /// `transparent` key of the config. None: what the theme says (a theme file may have `transparent = true`).
     pub transparent: Option<bool>,
+    /// Whether the viewer takes the mouse (clicks, the wheel, drags): false for `--no-mouse` or `mouse = false` in the
+    /// config. When it is false the terminal's own selection and copy work as in any program.
+    pub mouse: bool,
     /// The radix in which integers are first shown (`--radix` or the `radix`
     /// key of the config); decimal when it is none.
     pub radix: Option<doe::radix::Radix>,
@@ -220,6 +228,8 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
         app.builder = Some(builder);
         app.focus = app::Focus::Hex;
     }
+    app.mouse_on = options.mouse;
+    app.mouse_refused = !options.mouse;
     app.radixes = radixes::Radixes::new(options.radix.unwrap_or_default());
     app.depth = theme::Depth::detect();
     app.theme_id = options.theme.as_deref().map(theme::simple);
@@ -227,7 +237,8 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
     let mut loader = Some(loader);
     let mut watch: Option<Watch> = None;
     let signals = Signals::install().context("could not install the signal handlers")?;
-    let (guard, mut terminal) = Guard::enter().context("could not set up the terminal")?;
+    let (guard, mut terminal) =
+        Guard::enter_with_mouse(options.mouse).context("could not set up the terminal")?;
     // For the test that a panic inside the viewer puts the terminal back.
     assert!(
         std::env::var_os("DOE_TUI_PANIC_FOR_TEST").is_none(),
@@ -253,6 +264,7 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
         // screen alive and any key stops the search.
         let wait = if app.working() { Duration::ZERO } else { TICK };
         if event::poll(wait).context("could not read the keyboard")? {
+            let mut changed = true;
             match event::read().context("could not read the keyboard")? {
                 // Windows also reports the release of a key.
                 Event::Key(key) if key.kind != KeyEventKind::Release => {
@@ -265,9 +277,15 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
                     }
                 }
                 Event::Paste(text) => app.on_paste(&text),
+                // a pointer that only moves changes nothing: the screen is not drawn for it
+                Event::Mouse(mouse) => changed = app.on_mouse(mouse),
                 _ => {}
             }
-            dirty = true;
+            // `z` took the mouse or gave it back
+            if let Some(on) = app.take_mouse_change() {
+                terminal::set_mouse(on);
+            }
+            dirty |= changed;
         } else if app.working() {
             app.work_step();
             dirty = true;

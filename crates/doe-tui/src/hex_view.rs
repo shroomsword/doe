@@ -88,6 +88,9 @@ pub struct HexState {
     /// Bytes per line, and lines, as of the last drawing.
     bytes_per_line: usize,
     lines: usize,
+    /// The cursor when the view was scrolled by the wheel: while the cursor is still there the view stays where it
+    /// was put.
+    free_at: Option<u64>,
 }
 
 impl Default for HexState {
@@ -99,6 +102,7 @@ impl Default for HexState {
             bit: None,
             bytes_per_line: 16,
             lines: 16,
+            free_at: None,
         }
     }
 }
@@ -209,6 +213,10 @@ impl HexState {
 
     /// Scroll as little as needed for the cursor to be in view.
     pub fn follow_cursor(&mut self) {
+        if self.free_at == Some(self.cursor) {
+            return;
+        }
+        self.free_at = None;
         let cursor_line = self.line_start(self.cursor);
         let top = self.line_start(self.top);
         let bytes = self.bytes_per_line.max(1) as u64;
@@ -218,6 +226,27 @@ impl HexState {
         } else if cursor_line >= top + lines * bytes {
             self.top = cursor_line + bytes - lines * bytes;
         }
+    }
+
+    /// Scroll by `lines` lines (the wheel) without moving the cursor, as far as the `size` bytes allow: the view stays
+    /// where it is put until the cursor moves.
+    pub fn scroll_lines(&mut self, lines: i64, size: u64) {
+        let width = self.bytes_per_line.max(1) as u64;
+        let last = self.line_start(size.saturating_sub(1));
+        let moved = if lines < 0 {
+            self.top
+                .saturating_sub(lines.unsigned_abs().saturating_mul(width))
+        } else {
+            self.top
+                .saturating_add(lines.unsigned_abs().saturating_mul(width))
+        };
+        self.top = self.line_start(moved.min(last));
+        self.free_at = Some(self.cursor);
+    }
+
+    /// Begin a selection at `offset`, which is not where the cursor is (the press of a drag).
+    pub fn start_range_at(&mut self, offset: u64) {
+        self.anchor = Some(offset);
     }
 
     /// How many bytes are on the screen.
@@ -514,6 +543,7 @@ mod tests {
             outer_file: None,
             theme_on_command_line: false,
             transparent: None,
+            mouse: true,
             radix: None,
         })
         .unwrap();

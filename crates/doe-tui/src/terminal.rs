@@ -10,7 +10,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Once};
 
 use crossterm::cursor::{Hide, Show};
-use crossterm::event::{DisableBracketedPaste, EnableBracketedPaste};
+use crossterm::event::{
+    DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+};
 use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
@@ -59,6 +61,75 @@ impl Screen for CrosstermScreen {
             LeaveAlternateScreen
         );
         let _ = disable_raw_mode();
+    }
+}
+
+/// Whether the terminal reports the mouse, apart so that a test can watch it.
+pub trait Capture: Send + Sync {
+    /// Ask the terminal to report clicks, the wheel and drags.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the request cannot be written.
+    fn enable(&self) -> io::Result<()>;
+
+    /// Stop the reports. It cannot fail in a way that anyone can act on, so it reports nothing.
+    fn disable(&self);
+}
+
+/// The mouse of the terminal of the process, by `crossterm`.
+#[derive(Debug, Clone, Copy)]
+pub struct CrosstermCapture;
+
+impl Capture for CrosstermCapture {
+    fn enable(&self) -> io::Result<()> {
+        execute!(io::stdout(), EnableMouseCapture)
+    }
+
+    fn disable(&self) {
+        let _ = execute!(io::stdout(), DisableMouseCapture);
+    }
+}
+
+/// A screen that also takes the mouse: it asks for the reports after `inner` is set up, and stops them first when it
+/// is left, so that every way the viewer can end (the guard dropped, a signal, a panic) gives the mouse back too.
+#[derive(Debug)]
+pub struct MouseScreen<S, C> {
+    inner: S,
+    capture: C,
+}
+
+impl<S: Screen, C: Capture> MouseScreen<S, C> {
+    /// `inner` with the mouse of `capture`.
+    #[must_use]
+    pub fn new(inner: S, capture: C) -> Self {
+        MouseScreen { inner, capture }
+    }
+}
+
+impl<S: Screen, C: Capture> Screen for MouseScreen<S, C> {
+    fn enter(&self) -> io::Result<()> {
+        self.inner.enter()?;
+        if let Err(e) = self.capture.enable() {
+            self.capture.disable();
+            self.inner.leave();
+            return Err(e);
+        }
+        Ok(())
+    }
+
+    fn leave(&self) {
+        self.capture.disable();
+        self.inner.leave();
+    }
+}
+
+/// Take the mouse, or give it back, while the viewer is open (`z`).
+pub fn set_mouse(on: bool) {
+    if on {
+        let _ = CrosstermCapture.enable();
+    } else {
+        CrosstermCapture.disable();
     }
 }
 
@@ -120,6 +191,25 @@ impl Guard {
     /// Fails when the terminal cannot be set up.
     pub fn enter() -> io::Result<(Guard, Terminal<CrosstermBackend<Stdout>>)> {
         let guard = Guard::with_screen(Arc::new(CrosstermScreen))?;
+        let terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
+        Ok((guard, terminal))
+    }
+
+    /// Like [`enter`](Self::enter), and the viewer takes the mouse when `mouse` is true. The mouse is given back
+    /// wherever the terminal is put back.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the terminal cannot be set up.
+    pub fn enter_with_mouse(
+        mouse: bool,
+    ) -> io::Result<(Guard, Terminal<CrosstermBackend<Stdout>>)> {
+        let screen: Arc<dyn Screen> = if mouse {
+            Arc::new(MouseScreen::new(CrosstermScreen, CrosstermCapture))
+        } else {
+            Arc::new(CrosstermScreen)
+        };
+        let guard = Guard::with_screen(screen)?;
         let terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
         Ok((guard, terminal))
     }
@@ -225,6 +315,16 @@ mod tests {
         }
     }
 
+    impl Screen for Arc<Fake> {
+        fn enter(&self) -> io::Result<()> {
+            self.as_ref().enter()
+        }
+
+        fn leave(&self) {
+            self.as_ref().leave();
+        }
+    }
+
     fn counts(fake: &Fake) -> (usize, usize) {
         (
             fake.entered.load(Ordering::SeqCst),
@@ -280,6 +380,76 @@ mod tests {
         drop(Guard::with_screen(fake.clone()).unwrap());
         let _ = panic::catch_unwind(|| panic!("later"));
         assert_eq!(counts(&fake), (1, 1));
+    }
+
+    #[derive(Debug, Default)]
+    struct FakeCapture {
+        enabled: AtomicUsize,
+        disabled: AtomicUsize,
+    }
+
+    impl Capture for Arc<FakeCapture> {
+        fn enable(&self) -> io::Result<()> {
+            self.enabled.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn disable(&self) {
+            self.disabled.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    fn mouse_counts(capture: &FakeCapture) -> (usize, usize) {
+        (
+            capture.enabled.load(Ordering::SeqCst),
+            capture.disabled.load(Ordering::SeqCst),
+        )
+    }
+
+    #[test]
+    fn the_mouse_is_taken_after_the_terminal_and_given_back_with_it() {
+        let _one = ONE_AT_A_TIME
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let fake = Arc::new(Fake::default());
+        let capture = Arc::new(FakeCapture::default());
+        let screen = MouseScreen::new(Arc::clone(&fake), Arc::clone(&capture));
+        let guard = Guard::with_screen(Arc::new(screen)).unwrap();
+        assert_eq!(counts(&fake), (1, 0));
+        assert_eq!(mouse_counts(&capture), (1, 0));
+        drop(guard);
+        assert_eq!(counts(&fake), (1, 1));
+        assert_eq!(mouse_counts(&capture), (1, 1));
+    }
+
+    #[test]
+    fn the_mouse_is_given_back_when_the_program_panics_and_only_once() {
+        let _one = ONE_AT_A_TIME
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let fake = Arc::new(Fake::default());
+        let capture = Arc::new(FakeCapture::default());
+        let outcome = panic::catch_unwind(|| {
+            let screen = MouseScreen::new(Arc::clone(&fake), Arc::clone(&capture));
+            let _guard = Guard::with_screen(Arc::new(screen)).unwrap();
+            panic!("the viewer has a bug");
+        });
+        assert!(outcome.is_err());
+        assert_eq!(counts(&fake), (1, 1));
+        assert_eq!(mouse_counts(&capture), (1, 1));
+    }
+
+    #[test]
+    fn a_terminal_that_cannot_be_set_up_does_not_take_the_mouse() {
+        let _one = ONE_AT_A_TIME
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let fake = Arc::new(Fake::default());
+        fake.fail.store(true, Ordering::SeqCst);
+        let capture = Arc::new(FakeCapture::default());
+        let screen = MouseScreen::new(Arc::clone(&fake), Arc::clone(&capture));
+        assert!(Guard::with_screen(Arc::new(screen)).is_err());
+        assert_eq!(mouse_counts(&capture), (0, 0));
     }
 
     #[cfg(unix)]

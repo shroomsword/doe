@@ -1461,6 +1461,7 @@ Options:
       --theme <NAME|FILE>    With `--tui`: the colour theme, a built-in one by its id (`nord`, `solarized-dark`, `catppuccin-mocha`...), a file `NAME.toml` in the `themes` directory next to the config file, or the path of a theme file; `terminal` is the colours of the terminal itself, which is the default (the `theme` key of the config file changes that)
       --transparent          With `--tui`: leave the background of the screen to the terminal (a translucent or blurred one shows through), and use the theme's colours for the text; the selection, the status bar and the marks keep theirs (the `transparent` key of the config file, or of a theme file, changes that; `--no-transparent` overrides them)
       --no-transparent       With `--tui`: use the background of the theme, whatever the config file or the theme file says about `transparent`
+      --no-mouse             With `--tui`: leave the mouse to the terminal, so that its own selection and copy work (the `mouse` key of the config file turns the viewer's mouse off too). Without it the viewer takes clicks, the wheel and drags; `z` in the viewer switches the mouse off and on
       --radix <RADIX>        With `--tui`: the radix in which integers are first shown, `dec` (the default), `hex`, `bin` or `oct`; `x` in the viewer goes through them, and `X` chooses one for the selected field (the `radix` key of the config file changes the default)
       --ide                  Serve the web IDE on this machine and print its address, instead of parsing a file. Only the loopback address is used. A FILE is offered to the page as the input, however large it is; the types found through the include paths and the config are offered too
       --port <PORT>          With `--ide`: the port to serve on (0 for any free one) [default: 8765]
@@ -1628,6 +1629,17 @@ that shares it with a neighbour) is underlined instead. The title of the pane
 says which bytes and bits they are; a field that is read from the result of a
 `process:` is not in the file's bytes, and the title says so. Only the lines in
 view are read, so a file of many gigabytes opens and scrolls at once.
+
+**The mouse.** The viewer takes the mouse where the terminal reports it, and nothing the keyboard does is taken away.
+A click on a row of the tree (or of the files of an archive) selects it and gives that pane the keys; a click on the `▸`/`▾`
+before a name, or a double click on the row, opens or closes it (on a file of the files, the preview). A click on a byte, in the
+hex or in the text, puts the cursor there, which selects its field in the tree; a drag over bytes selects them as `v` does, and
+the title says how many. The wheel scrolls the pane under the pointer, three rows a notch, without moving the selection: the
+view stays where it was put until a key moves the selection, and then comes back to it. A pointer that only moves does nothing,
+and while a dialog, a list or the help is open the mouse leaves them alone. `--no-mouse` (or `mouse = false` in the config
+file) never asks the terminal for the mouse, so its own selection and copy work as in any program; `z` gives the mouse back to
+the terminal while the viewer is open, and takes it again, which is also the way to copy text in a terminal where Shift-drag
+is not offered. The mouse is given back to the terminal wherever the viewer ends, a panic and a signal included.
 
 **A parse that fails** selects the field where it broke and shows its bytes. The message under the tree names the byte and
 the field (`byte 0x2, in body: needs 768 bytes, 3 are left`) for a read that needs more bytes than there are, a `contents:`
@@ -2250,6 +2262,7 @@ level = "debug"
 | `include_paths` | list of paths | Directories searched for bare type names, in order. `~/` is expanded. | `-I`/`--include-path` (these come first) |
 | `default_types` | `true`, `false` | Whether the directory made by `doe --install-types` (`~/.doe/types`) is searched after `include_paths`. Default `true`; `false` leaves it out. | |
 | `theme` | text | The colour theme of `doe --tui`: a built-in id, a file in the `themes` directory next to this file, or a path (see [Themes](#themes)). Default: the terminal's own colours. | `--theme` |
+| `mouse` | `true`, `false` | Whether `doe --tui` takes the mouse: clicks, the wheel and drags (see [Terminal viewer](#terminal-viewer)). With `false` the terminal keeps it, and its own selection and copy work. Default: `true`. | `--no-mouse` |
 | `transparent` | `true`, `false` | Whether `doe --tui` leaves the background of the screen to the terminal, so that a translucent one shows through (see [Themes](#themes)). Overrides the `transparent` key of a theme file. Default: what the theme says, which is off for the built-in themes. | `--transparent`, `--no-transparent` |
 | `radix` | `dec`, `hex`, `bin`, `oct` | The radix in which `doe --tui` first shows integers (`x` changes it in the viewer). Default `dec`. | `--radix` |
 | `log.level` | `off`, `error`, `warn`, `info`, `debug`, `trace` | Verbosity of the log file. Default `debug`. | `--log-level` |

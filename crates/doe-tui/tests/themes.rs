@@ -534,6 +534,7 @@ fn the_screens_of(id: &str, depth: Depth) {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     };
     let loaded = load(&options).unwrap();
@@ -653,6 +654,7 @@ fn without_colour_a_theme_is_not_used() {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     };
     assert_eq!(options.theme(Depth::True).unwrap(), Theme::new(false));
@@ -714,6 +716,7 @@ fn started_with(id: Option<&str>) -> (App, Theme, tempfile::TempDir, Options) {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     };
     let loaded = load(&options).unwrap();

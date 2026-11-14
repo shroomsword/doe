@@ -23,6 +23,7 @@ fn options(file: PathBuf, type_or_schema: &str) -> Options {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     }
 }

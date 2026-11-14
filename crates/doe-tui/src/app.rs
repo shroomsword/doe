@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
 use doe::DoeError;
 use doe::filesystem::Algorithm;
@@ -18,6 +18,7 @@ use crate::format;
 use crate::hex_view::{HexState, Selection};
 use crate::keymap::{self, Action, Scope};
 use crate::load::{self, LoadFailure, Loaded};
+use crate::mouse::Target;
 use crate::preview::{Outcome as PreviewOutcome, PREVIEW_BYTES, Preview};
 use crate::prompt::{Kind, LineEditor, Outcome as PromptOutcome};
 use crate::radixes::Radixes;
@@ -73,6 +74,11 @@ fn schema_kind(row: &crate::tree::Row) -> String {
 
 /// How many fields a search looks at between two redraws of the screen.
 pub const SEARCH_STEP: usize = 5_000;
+
+/// How many rows (or lines of bytes) the wheel scrolls by a notch.
+const WHEEL_ROWS: isize = 3;
+/// The longest time between two clicks on a row that is a double click.
+const DOUBLE_CLICK: std::time::Duration = std::time::Duration::from_millis(400);
 
 /// The pane that keys go to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -225,6 +231,18 @@ pub struct App {
     layer_guard: Option<tempfile::TempDir>,
     /// What the message about the failed parse suggests, tried and found to help (`o` reads the file that way).
     fix: Option<doe::explain::Suggestion>,
+    /// What the last drawing put where, for the mouse.
+    pub hits: crate::mouse::Hits,
+    /// Whether the viewer takes the mouse now (`z` switches it).
+    pub mouse_on: bool,
+    /// Whether the mouse was refused for the run (`--no-mouse`, or `mouse = false` in the config): `z` cannot take it.
+    pub mouse_refused: bool,
+    /// The mouse was switched on or off by `z` and the terminal has not been told yet.
+    mouse_change: Option<bool>,
+    /// The row that was clicked last and when, to tell a double click.
+    last_click: Option<(std::time::Instant, usize)>,
+    /// The byte where the button was pressed on the bytes, while it is held: a drag from there selects.
+    drag_from: Option<u64>,
     /// Which layer of the file is shown (0 is the file itself), once known.
     layer_index: Option<usize>,
     /// Whether the focused pane fills the screen (`f`); the pane that has the focus is the one that is shown.
@@ -428,6 +446,12 @@ impl App {
             loading: false,
             layer_guard: None,
             fix: None,
+            hits: crate::mouse::Hits::default(),
+            mouse_on: false,
+            mouse_refused: false,
+            mouse_change: None,
+            last_click: None,
+            drag_from: None,
             layer_index: None,
             fullscreen: false,
             loading_since: None,
@@ -525,6 +549,12 @@ impl App {
             loading: false,
             layer_guard: None,
             fix: None,
+            hits: crate::mouse::Hits::default(),
+            mouse_on: false,
+            mouse_refused: false,
+            mouse_change: None,
+            last_click: None,
+            drag_from: None,
             layer_index: None,
             fullscreen: false,
             loading_since: None,
@@ -590,6 +620,12 @@ impl App {
             loading: true,
             layer_guard: None,
             fix: None,
+            hits: crate::mouse::Hits::default(),
+            mouse_on: false,
+            mouse_refused: false,
+            mouse_change: None,
+            last_click: None,
+            drag_from: None,
             layer_index: None,
             fullscreen: false,
             loading_since: Some(std::time::Instant::now()),
@@ -971,6 +1007,196 @@ impl App {
         };
         if let Some(action) = keymap::lookup(pane, &key) {
             self.act(action);
+        }
+    }
+
+    /// Whether a dialog, a list or a message has the screen: the mouse leaves it alone.
+    fn modal(&self) -> bool {
+        self.help
+            || self.schemas.is_some()
+            || self.types.is_some()
+            || self.themes.is_some()
+            || self.prompt.is_some()
+            || self.copy_as
+            || self.preview.is_some()
+            || self.field_dialog.is_some()
+            || self.new_type_dialog.is_some()
+    }
+
+    /// `z`: take the mouse, or give it back to the terminal (to select and copy text with its own selection).
+    fn toggle_mouse(&mut self) {
+        if self.mouse_refused {
+            self.notice = Some(
+                "the mouse is off for this run (--no-mouse, or mouse = false in the config file)"
+                    .to_owned(),
+            );
+            return;
+        }
+        self.mouse_on = !self.mouse_on;
+        self.mouse_change = Some(self.mouse_on);
+        self.drag_from = None;
+        self.notice = Some(
+            if self.mouse_on {
+                "the mouse is the viewer's (z gives it back to the terminal)"
+            } else {
+                "the mouse is the terminal's: select and copy with it (z takes it again)"
+            }
+            .to_owned(),
+        );
+    }
+
+    /// Whether `z` asked for the mouse to be taken (`Some(true)`) or given back (`Some(false)`) since the last time this
+    /// was asked. The event loop tells the terminal.
+    pub fn take_mouse_change(&mut self) -> Option<bool> {
+        self.mouse_change.take()
+    }
+
+    /// A mouse event. True when the screen may have changed (a pointer that only moves changes nothing).
+    pub fn on_mouse(&mut self, event: MouseEvent) -> bool {
+        if !self.mouse_on || self.modal() || self.loading {
+            return false;
+        }
+        let (column, row) = (event.column, event.row);
+        match event.kind {
+            MouseEventKind::Down(MouseButton::Left) => self.mouse_down(column, row),
+            MouseEventKind::Drag(MouseButton::Left) => self.mouse_drag(column, row),
+            MouseEventKind::Up(MouseButton::Left) => {
+                self.drag_from = None;
+                false
+            }
+            MouseEventKind::ScrollUp => self.mouse_wheel(column, row, -WHEEL_ROWS),
+            MouseEventKind::ScrollDown => self.mouse_wheel(column, row, WHEEL_ROWS),
+            _ => false,
+        }
+    }
+
+    /// The button went down at the cell: select the row, put the cursor on the byte, or give the pane the keys.
+    fn mouse_down(&mut self, column: u16, row: u16) -> bool {
+        self.notice = None;
+        self.drag_from = None;
+        match self.hits.target(column, row) {
+            Some(Target::Row {
+                index,
+                column,
+                files,
+            }) => {
+                self.focus = Focus::Tree;
+                let double = self
+                    .last_click
+                    .is_some_and(|(at, last)| last == index && at.elapsed() <= DOUBLE_CLICK);
+                self.last_click = Some((std::time::Instant::now(), index));
+                // the cell of a row where its marker is: after the flag cell and the indent
+                let on_marker = !files
+                    && self.tree.rows().get(index).is_some_and(|r| {
+                        let start = u16::try_from(1 + 2 * r.depth).unwrap_or(u16::MAX);
+                        r.openable && (start..start.saturating_add(2)).contains(&column)
+                    });
+                self.select_row(index, files);
+                if on_marker || double {
+                    self.act(Action::TreeToggle);
+                    // the tree is not the same after it: a second click is not a double click of the same row
+                    self.last_click = None;
+                }
+            }
+            Some(Target::Byte(offset)) => {
+                self.focus = Focus::Hex;
+                let size = self.bytes.as_ref().map_or(0, FileBytes::size);
+                self.hex.clear_range();
+                self.hex.set_cursor(offset, size);
+                self.follow_cursor();
+                self.drag_from = Some(offset);
+            }
+            Some(Target::Pane(focus)) => self.focus = focus,
+            None => return false,
+        }
+        true
+    }
+
+    /// Select the row at `index` of the tree, or of the files, as the keys do: the tree follows a file, the bytes
+    /// follow the tree.
+    fn select_row(&mut self, index: usize, files: bool) {
+        if files {
+            let Some(state) = self.files.as_mut() else {
+                return;
+            };
+            state.select_row(index);
+            let Some(path) = state.selected_entry().map(|e| e.trace_path.clone()) else {
+                return;
+            };
+            self.tree.select_path(&path);
+            self.files_followed = path;
+        } else {
+            self.tree.select_row(index);
+        }
+        self.show_selected_field();
+    }
+
+    /// The pointer moved with the button held: on the bytes, from where it went down to here is a selection, as with
+    /// `v`.
+    fn mouse_drag(&mut self, column: u16, row: u16) -> bool {
+        let Some(from) = self.drag_from else {
+            return false;
+        };
+        let size = self.bytes.as_ref().map_or(0, FileBytes::size);
+        let Some(hex) = self.hits.hex else {
+            return false;
+        };
+        // above or below the lines the view scrolls, as a drag past the edge does; a cell that holds no byte keeps the last
+        let line = i64::from(row) - i64::from(hex.area.y);
+        if line < 0 {
+            self.hex.scroll_lines(-1, size);
+            let first = self.hex.top();
+            self.hex.start_range_at(from);
+            self.hex.set_cursor(first, size);
+            self.follow_cursor();
+            return true;
+        }
+        if line >= i64::from(hex.area.height) {
+            let per_line = u64::try_from(self.hex.bytes_per_line()).unwrap_or(16);
+            self.hex.scroll_lines(1, size);
+            let last = self
+                .hex
+                .top()
+                .saturating_add(per_line.saturating_mul(u64::from(hex.area.height)))
+                .saturating_sub(1);
+            self.hex.start_range_at(from);
+            self.hex.set_cursor(last, size);
+            self.follow_cursor();
+            return true;
+        }
+        let Some(offset) = hex.byte_at(column, row) else {
+            return false;
+        };
+        if offset == self.hex.cursor() && self.hex.selected_range().is_some() {
+            return false;
+        }
+        self.hex.start_range_at(from);
+        self.hex.set_cursor(offset, size);
+        self.follow_cursor();
+        true
+    }
+
+    /// The wheel scrolls the pane under the pointer by `rows`, without moving the selection.
+    fn mouse_wheel(&mut self, column: u16, row: u16, rows: isize) -> bool {
+        match self.hits.pane_at(column, row) {
+            Some(Focus::Tree) => {
+                let (selected, len) = if self.files_shown() {
+                    self.files
+                        .as_ref()
+                        .map_or((0, 0), |f| (f.selected_index(), f.rows().len()))
+                } else {
+                    (self.tree.selected_index(), self.tree.rows().len())
+                };
+                self.view.scroll_by(rows, selected, len);
+                true
+            }
+            Some(Focus::Hex) => {
+                let size = self.bytes.as_ref().map_or(0, FileBytes::size);
+                self.hex
+                    .scroll_lines(i64::try_from(rows).unwrap_or(0), size);
+                true
+            }
+            None => false,
         }
     }
 
@@ -1882,6 +2108,7 @@ impl App {
                 self.help = true;
             }
             Action::ToggleReport => self.show_report = !self.show_report,
+            Action::ToggleMouse => self.toggle_mouse(),
             Action::TryFix => self.try_fix(),
             Action::Reload if self.builder.is_some() => self.rename_field(),
             Action::Reload => self.reload(),
@@ -3536,6 +3763,7 @@ pub(crate) mod tests {
             outer_file: None,
             theme_on_command_line: false,
             transparent: None,
+            mouse: true,
             radix: None,
         };
         (App::new(file, load(&options).unwrap()), dir)
@@ -3587,6 +3815,7 @@ pub(crate) mod tests {
             outer_file: None,
             theme_on_command_line: false,
             transparent: None,
+            mouse: true,
             radix: None,
         };
         let loaded = load(&options).unwrap();
@@ -4224,6 +4453,7 @@ seq:
             outer_file: None,
             theme_on_command_line: false,
             transparent: None,
+            mouse: true,
             radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
@@ -4526,6 +4756,7 @@ types:
             outer_file: None,
             theme_on_command_line: false,
             transparent: None,
+            mouse: true,
             radix: None,
         };
         let mut app = App::new(options.file.clone(), load(&options).unwrap());
@@ -4588,6 +4819,7 @@ types:
             outer_file: None,
             theme_on_command_line: false,
             transparent: None,
+            mouse: true,
             radix: None,
         }
     }
@@ -4776,6 +5008,7 @@ types:
             outer_file: None,
             theme_on_command_line: false,
             transparent: None,
+            mouse: true,
             radix: None,
         })
         .unwrap();

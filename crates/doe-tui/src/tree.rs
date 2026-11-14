@@ -743,6 +743,11 @@ impl TreeModel {
 
     // ── moving the selection ─────────────────────────────────────────────────
 
+    /// Select the row at `index` (a click), or the last one if there are not so many.
+    pub fn select_row(&mut self, index: usize) {
+        self.select_index(index);
+    }
+
     fn select_index(&mut self, index: usize) {
         self.selected = index.min(self.rows.len().saturating_sub(1));
     }
@@ -960,6 +965,7 @@ pub(crate) mod tests {
             outer_file: None,
             theme_on_command_line: false,
             transparent: None,
+            mouse: true,
             radix: None,
         })
         .unwrap();

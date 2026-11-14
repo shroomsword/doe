@@ -213,6 +213,12 @@ pub(crate) struct Cli {
     #[arg(long, requires = "tui", overrides_with = "transparent")]
     pub(crate) no_transparent: bool,
 
+    /// With `--tui`: leave the mouse to the terminal, so that its own selection and copy work (the `mouse` key of the
+    /// config file turns the viewer's mouse off too). Without it the viewer takes clicks, the wheel and drags; `z` in
+    /// the viewer switches the mouse off and on.
+    #[arg(long, requires = "tui")]
+    pub(crate) no_mouse: bool,
+
     /// With `--tui`: the radix in which integers are first shown, `dec`
     /// (the default), `hex`, `bin` or `oct`; `x` in the viewer goes through
     /// them, and `X` chooses one for the selected field (the `radix` key of

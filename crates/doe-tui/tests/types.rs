@@ -66,6 +66,7 @@ fn app(f: &Fixture, type_name: &str) -> App {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     };
     let mut app = App::new(f.file.clone(), load(&options).unwrap());
