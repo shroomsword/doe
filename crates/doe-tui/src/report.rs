@@ -178,6 +178,7 @@ mod tests {
             outer_file: None,
             theme_on_command_line: false,
             transparent: None,
+            mouse: true,
             radix: None,
         }
     }

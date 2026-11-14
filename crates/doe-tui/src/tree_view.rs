@@ -21,6 +21,9 @@ pub struct TreeView {
     top: usize,
     /// How many rows fitted the last time it was drawn.
     height: usize,
+    /// The selected row when the view was scrolled by the wheel: while the selection is still that row the view is
+    /// left where it was put, and any other selection brings the view back to it.
+    free: Option<usize>,
 }
 
 impl TreeView {
@@ -42,6 +45,14 @@ impl TreeView {
         self.top
     }
 
+    /// Scroll by `delta` rows (the wheel), as far as the `len` rows allow, without moving the selection (`selected`):
+    /// the view stays where it is put until the selection changes.
+    pub fn scroll_by(&mut self, delta: isize, selected: usize, len: usize) {
+        let last = len.saturating_sub(self.height.max(1));
+        self.top = self.top.saturating_add_signed(delta).min(last);
+        self.free = Some(selected);
+    }
+
     /// Scroll as little as needed for `selected` to be in view in `height` rows,
     /// and not past the end of `len` rows.
     pub fn follow(&mut self, selected: usize, len: usize, height: usize) {
@@ -49,6 +60,11 @@ impl TreeView {
         if height == 0 {
             return;
         }
+        if self.free == Some(selected) {
+            self.top = self.top.min(len.saturating_sub(height));
+            return;
+        }
+        self.free = None;
         if selected < self.top {
             self.top = selected;
         } else if selected >= self.top + height {

@@ -1588,6 +1588,19 @@ mod tui_in_a_terminal {
             }
         }
 
+        /// Read until `text` has been printed `count` times (for what is printed again and again, as the escape
+        /// sequences that take and give back the mouse are).
+        fn wait_for_count(&mut self, text: &str, count: usize) {
+            let end = Instant::now() + Duration::from_secs(20);
+            while self.seen.matches(text).count() < count {
+                let left = end.saturating_duration_since(Instant::now());
+                match self.output.recv_timeout(left) {
+                    Ok(bytes) => self.seen.push_str(&String::from_utf8_lossy(&bytes)),
+                    Err(e) => panic!("never saw {text:?} {count} times in {:?}: {e}", self.seen),
+                }
+            }
+        }
+
         /// Read until `text` has been printed.
         fn wait_for(&mut self, text: &str) {
             let end = Instant::now() + Duration::from_secs(20);
@@ -1651,6 +1664,73 @@ mod tui_in_a_terminal {
             .find("DOE_TUI_PANIC_FOR_TEST is set")
             .unwrap_or_else(|| panic!("{seen:?}"));
         assert!(message > seen.rfind(LEAVE_SCREEN).unwrap(), "{seen:?}");
+    }
+
+    /// The terminal is asked to report the mouse.
+    const TAKE_MOUSE: &str = "\x1b[?1000h";
+    /// The terminal is asked to stop.
+    const GIVE_MOUSE: &str = "\x1b[?1000l";
+
+    #[test]
+    fn the_mouse_is_taken_and_given_back_before_the_screen_is_left() {
+        let mut session = Session::start(&[], &[]);
+        session.wait_for("q quit");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success);
+        let taken = seen
+            .find(TAKE_MOUSE)
+            .unwrap_or_else(|| panic!("the mouse was not taken: {seen:?}"));
+        assert!(taken > seen.find(ENTER_SCREEN).unwrap(), "{seen:?}");
+        let given = seen.rfind(GIVE_MOUSE).unwrap();
+        assert!(
+            given > taken && given < seen.rfind(LEAVE_SCREEN).unwrap(),
+            "{seen:?}"
+        );
+    }
+
+    #[test]
+    fn the_mouse_is_given_back_when_the_viewer_panics() {
+        let session = Session::start(&[], &[("DOE_TUI_PANIC_FOR_TEST", "1")]);
+        let (success, seen) = session.finish();
+        assert!(!success);
+        let taken = seen
+            .find(TAKE_MOUSE)
+            .unwrap_or_else(|| panic!("the mouse was not taken: {seen:?}"));
+        let given = seen.rfind(GIVE_MOUSE).unwrap();
+        assert!(
+            given > taken && given < seen.rfind(LEAVE_SCREEN).unwrap(),
+            "{seen:?}"
+        );
+    }
+
+    #[test]
+    fn no_mouse_never_asks_the_terminal_for_it() {
+        let mut session = Session::start(&["--no-mouse"], &[]);
+        session.wait_for("parsed");
+        // `z` has nothing to take
+        session.send(b"z");
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success);
+        assert!(!seen.contains(TAKE_MOUSE), "{seen:?}");
+        assert_screen_restored(&seen);
+    }
+
+    #[test]
+    fn z_gives_the_mouse_to_the_terminal_and_takes_it_again() {
+        let mut session = Session::start(&[], &[]);
+        session.wait_for("parsed");
+        session.send(b"z");
+        // given back before the end: the one at the end is not this one
+        session.wait_for(GIVE_MOUSE);
+        session.send(b"z");
+        session.wait_for_count(TAKE_MOUSE, 2);
+        session.send(b"q");
+        let (success, seen) = session.finish();
+        assert!(success);
+        assert_eq!(seen.matches(TAKE_MOUSE).count(), 2, "{seen:?}");
+        assert!(seen.matches(GIVE_MOUSE).count() >= 2, "{seen:?}");
     }
 
     #[test]
@@ -1951,6 +2031,14 @@ mod tui_in_a_terminal {
     #[test]
     fn watch_without_tui_is_refused() {
         doe().args(["--watch", "file", "type"]).assert().failure();
+    }
+
+    #[test]
+    fn no_mouse_without_tui_is_refused() {
+        doe()
+            .args(["--no-mouse", "file", "type"])
+            .assert()
+            .failure();
     }
 
     #[test]

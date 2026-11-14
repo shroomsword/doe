@@ -308,6 +308,7 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         outer_file,
         theme_on_command_line: cli.theme.is_some(),
         transparent: transparent_setting(cli, config),
+        mouse: !cli.no_mouse && config.mouse.unwrap_or(true),
     };
     match &cli.build {
         Some(out) => doe_tui::run_build(&options, out),

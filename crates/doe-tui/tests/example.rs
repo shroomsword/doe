@@ -84,6 +84,7 @@ fn the_keys_of_the_readme_build_the_schema_of_the_readme() {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     };
     let (options, builder) = prepare_build(&options, &out).unwrap();

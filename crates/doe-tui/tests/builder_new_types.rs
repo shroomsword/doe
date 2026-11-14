@@ -32,6 +32,7 @@ fn building(bytes: &[u8]) -> (App, tempfile::TempDir) {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     };
     let (options, builder) = prepare_build(&options, &dir.path().join("list.yaml")).unwrap();

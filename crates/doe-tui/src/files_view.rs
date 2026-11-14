@@ -282,6 +282,11 @@ impl FilesState {
             .map_or_default(|n| n.path.join("/"))
     }
 
+    /// Select the row at `index` (a click), or the last one if there are not so many.
+    pub fn select_row(&mut self, index: usize) {
+        self.selected = index.min(self.rows.len().saturating_sub(1));
+    }
+
     /// One row up.
     pub fn up(&mut self) {
         self.selected = self.selected.saturating_sub(1);

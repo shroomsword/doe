@@ -43,6 +43,8 @@ pub enum Action {
     ToggleReport,
     /// Read the file with the change that the message about a failed parse suggests.
     TryFix,
+    /// Take the mouse, or give it back to the terminal.
+    ToggleMouse,
     /// Read the schema and the file again.
     Reload,
     /// Ask for text to search for.
@@ -362,6 +364,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::ToggleReport,
         help: "show or hide the message about a parse that failed",
+    },
+    Binding {
+        keys: &[ch('z')],
+        scope: Scope::Anywhere,
+        action: Action::ToggleMouse,
+        help: "give the mouse back to the terminal (to select and copy text with its own selection), or take it again; clicks, the wheel and drags are the viewer's while it has it",
     },
     Binding {
         keys: &[ch('o')],
@@ -859,7 +867,7 @@ mod tests {
             lookup(Scope::Tree, &event(KeyCode::Char('c'), true)),
             Some(Action::Quit)
         );
-        assert_eq!(lookup(Scope::Tree, &event(KeyCode::Char('z'), false)), None);
+        assert_eq!(lookup(Scope::Tree, &event(KeyCode::Char('Q'), false)), None);
         assert_eq!(
             lookup(Scope::Bytes, &event(KeyCode::Char('g'), false)),
             Some(Action::Goto)

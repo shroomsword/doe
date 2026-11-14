@@ -76,6 +76,7 @@ fn fixture() -> Fixture {
         outer_file: None,
         theme_on_command_line: false,
         transparent: None,
+        mouse: true,
         radix: None,
     };
     Fixture { _dir: dir, options }

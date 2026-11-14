@@ -413,6 +413,8 @@ const INSPECTOR_MAX_LINES: u16 = 12;
 pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
     // a theme chosen in the viewer, or being previewed, replaces the one it was started with
     let theme = &app.styles.unwrap_or(*theme);
+    // what the mouse can hit is what this drawing puts on the screen
+    app.hits = crate::mouse::Hits::default();
     let mut area = frame.area();
     if area.width < SMALLEST || area.height < 3 {
         return;
@@ -446,6 +448,9 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
         (true, Focus::Hex) => (Rect::new(area.x, area.y, 0, 0), Some(area)),
         (false, _) => (tree_area, hex_area),
     };
+
+    app.hits.tree_pane = Some(tree_area).filter(|a| !a.is_empty());
+    app.hits.hex_pane = hex_area.filter(|a| !a.is_empty());
 
     // The pane that has the keys is the one with the hex pane when the other
     // is not drawn.
@@ -561,6 +566,12 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
             inspector(frame, tree_inner, app, *theme);
         } else if let Some(files) = app.files.as_ref().filter(|_| app.files_wanted) {
             crate::files_view::render(frame, tree_inner, files, &mut app.view, theme);
+            app.hits.rows = Some(crate::mouse::RowsHit {
+                area: tree_inner,
+                first: app.view.top(),
+                len: files.rows().len(),
+                files: true,
+            });
         } else {
             tree_view::render(
                 frame,
@@ -570,6 +581,18 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
                 theme,
                 &app.radixes,
             );
+            // the scrollbar takes the last column when the rows do not all fit
+            let len = app.tree.rows().len();
+            let scrollbar = len > usize::from(tree_inner.height) && tree_inner.width > 2;
+            app.hits.rows = Some(crate::mouse::RowsHit {
+                area: Rect {
+                    width: tree_inner.width.saturating_sub(u16::from(scrollbar)),
+                    ..tree_inner
+                },
+                first: app.view.top(),
+                len,
+                files: false,
+            });
         }
     }
     if let Some(hex_area) = hex_area {
@@ -637,6 +660,13 @@ pub fn draw(frame: &mut Frame<'_>, app: &mut App, theme: &Theme) {
                 ),
                 None => frame.render_widget(Paragraph::new("could not open the file"), bytes_area),
             }
+            app.hits.hex = Some(crate::mouse::HexHit {
+                area: bytes_area,
+                top: app.hex.top(),
+                per_line: app.hex.bytes_per_line(),
+                digits: hex_view::offset_digits(size),
+                size,
+            });
         }
         if let Some(area) = inspector_area {
             inspector(frame, area, app, *theme);
@@ -2633,6 +2663,7 @@ instances:
             outer_file: None,
             theme_on_command_line: false,
             transparent: None,
+            mouse: true,
             radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
@@ -2678,6 +2709,7 @@ instances:
             outer_file: None,
             theme_on_command_line: false,
             transparent: None,
+            mouse: true,
             radix: None,
         };
         let failure = crate::load::try_load(&options).unwrap_err();
@@ -2727,6 +2759,7 @@ instances:
                 outer_file: None,
                 theme_on_command_line: false,
                 transparent: None,
+                mouse: true,
                 radix: None,
             };
             let failure = crate::load::try_load(&options).unwrap_err();
