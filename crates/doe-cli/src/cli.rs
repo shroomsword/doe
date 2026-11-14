@@ -234,8 +234,8 @@ pub(crate) struct Cli {
 
     /// With `--compare`: how the comparison is drawn at first: `annotated` (the tree of the first file with marks; the
     /// default) or `side-by-side` (the two trees); the `compare-view` key of the config file changes the default.
-    #[arg(long, value_name = "VIEW", requires = "compare", value_parser = clap::value_parser!(doe_tui::CompareView))]
-    pub(crate) compare_view: Option<doe_tui::CompareView>,
+    #[arg(long, value_name = "VIEW", requires = "compare", value_parser = clap::value_parser!(doe::compare::View))]
+    pub(crate) compare_view: Option<doe::compare::View>,
 
     /// With `--tui`: start without the row of the keys that matter now under the panes (the `footer` key of the config
     /// file hides it too); `K` in the viewer shows and hides it.

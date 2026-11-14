@@ -15,6 +15,44 @@ use std::collections::HashMap;
 use crate::parser::trace::TraceNode;
 use crate::value::Value;
 
+/// How a viewer draws a comparison of two files.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum View {
+    /// The tree of the first file, marked with what differs, and what only the second has under its parents.
+    #[default]
+    Annotated,
+    /// The two trees side by side.
+    SideBySide,
+}
+
+/// The text is not the name of a way to draw a comparison.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnknownView(pub String);
+
+impl std::fmt::Display for UnknownView {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "unknown way to show a comparison `{}`; use annotated or side-by-side",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for UnknownView {}
+
+impl std::str::FromStr for View {
+    type Err = UnknownView;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        match text.to_ascii_lowercase().as_str() {
+            "annotated" | "marks" => Ok(View::Annotated),
+            "side-by-side" | "side_by_side" | "split" => Ok(View::SideBySide),
+            _ => Err(UnknownView(text.to_owned())),
+        }
+    }
+}
+
 /// How many bytes of a long value are read at a time.
 const CHUNK: usize = 64 * 1024;
 
