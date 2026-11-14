@@ -1403,12 +1403,11 @@ impl<'reg> Engine<'reg> {
             FieldKind::Contents(expected) => {
                 let actual = cursor.read_bytes(expected.len())?;
                 if actual != expected.as_slice() {
-                    return Err(DoeError::Schema(format!(
-                        "contents mismatch at offset {}: expected {:?}, got {:?}",
-                        cursor.pos() - expected.len(),
-                        expected,
-                        actual,
-                    )));
+                    return Err(DoeError::ContentsMismatch {
+                        offset: cursor.pos() - expected.len(),
+                        expected: expected.clone(),
+                        actual: actual.to_vec(),
+                    });
                 }
                 Ok(Value::Bytes(expected.clone()))
             }

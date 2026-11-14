@@ -141,8 +141,32 @@ pub enum DoeError {
         context: String,
     },
 
+    /// A read needed more bytes than the input has left.
+    #[error(
+        "buffer overrun at offset {offset}: requested {requested} bytes, {remaining} remaining"
+    )]
+    Overrun {
+        /// Where the read started, in bytes from the start of the input.
+        offset: usize,
+        /// How many bytes it needed.
+        requested: usize,
+        /// How many there were.
+        remaining: usize,
+    },
+
+    /// A `contents:` field read other bytes than the ones it asserts.
+    #[error("contents mismatch at offset {offset}: expected {expected:?}, got {actual:?}")]
+    ContentsMismatch {
+        /// Where the field starts, in bytes from the start of the input.
+        offset: usize,
+        /// The bytes the schema asserts.
+        expected: Vec<u8>,
+        /// The bytes that were read.
+        actual: Vec<u8>,
+    },
+
     /// A catch-all for internal errors that do not fit a more specific
-    /// variant (e.g. buffer overruns during binary parsing).
+    /// variant.
     #[error("{0}")]
     Schema(String),
 }

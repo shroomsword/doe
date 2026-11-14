@@ -33,6 +33,7 @@ pub mod copy;
 pub mod detect;
 pub mod doc;
 pub mod error;
+pub mod explain;
 pub mod filesystem;
 pub mod inspect;
 #[cfg(feature = "fs")]

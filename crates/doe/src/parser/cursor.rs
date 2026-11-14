@@ -663,12 +663,11 @@ impl<'buf> Cursor<'buf> {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     fn overrun_error(&self, requested: usize) -> DoeError {
-        DoeError::Schema(format!(
-            "buffer overrun at offset {}: requested {} bytes, {} remaining",
-            self.absolute_pos(),
+        DoeError::Overrun {
+            offset: self.absolute_pos(),
             requested,
-            self.remaining(),
-        ))
+            remaining: self.remaining(),
+        }
     }
 }
 

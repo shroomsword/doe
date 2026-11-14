@@ -1321,7 +1321,9 @@ pane (except Schema, whose X button must be clicked). `p` (or the panes button i
 for each that shows or closes it. A closed pane is only hidden, so it keeps what it shows; the panes that are
 shown fill the places in their order, side by side in a wide window, with no hole. Which panes are closed is
 kept with the order of the panes, and Reset (`R`) shows them all. `2`, `3` and `4` show a closed pane and
-focus it, a parse that fails or a detection report shows the Status pane, and `g` shows the Bytes pane, so that
+focus it, a parse that fails (its problem names the byte and the field, the failed field is selected and its bytes shown, and a
+change that was tried and helps, such as the other byte order, is listed as a `fix` that one click applies to the schema, as an
+edit that can be undone) or a detection report shows the Status pane, and `g` shows the Bytes pane, so that
 nothing is lost because a pane is closed.
 
 **Files of an archive.** A schema that says its files are file systems (the `filesystem:` key, see
@@ -1626,6 +1628,13 @@ that shares it with a neighbour) is underlined instead. The title of the pane
 says which bytes and bits they are; a field that is read from the result of a
 `process:` is not in the file's bytes, and the title says so. Only the lines in
 view are read, so a file of many gigabytes opens and scrolls at once.
+
+**A parse that fails** selects the field where it broke and shows its bytes. The message under the tree names the byte and
+the field (`byte 0x2, in body: needs 768 bytes, 3 are left`) for a read that needs more bytes than there are, a `contents:`
+that is not there, or a list that ends in the middle of an element; any other failure keeps its plain message. When a size or
+count that is read from a field of two to eight bytes would make the parse succeed, or go further, with the other byte order,
+the message says so, and `o` reads the file that way. The change is tried before it is suggested, so a suggestion that would not
+help is not shown; it is made in memory, and the schema file is not changed (`r` goes back to it).
 Strings from the file are shown with control characters escaped, so nothing in a
 file can send commands to the terminal.
 

@@ -502,7 +502,7 @@ fn parse_contents_mismatch_is_error() {
         "t",
         &[0x00, 0x00, 0x00, 0x00],
     );
-    assert!(matches!(err, DoeError::Schema(_)));
+    assert!(matches!(err, DoeError::ContentsMismatch { .. }));
 }
 
 // ── Enums ─────────────────────────────────────────────────────────────────
@@ -1017,7 +1017,7 @@ fn buffer_underrun_is_error() {
         "t",
         &[0x01, 0x02],
     ); // only 2 bytes, need 4
-    assert!(matches!(err, DoeError::Schema(_)));
+    assert!(matches!(err, DoeError::Overrun { .. }));
 }
 
 // ── String decoding ───────────────────────────────────────────────────────
@@ -1305,7 +1305,10 @@ fn huge_repeat_count_does_not_preallocate_or_panic() {
     "};
     let mut data = i64::MAX.to_le_bytes().to_vec();
     data.extend_from_slice(&[1, 2, 3]);
-    assert!(matches!(parse_err(yaml, "t", &data), DoeError::Schema(_)));
+    assert!(matches!(
+        parse_err(yaml, "t", &data),
+        DoeError::Overrun { .. }
+    ));
 }
 
 #[test]
@@ -1321,7 +1324,10 @@ fn huge_byte_size_is_a_buffer_error_not_a_panic() {
     "};
     let mut data = i64::MAX.to_le_bytes().to_vec();
     data.push(0);
-    assert!(matches!(parse_err(yaml, "t", &data), DoeError::Schema(_)));
+    assert!(matches!(
+        parse_err(yaml, "t", &data),
+        DoeError::Overrun { .. }
+    ));
 }
 
 #[test]
@@ -1866,10 +1872,7 @@ fn pos_to_exactly_the_end_fails_only_when_reading() {
             pos: 2
     "};
     let err = parse_err(yaml, "t", &[1, 2]);
-    assert!(
-        matches!(&err, DoeError::Schema(m) if m.contains("buffer overrun")),
-        "{err:?}"
-    );
+    assert!(matches!(&err, DoeError::Overrun { .. }), "{err:?}");
 }
 
 #[test]
@@ -2006,10 +2009,7 @@ fn bytes_longer_than_the_input_are_an_error_without_allocating_them() {
         let yaml = format!("id: t\nseq:\n  - id: b\n    type: bytes\n    size: {size}\n");
         for data in [vec![0u8; 10], vec![0u8; 5000]] {
             let err = parse_err(&yaml, "t", &data);
-            assert!(
-                matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
-                "{size}: {err:?}"
-            );
+            assert!(matches!(&err, DoeError::Overrun { .. }), "{size}: {err:?}");
         }
     }
 }
@@ -2046,10 +2046,7 @@ fn a_huge_repeat_count_does_not_reserve_memory_for_it() {
     let mut data = 0x7fff_ffffu32.to_le_bytes().to_vec();
     data.extend(vec![1u8; 3_000_000]);
     let err = parse_err(yaml, "t", &data);
-    assert!(
-        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
-        "{err:?}"
-    );
+    assert!(matches!(&err, DoeError::Overrun { .. }), "{err:?}");
 }
 
 // ── Typed expressions in schemas ─────────────────────────────────────────
@@ -2453,10 +2450,7 @@ fn nested_types_inherit_the_bit_order_and_share_the_bits_of_the_byte() {
 fn bit_fields_past_the_end_are_errors() {
     let schema = "id: t\nseq:\n  - id: a\n    type: b12\n";
     let err = parse_err(schema, "t", &[0xab]);
-    assert!(
-        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
-        "{err:?}"
-    );
+    assert!(matches!(&err, DoeError::Overrun { .. }), "{err:?}");
 }
 
 #[test]
@@ -2507,27 +2501,18 @@ fn a_sized_type_is_parsed_in_a_window_and_the_parent_skips_all_of_it() {
 fn a_type_cannot_read_past_its_window() {
     // The window holds one byte, and the next one is there but not the type's.
     let err = parse_err(WINDOWED, "t", &[1, 1, 2, 7]);
-    assert!(
-        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
-        "{err:?}"
-    );
+    assert!(matches!(&err, DoeError::Overrun { .. }), "{err:?}");
 }
 
 #[test]
 fn a_window_larger_than_what_is_left_is_an_error() {
     for len in [10u8, 255] {
         let err = parse_err(WINDOWED, "t", &[len, 1, 2, 3]);
-        assert!(
-            matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
-            "{len}: {err:?}"
-        );
+        assert!(matches!(&err, DoeError::Overrun { .. }), "{len}: {err:?}");
     }
     let yaml = "id: t\nseq:\n  - id: body\n    type: rec\n    size: 0x7fffffffffffffff\ntypes:\n  rec:\n    seq: []\n";
     let err = parse_err(yaml, "t", &[1, 2, 3]);
-    assert!(
-        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
-        "{err:?}"
-    );
+    assert!(matches!(&err, DoeError::Overrun { .. }), "{err:?}");
 }
 
 #[test]
@@ -2686,10 +2671,7 @@ fn windows_nest_and_an_inner_one_cannot_exceed_the_outer() {
     assert_eq!(get_field(outer, "tail").as_int(), Some(3));
     let too_big = yaml.replace("size: 2", "size: 6");
     let err = parse_err(&too_big, "t", &[1, 2, 3, 4, 9, 9, 9, 9]);
-    assert!(
-        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
-        "{err:?}"
-    );
+    assert!(matches!(&err, DoeError::Overrun { .. }), "{err:?}");
 }
 
 #[test]
@@ -3111,10 +3093,7 @@ fn without_a_default_or_a_size_an_unmatched_field_is_absent() {
 #[test]
 fn the_chosen_type_cannot_read_past_the_window() {
     let err = parse_err(CHUNKS, "t", &[2, 1, 7, 8, 9]);
-    assert!(
-        matches!(&err, DoeError::Schema(m) if m.contains("overrun")),
-        "{err:?}"
-    );
+    assert!(matches!(&err, DoeError::Overrun { .. }), "{err:?}");
 }
 
 #[test]

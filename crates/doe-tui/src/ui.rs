@@ -1734,6 +1734,12 @@ fn report_lines(report: &Report, theme: Theme) -> Vec<Line<'static>> {
         };
         lines.push(Line::from(Span::raw(text)));
     }
+    for hint in &report.hints {
+        lines.push(Line::from(Span::styled(
+            format!("try: {hint}"),
+            theme.title(),
+        )));
+    }
     if let Some(place) = &report.place {
         lines.push(Line::from(Span::styled(
             format!("{}:{}:{}", place.file, place.line, place.column),
@@ -2568,8 +2574,8 @@ instances:
         assert!(has(&lines, "the parse failed at rec/body/y"), "{lines:?}");
         assert!(has(&lines, "rec::pair)"), "{lines:?}");
         assert!(
-            has(&lines, "buffer overrun"),
-            "the message of the error: {lines:?}"
+            has(&lines, "byte 0x2, in body.y: needs 2 bytes"),
+            "the message of the error, with the byte and the field: {lines:?}"
         );
         assert!(
             has(

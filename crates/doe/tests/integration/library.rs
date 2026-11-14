@@ -2958,6 +2958,102 @@ fn the_size_of_an_ar_member_points_at_its_data() {
     assert_eq!(target.start, (8 + 60) * 8);
 }
 
+fn failure_of(schema: &str, data: &[u8]) -> doe::explain::Failure {
+    let request = serde_json::json!({ "schema": schema });
+    let response = doe::api::parse(&request.to_string(), data);
+    assert!(!response.ok);
+    response.failure.expect("the failure is explained")
+}
+
+#[test]
+fn a_size_that_runs_past_the_end_suggests_the_other_byte_order_when_that_helps() {
+    let schema = "id: p\nmeta:\n  endian: le\nseq:\n  - id: len\n    type: u2\n  - id: body\n    size: len\n";
+    let failure = failure_of(schema, &[0x00, 0x03, b'a', b'b', b'c']);
+    assert_eq!(failure.kind, "past_end");
+    assert_eq!(failure.offset, 2);
+    assert_eq!(failure.field, "body");
+    assert_eq!(
+        failure.message,
+        "byte 0x2, in body: needs 768 bytes, 3 are left"
+    );
+    let [suggestion] = failure.suggestions.as_slice() else {
+        panic!("{:?}", failure.suggestions);
+    };
+    assert_eq!(suggestion.id, "other_byte_order");
+    assert_eq!(suggestion.result, "succeeds");
+    assert!(
+        suggestion.text.contains("768") && suggestion.text.contains("big-endian"),
+        "{}",
+        suggestion.text
+    );
+    assert!(suggestion.schema.contains("endian: be"));
+    // the edited schema does parse the file
+    let request = serde_json::json!({ "schema": suggestion.schema });
+    assert!(doe::api::parse(&request.to_string(), &[0x00, 0x03, b'a', b'b', b'c']).ok);
+}
+
+#[test]
+fn the_type_of_the_field_is_the_one_that_is_turned_round_when_it_has_an_order() {
+    let schema = "id: p\nseq:\n  - id: len\n    type: u2le\n  - id: body\n    size: len\n";
+    let failure = failure_of(schema, &[0x00, 0x03, b'a', b'b', b'c']);
+    let [suggestion] = failure.suggestions.as_slice() else {
+        panic!("{:?}", failure.suggestions);
+    };
+    assert!(
+        suggestion.schema.contains("type: u2be"),
+        "{}",
+        suggestion.schema
+    );
+}
+
+#[test]
+fn a_suggestion_that_does_not_help_is_not_made() {
+    // too long in either order
+    let schema = "id: p\nmeta:\n  endian: le\nseq:\n  - id: len\n    type: u2\n  - id: body\n    size: len\n";
+    let failure = failure_of(schema, &[0x01, 0x01, b'a']);
+    assert_eq!(failure.kind, "past_end");
+    assert!(failure.suggestions.is_empty(), "{:?}", failure.suggestions);
+    // the same two bytes, which are the same in both orders
+    let failure = failure_of(schema, &[0x05, 0x05, b'a']);
+    assert!(failure.suggestions.is_empty(), "{:?}", failure.suggestions);
+}
+
+#[test]
+fn a_signature_that_is_not_there_says_what_was_expected_and_what_was_found() {
+    let schema = "id: p\nseq:\n  - id: magic\n    contents: [0x50, 0x4b]\n";
+    let failure = failure_of(schema, &[0x7f, 0x45, 0x4c]);
+    assert_eq!(failure.kind, "contents");
+    assert_eq!(failure.offset, 0);
+    assert_eq!(
+        failure.message,
+        "byte 0x0, in magic: expected 50 4b, found 7f 45"
+    );
+    assert!(failure.suggestions.is_empty(), "{:?}", failure.suggestions);
+}
+
+#[test]
+fn a_list_that_ends_in_the_middle_of_an_element_says_so() {
+    let schema = "id: p\nseq:\n  - id: items\n    type: u4le\n    repeat: eos\n";
+    let failure = failure_of(schema, &[1, 0, 0, 0, 2, 0, 0, 0, 3, 0]);
+    assert_eq!(failure.kind, "partial_element");
+    assert_eq!(failure.field, "items[2]");
+    assert_eq!(failure.offset, 8);
+    assert!(
+        failure.message.contains("2 whole elements of 4 bytes"),
+        "{}",
+        failure.message
+    );
+}
+
+#[test]
+fn an_error_that_is_not_in_the_data_has_no_failure() {
+    let schema = "id: p\nseq:\n  - id: a\n    type: u1\n";
+    let request = serde_json::json!({ "schema": schema });
+    let response = doe::api::parse(&request.to_string(), &[1]);
+    assert!(response.ok);
+    assert!(response.failure.is_none());
+}
+
 fn trace_of_schema(schema: &str, data: &[u8]) -> doe::api::TraceOut {
     let request = serde_json::json!({ "schema": schema });
     let response = doe::api::parse(&request.to_string(), data);

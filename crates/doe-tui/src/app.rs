@@ -223,6 +223,8 @@ pub struct App {
     pub loading: bool,
     /// The temporary directory that holds the layer being shown (a `.tar.gz` shown as its tar), removed when it is replaced.
     layer_guard: Option<tempfile::TempDir>,
+    /// What the message about the failed parse suggests, tried and found to help (`o` reads the file that way).
+    fix: Option<doe::explain::Suggestion>,
     /// Which layer of the file is shown (0 is the file itself), once known.
     layer_index: Option<usize>,
     /// Whether the focused pane fills the screen (`f`); the pane that has the focus is the one that is shown.
@@ -327,6 +329,34 @@ const UNWRAP_LIMIT: usize = 256 * 1024 * 1024;
 /// Open the type `id` on the file as the layers say: a type that holds another file (a `.tar.gz`'s `gzip_file`) is shown as the
 /// layer it holds, from a temporary file. `options` are changed to say so; the directory is returned, and a line for the
 /// notice. A type that holds nothing leaves them as they are.
+/// `len` bytes of the file `file` from byte `offset`.
+fn read_range(file: &std::path::Path, offset: u64, len: usize) -> Option<Vec<u8>> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut f = std::fs::File::open(file).ok()?;
+    f.seek(SeekFrom::Start(offset)).ok()?;
+    let mut out = vec![0; len];
+    f.read_exact(&mut out).ok()?;
+    Some(out)
+}
+
+/// Parse with the schema file of `options` as `text` says, without changing the file: the text goes to a temporary
+/// file of the same name, and the schemas that it imports are looked for next to the real one.
+fn load_with_text(options: &Options, schema_file: &std::path::Path, text: &str) -> Option<Loaded> {
+    let dir = tempfile::Builder::new().prefix("doe-fix-").tempdir().ok()?;
+    let copy = dir.path().join(schema_file.file_name()?);
+    std::fs::write(&copy, text).ok()?;
+    let mut options = options.clone();
+    let (_, wanted) = doe::split_type_arg(&options.type_or_schema);
+    options.type_or_schema = match wanted {
+        Some(wanted) => format!("{}::{wanted}", copy.display()),
+        None => copy.display().to_string(),
+    };
+    if let Some(parent) = schema_file.parent() {
+        options.include_paths.push(parent.to_path_buf());
+    }
+    load::try_load(&options).ok()
+}
+
 fn unwrap_for(options: &mut Options, id: &str) -> (Option<tempfile::TempDir>, Option<String>) {
     use std::io::Write as _;
 
@@ -397,6 +427,7 @@ impl App {
             inspector: false,
             loading: false,
             layer_guard: None,
+            fix: None,
             layer_index: None,
             fullscreen: false,
             loading_since: None,
@@ -457,7 +488,21 @@ impl App {
                     .node(path.get(..depth)?)
                     .and_then(|n| n.type_name.clone())
             });
-            app.report = Some(Report::from_parse(error, &names, in_type.as_deref()));
+            let failure = app.tree.node(&[]).and_then(|root| {
+                doe::explain::explain(
+                    error,
+                    root,
+                    "",
+                    &|offset, len| read_range(&app.file, offset, len),
+                    &|_| doe::explain::Reparse::Unknown,
+                )
+            });
+            app.report = Some(Report::from_parse(
+                error,
+                &names,
+                in_type.as_deref(),
+                failure.as_ref(),
+            ));
             app.tree.select_path(&path);
             app.show_selected_field();
         }
@@ -479,6 +524,7 @@ impl App {
             inspector: false,
             loading: false,
             layer_guard: None,
+            fix: None,
             layer_index: None,
             fullscreen: false,
             loading_since: None,
@@ -543,6 +589,7 @@ impl App {
             inspector: false,
             loading: true,
             layer_guard: None,
+            fix: None,
             layer_index: None,
             fullscreen: false,
             loading_since: Some(std::time::Instant::now()),
@@ -704,6 +751,8 @@ impl App {
         self.size = fresh.size;
         self.error = fresh.error;
         self.report = fresh.report;
+        self.fix = None;
+        self.look_for_fix();
         self.bytes = fresh.bytes;
         self.schema_files = fresh.schema_files;
         self.search = None;
@@ -714,6 +763,86 @@ impl App {
             self.show_selected_field();
         }
         self.notice = Some("read again".to_owned());
+    }
+
+    /// Try what is likely to fix the parse that failed, with the schema as it is on disk: if a change helps, say so in
+    /// the message and remember it for `o`.
+    fn look_for_fix(&mut self) {
+        let (Some(options), Some(error)) = (self.options.clone(), self.error.as_ref()) else {
+            return;
+        };
+        let (named, _) = doe::split_type_arg(&options.type_or_schema);
+        if !doe::is_schema_path(named) {
+            return;
+        }
+        let Some(schema_file) = load::schema_file(&options) else {
+            return;
+        };
+        let Ok(text) = std::fs::read_to_string(&schema_file) else {
+            return;
+        };
+        let Some(root) = self.tree.node(&[]) else {
+            return;
+        };
+        let failure = doe::explain::explain(
+            error,
+            root,
+            &text,
+            &|offset, len| read_range(&self.file, offset, len),
+            &|edited| {
+                let Some(loaded) = load_with_text(&options, &schema_file, edited) else {
+                    return doe::explain::Reparse::Unknown;
+                };
+                if loaded.error.is_none() {
+                    return doe::explain::Reparse::Succeeds;
+                }
+                loaded
+                    .trace
+                    .failed_node()
+                    .and_then(|path| loaded.trace.node_at(&path)?.span)
+                    .map_or(doe::explain::Reparse::Unknown, |span| {
+                        doe::explain::Reparse::FailsAt(span.start_byte())
+                    })
+            },
+        );
+        let Some(suggestion) = failure.and_then(|f| f.suggestions.into_iter().next()) else {
+            return;
+        };
+        if let Some(report) = &mut self.report {
+            report.hints.push(format!(
+                "{} (press o to read the file that way; the schema file is not changed)",
+                format::safe(&suggestion.text)
+            ));
+        }
+        self.fix = Some(suggestion);
+    }
+
+    /// `o`: read the file with the change that the message about the failed parse suggests.
+    fn try_fix(&mut self) {
+        let Some(fix) = self.fix.clone() else {
+            self.notice = Some("nothing to try: the message has no suggestion".to_owned());
+            return;
+        };
+        let Some(options) = self.options.clone() else {
+            return;
+        };
+        let Some(schema_file) = load::schema_file(&options) else {
+            return;
+        };
+        match load_with_text(&options, &schema_file, &fix.schema) {
+            Some(loaded) => {
+                self.adopt(loaded);
+                self.fix = None;
+                if let Some(report) = &mut self.report {
+                    report.hints.clear();
+                }
+                self.notice = Some(format!(
+                    "read with the schema changed in memory: {} (r goes back to the schema file)",
+                    format::safe(&fix.text)
+                ));
+            }
+            None => self.notice = Some("the file could not be read with that change".to_owned()),
+        }
     }
 
     /// The new schema or file could not be used: the old tree stays.
@@ -1753,6 +1882,7 @@ impl App {
                 self.help = true;
             }
             Action::ToggleReport => self.show_report = !self.show_report,
+            Action::TryFix => self.try_fix(),
             Action::Reload if self.builder.is_some() => self.rename_field(),
             Action::Reload => self.reload(),
             Action::Undo
@@ -3645,6 +3775,41 @@ enums:
         );
         // the data starts after the 8 bytes of magic and the 60 of the header
         assert_eq!(app.hex.cursor(), 8 + 60);
+    }
+
+    #[test]
+    fn a_failed_parse_names_the_byte_and_o_reads_the_file_with_the_other_byte_order() {
+        let schema = "id: p\nmeta:\n  endian: le\nseq:\n  - id: len\n    type: u2\n  - id: body\n    size: len\n";
+        let data = [0x00, 0x03, b'a', b'b', b'c'];
+        let (mut app, dir) = app_for(schema, &data);
+        let report = app.report.as_ref().unwrap();
+        assert_eq!(
+            report.causes[0],
+            "byte 0x2, in body: needs 768 bytes, 3 are left"
+        );
+        assert!(report.hints.is_empty(), "nothing has been tried yet");
+        // read again (as the viewer does when it starts): the other byte order is tried and found to help
+        app.reload();
+        let report = app.report.as_ref().unwrap();
+        assert_eq!(report.hints.len(), 1, "{:?}", report.hints);
+        assert!(report.hints[0].contains("big-endian"), "{:?}", report.hints);
+        assert!(report.hints[0].contains("press o"), "{:?}", report.hints);
+        key(&mut app, KeyCode::Char('o'));
+        assert!(app.error.is_none());
+        assert!(app.report.is_none());
+        assert!(
+            app.notice.as_deref().unwrap().contains("changed in memory"),
+            "{:?}",
+            app.notice
+        );
+        // the schema on disk is as it was
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("t.yaml")).unwrap(),
+            schema
+        );
+        // and with nothing to try, `o` says so
+        key(&mut app, KeyCode::Char('o'));
+        assert!(app.notice.as_deref().unwrap().contains("nothing to try"));
     }
 
     #[test]
