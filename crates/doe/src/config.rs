@@ -81,6 +81,14 @@ pub struct Config {
     #[serde(default)]
     pub mouse: Option<bool>,
 
+    /// Whether the terminal viewer (`doe --tui`) remembers where you were (the
+    /// open nodes, the selection, the cursor, the scroll, the radix and the view
+    /// settings) for each file and schema, and puts it back when they are opened
+    /// again. With `false` it neither reads nor writes it. `--no-restore`
+    /// overrides it. On when unset.
+    #[serde(default)]
+    pub restore: Option<bool>,
+
     /// The radix in which the terminal viewer (`doe --tui`) first shows
     /// integers: `dec`, `hex`, `bin` or `oct`. `--radix` overrides it.
     #[serde(default)]
@@ -171,6 +179,17 @@ impl Config {
         etcetera::choose_base_strategy()
             .ok()
             .map(|strategy| strategy.config_dir().join("doe").join("config.toml"))
+    }
+
+    /// The directory where the terminal viewer keeps where you were, one record for each file and schema:
+    /// `$XDG_STATE_HOME/doe` (`~/.local/state/doe`), or the data directory of the platform where it has no state
+    /// directory (macOS and Windows).
+    ///
+    /// Returns `None` if the user's home directory cannot be determined.
+    pub fn state_dir() -> Option<PathBuf> {
+        let strategy = etcetera::choose_base_strategy().ok()?;
+        let base = strategy.state_dir().unwrap_or_else(|| strategy.data_dir());
+        Some(base.join("doe"))
     }
 }
 

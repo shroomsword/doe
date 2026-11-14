@@ -905,6 +905,45 @@ impl TreeModel {
         (path, found)
     }
 
+    /// The nodes that are open, as paths of indexes, in a fixed order (to be kept).
+    #[must_use]
+    pub fn open_paths(&self) -> Vec<Vec<usize>> {
+        let mut paths: Vec<Vec<usize>> = self.open.iter().cloned().collect();
+        paths.sort();
+        paths
+    }
+
+    /// The windows of the long lists (the first child shown and the end), by the path of the list, in a fixed order.
+    #[must_use]
+    pub fn window_list(&self) -> Vec<(Vec<usize>, (usize, usize))> {
+        let mut windows: Vec<(Vec<usize>, (usize, usize))> =
+            self.windows.iter().map(|(p, w)| (p.clone(), *w)).collect();
+        windows.sort();
+        windows
+    }
+
+    /// Open these nodes and put these windows on the lists, as they were kept (a window is cut to the children that
+    /// the list has now); the paths are of this tree. The rows are made again.
+    pub fn restore_state(
+        &mut self,
+        open: impl IntoIterator<Item = Vec<usize>>,
+        windows: impl IntoIterator<Item = (Vec<usize>, (usize, usize))>,
+    ) {
+        for path in open {
+            if self.node(&path).is_some_and(|n| !n.children.is_empty()) {
+                self.open.insert(path);
+            }
+        }
+        for (path, (start, end)) in windows {
+            let len = self.children_of(&path);
+            let end = end.min(len);
+            if start < end {
+                self.windows.insert(path, (start, end));
+            }
+        }
+        self.rebuild();
+    }
+
     /// Take over the open nodes and the selection of another model, for a tree
     /// made from a changed value or a changed schema: what was open is open,
     /// and the selection is on the field that has the same name all the way
@@ -966,6 +1005,7 @@ pub(crate) mod tests {
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            restore: None,
             radix: None,
         })
         .unwrap();

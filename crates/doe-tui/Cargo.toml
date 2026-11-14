@@ -12,7 +12,7 @@ authors.workspace = true
 doe = { version = "0.7.0", path = "../doe" }
 anyhow = { workspace = true, features = ["std"] }
 serde = { workspace = true, features = ["std", "derive"] }
-toml = { workspace = true, features = ["std", "parse", "serde"] }
+toml = { workspace = true, features = ["std", "parse", "serde", "display"] }
 log.workspace = true
 ratatui = { workspace = true, features = ["crossterm"] }
 crossterm = { workspace = true, features = ["events", "bracketed-paste"] }

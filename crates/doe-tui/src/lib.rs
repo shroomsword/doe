@@ -37,6 +37,7 @@ pub mod preview;
 pub mod prompt;
 pub mod radixes;
 pub mod report;
+pub mod restore;
 pub mod schemas;
 pub mod search;
 pub mod status;
@@ -98,6 +99,10 @@ pub struct Options {
     /// Whether the viewer takes the mouse (clicks, the wheel, drags): false for `--no-mouse` or `mouse = false` in the
     /// config. When it is false the terminal's own selection and copy work as in any program.
     pub mouse: bool,
+    /// The directory where the viewer keeps where you were, for each file and schema, and reads it from when the
+    /// file is opened again: `Config::state_dir`, unless `--no-restore` or `restore = false` in the config, which
+    /// leave it `None` (nothing is read or written).
+    pub restore: Option<PathBuf>,
     /// The radix in which integers are first shown (`--radix` or the `radix`
     /// key of the config); decimal when it is none.
     pub radix: Option<doe::radix::Radix>,
@@ -327,6 +332,8 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
             dirty = true;
         }
     }
+    // where you were is kept for the next time, before the terminal is put back (it does not matter to the screen)
+    app.save_state();
     // The terminal is put back first, so that what is said next is on the screen the person returns to.
     let message = app.finish_message();
     drop(terminal);

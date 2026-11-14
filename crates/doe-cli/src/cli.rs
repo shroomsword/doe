@@ -219,6 +219,13 @@ pub(crate) struct Cli {
     #[arg(long, requires = "tui")]
     pub(crate) no_mouse: bool,
 
+    /// With `--tui`: do not remember where you were, and do not put it back (the viewer keeps the open nodes, the
+    /// selection, the cursor, the scroll and the view settings of each file and schema in the state directory, and
+    /// restores them when the same file is opened with the same schema; the `restore` key of the config file turns
+    /// it off too).
+    #[arg(long, requires = "tui")]
+    pub(crate) no_restore: bool,
+
     /// With `--tui`: the radix in which integers are first shown, `dec`
     /// (the default), `hex`, `bin` or `oct`; `x` in the viewer goes through
     /// them, and `X` chooses one for the selected field (the `radix` key of

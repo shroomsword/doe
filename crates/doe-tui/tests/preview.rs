@@ -66,6 +66,7 @@ fn app_of(dir: &Path, files: &[(&str, &[u8])]) -> App {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        restore: None,
         radix: None,
     };
     let mut app = App::new(file, load(&options).unwrap());

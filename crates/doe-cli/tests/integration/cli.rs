@@ -1704,6 +1704,63 @@ mod tui_in_a_terminal {
         );
     }
 
+    /// The records that the viewer kept in the state directory `state`.
+    fn kept_records(state: &Path) -> Vec<PathBuf> {
+        std::fs::read_dir(state.join("doe").join("viewer"))
+            .map(|entries| {
+                entries
+                    .filter_map(Result::ok)
+                    .map(|e| e.path())
+                    .filter(|p| p.extension().is_some_and(|x| x == "toml"))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn where_you_were_is_kept_in_the_state_directory_when_the_viewer_is_left() {
+        let state = TempDir::new().unwrap();
+        let mut session =
+            Session::start(&[], &[("XDG_STATE_HOME", state.path().to_str().unwrap())]);
+        session.wait_for("parsed");
+        session.send(b"j");
+        session.send(b"q");
+        let (success, _) = session.finish();
+        assert!(success);
+        let records = kept_records(state.path());
+        assert_eq!(records.len(), 1, "{records:?}");
+        let text = std::fs::read_to_string(&records[0]).unwrap();
+        assert!(text.contains("version = 1"), "{text}");
+        assert!(
+            text.contains("simple.bin"),
+            "the record is of this file: {text}"
+        );
+        // nothing of the file is in it: its bytes are 07 34 12
+        assert!(!text.contains("0x34") && !text.contains("4660"), "{text}");
+    }
+
+    #[test]
+    fn no_restore_and_the_config_key_neither_read_nor_write() {
+        let state = TempDir::new().unwrap();
+        let env = [("XDG_STATE_HOME", state.path().to_str().unwrap())];
+        let mut session = Session::start(&["--no-restore"], &env);
+        session.wait_for("parsed");
+        session.send(b"q");
+        let (success, _) = session.finish();
+        assert!(success);
+        assert!(kept_records(state.path()).is_empty(), "nothing was kept");
+        // the key of the config file
+        let config = TempDir::new().unwrap();
+        let file = config.path().join("config.toml");
+        std::fs::write(&file, "restore = false\n").unwrap();
+        let mut session = Session::start(&["-c", file.to_str().unwrap()], &env);
+        session.wait_for("parsed");
+        session.send(b"q");
+        let (success, _) = session.finish();
+        assert!(success);
+        assert!(kept_records(state.path()).is_empty(), "nothing was kept");
+    }
+
     #[test]
     fn no_mouse_never_asks_the_terminal_for_it() {
         let mut session = Session::start(&["--no-mouse"], &[]);
@@ -2031,6 +2088,14 @@ mod tui_in_a_terminal {
     #[test]
     fn watch_without_tui_is_refused() {
         doe().args(["--watch", "file", "type"]).assert().failure();
+    }
+
+    #[test]
+    fn no_restore_without_tui_is_refused() {
+        doe()
+            .args(["--no-restore", "file", "type"])
+            .assert()
+            .failure();
     }
 
     #[test]

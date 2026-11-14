@@ -34,6 +34,7 @@ fn building() -> (App, tempfile::TempDir) {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        restore: None,
         radix: None,
     };
     let (options, builder) = prepare_build(&options, &dir.path().join("built.yaml")).unwrap();
@@ -168,6 +169,7 @@ fn the_ordinary_viewer_has_no_builder_and_leaves_at_once() {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        restore: None,
         radix: None,
     };
     let mut app = App::new(options.file.clone(), load(&options).unwrap());

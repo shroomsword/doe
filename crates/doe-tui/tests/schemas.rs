@@ -77,6 +77,7 @@ fn options(f: &Fixture, type_or_schema: &str) -> Options {
         theme_on_command_line: false,
         transparent: None,
         mouse: true,
+        restore: None,
         radix: None,
     }
 }

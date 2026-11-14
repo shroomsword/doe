@@ -128,6 +128,12 @@ impl HexState {
         Some((anchor.min(self.cursor), anchor.max(self.cursor)))
     }
 
+    /// Where the selection of bytes began, if there is one (to be kept).
+    #[must_use]
+    pub fn range_start(&self) -> Option<u64> {
+        self.anchor
+    }
+
     /// Begin a selection at the cursor.
     pub fn start_range(&mut self) {
         self.anchor = Some(self.cursor);
@@ -242,6 +248,17 @@ impl HexState {
         };
         self.top = self.line_start(moved.min(last));
         self.free_at = Some(self.cursor);
+    }
+
+    /// Put the view where it was kept: the cursor and the first line (both inside the `size` bytes), and the start of
+    /// the selection of bytes, if there was one.
+    pub fn restore(&mut self, cursor: u64, top: u64, range_from: Option<u64>, size: u64) {
+        let last = size.saturating_sub(1);
+        self.cursor = cursor.min(last);
+        self.top = top.min(last);
+        self.anchor = range_from.map(|from| from.min(last));
+        self.bit = None;
+        self.free_at = None;
     }
 
     /// Begin a selection at `offset`, which is not where the cursor is (the press of a drag).
@@ -544,6 +561,7 @@ mod tests {
             theme_on_command_line: false,
             transparent: None,
             mouse: true,
+            restore: None,
             radix: None,
         })
         .unwrap();
