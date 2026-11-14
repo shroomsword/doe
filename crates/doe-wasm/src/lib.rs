@@ -61,6 +61,13 @@ pub fn parse(request: &str, bytes: &[u8]) -> String {
     to_json(&api::parse(request, bytes))
 }
 
+/// Compile the schema of `request` (JSON), parse the two files `a` and `b` with it and compare them by field
+/// (`compare` in [`api`]). Returns JSON: `{ok, id, diagnostics, error, a, b, ghosts, summary}`.
+#[wasm_bindgen]
+pub fn compare(request: &str, a: &[u8], b: &[u8]) -> String {
+    to_json(&api::compare(request, a, b))
+}
+
 /// Compile the schema of `request` (JSON), parse `bytes` with it and render the
 /// whole value as the command line does (`export` in [`api`]; that is a reserved
 /// word in JavaScript): `format` is `text`, `json` or

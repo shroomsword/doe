@@ -1,6 +1,6 @@
 # The calls of doe-wasm
 
-Seven functions and one class, exported to JavaScript by `wasm-bindgen`. Requests and answers
+Eight functions and one class, exported to JavaScript by `wasm-bindgen`. Requests and answers
 are **JSON strings**, so the page, a worker and the tests all call them the same
 way. The Rust side is `src/api.rs`; the tests in `tests/api.rs` check every
 shape below.
@@ -9,6 +9,7 @@ shape below.
 check(request: string): string          // CheckResponse as JSON
 inspect(request: string): string        // InspectResponse as JSON: the schemas, the missing imports, the types
 parse(request: string, bytes: Uint8Array): string   // ParseResponse as JSON
+compare(request: string, a: Uint8Array, b: Uint8Array): string   // CompareResponse as JSON: two files, parsed with the schema of the request and compared by field
 render(request: string, bytes: Uint8Array, format: string): string   // ExportResponse as JSON (`export` is a reserved word in JavaScript)
 signature(request: string): string      // SignatureResponse as JSON: what the schema's files start with, and its names
 detect_order(request: string, head: Uint8Array): string   // OrderResponse as JSON: which schemas to try on a file, in what order
@@ -68,6 +69,37 @@ When the parse fails, `value` and `trace` are what was read until then, the
 node where it failed has `failed: true`, and `error` says why. When the schema
 does not compile there is a list of `diagnostics` and nothing else. Input
 larger than 256 MiB (`MAX_INPUT_BYTES`) is refused with an `input` error.
+
+## CompareResponse
+
+Both files are parsed with the schema of the request (each in memory, so each is as big as a `parse` takes) and compared
+by **field path**: a field is the same field in both files wherever it is, a list is compared element by element
+(`[i]` with `[i]`), and the length of a list is a difference.
+
+```jsonc
+{
+  "ok": true,                // the schema compiled and both files could be read
+  "id": "chunks",
+  "diagnostics": [ Diagnostic, ... ],   // what is wrong with the schema or the request
+  "error": null,             // Diagnostic: a file that could not be read at all ("the first file: …")
+  "a": {                     // the first file; "b" is the second, in the same shape
+    "error": null,           // Diagnostic: why its parse stopped (what was read is compared all the same)
+    "trace": TraceNode,      // as for ParseResponse, with "diff" and "diff_below" on the nodes (below)
+    "bytes": [[4, 5]]        // the bytes of this file that differ, [first, end), sorted and joined; by matched field, not by offset
+  },
+  "b": { ... },
+  "ghosts": [                // what only B has, shown under the parent in A's tree that would hold it
+    { "parent": [1], "name": "[1]", "b_path": [1, 1], "summary": null }
+                             // "parent" and "b_path" are indexes of children from the root of A and of B
+  ],
+  "summary": { "fields_a": 9, "fields_b": 9, "changed": 1, "only_a": 0, "only_b": 0, "identical": false }
+}
+```
+
+`diff` of a node is `"changed"` (its value differs; for a container: its type, or the length of a list),
+`"inside"` (it is equal in itself and something below it differs; `diff_below` is how many) or `"only"` (the other file
+has nothing like it); it is `null` for a node that is the same. A field that moved because an earlier one grew is the
+same field and is not marked.
 
 ## ExportResponse
 
@@ -182,6 +214,8 @@ is known; an error in an imported file, or in the input, has none.
                           // for an integer or an enum: the number in decimal, with all its
                           // digits (a string: a JavaScript number loses some of a 64-bit one),
                           // and the name of the member; null for anything else
+  "diff": null,           // only in a CompareResponse: "changed", "inside" or "only"; null when it is the same
+  "diff_below": null,     // only in a CompareResponse: how many differences there are below it
   "children": [ TraceNode, ... ]
 }
 ```

@@ -9,6 +9,7 @@
 )]
 
 mod api;
+mod compare;
 mod compiler;
 mod config;
 mod conformance;
