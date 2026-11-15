@@ -724,6 +724,76 @@ fn parse_input(request: &str, input: &Input<'_>, explain: bool) -> ParseResponse
     }
 }
 
+/// A key that goes at a place of a schema.
+#[derive(Debug, Serialize)]
+pub struct LanguageKey {
+    /// The key.
+    pub key: String,
+    /// What it is for, in a line (empty for a hidden key).
+    pub doc: String,
+    /// Whether an editor should not offer it: the parser accepts it, but it is not for people to write.
+    pub hidden: bool,
+}
+
+/// A name that a key takes, or a type, and what it means.
+#[derive(Debug, Serialize)]
+pub struct LanguageName {
+    /// The name, as it is written.
+    pub name: String,
+    /// What it means.
+    pub doc: String,
+}
+
+/// The answer to [`language`].
+#[derive(Debug, Serialize)]
+pub struct LanguageResponse {
+    /// The keys that the parser accepts at each place: `schema`, `meta`, `field`, `instance`, `type`, `switch`,
+    /// `payload`, `filesystem`, `param` and `valid`.
+    pub places: std::collections::BTreeMap<&'static str, Vec<LanguageKey>>,
+    /// The built-in types of a field.
+    pub types: Vec<LanguageName>,
+    /// The names that some keys take: `endian`, `bit-endian`, `repeat`, `encoding` and `process`.
+    pub values: std::collections::BTreeMap<&'static str, Vec<LanguageName>>,
+}
+
+/// The language of a schema as the compiler defines it (see [`crate::schema::language`]): what an editor offers while a
+/// schema is written. It does not depend on a schema.
+#[must_use]
+pub fn language() -> LanguageResponse {
+    use crate::schema::language as lang;
+    let names = |list: Vec<lang::Named>| {
+        list.into_iter()
+            .map(|n| LanguageName {
+                name: n.name,
+                doc: n.doc,
+            })
+            .collect::<Vec<_>>()
+    };
+    LanguageResponse {
+        places: lang::Place::ALL
+            .iter()
+            .map(|&place| {
+                (
+                    place.name(),
+                    lang::keys(place)
+                        .into_iter()
+                        .map(|k| LanguageKey {
+                            key: k.key,
+                            doc: k.doc,
+                            hidden: k.hidden,
+                        })
+                        .collect(),
+                )
+            })
+            .collect(),
+        types: names(lang::builtin_types()),
+        values: ["endian", "bit-endian", "repeat", "encoding", "process"]
+            .into_iter()
+            .map(|key| (key, names(lang::values(key))))
+            .collect(),
+    }
+}
+
 /// One of the two files of a comparison.
 #[derive(Debug, Serialize)]
 pub struct CompareSide {
