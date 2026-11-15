@@ -557,3 +557,58 @@ fn a_file_that_is_too_big_is_said_with_its_name_and_nothing_is_compared() {
             .starts_with("the first file:")
     );
 }
+
+#[test]
+fn the_language_names_the_keys_of_each_place_the_types_and_the_values() {
+    let answer: Value = serde_json::from_str(&doe_wasm::language()).unwrap();
+    let keys = |place: &str| -> Vec<String> {
+        answer["places"][place]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|k| k["hidden"] == false)
+            .map(|k| k["key"].as_str().unwrap().to_owned())
+            .collect()
+    };
+    assert_eq!(keys("switch"), ["switch-on", "cases"]);
+    assert!(keys("schema").contains(&"seq".to_owned()));
+    assert!(keys("field").contains(&"repeat-expr".to_owned()));
+    assert!(
+        !keys("field").contains(&"value".to_owned()),
+        "a field has no value"
+    );
+    assert!(keys("instance").contains(&"value".to_owned()));
+    // what the parser accepts and is not for people is marked, and has no line
+    let field = answer["places"]["field"].as_array().unwrap();
+    let hidden = field.iter().find(|k| k["key"] == "-orig-id").unwrap();
+    assert_eq!(hidden["hidden"], true);
+    assert_eq!(hidden["doc"], "");
+    // every offered key has a line
+    for place in answer["places"].as_object().unwrap().values() {
+        for key in place
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|k| k["hidden"] == false)
+        {
+            assert_ne!(key["doc"], "", "{key}");
+        }
+    }
+    let types: Vec<&str> = answer["types"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["name"].as_str().unwrap())
+        .collect();
+    assert!(types.contains(&"u2le") && types.contains(&"strz") && types.contains(&"b13"));
+    assert_eq!(answer["values"]["endian"][0]["name"], "le");
+    assert_eq!(answer["values"]["repeat"].as_array().unwrap().len(), 3);
+    assert!(answer["values"]["encoding"].as_array().unwrap().len() > 30);
+    assert!(
+        answer["values"]["process"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p["name"] == "zlib")
+    );
+}

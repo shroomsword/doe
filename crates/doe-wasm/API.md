@@ -1,6 +1,6 @@
 # The calls of doe-wasm
 
-Eight functions and one class, exported to JavaScript by `wasm-bindgen`. Requests and answers
+Nine functions and one class, exported to JavaScript by `wasm-bindgen`. Requests and answers
 are **JSON strings**, so the page, a worker and the tests all call them the same
 way. The Rust side is `src/api.rs`; the tests in `tests/api.rs` check every
 shape below.
@@ -9,6 +9,7 @@ shape below.
 check(request: string): string          // CheckResponse as JSON
 inspect(request: string): string        // InspectResponse as JSON: the schemas, the missing imports, the types
 parse(request: string, bytes: Uint8Array): string   // ParseResponse as JSON
+language(): string                       // LanguageResponse as JSON: the keys, the types and the values that a schema can have, for an editor to offer
 compare(request: string, a: Uint8Array, b: Uint8Array): string   // CompareResponse as JSON: two files, parsed with the schema of the request and compared by field
 render(request: string, bytes: Uint8Array, format: string): string   // ExportResponse as JSON (`export` is a reserved word in JavaScript)
 signature(request: string): string      // SignatureResponse as JSON: what the schema's files start with, and its names
@@ -69,6 +70,27 @@ When the parse fails, `value` and `trace` are what was read until then, the
 node where it failed has `failed: true`, and `error` says why. When the schema
 does not compile there is a list of `diagnostics` and nothing else. Input
 larger than 256 MiB (`MAX_INPUT_BYTES`) is refused with an `input` error.
+
+## LanguageResponse
+
+What an editor offers while a schema is written. It does not depend on a schema, so it is asked once. It comes from the
+compiler: the keys at each place are **the ones the parser accepts there** (found by asking it), so they cannot drift from
+what the library reads.
+
+```jsonc
+{
+  "places": {                // schema, meta, field, instance, type, switch, payload, filesystem, param, valid
+    "field": [
+      { "key": "id", "doc": "The name of the field.", "hidden": false },
+      { "key": "-orig-id", "doc": "", "hidden": true }
+                             // accepted, but not for people to write: an editor does not offer it
+    ]
+  },
+  "types": [ { "name": "u2le", "doc": "an unsigned integer of 2 bytes, little-endian" } ],   // the built-in types of a field
+  "values": { "endian": [ { "name": "le", "doc": "…" } ] }
+                             // the names that endian, bit-endian, repeat, encoding and process take
+}
+```
 
 ## CompareResponse
 

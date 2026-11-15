@@ -61,6 +61,13 @@ pub fn parse(request: &str, bytes: &[u8]) -> String {
     to_json(&api::parse(request, bytes))
 }
 
+/// The language of a schema as the compiler defines it, for an editor to offer while a schema is written (`language` in
+/// [`api`]). It does not depend on a schema. Returns JSON: `{places, types, values}`.
+#[wasm_bindgen]
+pub fn language() -> String {
+    to_json(&api::language())
+}
+
 /// Compile the schema of `request` (JSON), parse the two files `a` and `b` with it and compare them by field
 /// (`compare` in [`api`]). Returns JSON: `{ok, id, diagnostics, error, a, b, ghosts, summary}`.
 #[wasm_bindgen]
