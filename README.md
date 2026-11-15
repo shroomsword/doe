@@ -1404,7 +1404,7 @@ it (and how many), `−` a field or element that only this file has, and `+` row
 file has; the bytes that differ are underlined, by matched field; the line under the pane says the value of the field in the other
 file; and the button next to *Stop comparing* says how many fields differ (`A: 3 of 1204 fields differ · 1 only in A · 2 only in
 B`, or `A: identical`). `>` and `<` go to the next and the previous difference (in the Bytes pane, the next run of bytes that
-differ), `=` leaves out what is the same, and `V` makes the other file the one that is shown, at the same field. The **⇆** button
+differ), `=` leaves out what is the same, and `V` makes the other file the one that is shown, at the same field. The side-by-side button (two arrows, next to *Stop comparing*)
 or `|` puts the two trees side by side under the names of the files, with the same field selected in both and a click in either
 selecting it in the other; the way chosen is kept in the browser, and the tree of the first file with marks is the first one.
 *Stop comparing* puts the page back.
