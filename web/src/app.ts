@@ -3,7 +3,7 @@
 // anywhere.
 
 import { CallEnded, DoeClient } from './client.js';
-import type { Diagnostic, Docs, ExportFormat, ExportResponse, InspectResponse, ParseResponse, Request, TraceNode } from './doe.js';
+import type { CompareResponse, Diagnostic, Docs, ExportFormat, ExportResponse, InspectResponse, ParseResponse, Request, TraceNode } from './doe.js';
 import { SchemaEditor } from './editor.js';
 import { Help } from './help.js';
 import { type Action, type Needs, KEYS, byteQuery, findPattern, isField, keyName, keyOf } from './keys.js';
@@ -17,11 +17,11 @@ import { type Origin, SchemaList, editable, isKnownType, listing, parsedAs } fro
 import { type Work, codeOfHash, decodeWork, recall, remember } from './share.js';
 import { CUSTOM, SYSTEM, THEMES, Themes } from './theme.js';
 import { History, type Place, follow, startByte } from './pointers.js';
-import { COPY_FORMATS, COPY_LIMIT, copyText, pathText } from './copyas.js';
+import { COPY_FORMATS, COPY_LIMIT, copyText, pathText, resolvePath } from './copyas.js';
 import { RADIXES, Radixes, integerText, isRadix } from './radix.js';
 import { type Attempt, type Deps, type GalleryFormat, describe, detectGallery, galleryOrigin, isBundled } from './detect.js';
 import { type Layer, MAX_LAYERS, describeLayers, payloadName } from './layers.js';
-import { TreeView } from './tree.js';
+import { GHOST_BASE, TreeView } from './tree.js';
 import { type Layout, type Mode, type PaneName, type Sizes, PANE_NAMES, applyLayout, currentMode, defaultLayout, dockOf, isDefault, loadLayout, saveLayout, shown, shownMovable, swapped, withDock, withSizes, withVisible } from './layout.js';
 import { type Movable, type Zone, ZONE_NAMES, dockTo, isMovable, zoneOf } from './dock.js';
 import { Splitters } from './resize.js';
@@ -1107,6 +1107,7 @@ export class App {
     if (needs === 'file') return this.canDetect();
     if (needs === 'parsed') return !element<HTMLButtonElement>('save').disabled;
     if (needs === 'filesystem') return this.archive.has;
+    if (needs === 'comparing') return this.comparison !== null;
     return !element('cancel').hidden;
   }
 
@@ -1866,6 +1867,21 @@ export class App {
       case 'follow':
         this.followPointer(this.selection);
         break;
+      case 'next-difference':
+        this.goToDifference(true);
+        break;
+      case 'previous-difference':
+        this.goToDifference(false);
+        break;
+      case 'only-differences':
+        this.toggleOnlyDifferences();
+        break;
+      case 'other-file':
+        this.swapFiles();
+        break;
+      case 'compare-view':
+        this.toggleCompareView();
+        break;
       case 'jump-back':
         this.walkJumps(false);
         break;
@@ -2001,7 +2017,7 @@ export class App {
 
   /** The list of the keys, with the ones that need something that is not there marked. */
   private showKeys(): void {
-    const needs: Record<Needs, string> = { file: 'needs an open file', parsed: 'needs a parsed value', running: 'needs a parse that is running', filesystem: 'needs a file system (an archive) parsed' };
+    const needs: Record<Needs, string> = { file: 'needs an open file', parsed: 'needs a parsed value', running: 'needs a parse that is running', filesystem: 'needs a file system (an archive) parsed', comparing: 'needs two files to compare (Compare with…)' };
     const rows = KEYS.map((entry) => {
       const missing = entry.needs && !this.available(entry.needs) ? needs[entry.needs] : '';
       const row = document.createElement('tr');
@@ -2102,6 +2118,9 @@ export class App {
     input('open-schema', (files) => void this.openSchema(files[0]));
     input('add-files', (files) => void this.addFiles(files));
     input('open-input', (files) => void this.openInput(files[0]));
+    input('compare-input', (files) => void this.openOther(files[0]));
+    element('compare-stop').addEventListener('click', () => this.stopComparing());
+    element('compare-view').addEventListener('click', () => this.toggleCompareView());
     input('open-theme', (files) => void this.openTheme(files[0]));
     element<HTMLSelectElement>('theme').addEventListener('change', (event) => {
       this.themes.choose((event.target as HTMLSelectElement).value);
@@ -2426,6 +2445,7 @@ export class App {
         element<HTMLButtonElement>('save').disabled = !(response.ok && (this.bytes || this.serverInput));
         this.show(response);
         this.inspect(request, mine);
+        this.runCompare(request, mine, response);
       },
       (error: unknown) => {
         // Ended by a newer run: that one will show.
@@ -2465,6 +2485,12 @@ export class App {
   }
 
   private show(response: ParseResponse): void {
+    // a comparison is of the parse that was made: the marks come back when this one is compared
+    if (this.comparison) {
+      this.comparison = null;
+      this.tree.setGhosts([]);
+      this.hex.setChanged([]);
+    }
     const problems: Diagnostic[] = [...response.diagnostics];
     if (response.error) {
       // the message that names the byte and the field says what the error said, and more
@@ -2512,7 +2538,8 @@ export class App {
     this.selection = path;
     const node = path && this.trace ? nodeAt(this.trace, path) : null;
     this.selectionName = path && this.trace ? pathName(this.trace, path) : '';
-    this.tree.select(node ? path : null, from !== 'tree');
+    // a row of what only the other file has is selected too (it has no node)
+    this.tree.select(node || (path?.some((i) => i >= GHOST_BASE) ?? false) ? path : null, from !== 'tree');
     if (from !== 'files') this.archive.syncSelection(node ? path : null);
     const range = node && !node.processed ? byteRange(node) : null;
     if (node && range && node.start !== null && node.end !== null) {
@@ -2520,6 +2547,7 @@ export class App {
       if (from === 'tree' || from === 'files') this.hex.reveal(range.first);
     } else this.hex.setSelection(null);
     this.showSelection(node);
+    this.syncOther();
     this.showFieldRadix();
     this.showFieldDoc();
   }
@@ -2589,6 +2617,278 @@ export class App {
     }
     const range = describeRange(node);
     const note = node.processed ? ' (in transformed bytes, not the input)' : '';
-    target.textContent = `${this.selectionName}${range ? ` · ${range}` : ''}${note}`;
+    const other = this.comparison ? ` · ${this.otherLetter()}: ${this.otherNode(this.selection)?.summary ?? (this.otherNode(this.selection) ? '(not a single value)' : 'nothing like it')}` : '';
+    target.textContent = `${this.selectionName}${range ? ` · ${range}` : ''}${note}${other}`;
+  }
+
+  // ── comparing two files ────────────────────────────────────────────────────
+
+  /** The second file of a comparison. It is parsed with the schema of the first, and the two are compared by field. */
+  private other: { bytes: Uint8Array; name: string } | null = null;
+  /** How the two differ, once the page has the answer. */
+  private comparison: CompareResponse | null = null;
+  /** The tree of the second file, when the two are side by side. */
+  private treeOther: TreeView | null = null;
+  /** Whether the file that is shown is the second one that was opened (`V` swaps them). */
+  private swappedFiles = false;
+  private onlyDiffs = false;
+  private sideBySide = ((): boolean => {
+    try {
+      return localStorage.getItem('doe.compare-view') === 'side-by-side';
+    } catch {
+      return false;
+    }
+  })();
+
+  /** The letter of the file that is shown, and of the other one. */
+  private thisLetter(): string {
+    return this.swappedFiles ? 'B' : 'A';
+  }
+
+  private otherLetter(): string {
+    return this.swappedFiles ? 'A' : 'B';
+  }
+
+  private async openOther(file: File | undefined): Promise<void> {
+    if (!file) return;
+    if (this.serverInput) {
+      element('status').textContent = 'comparing needs a file that is open in the page, not one that this machine reads';
+      return;
+    }
+    const problem = checkSize(file.size);
+    if (problem) {
+      element('status').textContent = problem;
+      return;
+    }
+    this.other = { bytes: new Uint8Array(await file.arrayBuffer()), name: file.name };
+    this.swappedFiles = false;
+    this.showCompareControls();
+    this.refreshNow();
+  }
+
+  private stopComparing(): void {
+    this.other = null;
+    this.swappedFiles = false;
+    this.onlyDiffs = false;
+    this.clearComparison();
+    this.refreshNow();
+  }
+
+  /** Compare the input with the second file, after the parse that is shown. */
+  private runCompare(request: Request, mine: number, response: ParseResponse): void {
+    if (!this.other || !this.bytes || this.serverInput) {
+      this.clearComparison();
+      return;
+    }
+    if (!response.ok || !response.trace) {
+      this.clearComparison();
+      return;
+    }
+    this.client.compare(request, this.other.bytes).then(
+      (answer) => {
+        if (mine === this.generation) this.applyComparison(answer);
+      },
+      (error: unknown) => {
+        if (mine !== this.generation) return;
+        this.clearComparison();
+        this.ended(error);
+      },
+    );
+  }
+
+  /** What the nodes of `to` should say, from the marks of `from` (the two trees have the same shape). */
+  private overlay(to: TraceNode, from: TraceNode): void {
+    to.diff = from.diff ?? null;
+    to.diff_below = from.diff_below ?? null;
+    to.children.forEach((child, index) => {
+      const source = from.children[index];
+      if (source) this.overlay(child, source);
+    });
+  }
+
+  private applyComparison(answer: CompareResponse): void {
+    if (!answer.ok || !answer.a || !answer.b || !answer.summary || !this.trace) {
+      this.clearComparison();
+      const why = answer.error ?? answer.diagnostics[0];
+      if (why) this.problems.show([why]);
+      return;
+    }
+    this.comparison = answer;
+    this.overlay(this.trace, answer.a.trace);
+    this.tree.setGhosts(this.sideBySide ? [] : answer.ghosts);
+    this.hex.setChanged(answer.a.bytes);
+    this.showCompareControls();
+    this.showSideBySide();
+    element('status').textContent += ` · compared with ${this.other?.name ?? 'the other file'}: ${this.compareText()}`;
+    this.showSelection(this.selection && this.trace ? nodeAt(this.trace, this.selection) : null);
+  }
+
+  private clearComparison(): void {
+    this.comparison = null;
+    this.tree.setGhosts([]);
+    this.tree.setOnlyDiffs(false);
+    this.hex.setChanged([]);
+    this.showCompareControls();
+    this.showSideBySide();
+  }
+
+  /** What the summary says: how many fields differ, and how. */
+  private compareText(): string {
+    const summary = this.comparison?.summary;
+    if (!summary) return '';
+    if (summary.identical) return 'identical';
+    const parts = [`${summary.changed} of ${Math.max(summary.fields_a, summary.fields_b)} fields differ`];
+    if (summary.only_a > 0) parts.push(`${summary.only_a} only in ${this.thisLetter()}`);
+    if (summary.only_b > 0) parts.push(`${summary.only_b} only in ${this.otherLetter()}`);
+    return parts.join(' · ');
+  }
+
+  private showCompareControls(): void {
+    element('compare-stop').hidden = this.other === null;
+    const summary = element('compare-summary');
+    summary.hidden = this.comparison === null;
+    summary.textContent = this.comparison ? `${this.thisLetter()}: ${this.compareText()}` : '';
+    summary.classList.toggle('identical', this.comparison?.summary?.identical ?? false);
+    element('compare-view').hidden = this.comparison === null;
+    element<HTMLButtonElement>('compare-view').setAttribute('aria-pressed', String(this.sideBySide));
+  }
+
+  /** The two trees side by side, or the one tree with marks. */
+  private showSideBySide(): void {
+    const on = this.comparison !== null && this.sideBySide;
+    element('tree-box').classList.toggle('side-by-side', on);
+    const other = element('tree-other');
+    other.hidden = !on;
+    element('tree').dataset.title = on ? `${this.thisLetter()} · ${this.inputName ?? ''}` : '';
+    other.dataset.title = on ? `${this.otherLetter()} · ${this.other?.name ?? ''}` : '';
+    if (!on || !this.comparison?.b) return;
+    this.treeOther ??= new TreeView(
+      other,
+      (path) => this.selectFromOther(path),
+      (key) => this.radixes.of(key),
+    );
+    this.treeOther.setTrace(this.comparison.b.trace);
+    this.treeOther.setOnlyDiffs(this.onlyDiffs);
+    this.syncOther();
+  }
+
+  /** The node of the other file that is the same field as the one at `path` here. */
+  private otherNode(path: Path | null): TraceNode | null {
+    const there = this.otherPath(path);
+    return there && this.comparison?.b ? nodeAt(this.comparison.b.trace, there) : null;
+  }
+
+  private otherPath(path: Path | null): Path | null {
+    if (!path || !this.trace || !this.comparison?.b || !nodeAt(this.trace, path)) return null;
+    return resolvePath(this.comparison.b.trace, pathText(this.trace, path));
+  }
+
+  /** Side by side, the tree of the other file follows the selection. */
+  private syncOther(): void {
+    if (!this.treeOther || !this.sideBySide) return;
+    const there = this.otherPath(this.selection);
+    if (there) this.treeOther.select(there, true);
+  }
+
+  /** A field of the other tree was clicked: the same field here. */
+  private selectFromOther(path: Path): void {
+    if (!this.comparison?.b || !this.trace) return;
+    if (!nodeAt(this.comparison.b.trace, path)) return;
+    const here = resolvePath(this.trace, pathText(this.comparison.b.trace, path));
+    if (here) this.select(here, 'tree');
+  }
+
+  /** The places that differ, in the order of the tree: the fields that changed or that only this file has, and the
+   *  place after the children of a parent where the other file has something more. */
+  private differences(): number[][] {
+    const found: number[][] = [];
+    const walk = (node: TraceNode, path: number[]): void => {
+      if (node.diff === 'changed' || node.diff === 'only') found.push(path);
+      node.children.forEach((child, index) => walk(child, [...path, index]));
+    };
+    if (this.trace) walk(this.trace, []);
+    if (!this.sideBySide) {
+      const parents = new Set<string>();
+      for (const ghost of this.comparison?.ghosts ?? []) {
+        if (parents.has(ghost.parent.join('.'))) continue;
+        parents.add(ghost.parent.join('.'));
+        found.push([...ghost.parent, GHOST_BASE]);
+      }
+    }
+    return found.sort((a, b) => {
+      for (let i = 0; i < Math.min(a.length, b.length); i += 1) if (a[i] !== b[i]) return (a[i] ?? 0) - (b[i] ?? 0);
+      return a.length - b.length;
+    });
+  }
+
+  /** `>` and `<`: the next or the previous difference, in the Parsed pane or in the Bytes pane. */
+  private goToDifference(forward: boolean): void {
+    if (!this.comparison || !this.trace) return;
+    if (this.lastPane === 'bytes') {
+      const ranges = this.comparison.a?.bytes ?? [];
+      if (ranges.length === 0) {
+        this.say('no bytes differ');
+        return;
+      }
+      const node = this.selection ? nodeAt(this.trace, this.selection) : null;
+      const at = (node && byteRange(node)?.first) ?? -1;
+      const found = forward ? ranges.find((range) => range[0] > at) : [...ranges].reverse().find((range) => range[0] < at);
+      const range = found ?? (forward ? ranges[0] : ranges[ranges.length - 1]);
+      if (!range) return;
+      const field = findByte(this.trace, range[0]);
+      if (field) this.select(field, 'hex');
+      this.hex.reveal(range[0]);
+      this.say(found ? `bytes ${range[0].toString(16)}…${(range[1] - 1).toString(16)} differ` : `back at the ${forward ? 'first' : 'last'} difference`);
+      return;
+    }
+    const places = this.differences();
+    if (places.length === 0) {
+      this.say('nothing differs');
+      return;
+    }
+    const here = this.selection ?? [];
+    const before = (a: number[], b: readonly number[]): boolean => {
+      for (let i = 0; i < Math.min(a.length, b.length); i += 1) if (a[i] !== b[i]) return (a[i] ?? 0) < (b[i] ?? 0);
+      return a.length < b.length;
+    };
+    const found = forward ? places.find((place) => before([...here], place)) : [...places].reverse().find((place) => before(place, here));
+    const target = found ?? (forward ? places[0] : places[places.length - 1]);
+    if (!target) return;
+    this.select(target, 'tree');
+    this.say(found ? 'next difference' : `back at the ${forward ? 'first' : 'last'} difference`);
+  }
+
+  /** `=`: leave out the fields that are the same, or show them again. */
+  private toggleOnlyDifferences(): void {
+    this.onlyDiffs = !this.onlyDiffs;
+    this.tree.setOnlyDiffs(this.onlyDiffs);
+    this.treeOther?.setOnlyDiffs(this.onlyDiffs);
+    this.say(this.onlyDiffs ? 'only the differences (= shows everything again)' : 'everything is shown');
+  }
+
+  /** `V`: the other file is the one that is shown, and this one the other. */
+  private swapFiles(): void {
+    if (!this.other || !this.bytes) return;
+    const mine = { bytes: this.bytes, name: this.inputName ?? '' };
+    const there = this.other;
+    this.setInput(there.bytes, there.name);
+    this.other = mine;
+    this.swappedFiles = !this.swappedFiles;
+    this.refreshNow();
+    this.say(`the bytes and the tree are of file ${this.thisLetter()}`);
+  }
+
+  /** `|`: the two trees side by side, or the tree of the first file with marks. */
+  private toggleCompareView(): void {
+    this.sideBySide = !this.sideBySide;
+    try {
+      localStorage.setItem('doe.compare-view', this.sideBySide ? 'side-by-side' : 'annotated');
+    } catch {
+      // the choice is not kept: it is for this visit
+    }
+    this.tree.setGhosts(this.sideBySide || !this.comparison ? [] : this.comparison.ghosts);
+    this.showCompareControls();
+    this.showSideBySide();
+    this.say(this.sideBySide ? 'the two files side by side (| goes back to the marks)' : 'the first file with marks (| puts the two side by side)');
   }
 }

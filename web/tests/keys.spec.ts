@@ -27,7 +27,8 @@ const node = (name: string, summary: string | null, children: TraceNode[] = []):
 
 test('every key of the table is documented in the README, once, and the table has no key twice for different things', () => {
   const section = readme.slice(readme.indexOf('### Keys'), readme.indexOf('## CLI reference'));
-  for (const entry of KEYS) expect(section, entry.key).toContain(`| \`${entry.key}\` |`);
+  // a `|` is written `\|` in a row of a table, as GitHub reads it
+  for (const entry of KEYS) expect(section, entry.key).toContain(`| \`${entry.key.replace('|', '\\|')}\` |`);
   const seen = new Map<string, string>();
   for (const entry of KEYS) {
     const before = seen.get(entry.key);

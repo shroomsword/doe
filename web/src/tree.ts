@@ -3,7 +3,7 @@
 // (the children of a node that is closed are not made), and a node with very
 // many children shows a first part of them and a row that shows more.
 
-import type { Docs, TraceNode } from './doe.js';
+import type { Docs, Ghost, TraceNode } from './doe.js';
 import { type Path, describeRange, docOf, firstLine, nodeAt, valueKind } from './model.js';
 import { type Radix, fieldKey, integerText } from './radix.js';
 
@@ -20,9 +20,21 @@ interface Row {
   doc?: string | null;
   /** For the row that shows more: how many are hidden. */
   more?: number;
+  /** For a row of what only the other file has: the field or element. */
+  ghost?: Ghost;
 }
 
 const key = (path: Path): string => path.join('.');
+
+/** The index that a ghost has in the path of its row, after the indexes of the children of its parent. */
+export const GHOST_BASE = 1_000_000;
+
+/** What the mark of a node says, in a comparison. */
+const MARKS: Record<string, { glyph: string; title: string }> = {
+  changed: { glyph: '≠', title: 'differs from the other file' },
+  inside: { glyph: '±', title: 'something below it differs from the other file' },
+  only: { glyph: '−', title: 'only in this file' },
+};
 
 function escape(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -38,6 +50,9 @@ export class TreeView {
   /** The descriptions of the fields of the result, and whether the rows show them. */
   private docs: Docs | undefined;
   private showDocs = true;
+  /** In a comparison: what only the other file has, by the path of the parent, and whether what is the same is left out. */
+  private ghosts = new Map<string, Ghost[]>();
+  private onlyDiffs = false;
 
   constructor(
     parent: HTMLElement,
@@ -95,6 +110,23 @@ export class TreeView {
     this.render();
   }
 
+  /** In a comparison, show what only the other file has under its parents (an empty list: none). */
+  setGhosts(ghosts: readonly Ghost[]): void {
+    this.ghosts = new Map();
+    for (const ghost of ghosts) {
+      const at = key(ghost.parent);
+      this.ghosts.set(at, [...(this.ghosts.get(at) ?? []), ghost]);
+    }
+    this.render();
+  }
+
+  /** In a comparison, leave out the fields that are the same (their ancestors stay), or show them again. */
+  setOnlyDiffs(on: boolean): void {
+    if (on === this.onlyDiffs) return;
+    this.onlyDiffs = on;
+    this.render();
+  }
+
   /** The description of the node at `path`, whole, when the rows show descriptions. */
   docAt(path: Path): string | null {
     if (!this.showDocs || !this.root || path.length === 0) return null;
@@ -129,8 +161,16 @@ export class TreeView {
       rows.push({ path, node, depth, key: field, doc: this.showDocs ? docOf(this.docs, parentType, node.name) : null });
       if (!this.open.has(key(path))) return;
       const limit = this.shown.get(key(path)) ?? CHUNK;
-      node.children.slice(0, limit).forEach((child, index) => walk(child, [...path, index], depth + 1, fieldKey(field, node, child), node.type));
+      node.children.slice(0, limit).forEach((child, index) => {
+        // only the differences: what is the same is left out
+        if (this.onlyDiffs && !child.diff) return;
+        walk(child, [...path, index], depth + 1, fieldKey(field, node, child), node.type);
+      });
       if (node.children.length > limit) rows.push({ path, node, depth: depth + 1, key: field, more: node.children.length - limit });
+      // what only the other file has comes after the children
+      (this.ghosts.get(key(path)) ?? []).forEach((ghost, index) => {
+        rows.push({ path: [...path, GHOST_BASE + index], node, depth: depth + 1, key: field, ghost });
+      });
     };
     walk(root, [], 0, '', null);
     return rows;
@@ -145,6 +185,11 @@ export class TreeView {
         if (row.more !== undefined) {
           return `<div class="tree-row more" ${indent} data-row="${index}" role="treeitem">${row.more} more…</div>`;
         }
+        if (row.ghost) {
+          const here = selected !== null && key(row.path) === selected;
+          const value = row.ghost.summary !== null ? `<span class="summary">${escape(row.ghost.summary)}</span>` : '';
+          return `<div class="tree-row ghost${here ? ' selected' : ''}" ${indent} data-row="${index}" role="treeitem" aria-selected="${here}" title="only in the other file"><span class="toggle"></span><span class="mark" aria-hidden="true">+</span><span class="name">${escape(row.ghost.name)}</span>${value}</div>`;
+        }
         const { node, path } = row;
         const integer = integerText(node, this.radixOf(row.key));
         const text = integer ?? node.summary;
@@ -153,12 +198,16 @@ export class TreeView {
         if (node.instance) classes.push('instance');
         if (node.failed) classes.push('failed');
         if (node.problem) classes.push('invalid');
+        if (node.diff) classes.push(`diff-${node.diff}`);
         const folded = node.children.length > 0;
         const isOpen = this.open.has(key(path));
         const toggle = folded ? `<span class="toggle">${isOpen ? '▾' : '▸'}</span>` : '<span class="toggle"></span>';
         const range = describeRange(node);
+        const mark = node.diff ? MARKS[node.diff] : undefined;
         const parts = [
+          mark ? `<span class="mark" title="${mark.title}" aria-label="${mark.title}">${mark.glyph}</span>` : '',
           `<span class="name">${escape(node.name)}</span>`,
+          node.diff_below ? `<span class="differ">${node.diff_below} differ</span>` : '',
           node.type ? `<span class="type">${escape(node.type)}</span>` : '',
           text !== null ? `<span class="summary ${node.integer ? (node.integer.name === null ? 'number' : 'enum') : (valueKind(text) ?? '')}">${escape(text)}</span>` : '',
           row.doc ? `<span class="doc" title="${escape(row.doc)}">${escape(firstLine(row.doc))}</span>` : '',

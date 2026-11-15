@@ -2,7 +2,7 @@
 // that takes longer than the limit, or that is cancelled, ends the worker and
 // starts a new one, which is the only way to stop WebAssembly that is running.
 
-import type { CheckResponse, DetectSource, ExportFormat, ExportResponse, InspectResponse, OrderResponse, ParseResponse, Request, SignatureResponse } from './doe.js';
+import type { CheckResponse, CompareResponse, DetectSource, ExportFormat, ExportResponse, InspectResponse, OrderResponse, ParseResponse, Request, SignatureResponse } from './doe.js';
 
 export type ToWorker =
   | { op: 'init'; wasmUrl: string }
@@ -14,6 +14,7 @@ export type ToWorker =
   | { op: 'digest'; id: number; algorithm: string; ranges: [number, number][] }
   | { op: 'decode'; id: number; process: string; from: number }
   | { op: 'parse'; id: number; request: Request }
+  | { op: 'compare'; id: number; request: Request; other: ArrayBuffer }
   | { op: 'export'; id: number; request: Request; format: ExportFormat };
 
 export type FromWorker =
@@ -25,6 +26,7 @@ export type FromWorker =
   | { op: 'digested'; id: number; digests: (string | null)[] }
   | { op: 'decoded'; id: number; bytes?: ArrayBuffer; error?: string }
   | { op: 'parsed'; id: number; response: ParseResponse }
+  | { op: 'compared'; id: number; response: CompareResponse }
   | { op: 'exported'; id: number; response: ExportResponse }
   | { op: 'failed'; id: number; message: string };
 
@@ -105,6 +107,13 @@ export class DoeClient {
 
   parse(request: Request): Promise<ParseResponse> {
     return this.call((id) => ({ op: 'parse', id, request }));
+  }
+
+  /** Compare the input with another file (`other`), both parsed with the schema of the request. */
+  compare(request: Request, other: Uint8Array): Promise<CompareResponse> {
+    // the worker keeps the input; the other file goes with the call, as a copy, so that the page keeps its own
+    const copy = other.slice().buffer;
+    return this.call((id) => ({ op: 'compare', id, request, other: copy }), [copy]);
   }
 
   export(request: Request, format: ExportFormat): Promise<ExportResponse> {
@@ -208,7 +217,7 @@ export class DoeClient {
     });
   }
 
-  private async call<R>(make: (id: number) => ToWorker): Promise<R> {
+  private async call<R>(make: (id: number) => ToWorker, transfer: Transferable[] = []): Promise<R> {
     // A newer call ends an older one: only the newest is of use.
     this.cancel();
     const id = this.next++;
@@ -224,13 +233,13 @@ export class DoeClient {
         this.limitMs,
       );
       this.pending = { id, resolve: resolve as (response: never) => void, reject, timer };
-      if ((message.op === 'parse' || message.op === 'export') && !this.inputSent) {
+      if ((message.op === 'parse' || message.op === 'export' || message.op === 'compare') && !this.inputSent) {
         // A copy: the page keeps its own bytes for the hex view.
         const copy = this.input.slice().buffer;
         worker.postMessage({ op: 'input', bytes: copy } satisfies ToWorker, [copy]);
         this.inputSent = true;
       }
-      worker.postMessage(message);
+      worker.postMessage(message, transfer);
     });
   }
 

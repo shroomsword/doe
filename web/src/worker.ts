@@ -57,6 +57,9 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
       case 'parse':
         send({ op: 'parsed', id: message.id, response: need().parse(message.request, input) });
         break;
+      case 'compare':
+        send({ op: 'compared', id: message.id, response: need().compare(message.request, input, new Uint8Array(message.other)) });
+        break;
     }
   } catch (error) {
     send({ op: 'failed', id: 'id' in message ? message.id : 0, message: String(error) });

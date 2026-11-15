@@ -439,3 +439,19 @@ body.pane-resizing-col iframe, body.pane-resizing-row iframe, body.pane-resizing
 /* the arrow after a field that points at another value */
 .tree-row .pointer { color: var(--muted); margin-left: 8px; cursor: pointer; }
 .tree-row .pointer:hover { text-decoration: underline; }
+
+/* Comparing two files: the marks of what differs, the rows of what only the other file has, and the two trees side by side. */
+.tree-row .mark { width: 1.2em; text-align: center; font-weight: 700; flex: none; }
+.tree-row.diff-changed .mark, .tree-row.diff-inside .mark { color: var(--accent); }
+.tree-row.diff-only .mark { color: var(--bad); }
+.tree-row.diff-only .name { text-decoration: line-through; text-decoration-color: var(--bad); }
+.tree-row .differ { color: var(--accent); font-size: 12px; }
+.tree-row.ghost .mark, .tree-row.ghost .name { color: var(--string); }
+.tree-row.ghost { font-style: italic; }
+#tree-box.side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+#tree-box.side-by-side #files { display: none; }
+#tree-box.side-by-side #tree-other { border-left: 1px solid var(--line); }
+.tree[data-title]:not([data-title=""])::before { content: attr(data-title); display: block; position: sticky; top: 0; z-index: 1; padding: 2px 8px; color: var(--muted); background: var(--panel); border-bottom: 1px solid var(--line); }
+#compare-summary { padding: 0 8px; color: var(--accent); font-weight: 600; white-space: nowrap; }
+#compare-summary.identical { color: var(--string); }
+.hex .b.chg, .hex .a.chg { text-decoration: underline; text-decoration-thickness: 2px; text-decoration-color: var(--accent); text-underline-offset: 2px; }
