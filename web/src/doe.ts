@@ -65,6 +65,10 @@ export interface TraceNode {
   end: number | null;
   instance: boolean;
   failed: boolean;
+  /** In a comparison of two files: how this node differs from the one of the other file; absent or null if it is the same. */
+  diff?: 'changed' | 'inside' | 'only' | null;
+  /** In a comparison: how many differences there are below this node. */
+  diff_below?: number | null;
   /** What is wrong with a value that was read: a string with bytes that are not valid in its encoding. */
   problem: string | null;
   processed: boolean;
@@ -91,6 +95,46 @@ export interface ParseResponse {
   docs?: Docs;
   /** Where the parse broke and what might fix it, when it failed in a way that has a place. */
   failure?: Failure | null;
+}
+
+/** One of the two files of a comparison. */
+export interface CompareSide {
+  /** Why the parse of this file stopped, if it did. */
+  error: Diagnostic | null;
+  trace: TraceNode;
+  /** The bytes of this file that differ, as `[first, end)`, sorted; by matched field, not by offset. */
+  bytes: [number, number][];
+}
+
+/** A field or element that only the second file has, shown under the parent in the first file's tree. */
+export interface Ghost {
+  /** The path in the first file's tree of the node that would hold it. */
+  parent: number[];
+  name: string;
+  /** Its path in the second file's tree. */
+  b_path: number[];
+  summary: string | null;
+}
+
+export interface CompareSummary {
+  fields_a: number;
+  fields_b: number;
+  changed: number;
+  only_a: number;
+  only_b: number;
+  identical: boolean;
+}
+
+export interface CompareResponse {
+  ok: boolean;
+  id: string | null;
+  diagnostics: Diagnostic[];
+  /** A file that could not be read at all (too big, say). */
+  error: Diagnostic | null;
+  a: CompareSide | null;
+  b: CompareSide | null;
+  ghosts: Ghost[];
+  summary: CompareSummary | null;
 }
 
 /** The descriptions of fields: `docs[type][name]`. */
@@ -208,6 +252,8 @@ export interface Doe {
   /** The signature of the type of the request (`type`, or the schema's own). */
   signature(request: Request): SignatureResponse;
   parse(request: Request, bytes: Uint8Array): ParseResponse;
+  /** Parse two files with the schema of the request and compare them by field. */
+  compare(request: Request, a: Uint8Array, b: Uint8Array): CompareResponse;
   export(request: Request, bytes: Uint8Array, format: ExportFormat): ExportResponse;
   /** The order in which to try schemas on a file that starts with `head`. */
   detectOrder(sources: DetectSource[], head: Uint8Array, name: string | null, all: boolean): OrderResponse;
@@ -230,6 +276,7 @@ export async function loadDoe(wasmUrl: URL | string): Promise<Doe> {
     signature: (request) => JSON.parse(wasm.signature(JSON.stringify(request))) as SignatureResponse,
     parse: (request, bytes) =>
       JSON.parse(wasm.parse(JSON.stringify(request), bytes)) as ParseResponse,
+    compare: (request, a, b) => JSON.parse(wasm.compare(JSON.stringify(request), a, b)) as CompareResponse,
     export: (request, bytes, format) =>
       JSON.parse(wasm.render(JSON.stringify(request), bytes, format)) as ExportResponse,
     detectOrder: (sources, head, name, all) =>

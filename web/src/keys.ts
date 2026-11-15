@@ -3,7 +3,7 @@
 // the keys do. No DOM here, except where a function takes the target of an event.
 
 /** What a key needs before it does anything: a file to look at, a parsed value, or a parse that is running. */
-export type Needs = 'file' | 'parsed' | 'running' | 'filesystem';
+export type Needs = 'file' | 'parsed' | 'running' | 'filesystem' | 'comparing';
 
 export type Action =
   | 'help'
@@ -18,6 +18,11 @@ export type Action =
   | 'save'
   | 'copy-as'
   | 'follow'
+  | 'next-difference'
+  | 'previous-difference'
+  | 'only-differences'
+  | 'other-file'
+  | 'compare-view'
   | 'jump-back'
   | 'jump-forward'
   | 'files'
@@ -76,6 +81,11 @@ export const KEYS: readonly Key[] = [
   { key: 'd', action: 'detect', label: 'Detect the schema of the open file', needs: 'file' },
   { key: 's', action: 'save', label: 'Save the parsed value', needs: 'parsed' },
   { key: 'J', action: 'follow', label: 'Jump to what the selected field points at: the value its pos: places or its size: measures (a number that is an offset is a guess)', needs: 'parsed' },
+  { key: '>', action: 'next-difference', label: 'When comparing two files: the next difference: in the Parsed pane the next field that differs, in the Bytes pane the next run of bytes that differ', needs: 'comparing' },
+  { key: '<', action: 'previous-difference', label: 'When comparing two files: the previous difference', needs: 'comparing' },
+  { key: '=', action: 'only-differences', label: 'When comparing two files: leave out the fields that are the same, or show them again', needs: 'comparing' },
+  { key: 'V', action: 'other-file', label: 'When comparing two files: make the other file the one that is shown, with the same field selected, or go back to the first', needs: 'comparing' },
+  { key: '|', action: 'compare-view', label: 'When comparing two files: the two trees side by side, or the tree of the first file with marks', needs: 'comparing' },
   { key: 'Alt+ArrowLeft', action: 'jump-back', label: 'Go back to where you were before the last jump', needs: 'parsed' },
   { key: 'Alt+ArrowRight', action: 'jump-forward', label: 'Go forward again after going back', needs: 'parsed' },
   { key: 'Y', action: 'copy-as', label: 'Copy the selected field as its path, value, JSON, bytes, place or schema line', needs: 'parsed' },

@@ -90,6 +90,8 @@ export class HexView {
   private readonly rows: HTMLElement;
   private bytes: ByteSource = new MemoryBytes(new Uint8Array(0));
   private selection: HexSelection | null = null;
+  /** In a comparison: the bytes that differ from the other file, as sorted ranges `[first, end)`. */
+  private changed: readonly [number, number][] = [];
   /** Which kind of value owns each byte, when the bytes are coloured by their fields. */
   private kinds: ByteKinds | null = null;
   private coloured = true;
@@ -189,6 +191,24 @@ export class HexView {
     this.render();
   }
 
+  /** Mark the bytes that differ from the other file in a comparison (an empty list: none). */
+  setChanged(ranges: readonly [number, number][]): void {
+    this.changed = ranges;
+    this.render();
+  }
+
+  private isChanged(byte: number): boolean {
+    let low = 0;
+    let high = this.changed.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if ((this.changed[middle]?.[1] ?? 0) <= byte) low = middle + 1;
+      else high = middle;
+    }
+    const range = this.changed[low];
+    return range !== undefined && range[0] <= byte;
+  }
+
   setSelection(selection: HexSelection | null): void {
     this.selection = selection;
     this.render();
@@ -245,6 +265,7 @@ export class HexView {
         }
         const kind = this.coloured ? this.kinds?.kindAt(i) : null;
         if (kind) marked += ` k-${kind}`;
+        if (this.changed.length > 0 && this.isChanged(i)) marked += ' chg';
         cells += `<span class="b${marked}" data-i="${i}">${value === undefined ? '··' : hex(value, 2)}</span>`;
         text += `<span class="a${marked}" data-i="${i}">${value === undefined ? ' ' : printable(value)}</span>`;
       }

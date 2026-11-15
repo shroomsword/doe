@@ -1229,6 +1229,11 @@ selected, does not close it).
 | `J` | Jump to what the selected field points at (the value its `pos:` places or its `size:` measures; a number that is an offset is a guess) |
 | `Alt+ArrowLeft` | Go back to where you were before the last jump |
 | `Alt+ArrowRight` | Go forward again after going back |
+| `>` | When comparing two files: the next difference: in the Parsed pane the next field that differs, in the Bytes pane the next run of bytes that differ |
+| `<` | When comparing two files: the previous difference |
+| `=` | When comparing two files: leave out the fields that are the same, or show them again |
+| `V` | When comparing two files: make the other file the one that is shown, with the same field selected, or go back to the first |
+| `\|` | When comparing two files: the two trees side by side, or the tree of the first file with marks |
 | `Y` | Copy the selected field as its path, value, JSON, bytes, place or schema line |
 | `F` | Switch the Parsed pane between the files of an archive and the tree of fields |
 | `m` | Show the MD5 of each file in the Files view, then the SHA-1, then the SHA-256, then hide them |
@@ -1389,6 +1394,20 @@ contrast under 3:1), the theme's text colour. A byte that two fields hold takes
 the colour of the one of the sequence, then of an instance, like the next-field keys of the terminal viewer. `b`, or the
 button at the left of the columns button in the title bar of the Bytes pane, turns the colours off and on; it is kept in the
 browser's local storage. The index of which field owns which byte is made after the tree is shown.
+
+**Compare with…** (in the Parsed pane) asks for a second file and parses it with the schema of the first, in the page: neither
+file is uploaded, and both are in memory, so each is as big as a file the page can parse (a file that the server of `doe --ide` reads
+cannot be compared). The comparison is **by field path**, not by offset, as in the terminal viewer (see
+[Terminal viewer](#terminal-viewer)): a field that moved is the same field, the elements of a list are matched by index, and the
+length of a list is a difference. The tree of the first file is marked: `≠` a field that differs, `±` a field with differences below
+it (and how many), `−` a field or element that only this file has, and `+` rows after the children of a parent for what only the other
+file has; the bytes that differ are underlined, by matched field; the line under the pane says the value of the field in the other
+file; and the button next to *Stop comparing* says how many fields differ (`A: 3 of 1204 fields differ · 1 only in A · 2 only in
+B`, or `A: identical`). `>` and `<` go to the next and the previous difference (in the Bytes pane, the next run of bytes that
+differ), `=` leaves out what is the same, and `V` makes the other file the one that is shown, at the same field. The **⇆** button
+or `|` puts the two trees side by side under the names of the files, with the same field selected in both and a click in either
+selecting it in the other; the way chosen is kept in the browser, and the tree of the first file with marks is the first one.
+*Stop comparing* puts the page back.
 
 **Follow a pointer.** A field that the schema's `pos:` or `size:` reads — the offset of a table, the size of
 a block — places or measures another value, and the tree shows an arrow after it (`→ 0x800`). `J`, or a click on the arrow, selects that

@@ -61,6 +61,10 @@
             <div id="hash-menu" role="menu" aria-label="Checksum" hidden></div>
             <button id="save" type="button" class="icon" disabled aria-label="Save" title="Save the parsed value as a file: choose the format and where"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2 1h9l3 3v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm1 1v4h8V2H3zm1 8v4h8v-4H4zm5-7h1.5v3H9V3z"/></svg></button>
             <button id="copy-as-button" type="button" disabled aria-haspopup="dialog" title="Copy the selected field as its path, value, JSON, bytes, place or schema line">Copy as…</button>
+            <label id="compare-box" class="button" title="Compare the open file with another one, parsed with the same schema: the fields that differ, were added or were removed are marked (keys: > < = V |). The file is read in this browser and never uploaded.">Compare with…<input id="compare-input" type="file" /></label>
+            <button id="compare-stop" type="button" hidden title="Stop comparing">Stop comparing</button>
+            <button id="compare-view" type="button" class="icon" hidden aria-pressed="false" aria-label="Side by side" title="The two files side by side, or the first with marks (|)">⇆</button>
+            <span id="compare-summary" hidden role="status"></span>
             <label id="field-radix-box" hidden title="Write this field, in every element and every parse of this schema, in a radix of its own">This field
               <select id="field-radix">
                 <option value="">as above</option>
@@ -82,6 +86,7 @@
         </div>
         <div id="tree-box">
           <div id="tree"></div>
+          <div id="tree-other" hidden></div>
           <div id="files" hidden>
             <div id="files-hash-bar" hidden><span id="files-hash-head" title="A checksum for comparing files, not a security measure">MD5</span><button id="files-hash-save" type="button" disabled title="Save the checksums of all the files in the format of md5sum, to check with md5sum -c in the folder they are extracted to">Save checksums</button></div>
             <div id="files-list" tabindex="0" role="tree" aria-label="files of the archive"></div>
