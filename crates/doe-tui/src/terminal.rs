@@ -154,6 +154,14 @@ fn take_active() -> Option<Arc<Restorer>> {
     ACTIVE.lock().ok().and_then(|mut active| active.take())
 }
 
+/// Put the terminal back now, if a guard is open (once; whoever asks first). For the thread that ends the process when
+/// the loop cannot.
+pub fn leave_now() {
+    if let Some(restorer) = take_active() {
+        restorer.restore();
+    }
+}
+
 /// Make a panic put the terminal back before its message is printed, so that
 /// the message is not lost on the alternate screen.
 fn install_panic_hook() {
