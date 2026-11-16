@@ -257,6 +257,10 @@ test('T opens the theme dialog, but not when it is typed in a field', async ({ p
   await page.locator('.cm-content').click();
   await page.keyboard.type('T');
   await expect(page.locator('#theme-dialog')).toBeHidden();
+  // the word that was begun opens the list of keys, which Esc closes first; the next Esc leaves the editor
+  await expect(page.locator('.cm-tooltip-autocomplete')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.cm-tooltip-autocomplete')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.keyboard.press('T');
   await expect(page.locator('#theme-dialog')).toBeVisible();

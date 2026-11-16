@@ -43,7 +43,7 @@ export class SchemaEditor {
   private readonly view: EditorView;
   private readonly theme = new Compartment();
 
-  constructor(parent: HTMLElement, text: string, onChange: () => void) {
+  constructor(parent: HTMLElement, text: string, onChange: () => void, help: Extension = []) {
     this.view = new EditorView({
       doc: text,
       parent,
@@ -51,6 +51,7 @@ export class SchemaEditor {
         basicSetup,
         yaml(),
         lintGutter(),
+        help,
         this.theme.of([]),
         this.access.of([]),
         EditorView.contentAttributes.of({ 'aria-label': 'schema' }),
@@ -134,6 +135,14 @@ export class SchemaEditor {
   search(): void {
     this.view.focus();
     openSearchPanel(this.view);
+  }
+
+  /** Select a range of the text, and show it. */
+  revealRange(from: number, to: number): void {
+    const length = this.view.state.doc.length;
+    const anchor = Math.min(from, length);
+    this.view.dispatch({ selection: { anchor, head: Math.min(to, length) }, effects: EditorView.scrollIntoView(anchor, { y: 'center' }) });
+    this.view.focus();
   }
 
   /** Put the cursor where a position is, and show it. */

@@ -2,7 +2,7 @@
 // that takes longer than the limit, or that is cancelled, ends the worker and
 // starts a new one, which is the only way to stop WebAssembly that is running.
 
-import type { CheckResponse, CompareResponse, DetectSource, ExportFormat, ExportResponse, InspectResponse, OrderResponse, ParseResponse, Request, SignatureResponse } from './doe.js';
+import type { CheckResponse, CompareResponse, DetectSource, ExportFormat, ExportResponse, InspectResponse, LanguageResponse, OrderResponse, ParseResponse, Request, SignatureResponse } from './doe.js';
 
 export type ToWorker =
   | { op: 'init'; wasmUrl: string }
@@ -10,6 +10,7 @@ export type ToWorker =
   | { op: 'check'; id: number; request: Request }
   | { op: 'inspect'; id: number; request: Request }
   | { op: 'signature'; id: number; request: Request }
+  | { op: 'language'; id: number }
   | { op: 'order'; id: number; sources: DetectSource[]; name: string | null; all: boolean }
   | { op: 'digest'; id: number; algorithm: string; ranges: [number, number][] }
   | { op: 'decode'; id: number; process: string; from: number }
@@ -22,6 +23,7 @@ export type FromWorker =
   | { op: 'checked'; id: number; response: CheckResponse }
   | { op: 'inspected'; id: number; response: InspectResponse }
   | { op: 'signed'; id: number; response: SignatureResponse }
+  | { op: 'languaged'; id: number; response: LanguageResponse }
   | { op: 'ordered'; id: number; response: OrderResponse }
   | { op: 'digested'; id: number; digests: (string | null)[] }
   | { op: 'decoded'; id: number; bytes?: ArrayBuffer; error?: string }
@@ -135,6 +137,18 @@ export class DoeClient {
     return new Promise<InspectResponse>((resolve, reject) => {
       this.inspecting.set(id, { resolve, reject });
       worker.postMessage({ op: 'inspect', id, request } satisfies ToWorker);
+    });
+  }
+
+  /** The language of a schema (keys, built-in types, names), asked once. Like `inspect`, it does not end the running call. */
+  async language(): Promise<LanguageResponse> {
+    await this.start();
+    const worker = this.worker;
+    if (!worker) throw new CallEnded('failed', 'doe is not running');
+    const id = this.next++;
+    return new Promise<LanguageResponse>((resolve, reject) => {
+      this.inspecting.set(id, { resolve, reject });
+      worker.postMessage({ op: 'language', id } satisfies ToWorker);
     });
   }
 
@@ -256,7 +270,7 @@ export class DoeClient {
       else waiting?.resolve(new Uint8Array(message.bytes) as never);
       return;
     }
-    if (message.op === 'inspected' || message.op === 'ordered' || message.op === 'signed') {
+    if (message.op === 'inspected' || message.op === 'languaged' || message.op === 'ordered' || message.op === 'signed') {
       this.inspecting.get(message.id)?.resolve(message.response as never);
       this.inspecting.delete(message.id);
       return;

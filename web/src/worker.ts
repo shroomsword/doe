@@ -34,6 +34,9 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
       case 'inspect':
         send({ op: 'inspected', id: message.id, response: need().inspect(message.request) });
         break;
+      case 'language':
+        send({ op: 'languaged', id: message.id, response: need().language() });
+        break;
       case 'signature':
         send({ op: 'signed', id: message.id, response: need().signature(message.request) });
         break;

@@ -1089,6 +1089,18 @@ offline. It shows a schema, the tree of what it parses, the bytes and the
 problems, in step with each other; parsing runs in the browser (WebAssembly) and
 nothing is sent anywhere. Files are opened in the page, up to 256 MiB (but see below).
 
+**Help while you write.** The editor offers what fits at the cursor, as you begin a word or on `Ctrl-Space`: the
+keys that can go there (a field's keys inside `seq`, an instance's inside `instances`, and so on, each with a line
+on what it is for, leaving out the ones the mapping already has), after `type:` the built-in types, the types of the
+schema and the types of the schemas it imports, after `enum:` the enums, after `endian:`, `repeat:`, `encoding:` and
+`process:` their values, after `imports:` the schemas that can be imported, and in `size:`, `repeat-expr:`, `if:`,
+`pos:` and `value:` the fields before that one. The keys and the built-in types come from the compiler itself, so the
+list cannot offer what the compiler refuses; the names come from the text, which is read by its indentation, so all of
+it works while the schema has a mistake. Nothing is offered in a comment or in `doc:`. Pointing at a key, a built-in
+type, a type, an enum, a field or an import tells what it is; `F1` says it in the status line for the word at the
+cursor. `F12` (or Ctrl-click) goes to the definition of the type, enum or field under the cursor, and for an imported
+type opens the file of the import at it; a built-in type has no definition, and the page says so.
+
 Under the editor is the list of the **schemas** that are open: the main one
 first, then each file it imports, with its id, where it came from (typed in the
 editor, opened from a file, added, fetched from the gallery, from the doe type
