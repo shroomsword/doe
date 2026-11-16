@@ -182,6 +182,31 @@ const LOADING_REDRAW: Duration = Duration::from_millis(250);
 /// How often the loop looks at the signals when no key is pressed.
 const TICK: Duration = Duration::from_millis(100);
 
+/// How long the loop has, once a signal has come, to end by itself before the process is ended for it.
+const SIGNAL_GRACE: Duration = Duration::from_millis(500);
+
+/// End the process when a signal has come and the loop has not ended in `SIGNAL_GRACE`.
+///
+/// The loop looks at the signals between its turns, but a turn can be stuck inside the terminal library: when the
+/// terminal has gone away (a hang-up), reading from it fails again and again, and the library retries for ever without
+/// ever coming back. That is the case that a hang-up makes, so a signal must not depend on the loop.
+fn spawn_watchdog(signals: Signals) {
+    let _ = std::thread::Builder::new()
+        .name("signal-watchdog".to_owned())
+        .spawn(move || {
+            while !signals.fired() {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            std::thread::sleep(SIGNAL_GRACE);
+            terminal::leave_now();
+            #[allow(
+                clippy::exit,
+                reason = "the loop is stuck and cannot return: the terminal is put back, then the process ends"
+            )]
+            std::process::exit(1);
+        });
+}
+
 /// Open the viewer and return when the person quits.
 ///
 /// # Errors
@@ -266,6 +291,7 @@ fn run_with(options: &Options, builder: Option<builder::Builder>) -> anyhow::Res
     });
     let mut watch: Option<Watch> = None;
     let signals = Signals::install().context("could not install the signal handlers")?;
+    spawn_watchdog(signals.clone());
     let (guard, mut terminal) =
         Guard::enter_with_mouse(options.mouse).context("could not set up the terminal")?;
     // For the test that a panic inside the viewer puts the terminal back.

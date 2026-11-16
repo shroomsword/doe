@@ -1488,7 +1488,7 @@ fn tui_says_it_is_not_in_this_build() {
 #[cfg(all(feature = "tui", unix))]
 mod tui_in_a_terminal {
     use std::io::Read;
-    use std::sync::mpsc;
+    use std::sync::{Arc, mpsc};
     use std::time::{Duration, Instant};
 
     use portable_pty::{CommandBuilder, PtySize, native_pty_system};
@@ -1502,11 +1502,23 @@ mod tui_in_a_terminal {
     /// `doe --tui` running in a pseudo-terminal.
     struct Session {
         child: Box<dyn portable_pty::Child + Send + Sync>,
-        writer: Box<dyn std::io::Write + Send>,
+        writer: Option<Box<dyn std::io::Write + Send>>,
         output: mpsc::Receiver<Vec<u8>>,
         seen: String,
         dir: TempDir,
-        _master: Box<dyn portable_pty::MasterPty + Send>,
+        master: Option<Box<dyn portable_pty::MasterPty + Send>>,
+        /// Tells the thread that reads the terminal to let go of it (see `hang_up`).
+        stop: Arc<std::sync::atomic::AtomicBool>,
+    }
+
+    /// A test that fails must not leave a viewer running: a viewer that is not ended is ended with its session.
+    impl Drop for Session {
+        fn drop(&mut self) {
+            if self.child.try_wait().ok().flatten().is_none() {
+                let _ = self.child.kill();
+                let _ = self.child.wait();
+            }
+        }
     }
 
     impl Session {
@@ -1570,21 +1582,27 @@ mod tui_in_a_terminal {
             let mut reader = pair.master.try_clone_reader().unwrap();
             let writer = pair.master.take_writer().unwrap();
             let (send, output) = mpsc::channel();
+            let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let stopped = Arc::clone(&stop);
             std::thread::spawn(move || {
                 let mut buffer = [0_u8; 4096];
                 while let Ok(n) = reader.read(&mut buffer) {
-                    if n == 0 || send.send(buffer[..n].to_vec()).is_err() {
+                    if n == 0
+                        || stopped.load(std::sync::atomic::Ordering::SeqCst)
+                        || send.send(buffer[..n].to_vec()).is_err()
+                    {
                         break;
                     }
                 }
             });
             Session {
                 child,
-                writer,
+                writer: Some(writer),
                 output,
                 seen: String::new(),
                 dir,
-                _master: pair.master,
+                master: Some(pair.master),
+                stop,
             }
         }
 
@@ -1615,8 +1633,20 @@ mod tui_in_a_terminal {
 
         fn send(&mut self, bytes: &[u8]) {
             use std::io::Write as _;
-            self.writer.write_all(bytes).unwrap();
-            self.writer.flush().unwrap();
+            let writer = self.writer.as_mut().unwrap();
+            writer.write_all(bytes).unwrap();
+            writer.flush().unwrap();
+        }
+
+        /// Close the terminal as a window that is closed does: every hold on the master side is let go, so the
+        /// program's terminal is hung up. (The thread that reads is woken by a key that makes the viewer draw, and then
+        /// lets go of its own.)
+        fn hang_up(&mut self) {
+            self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+            self.send(b"?");
+            std::thread::sleep(Duration::from_millis(300));
+            self.writer = None;
+            self.master = None;
         }
 
         /// Wait for the program to end, and for what it printed to the end.
@@ -1636,7 +1666,7 @@ mod tui_in_a_terminal {
             while let Ok(bytes) = self.output.recv_timeout(Duration::from_millis(300)) {
                 self.seen.push_str(&String::from_utf8_lossy(&bytes));
             }
-            (status.success(), self.seen)
+            (status.success(), std::mem::take(&mut self.seen))
         }
     }
 
@@ -1927,6 +1957,26 @@ mod tui_in_a_terminal {
         session.child.kill().unwrap();
         let (_, seen) = session.finish();
         assert_screen_restored(&seen);
+    }
+
+    #[test]
+    fn a_terminal_that_goes_away_ends_the_viewer_and_it_does_not_spin() {
+        let mut session = Session::start(&[], &[]);
+        session.wait_for("quit");
+        session.hang_up();
+        // it ends by itself, with a failure status, and soon (it was seen to run at a full core for ever)
+        let end = Instant::now() + Duration::from_secs(10);
+        let status = loop {
+            if let Some(status) = session.child.try_wait().unwrap() {
+                break status;
+            }
+            assert!(
+                Instant::now() < end,
+                "doe --tui is still running after its terminal went away"
+            );
+            std::thread::sleep(Duration::from_millis(50));
+        };
+        assert!(!status.success());
     }
 
     #[test]
