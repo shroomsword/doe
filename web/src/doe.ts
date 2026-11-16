@@ -245,8 +245,30 @@ export interface OrderResponse {
 /** How the whole value is printed: as `doe` prints text, compact JSON (`--json`) or indented JSON (`--pretty`). */
 export type ExportFormat = 'text' | 'json' | 'pretty';
 
+/** A key of the schema language, with what it is for. */
+export interface LanguageKey {
+  key: string;
+  doc: string;
+  hidden: boolean;
+}
+
+/** A name that the language gives meaning to (a built-in type, an encoding). */
+export interface LanguageName {
+  name: string;
+  doc: string;
+}
+
+/** What `language` answers: the keys of each place, the built-in types, and the names some keys take. */
+export interface LanguageResponse {
+  places: Record<string, LanguageKey[]>;
+  types: LanguageName[];
+  values: Record<string, LanguageName[]>;
+}
+
 export interface Doe {
   version(): string;
+  /** The language of a schema, as the compiler defines it. */
+  language(): LanguageResponse;
   check(request: Request): CheckResponse;
   inspect(request: Request): InspectResponse;
   /** The signature of the type of the request (`type`, or the schema's own). */
@@ -271,6 +293,7 @@ export async function loadDoe(wasmUrl: URL | string): Promise<Doe> {
   await init({ module_or_path: wasmUrl });
   return {
     version: () => wasm.version(),
+    language: () => JSON.parse(wasm.language()) as LanguageResponse,
     check: (request) => JSON.parse(wasm.check(JSON.stringify(request))) as CheckResponse,
     inspect: (request) => JSON.parse(wasm.inspect(JSON.stringify(request))) as InspectResponse,
     signature: (request) => JSON.parse(wasm.signature(JSON.stringify(request))) as SignatureResponse,

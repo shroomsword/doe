@@ -3,13 +3,14 @@
 // anywhere.
 
 import { CallEnded, DoeClient } from './client.js';
-import type { CompareResponse, Diagnostic, Docs, ExportFormat, ExportResponse, InspectResponse, ParseResponse, Request, TraceNode } from './doe.js';
+import type { CompareResponse, Diagnostic, Docs, ExportFormat, ExportResponse, InspectResponse, LanguageResponse, ParseResponse, Request, TraceNode } from './doe.js';
 import { SchemaEditor } from './editor.js';
 import { Help } from './help.js';
 import { type Action, type Needs, KEYS, byteQuery, findPattern, isField, keyName, keyOf } from './keys.js';
 import { PaneSearch, type SearchHandler } from './search.js';
 import { HexView, RemoteBytes } from './hex.js';
 import { type LibrariesEvent, type LocalApi, type LocalType, detectLocal } from './local.js';
+import { schemaHelp } from './editor-help.js';
 import { type Entry, type Ranking, TypeBrowser, galleryEntries, libraryEntries, openEntries } from './browse.js';
 import { type Path, byteRange, checkSize, describeRange, findByte, findNode, nodeAt, pathName, pathOfProblem } from './model.js';
 import { ProblemsView } from './problems.js';
@@ -125,7 +126,30 @@ export class App {
 
   constructor(workerUrl: URL, wasmUrl: URL) {
     this.client = new DoeClient(workerUrl, wasmUrl);
-    this.editor = new SchemaEditor(element('editor'), '', () => this.edited());
+    this.editor = new SchemaEditor(
+      element('editor'),
+      '',
+      () => this.edited(),
+      schemaHelp({
+        language: () => this.language,
+        found: () => this.found,
+        files: () => this.files,
+        importable: () => this.importable(),
+        show: (path, from, to) => {
+          if (path !== null) this.showFile(path);
+          else if (this.active !== null) this.showFile(this.schemaPath);
+          this.editor.revealRange(from, to);
+        },
+        say: (text) => this.say(text),
+      }),
+    );
+    void this.client.language().then(
+      (language) => {
+        this.language = language;
+        document.body.dataset.help = 'ready';
+      },
+      () => undefined,
+    );
     this.schemas = new SchemaList(element('schemas'), element<HTMLSelectElement>('parse-type'), element('edit-note'), {
       select: (path) => this.showFile(path),
       remove: (path) => this.removeFile(path),
@@ -2212,6 +2236,19 @@ export class App {
   }
 
   /** Whether there is no schema yet: the editor is empty and nothing is imported. */
+  /** What the language is, once the worker has said (it does not depend on a schema). */
+  private language: LanguageResponse | null = null;
+
+  /** The names that an `imports:` can take: the files of the page, the library of this machine and the gallery. */
+  private importable(): string[] {
+    const names = new Set<string>();
+    for (const path of this.files.keys()) names.add(path.replace(/\.ksy$/, ''));
+    for (const type of this.localTypes) names.add(type.id);
+    for (const format of this.gallery?.formats ?? []) names.add(format.id);
+    names.delete(this.schemaPath.replace(/\.ksy$/, ''));
+    return [...names].sort();
+  }
+
   private noSchema(): boolean {
     return this.mainText.trim() === '' && this.files.size === 0;
   }
