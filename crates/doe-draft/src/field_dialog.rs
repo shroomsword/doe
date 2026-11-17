@@ -261,6 +261,23 @@ pub fn kind_of(kind: &str, answers: &Answers) -> Result<Kind, String> {
     })
 }
 
+/// What a field's name is made from when it is proposed: `bits` for a bit field, the id of the type (lower case, letters,
+/// digits and `_`) for a type of the type paths, the kind itself otherwise.
+#[must_use]
+pub fn name_base(kind: &str, type_id: &str) -> String {
+    if bits_of(kind).is_some() {
+        "bits".to_owned()
+    } else if kind == TYPE_WORD {
+        type_id
+            .to_ascii_lowercase()
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect()
+    } else {
+        kind.to_owned()
+    }
+}
+
 /// A name for a field that nothing in the draft has yet: `u2_1`, `bytes_2`...
 #[must_use]
 pub fn propose_name(draft: &Draft, base: &str) -> String {

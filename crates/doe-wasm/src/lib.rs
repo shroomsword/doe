@@ -68,6 +68,14 @@ pub fn language() -> String {
     to_json(&api::language())
 }
 
+/// The schema builder as one call (`doe_draft::api`): the text of a schema that the builder wrote (or blank), one change to
+/// it and the bytes of the file go in; the new text and where each field is come out. The request is JSON,
+/// `{text, id?, files?, op?}`. Returns JSON: `{ok, buildable, text, error, layout, proposal}`.
+#[wasm_bindgen]
+pub fn draft(request: &str, bytes: &[u8]) -> String {
+    doe_draft::api::draft(request, bytes)
+}
+
 /// Compile the schema of `request` (JSON), parse the two files `a` and `b` with it and compare them by field
 /// (`compare` in [`api`]). Returns JSON: `{ok, id, diagnostics, error, a, b, ghosts, summary}`.
 #[wasm_bindgen]

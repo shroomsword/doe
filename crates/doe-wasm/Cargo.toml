@@ -14,6 +14,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 doe = { version = "0.7.0", path = "../doe", default-features = false }
+doe-draft = { version = "0.7.0", path = "../doe-draft" }
 serde = { workspace = true, features = ["std", "derive"] }
 serde_json = { workspace = true, features = ["std"] }
 # The version must be the one of the wasm-bindgen CLI that makes the glue (web/README.md).

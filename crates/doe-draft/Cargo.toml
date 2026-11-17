@@ -10,6 +10,11 @@ authors.workspace = true
 
 [dependencies]
 doe = { version = "0.7.0", path = "../doe", default-features = false }
+serde = { workspace = true, features = ["std", "derive"] }
+serde_json = { workspace = true, features = ["std"] }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+serde_json = { workspace = true, features = ["std"] }

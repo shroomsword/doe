@@ -1,6 +1,6 @@
 # The calls of doe-wasm
 
-Nine functions and one class, exported to JavaScript by `wasm-bindgen`. Requests and answers
+Ten functions and one class, exported to JavaScript by `wasm-bindgen`. Requests and answers
 are **JSON strings**, so the page, a worker and the tests all call them the same
 way. The Rust side is `src/api.rs`; the tests in `tests/api.rs` check every
 shape below.
@@ -10,6 +10,7 @@ check(request: string): string          // CheckResponse as JSON
 inspect(request: string): string        // InspectResponse as JSON: the schemas, the missing imports, the types
 parse(request: string, bytes: Uint8Array): string   // ParseResponse as JSON
 language(): string                       // LanguageResponse as JSON: the keys, the types and the values that a schema can have, for an editor to offer
+draft(request: string, bytes: Uint8Array): string   // DraftResponse as JSON: the schema builder, one change to a schema text against the bytes of a file
 compare(request: string, a: Uint8Array, b: Uint8Array): string   // CompareResponse as JSON: two files, parsed with the schema of the request and compared by field
 render(request: string, bytes: Uint8Array, format: string): string   // ExportResponse as JSON (`export` is a reserved word in JavaScript)
 signature(request: string): string      // SignatureResponse as JSON: what the schema's files start with, and its names
@@ -22,6 +23,34 @@ The class `Hasher` is the one thing here that is not JSON: a checksum that is fe
 size is hashed without a copy of it in WebAssembly memory. `new Hasher("md5")` (an error for a name that is not an
 algorithm), `update(bytes: Uint8Array)` for each piece, `finish(): string` for the lower case hex digits (empty if called
 again), and `free()` as for any class of `wasm-bindgen`. The Files view's checksum column is made with it in the worker.
+
+## `draft`
+
+The builder of the web IDE (the model is the crate `doe-draft`, which the terminal viewer's builder uses too). There is no
+state: the text is the schema.
+
+```jsonc
+{
+  "text": "",              // what the builder wrote, as it is in the editor; blank to begin
+  "id": "blip",            // the id of the schema when the text is blank
+  "files": { "pair.ksy": "..." },   // the schemas of the types it imports, by the name it imports them with
+  "op": { "op": "add", "kind": "u2", "name": "values", "repeat": "count" }   // none: only read the text
+}
+```
+
+`op` is one of: `add` (`at` a type id or none, `index` or the end, `name` or one is proposed, and the kind as a dialog
+collects it: `kind` (`u1`…`s8`, `f4`, `f8`, `bytes`, `str`, `strz`, `magic`, `b1`…`b64`, `type`), `length`, `encoding`,
+`magic` (bytes), `terminator`, `size`, `type_id`, `repeat` (a number, the name of an earlier integer field, or `eos`)),
+`remove` (`at`, `index`), `rename` (`at`, `index`, `to`), `retype` (`at`, `index`, and the kind), `endian` (`to`: `le` or
+`be`), `group` (`at`, `start`, `count`, `type_id`, `field_id`), `ungroup` (`at`, `start`), and `propose` (`selection`: how
+many bytes are selected, `kind`, `type_id`: what a dialog begins with).
+
+The answer: `ok` (the change was made, or none was asked and the file fits), `buildable` (the text is one that the builder
+wrote and can go on with; when it is not, `error` says which line is not, and the text is never rewritten), `text` (the new
+schema, or the one that was given when the change was refused), `error`, `layout` (`id`, `endian`, `imports`, and for the
+schema and each type its fields as `{id, kind, start_bit, end_bit}`) and `proposal` (`{kind, name}`, for `propose`). A change
+that would make the file not fit the schema is refused, as in the terminal; when the file did not fit already, a change is
+allowed (it is how to mend it).
 
 ## Request
 

@@ -612,3 +612,20 @@ fn the_language_names_the_keys_of_each_place_the_types_and_the_values() {
             .any(|p| p["name"] == "zlib")
     );
 }
+
+#[test]
+fn the_builder_is_one_call_over_the_text_of_the_schema() {
+    let request = json!({"text": "", "id": "t", "op": {"op": "add", "kind": "u1", "name": "a"}});
+    let answer: Value = serde_json::from_str(&doe_wasm::draft(&request.to_string(), &[7])).unwrap();
+    assert_eq!(answer["ok"], true, "{answer}");
+    assert_eq!(answer["buildable"], true);
+    assert_eq!(answer["layout"]["fields"][0]["id"], "a");
+    // the text it wrote is a schema that parses the file
+    let parsed: Value = serde_json::from_str(&doe_wasm::parse(
+        &json!({"schema": answer["text"]}).to_string(),
+        &[7],
+    ))
+    .unwrap();
+    assert_eq!(parsed["ok"], true, "{parsed}");
+    assert_eq!(parsed["value"]["a"], 7);
+}
