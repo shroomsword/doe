@@ -552,12 +552,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "doe-draft"
+version = "0.7.0"
+dependencies = [
+ "doe",
+]
+
+[[package]]
 name = "doe-tui"
 version = "0.7.0"
 dependencies = [
  "anyhow",
  "crossterm",
  "doe",
+ "doe-draft",
  "log",
  "pulldown-cmark",
  "ratatui",

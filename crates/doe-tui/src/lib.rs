@@ -18,7 +18,7 @@ pub mod checksums;
 pub mod clipboard;
 pub mod code;
 pub mod config_write;
-pub mod draft;
+pub use doe_draft::draft;
 pub mod field_dialog;
 pub mod files_view;
 pub mod format;
