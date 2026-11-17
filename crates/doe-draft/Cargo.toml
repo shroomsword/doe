@@ -1,0 +1,15 @@
+[package]
+name = "doe-draft"
+version = "0.7.0"
+description = "doe — the schema that the viewers build from the bytes of a file: its model, its edits and its YAML"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+doe = { version = "0.7.0", path = "../doe", default-features = false }
+
+[lints]
+workspace = true
