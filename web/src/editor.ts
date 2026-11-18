@@ -1,6 +1,7 @@
 // The editor of the schema: CodeMirror 6 with YAML, and the diagnostics of doe
 // underlined where they are in the text.
 
+import { isolateHistory } from '@codemirror/commands';
 import { yaml } from '@codemirror/lang-yaml';
 import { syntaxHighlighting } from '@codemirror/language';
 import { lintGutter, setDiagnostics } from '@codemirror/lint';
@@ -76,6 +77,11 @@ export class SchemaEditor {
 
   get text(): string {
     return this.view.state.doc.toString();
+  }
+
+  /** Replace the whole text as one edit of its own that the undo of the editor takes back by itself, not together with the one before. */
+  setTextAsOneEdit(text: string): void {
+    this.view.dispatch({ changes: { from: 0, to: this.view.state.doc.length, insert: text }, annotations: isolateHistory.of('full') });
   }
 
   /** Replace the whole text (the change listener is told, as for a typed change). */

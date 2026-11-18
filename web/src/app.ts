@@ -10,6 +10,7 @@ import { type Action, type Needs, KEYS, byteQuery, findPattern, isField, keyName
 import { PaneSearch, type SearchHandler } from './search.js';
 import { HexView, RemoteBytes } from './hex.js';
 import { type LibrariesEvent, type LocalApi, type LocalType, detectLocal } from './local.js';
+import { BuildMode } from './build.js';
 import { schemaHelp } from './editor-help.js';
 import { type Entry, type Ranking, TypeBrowser, galleryEntries, libraryEntries, openEntries } from './browse.js';
 import { type Path, byteRange, checkSize, describeRange, findByte, findNode, nodeAt, pathName, pathOfProblem } from './model.js';
@@ -191,6 +192,24 @@ export class App {
     });
     element<HTMLSelectElement>('radix').value = this.radixes.global;
     this.hex = new HexView(element('hex'), (byte) => this.pickByte(byte));
+    this.build = new BuildMode({
+      schemaText: () => this.mainText,
+      files: () => Object.fromEntries(this.files),
+      bytes: () => this.bytes,
+      editable: () => editable(this.mainOrigin, true),
+      typeIds: () => (this.found?.schemas ?? []).filter((info) => info.path !== this.schemaPath).flatMap((info) => info.types),
+      suggestedId: () => {
+        const stem = (this.inputName ?? '').replace(/\.[^.]*$/, '').toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
+        return /^[a-z]/.test(stem) ? stem.slice(0, 64) : undefined;
+      },
+      call: (request) => this.client.draft(request),
+      setSchema: (text) => {
+        if (this.active !== null) this.showFile(this.schemaPath);
+        this.editor.setTextAsOneEdit(text);
+      },
+      say: (text) => this.say(text),
+      showBytes: (range) => this.hex.setSelection(range ? { first: range.first, end: range.end, startBit: range.first * 8, endBit: range.end * 8 } : null),
+    });
     this.problems = new ProblemsView(element('problems'), (item) => this.pickProblem(item));
     this.wire();
     this.keys();
@@ -1132,6 +1151,7 @@ export class App {
     if (needs === 'parsed') return !element<HTMLButtonElement>('save').disabled;
     if (needs === 'filesystem') return this.archive.has;
     if (needs === 'comparing') return this.comparison !== null;
+    if (needs === 'building') return this.build.ready;
     return !element('cancel').hidden;
   }
 
@@ -1900,6 +1920,12 @@ export class App {
       case 'only-differences':
         this.toggleOnlyDifferences();
         break;
+      case 'build':
+        void this.build.toggle();
+        break;
+      case 'add-field':
+        this.build.openAdd();
+        break;
       case 'other-file':
         this.swapFiles();
         break;
@@ -2041,7 +2067,7 @@ export class App {
 
   /** The list of the keys, with the ones that need something that is not there marked. */
   private showKeys(): void {
-    const needs: Record<Needs, string> = { file: 'needs an open file', parsed: 'needs a parsed value', running: 'needs a parse that is running', filesystem: 'needs a file system (an archive) parsed', comparing: 'needs two files to compare (Compare with…)' };
+    const needs: Record<Needs, string> = { file: 'needs an open file', parsed: 'needs a parsed value', running: 'needs a parse that is running', filesystem: 'needs a file system (an archive) parsed', comparing: 'needs two files to compare (Compare with…)', building: 'needs build mode (B) on a schema that the builder wrote' };
     const rows = KEYS.map((entry) => {
       const missing = entry.needs && !this.available(entry.needs) ? needs[entry.needs] : '';
       const row = document.createElement('tr');
@@ -2452,6 +2478,7 @@ export class App {
   /** Run the schema on the input. Only the newest run shows its result. */
   private refresh(): void {
     const mine = ++this.generation;
+    void this.build.read();
     if (this.noSchema()) {
       this.refreshEmpty();
       return;
@@ -2569,6 +2596,9 @@ export class App {
     this.detectIfItFails = false;
   }
 
+  /** The builder of the schema from the bytes of the file. */
+  private readonly build: BuildMode;
+
   private selectionName = '';
 
   private select(path: Path | null, from: 'tree' | 'hex' | 'files' | 'none'): void {
@@ -2603,6 +2633,7 @@ export class App {
   }
 
   private pickByte(byte: number): void {
+    if (this.build.pick(byte)) return;
     if (!this.trace) return;
     this.select(findByte(this.trace, byte), 'hex');
   }

@@ -265,7 +265,65 @@ export interface LanguageResponse {
   values: Record<string, LanguageName[]>;
 }
 
+/** Where a field of the schema that is built is: bits from the start of the schema (or of its type). */
+export interface DraftSlot {
+  id: string;
+  kind: string;
+  start_bit: number;
+  end_bit: number;
+}
+
+/** The schema that the builder has: its fields and the types it defines. */
+export interface DraftLayout {
+  id: string;
+  endian: 'le' | 'be';
+  imports: string[];
+  fields: DraftSlot[];
+  types: { id: string; fields: DraftSlot[] }[];
+}
+
+/** What a dialog is asked for when a field is added or its kind changed. */
+export interface DraftKindSpec {
+  kind: string;
+  length?: number;
+  encoding?: string;
+  magic?: number[];
+  terminator?: number;
+  size?: number;
+  type_id?: string;
+  repeat?: string;
+}
+
+/** One change to the schema that is built (see `crates/doe-wasm/API.md`). */
+export type DraftOp =
+  | ({ op: 'add'; at?: string | null; index?: number; name?: string } & DraftKindSpec)
+  | { op: 'remove'; at?: string | null; index: number }
+  | { op: 'rename'; at?: string | null; index: number; to: string }
+  | ({ op: 'retype'; at?: string | null; index: number } & DraftKindSpec)
+  | { op: 'endian'; to: 'le' | 'be' }
+  | { op: 'group'; at?: string | null; start: number; count: number; type_id: string; field_id: string }
+  | { op: 'ungroup'; at?: string | null; start: number }
+  | { op: 'propose'; selection?: number | null; kind?: string; type_id?: string };
+
+export interface DraftRequest {
+  text: string;
+  id?: string;
+  files?: Record<string, string>;
+  op?: DraftOp;
+}
+
+export interface DraftResponse {
+  ok: boolean;
+  buildable: boolean;
+  text: string;
+  error: string | null;
+  layout: DraftLayout | null;
+  proposal: { kind: string; name: string } | null;
+}
+
 export interface Doe {
+  /** The schema builder: one change to the text of a schema, against the bytes of a file. */
+  draft(request: DraftRequest, bytes: Uint8Array): DraftResponse;
   version(): string;
   /** The language of a schema, as the compiler defines it. */
   language(): LanguageResponse;
@@ -294,6 +352,7 @@ export async function loadDoe(wasmUrl: URL | string): Promise<Doe> {
   return {
     version: () => wasm.version(),
     language: () => JSON.parse(wasm.language()) as LanguageResponse,
+    draft: (request, bytes) => JSON.parse(wasm.draft(JSON.stringify(request), bytes)) as DraftResponse,
     check: (request) => JSON.parse(wasm.check(JSON.stringify(request))) as CheckResponse,
     inspect: (request) => JSON.parse(wasm.inspect(JSON.stringify(request))) as InspectResponse,
     signature: (request) => JSON.parse(wasm.signature(JSON.stringify(request))) as SignatureResponse,

@@ -33,6 +33,7 @@
         <div class="pane-title">
           <h2 id="h-schema">Schema <small id="editing"></small></h2>
           <div class="pane-actions">
+            <button id="build-toggle" type="button" aria-pressed="false" title="Build the schema from the bytes of the open file: add fields with a dialog instead of typing YAML (B)">Build</button>
             <label class="button" title="Load a schema file into the editor as the main schema, replacing its text. Imports that were added stay.">Open<input id="open-schema" type="file" accept=".ksy,.yaml,.yml" /></label>
             <label class="button" title="Add the schema files that the main schema imports (imports:). They are found by name; the main schema is not changed. A dropped .ksy or .yaml file does the same.">Add imports<input id="add-files" type="file" accept=".ksy,.yaml,.yml" multiple /></label>
             <button id="browse" type="button" title="List the types that can be used, filter them, read one and parse with it">Browse...</button>
@@ -40,6 +41,22 @@
         </div>
         <div id="editor"></div>
         <p id="edit-note" hidden></p>
+        <div id="build-panel" hidden>
+          <div class="schemas-head">
+            <h3 id="h-build">Build</h3>
+            <span id="build-buttons" role="toolbar" aria-label="Change the schema that is built">
+              <button id="build-add" type="button" title="Add a field after the last one, from the next bytes of the file (A)">Add field…</button>
+              <button id="build-rename" type="button" title="Give the selected field another name (F2)">Rename…</button>
+              <button id="build-retype" type="button" title="Give the selected field another kind">Change kind…</button>
+              <button id="build-remove" type="button" title="Take the selected field out (Delete)">Remove</button>
+              <button id="build-group" type="button" title="Make the selected field and the ones after it a new type">Group…</button>
+              <button id="build-ungroup" type="button" title="Put the fields of the selected field's type back in its place">Take apart</button>
+              <button id="build-endian" type="button" title="Switch the byte order of the schema between little-endian and big-endian">Byte order</button>
+            </span>
+          </div>
+          <p id="build-state" role="status"></p>
+          <ul id="build-fields" role="listbox" tabindex="0" aria-labelledby="h-build"></ul>
+        </div>
         <div id="schemas-box">
           <div class="schemas-head">
             <h3 id="h-schemas">Schemas</h3>
@@ -172,6 +189,65 @@
       </div>
       <p class="note">Choose where the pane goes in the area above Status. The other panes fill the rest. Dragging the pane by its title bar to one of these places does the same.</p>
       <div id="dock-grid" role="group" aria-label="The eight places"></div>
+    </dialog>
+    <dialog id="build-dialog" aria-labelledby="build-title">
+      <div class="browse-bar">
+        <h3 id="build-title">Add a field</h3>
+        <button id="build-dialog-close" type="button">Close</button>
+      </div>
+      <form id="build-form" novalidate>
+        <div id="build-body">
+          <p id="build-where" class="note"></p>
+          <label>Kind
+            <select id="build-kind">
+              <optgroup label="Integers">
+                <option value="u1">u1 (unsigned, 1 byte)</option><option value="u2">u2 (unsigned, 2 bytes)</option><option value="u4">u4 (unsigned, 4 bytes)</option><option value="u8">u8 (unsigned, 8 bytes)</option>
+                <option value="s1">s1 (signed, 1 byte)</option><option value="s2">s2 (signed, 2 bytes)</option><option value="s4">s4 (signed, 4 bytes)</option><option value="s8">s8 (signed, 8 bytes)</option>
+              </optgroup>
+              <optgroup label="Floats"><option value="f4">f4 (4 bytes)</option><option value="f8">f8 (8 bytes)</option></optgroup>
+              <optgroup label="Bytes and text">
+                <option value="bytes">bytes (a length)</option><option value="str">str (text of a length)</option><option value="strz">strz (text up to a terminator)</option><option value="magic">magic (a signature the file must have)</option>
+              </optgroup>
+              <optgroup label="Other">
+                <option value="bits">bits (1 to 64 bits)</option><option value="type">type (of an imported schema)</option>
+              </optgroup>
+            </select>
+          </label>
+          <label data-for="bits" hidden>Bits <input id="build-bits" type="number" min="1" max="64" step="1" inputmode="numeric" /></label>
+          <label data-for="bytes str" hidden>Length in bytes <input id="build-length" type="number" min="1" step="1" inputmode="numeric" /></label>
+          <label data-for="str strz" hidden>Encoding <input id="build-encoding" type="text" value="ASCII" autocomplete="off" spellcheck="false" /></label>
+          <label data-for="strz" hidden>Terminator (a byte, in hex) <input id="build-terminator" type="text" value="00" autocomplete="off" spellcheck="false" /></label>
+          <label data-for="magic" hidden>Bytes of the signature (hex) <input id="build-magic" type="text" autocomplete="off" spellcheck="false" /></label>
+          <label data-for="type" hidden>Type <input id="build-type" type="text" list="build-types" autocomplete="off" spellcheck="false" /></label>
+          <datalist id="build-types"></datalist>
+          <label data-for="type" hidden>Size of the window it is read from, in bytes (empty: as much as it needs) <input id="build-size" type="number" min="1" step="1" inputmode="numeric" /></label>
+          <label data-for="not-magic not-bits">Repeat (a number, the name of an earlier number field, or eos; empty: once) <input id="build-repeat" type="text" autocomplete="off" spellcheck="false" /></label>
+          <label id="build-name-label">Name <input id="build-name" type="text" autocomplete="off" spellcheck="false" /></label>
+          <p id="build-error" role="alert" hidden></p>
+          <div class="columns-buttons">
+            <button type="submit" id="build-apply">Add</button>
+            <button type="button" id="build-cancel">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="build-ask-dialog" aria-labelledby="build-ask-title">
+      <div class="browse-bar">
+        <h3 id="build-ask-title"></h3>
+        <button id="build-ask-close" type="button">Close</button>
+      </div>
+      <form id="build-ask-form" novalidate>
+        <div id="build-ask-body">
+          <label id="build-ask-label-1"><span></span> <input id="build-ask-1" type="text" autocomplete="off" spellcheck="false" /></label>
+          <label id="build-ask-label-2"><span></span> <input id="build-ask-2" type="text" autocomplete="off" spellcheck="false" /></label>
+          <label id="build-ask-label-3"><span></span> <input id="build-ask-3" type="text" autocomplete="off" spellcheck="false" /></label>
+          <p id="build-ask-error" role="alert" hidden></p>
+          <div class="columns-buttons">
+            <button type="submit" id="build-ask-apply">Apply</button>
+            <button type="button" id="build-ask-cancel">Cancel</button>
+          </div>
+        </div>
+      </form>
     </dialog>
     <dialog id="columns-dialog" aria-labelledby="columns-title">
       <div class="browse-bar">

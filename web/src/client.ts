@@ -2,7 +2,7 @@
 // that takes longer than the limit, or that is cancelled, ends the worker and
 // starts a new one, which is the only way to stop WebAssembly that is running.
 
-import type { CheckResponse, CompareResponse, DetectSource, ExportFormat, ExportResponse, InspectResponse, LanguageResponse, OrderResponse, ParseResponse, Request, SignatureResponse } from './doe.js';
+import type { DraftRequest, DraftResponse, CheckResponse, CompareResponse, DetectSource, ExportFormat, ExportResponse, InspectResponse, LanguageResponse, OrderResponse, ParseResponse, Request, SignatureResponse } from './doe.js';
 
 export type ToWorker =
   | { op: 'init'; wasmUrl: string }
@@ -11,6 +11,7 @@ export type ToWorker =
   | { op: 'inspect'; id: number; request: Request }
   | { op: 'signature'; id: number; request: Request }
   | { op: 'language'; id: number }
+  | { op: 'draft'; id: number; request: DraftRequest }
   | { op: 'order'; id: number; sources: DetectSource[]; name: string | null; all: boolean }
   | { op: 'digest'; id: number; algorithm: string; ranges: [number, number][] }
   | { op: 'decode'; id: number; process: string; from: number }
@@ -24,6 +25,7 @@ export type FromWorker =
   | { op: 'inspected'; id: number; response: InspectResponse }
   | { op: 'signed'; id: number; response: SignatureResponse }
   | { op: 'languaged'; id: number; response: LanguageResponse }
+  | { op: 'drafted'; id: number; response: DraftResponse }
   | { op: 'ordered'; id: number; response: OrderResponse }
   | { op: 'digested'; id: number; digests: (string | null)[] }
   | { op: 'decoded'; id: number; bytes?: ArrayBuffer; error?: string }
@@ -152,6 +154,26 @@ export class DoeClient {
     });
   }
 
+  /**
+   * One change to the schema that is built, against the bytes of the input (as set with `setInput`). Like `digest`, it does
+   * not end the running call.
+   */
+  async draft(request: DraftRequest): Promise<DraftResponse> {
+    await this.start();
+    const worker = this.worker;
+    if (!worker) throw new CallEnded('failed', 'doe is not running');
+    if (!this.inputSent) {
+      const copy = this.input.slice().buffer;
+      worker.postMessage({ op: 'input', bytes: copy } satisfies ToWorker, [copy]);
+      this.inputSent = true;
+    }
+    const id = this.next++;
+    return new Promise<DraftResponse>((resolve, reject) => {
+      this.inspecting.set(id, { resolve, reject });
+      worker.postMessage({ op: 'draft', id, request } satisfies ToWorker);
+    });
+  }
+
   /** The signature of the type of a request. Like `inspect`, it does not end the running call. */
   async signature(request: Request): Promise<SignatureResponse> {
     await this.start();
@@ -270,7 +292,7 @@ export class DoeClient {
       else waiting?.resolve(new Uint8Array(message.bytes) as never);
       return;
     }
-    if (message.op === 'inspected' || message.op === 'languaged' || message.op === 'ordered' || message.op === 'signed') {
+    if (message.op === 'inspected' || message.op === 'languaged' || message.op === 'drafted' || message.op === 'ordered' || message.op === 'signed') {
       this.inspecting.get(message.id)?.resolve(message.response as never);
       this.inspecting.delete(message.id);
       return;
