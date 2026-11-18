@@ -3,7 +3,7 @@
 // the keys do. No DOM here, except where a function takes the target of an event.
 
 /** What a key needs before it does anything: a file to look at, a parsed value, or a parse that is running. */
-export type Needs = 'file' | 'parsed' | 'running' | 'filesystem' | 'comparing';
+export type Needs = 'file' | 'parsed' | 'running' | 'filesystem' | 'comparing' | 'building';
 
 export type Action =
   | 'help'
@@ -18,6 +18,8 @@ export type Action =
   | 'save'
   | 'copy-as'
   | 'follow'
+  | 'build'
+  | 'add-field'
   | 'next-difference'
   | 'previous-difference'
   | 'only-differences'
@@ -81,6 +83,8 @@ export const KEYS: readonly Key[] = [
   { key: 'd', action: 'detect', label: 'Detect the schema of the open file', needs: 'file' },
   { key: 's', action: 'save', label: 'Save the parsed value', needs: 'parsed' },
   { key: 'J', action: 'follow', label: 'Jump to what the selected field points at: the value its pos: places or its size: measures (a number that is an offset is a guess)', needs: 'parsed' },
+  { key: 'B', action: 'build', label: 'Build the schema from the bytes of the open file: a panel and dialogs add, rename, change, remove and group fields, and the text in the Schema pane is what they write', needs: 'file' },
+  { key: 'A', action: 'add-field', label: 'When building: add a field after the last one, from the next bytes of the file (click a byte after the last field first to say how many)', needs: 'building' },
   { key: '>', action: 'next-difference', label: 'When comparing two files: the next difference: in the Parsed pane the next field that differs, in the Bytes pane the next run of bytes that differ', needs: 'comparing' },
   { key: '<', action: 'previous-difference', label: 'When comparing two files: the previous difference', needs: 'comparing' },
   { key: '=', action: 'only-differences', label: 'When comparing two files: leave out the fields that are the same, or show them again', needs: 'comparing' },

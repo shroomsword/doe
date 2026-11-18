@@ -1241,6 +1241,8 @@ selected, does not close it).
 | `J` | Jump to what the selected field points at (the value its `pos:` places or its `size:` measures; a number that is an offset is a guess) |
 | `Alt+ArrowLeft` | Go back to where you were before the last jump |
 | `Alt+ArrowRight` | Go forward again after going back |
+| `B` | Build the schema from the bytes of the open file: a panel and dialogs add, rename, change, remove and group fields, and the text in the Schema pane is what they write |
+| `A` | When building: add a field after the last one, from the next bytes of the file (click a byte after the last field first to say how many) |
 | `>` | When comparing two files: the next difference: in the Parsed pane the next field that differs, in the Bytes pane the next run of bytes that differ |
 | `<` | When comparing two files: the previous difference |
 | `=` | When comparing two files: leave out the fields that are the same, or show them again |
@@ -1406,6 +1408,22 @@ contrast under 3:1), the theme's text colour. A byte that two fields hold takes
 the colour of the one of the sequence, then of an instance, like the next-field keys of the terminal viewer. `b`, or the
 button at the left of the columns button in the title bar of the Bytes pane, turns the colours off and on; it is kept in the
 browser's local storage. The index of which field owns which byte is made after the tree is shown.
+
+**Build** (in the Schema pane, or `B`) writes the schema from the bytes of the open file, with no YAML typed: the same
+builder as `doe --tui FILE --build OUT` (the rules are one implementation, in the `doe-draft` crate, with the same tests).
+A panel lists the fields that the schema has and where each one is (`0x4..0x6`, or the bits of a bit field). **Add field…**
+(`A`) opens a dialog for the kind (`u1`…`s8`, `f4`, `f8`, `bytes`, `str`, `strz`, `magic`, bits, or a type of an imported
+schema), what the kind needs (a length, an encoding, a terminator, the bytes of a signature, a size), how often it is
+repeated (a number, the name of an earlier number field, or `eos`) and a name that is proposed; the field is read from where
+the last one ends, and clicking a byte after it in the Bytes pane says how many bytes it has (the kind that fits is
+proposed). **Rename…** (`F2`), **Change kind…**, **Remove** (`Delete`), **Group…** (the selected field and the ones after it
+become a new type) and **Take apart** change the field that is selected in the list, and **Byte order** switches
+little-endian and big-endian. Every change is one edit of the text in the Schema pane: it is plain schema text that can be
+edited by hand at any time, and `Ctrl-Z` undoes a change as it undoes typing. The rules are the terminal's (a name that is
+taken, a repeat count that is not an earlier number, a field that the file is too short for): a change that is refused says
+why, in the dialog and in the status line, and leaves the text alone. The builder goes on only with text that it wrote (or an
+empty editor): for any other text the panel says which line it does not understand, and rewrites nothing. A file that
+`doe --ide` reads on this machine cannot be built on in the page; open it in the page, or use `doe --tui --build`.
 
 **Compare with…** (in the Parsed pane) asks for a second file and parses it with the schema of the first, in the page: neither
 file is uploaded, and both are in memory, so each is as big as a file the page can parse (a file that the server of `doe --ide` reads
