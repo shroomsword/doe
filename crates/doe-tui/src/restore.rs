@@ -114,6 +114,31 @@ pub struct Record {
     pub radixes: Vec<RadixRecord>,
 }
 
+/// The fields chosen to match the elements of the lists of a schema, in a comparison.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+struct KeysRecord {
+    version: u32,
+    key: String,
+    keys: std::collections::BTreeMap<String, String>,
+}
+
+/// What names the keys of a schema: the schema as it was asked for and the type, not the file (the same schema matches the
+/// lists of any two files the same way).
+#[must_use]
+pub fn keys_key_of(schema: &str, type_name: &str) -> String {
+    let (named, wanted) = doe::split_type_arg(schema);
+    let schema = if doe::is_schema_path(named) {
+        let path = fs::canonicalize(named).unwrap_or_else(|_| PathBuf::from(named));
+        match wanted {
+            Some(wanted) => format!("{}::{wanted}", path.display()),
+            None => path.display().to_string(),
+        }
+    } else {
+        schema.to_owned()
+    };
+    format!("compare-keys\nschema={schema}\ntype={type_name}")
+}
+
 /// What names a record: the file, the schema as it was asked for and the type that was parsed.
 #[must_use]
 pub fn key_of(file: &Path, schema: &str, type_name: &str) -> String {
@@ -192,6 +217,55 @@ impl Store {
             return;
         }
         self.prune();
+    }
+
+    /// The fields that were chosen to match the elements of the lists of a schema (`key` is [`keys_key_of`]), by the name
+    /// of the list.
+    #[must_use]
+    pub fn read_keys(&self, key: &str) -> Vec<(String, String)> {
+        let path = self.dir.join(name_of(key));
+        let Ok(mut file) = fs::File::open(path) else {
+            return Vec::new();
+        };
+        let mut text = String::new();
+        if file.metadata().map_or(true, |m| m.len() > MAX_READ_BYTES)
+            || file.read_to_string(&mut text).is_err()
+        {
+            return Vec::new();
+        }
+        match toml::from_str::<KeysRecord>(&text) {
+            Ok(record) if record.version == VERSION && record.key == key => {
+                record.keys.into_iter().collect()
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Keep the fields chosen for the lists of a schema; nothing is reported if it cannot be done. No choice removes the
+    /// record.
+    pub fn write_keys(&self, key: &str, keys: &[(String, String)]) {
+        let name = name_of(key);
+        if keys.is_empty() {
+            let _ = fs::remove_file(self.dir.join(&name));
+            return;
+        }
+        let record = KeysRecord {
+            version: VERSION,
+            key: key.to_owned(),
+            keys: keys.iter().cloned().collect(),
+        };
+        let Ok(text) = toml::to_string(&record) else {
+            return;
+        };
+        if text.len() > MAX_RECORD_BYTES || self.make_dir().is_err() {
+            return;
+        }
+        let temporary = self.dir.join(format!(".{name}.tmp"));
+        if write_private(&temporary, text.as_bytes()).is_err()
+            || fs::rename(&temporary, self.dir.join(&name)).is_err()
+        {
+            let _ = fs::remove_file(&temporary);
+        }
     }
 
     fn make_dir(&self) -> std::io::Result<()> {

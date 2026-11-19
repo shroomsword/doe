@@ -153,6 +153,8 @@ pub enum Action {
     OtherFile,
     /// In a comparison: the two trees side by side, or the tree of the first file with marks.
     CompareView,
+    /// In a comparison: choose the field that matches the elements of the selected list.
+    MatchBy,
 }
 
 /// Where a binding applies.
@@ -406,6 +408,12 @@ pub const BINDINGS: &[Binding] = &[
         scope: Scope::Anywhere,
         action: Action::CompareView,
         help: "when comparing two files: the two trees side by side, or the tree of the first file with marks and what only the second has",
+    },
+    Binding {
+        keys: &[ch('#')],
+        scope: Scope::Anywhere,
+        action: Action::MatchBy,
+        help: "when comparing two files: match the elements of the selected list by one of their fields (a name, an id) instead of by index, so that an element that was inserted, removed or moved is one difference or none; empty goes back to the index",
     },
     Binding {
         keys: &[ch('K')],

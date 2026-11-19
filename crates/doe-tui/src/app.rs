@@ -226,6 +226,11 @@ pub struct App {
     pub hits: crate::mouse::Hits,
     /// A second file that the first is compared with (`--compare`).
     pub compare: Option<compare::Compared>,
+    /// The field that matches the elements of each list in the comparison, as chosen with `#` or `--compare-by`, or kept
+    /// from an earlier time (the key of the schema is the default).
+    pub compare_keys: doe::compare::Keys,
+    /// The list that `#` is asking the field of.
+    match_list: Option<doe::compare::ListInfo>,
     /// Whether the row of keys under the panes is shown (`K` switches it).
     pub footer_on: bool,
     /// Whether the viewer takes the mouse now (`z` switches it).
@@ -443,6 +448,8 @@ impl App {
             fix: None,
             hits: crate::mouse::Hits::default(),
             compare: None,
+            compare_keys: doe::compare::Keys::new(),
+            match_list: None,
             footer_on: true,
             mouse_on: false,
             mouse_refused: false,
@@ -548,6 +555,8 @@ impl App {
             fix: None,
             hits: crate::mouse::Hits::default(),
             compare: None,
+            compare_keys: doe::compare::Keys::new(),
+            match_list: None,
             footer_on: true,
             mouse_on: false,
             mouse_refused: false,
@@ -621,6 +630,8 @@ impl App {
             fix: None,
             hits: crate::mouse::Hits::default(),
             compare: None,
+            compare_keys: doe::compare::Keys::new(),
+            match_list: None,
             footer_on: true,
             mouse_on: false,
             mouse_refused: false,
@@ -2095,6 +2106,7 @@ impl App {
                     Kind::Goto => self.goto(prompt.line.text()),
                     Kind::SaveEntry => self.save_entry(prompt.line.text()),
                     Kind::TypeName => self.type_name_answered(prompt.line.text()),
+                    Kind::MatchKey => self.match_key_answered(prompt.line.text()),
                     field => self.field_step(field, prompt.line.text()),
                 }
             }
@@ -2404,6 +2416,7 @@ impl App {
             Action::PreviousDifference => self.go_to_difference(false),
             Action::OnlyDifferences => self.toggle_only_differences(),
             Action::OtherFile => self.toggle_other_file(),
+            Action::MatchBy => self.ask_match_key(),
             Action::CompareView => self.toggle_compare_view(),
             Action::ToggleFooter => {
                 self.footer_on = !self.footer_on;
@@ -3359,7 +3372,7 @@ impl App {
                 }
                 return;
             }
-            Kind::Search | Kind::Goto | Kind::SaveEntry | Kind::TypeName => return,
+            Kind::Search | Kind::Goto | Kind::SaveEntry | Kind::TypeName | Kind::MatchKey => return,
         }
         self.continue_field(dialog, step);
     }

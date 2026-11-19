@@ -35,6 +35,8 @@ pub enum Kind {
     TypeName,
     /// The file to save the entry of an archive that is previewed to.
     SaveEntry,
+    /// The field that matches the elements of a list in a comparison.
+    MatchKey,
 }
 
 impl Kind {
@@ -58,6 +60,7 @@ impl Kind {
             Kind::FieldName => "field name: ",
             Kind::TypeName => "name of the new type: ",
             Kind::SaveEntry => "save the entry as (a file that is not there yet): ",
+            Kind::MatchKey => "match the elements by the field (Enter with nothing: by index): ",
         }
     }
 }

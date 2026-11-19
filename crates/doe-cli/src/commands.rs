@@ -313,6 +313,7 @@ fn tui(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         compare: match &cli.compare {
             Some(file) => Some(doe_tui::Comparing {
                 file: file.clone(),
+                by: cli.compare_by.clone(),
                 side_by_side: match cli.compare_view {
                     Some(view) => view,
                     None => config
