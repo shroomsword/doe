@@ -239,6 +239,7 @@ impl Compiler {
             },
         )?;
 
+        self.check_compare_by()?;
         self.link_parent_instances();
         self.measure_types();
         self.forget_instances_used_for_fixed_sizes();
@@ -251,6 +252,53 @@ impl Compiler {
             .as_deref()
             .map_or_else(|| "<in-memory>".to_owned(), |p| p.display().to_string());
         self.source_paths.insert(schema.id.clone(), source);
+        Ok(())
+    }
+
+    /// Every `compare-by:` names a field that the elements of the repeated field have, and that can tell them apart: an
+    /// integer, a string or bytes.
+    fn check_compare_by(&self) -> Result<()> {
+        for (name, ty) in &self.registry.types {
+            for field in all_fields(ty) {
+                let Some(key) = &field.compare_by else {
+                    continue;
+                };
+                let bad = |message: String| DoeError::FieldError {
+                    field: field.id.clone(),
+                    context: name.clone(),
+                    message,
+                };
+                let targets = kind_targets(&field.kind);
+                if targets.is_empty() {
+                    return Err(bad(format!(
+                        "'compare-by: {key}': the elements of a field are told apart by a field of their type, and this field has no type of the schema"
+                    )));
+                }
+                for target in targets {
+                    let Some(element) = self.registry.types.get(target) else {
+                        continue;
+                    };
+                    let Some(found) = all_fields(element).find(|f| &f.id == key) else {
+                        return Err(bad(format!(
+                            "'compare-by: {key}': the type {target} has no field {key}"
+                        )));
+                    };
+                    if !matches!(
+                        found.kind,
+                        FieldKind::UInt { .. }
+                            | FieldKind::SInt { .. }
+                            | FieldKind::Str { .. }
+                            | FieldKind::Bytes { .. }
+                            | FieldKind::BytesCut { .. }
+                    ) || !matches!(found.repeat, RepeatMode::Once)
+                    {
+                        return Err(bad(format!(
+                            "'compare-by: {key}': {key} of {target} is not an integer, a string or bytes read once, which are what can tell elements apart"
+                        )));
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
@@ -754,6 +802,7 @@ impl Compiler {
             .map(|p| compile_expr(&p.as_str(), ctx))
             .transpose()?;
         let points_to = compile_points_to(raw.points_to.as_deref(), &raw.id, ctx)?;
+        let compare_by = compile_compare_by(raw, &repeat, ctx)?;
 
         // Validate enum reference if present
         if let Some(enum_name) = &raw.enum_ref
@@ -774,6 +823,7 @@ impl Compiler {
             if_expr,
             pos,
             points_to,
+            compare_by,
             enum_ref: raw.enum_ref.clone(),
             uses_instances: Vec::new(),
             reads_itself: false,
@@ -1342,6 +1392,34 @@ fn type_exprs(ty: &CompiledType) -> Vec<&expr::Expr> {
         exprs.extend(switch.cases.iter().map(|(key, _)| key));
     }
     exprs
+}
+
+/// What a `compare-by:` names: a field of the elements of a repeated field. Whether the elements have it is checked
+/// when the types are all there ([`Compiler::check_compare_by`]).
+fn compile_compare_by(
+    raw: &RawField,
+    repeat: &RepeatMode,
+    ctx: &FieldCtx<'_>,
+) -> Result<Option<String>> {
+    let Some(name) = raw.compare_by.as_deref() else {
+        return Ok(None);
+    };
+    let bad = |message: String| DoeError::FieldError {
+        field: raw.id.clone(),
+        context: ctx.parent_fqn.to_owned(),
+        message,
+    };
+    if matches!(repeat, RepeatMode::Once) {
+        return Err(bad(
+            "'compare-by' is for a repeated field: it says which field of the elements tells them apart".to_owned(),
+        ));
+    }
+    if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return Err(bad(format!(
+            "'compare-by' names one field of the elements, and '{name}' is not the name of one"
+        )));
+    }
+    Ok(Some(name.to_owned()))
 }
 
 /// The paths of the fields the expressions refer to (`_parent.x.y`).

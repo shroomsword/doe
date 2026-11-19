@@ -125,7 +125,13 @@ what the library reads.
 
 Both files are parsed with the schema of the request (each in memory, so each is as big as a `parse` takes) and compared
 by **field path**: a field is the same field in both files wherever it is, a list is compared element by element
-(`[i]` with `[i]`), and the length of a list is a difference.
+(`[i]` with `[i]`), and the length of a list is a difference. A list can be matched **by a key** instead: a field of its
+elements, given by the schema (`compare-by: id` on the repeated field) or by the request (`"compare_keys": {"entries":
+"name"}`, the name of the list from the root with dots, indexes left out, and the field; it beats the schema's). The
+elements that have the same key are the same element wherever they are: one that only a file has is a difference
+(`only`), one that moved is not, and the length of such a list is not a difference of its own. A key that cannot be used
+(repeated in a file, an element without the field, not a number, a string or bytes, a list of more than 5 million
+elements) falls back to the index for that list, and `notes` says why.
 
 ```jsonc
 {
@@ -143,11 +149,17 @@ by **field path**: a field is the same field in both files wherever it is, a lis
     { "parent": [1], "name": "[1]", "b_path": [1, 1], "summary": null }
                              // "parent" and "b_path" are indexes of children from the root of A and of B
   ],
-  "summary": { "fields_a": 9, "fields_b": 9, "changed": 1, "only_a": 0, "only_b": 0, "identical": false }
+  "summary": { "fields_a": 9, "fields_b": 9, "changed": 1, "only_a": 0, "only_b": 0, "identical": false },
+  "notes": [ "entries: matched by index, not by name: in A, \"a.txt\" is the name of more than one element" ],
+  "lists": [                 // the lists of the first file whose elements are structs: for a viewer that offers a key
+    { "path": [0], "name": "entries", "len": 3, "candidates": ["id", "name"], "schema_key": null }
+                             // "candidates": the fields (numbers, strings or bytes) that are all different, none for a
+                             // list of more than 200 000 elements; "schema_key": the schema's compare-by:
+  ]
 }
 ```
 
-`diff` of a node is `"changed"` (its value differs; for a container: its type, or the length of a list),
+A node of a list that was matched by a key has `matched_by`: the field. `diff` of a node is `"changed"` (its value differs; for a container: its type, or the length of a list),
 `"inside"` (it is equal in itself and something below it differs; `diff_below` is how many) or `"only"` (the other file
 has nothing like it); it is `null` for a node that is the same. A field that moved because an earlier one grew is the
 same field and is not marked.

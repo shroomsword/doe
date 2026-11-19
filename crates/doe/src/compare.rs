@@ -5,12 +5,18 @@
 //! not a difference, wherever it is. The elements of a list are matched by index (`[i]` with `[i]`): the elements that
 //! only the longer list has are differences, and so is the length of the list.
 //!
+//! A list can instead be matched **by a key**: a field of its elements (`compare-by:` in the schema, or a [`Keys`]
+//! that a viewer chose). The elements that have the same key are the same element, wherever they are; an element
+//! that only one file has is a difference, an element that moved is not, and the length of such a list is not a
+//! difference of its own. A key that cannot be used (not unique, missing, not a number, a string or bytes) falls back
+//! to the index, and [`Comparison::notes`] says why.
+//!
 //! The result is for both sides, so that a viewer can draw the tree of one file with marks, or the two trees side by
 //! side: each side has the marks of its own nodes; what only the other file has is a [`Ghost`] under the parent that
 //! would hold it. The bytes that differ are marked **by matched field** (a field with spans of the same length: the
 //! bytes that differ; of different lengths: the whole span), never by offset.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::parser::trace::TraceNode;
 use crate::value::Value;
@@ -53,6 +59,129 @@ impl std::str::FromStr for View {
     }
 }
 
+/// The most elements of a list that are matched by a key; a longer list is matched by index (a map of the keys of
+/// millions of elements is what a page cannot always hold).
+pub const MAX_KEYED: usize = 5_000_000;
+
+/// The field that a viewer chose to match the elements of a list by, for each list: the name of the list as its names
+/// from the root (`header.entries`; the indexes of the elements in between are left out) and the name of the field.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Keys {
+    by_list: BTreeMap<String, String>,
+}
+
+impl Keys {
+    /// No list has a key chosen.
+    #[must_use]
+    pub fn new() -> Keys {
+        Keys::default()
+    }
+
+    /// Match the elements of `list` by `field`.
+    pub fn set(&mut self, list: &str, field: &str) {
+        self.by_list.insert(list.to_owned(), field.to_owned());
+    }
+
+    /// Go back to the index (or the schema's key) for `list`.
+    pub fn clear(&mut self, list: &str) {
+        self.by_list.remove(list);
+    }
+
+    /// The field chosen for `list`.
+    #[must_use]
+    pub fn get(&self, list: &str) -> Option<&str> {
+        self.by_list.get(list).map(String::as_str)
+    }
+
+    /// Whether no list has a key chosen.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.by_list.is_empty()
+    }
+}
+
+/// What tells an element from the others: a number, a string or bytes (a number of one kind is not a string).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum KeyValue {
+    Unsigned(u64),
+    Signed(i64),
+    Text(String),
+    Bytes(Vec<u8>),
+}
+
+impl KeyValue {
+    fn of(value: &Value) -> Option<KeyValue> {
+        match strip(value) {
+            Value::UInt(n) => Some(KeyValue::Unsigned(*n)),
+            Value::SInt(n) => Some(KeyValue::Signed(*n)),
+            Value::Str(text) => Some(KeyValue::Text(text.clone())),
+            Value::Bytes(bytes) => Some(KeyValue::Bytes(bytes.clone())),
+            _ => None,
+        }
+    }
+
+    /// How a key is written in a note.
+    fn describe(&self) -> String {
+        match self {
+            KeyValue::Unsigned(n) => n.to_string(),
+            KeyValue::Signed(n) => n.to_string(),
+            KeyValue::Text(text) => format!("{text:?}"),
+            KeyValue::Bytes(bytes) => bytes
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<Vec<_>>()
+                .join(" "),
+        }
+    }
+}
+
+/// The key of every element of a list, in order, or why the list cannot be matched by `field`.
+fn keys_of(items: &[Value], field: &str) -> Result<Vec<KeyValue>, String> {
+    let mut out = Vec::with_capacity(items.len());
+    for (index, item) in items.iter().enumerate() {
+        let Value::Struct { fields, .. } = strip(item) else {
+            return Err(format!("element {index} is not a struct with fields"));
+        };
+        let Some((_, value)) = fields.iter().find(|(name, _)| name == field) else {
+            return Err(format!("element {index} has no field {field}"));
+        };
+        let Some(key) = KeyValue::of(value) else {
+            return Err(format!(
+                "{field} of element {index} is not a number, a string or bytes"
+            ));
+        };
+        out.push(key);
+    }
+    Ok(out)
+}
+
+/// The key that repeats in `keys`, if one does.
+fn repeated(keys: &[KeyValue]) -> Option<&KeyValue> {
+    let mut seen: HashSet<&KeyValue> = HashSet::with_capacity(keys.len());
+    keys.iter().find(|key| !seen.insert(key))
+}
+
+/// The fields of the elements of a list that can match them: numbers, strings or bytes that every element has and
+/// that are all different, in the order of the fields. Empty for something that is not a list of structs.
+#[must_use]
+pub fn key_candidates(value: Option<&Value>) -> Vec<String> {
+    let Some(Value::Array(items)) = value.map(strip) else {
+        return Vec::new();
+    };
+    if items.len() > MAX_KEYED {
+        return Vec::new();
+    }
+    let Some(Value::Struct { fields, .. }) = items.first().map(strip) else {
+        return Vec::new();
+    };
+    fields
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .filter(|name| keys_of(items, name).is_ok_and(|keys| repeated(&keys).is_none()))
+        .map(str::to_owned)
+        .collect()
+}
+
 /// How many bytes of a long value are read at a time.
 const CHUNK: usize = 64 * 1024;
 
@@ -76,6 +205,8 @@ pub struct Side {
     pub below: HashMap<Vec<usize>, usize>,
     /// The bytes that differ, as ranges `[first, end)` of byte offsets in this file, sorted and not overlapping.
     pub bytes: Vec<(u64, u64)>,
+    /// The lists whose elements were matched by a key, by path, and the field that was the key.
+    pub keyed: HashMap<Vec<usize>, String>,
 }
 
 /// A field or element that only the other file (B) has.
@@ -127,6 +258,8 @@ pub struct Comparison {
     pub ghosts: HashMap<Vec<usize>, Vec<Ghost>>,
     /// The counts.
     pub summary: Summary,
+    /// What a viewer should say: a list that a key was asked for and could not match, and why (it was matched by index).
+    pub notes: Vec<String>,
 }
 
 /// A parse, and a way to read bytes of the file it was made from.
@@ -148,12 +281,22 @@ impl std::fmt::Debug for Input<'_> {
     }
 }
 
-/// Compare two parses of the same schema.
+/// Compare two parses of the same schema. The lists that the schema gives a key (`compare-by:`) are matched by it, the
+/// others by index.
 #[must_use]
 pub fn compare(a: &Input<'_>, b: &Input<'_>) -> Comparison {
+    compare_with(a, b, &Keys::default())
+}
+
+/// Compare two parses of the same schema, matching the lists that `keys` has a field for by it (before the key of the
+/// schema), and the others by index.
+#[must_use]
+pub fn compare_with(a: &Input<'_>, b: &Input<'_>, keys: &Keys) -> Comparison {
     let mut walker = Walker {
         a,
         b,
+        keys,
+        names: Vec::new(),
         out: Comparison::default(),
         pa: Vec::new(),
         pb: Vec::new(),
@@ -210,6 +353,9 @@ fn count_below(node: &TraceNode) -> usize {
 struct Walker<'a, 'b> {
     a: &'b Input<'a>,
     b: &'b Input<'a>,
+    keys: &'b Keys,
+    /// The names from the root to the node that is being compared, without the indexes of elements.
+    names: Vec<String>,
     out: Comparison,
     pa: Vec<usize>,
     pb: Vec<usize>,
@@ -256,10 +402,20 @@ impl Walker<'_, '_> {
         vb: Option<&Value>,
     ) -> usize {
         let (a_list, b_list) = (is_list(a, va), is_list(b, vb));
+        // the elements that a key pairs: for each element of A, the index of its partner in B
+        let paired = if a_list && b_list {
+            self.pair_by_key(a, va, b, vb)
+        } else {
+            None
+        };
         let self_changed = a.type_name != b.type_name
             || a_list != b_list
-            || (a_list && a.children.len() != b.children.len())
+            || (a_list && paired.is_none() && a.children.len() != b.children.len())
             || a.failed != b.failed;
+        if let Some((_, field)) = &paired {
+            self.out.a.keyed.insert(self.pa.clone(), field.clone());
+            self.out.b.keyed.insert(self.pb.clone(), field.clone());
+        }
         // lists are matched by index, the rest by name
         let by_name: Option<HashMap<&str, usize>> = if a_list && b_list {
             None
@@ -275,9 +431,10 @@ impl Walker<'_, '_> {
         let mut matched = vec![false; b.children.len()];
         let mut below = 0;
         for (ia, ca) in a.children.iter().enumerate() {
-            let ib = match &by_name {
-                Some(names) => names.get(ca.name.as_str()).copied(),
-                None => (ia < b.children.len()).then_some(ia),
+            let ib = match (&paired, &by_name) {
+                (Some((partners, _)), _) => partners.get(ia).copied().flatten(),
+                (None, Some(names)) => names.get(ca.name.as_str()).copied(),
+                (None, None) => (ia < b.children.len()).then_some(ia),
             };
             let Some((ib, cb)) = ib.and_then(|i| b.children.get(i).map(|c| (i, c))) else {
                 self.pa.push(ia);
@@ -293,12 +450,19 @@ impl Walker<'_, '_> {
             }
             self.pa.push(ia);
             self.pb.push(ib);
+            let named = !ca.name.starts_with('[');
+            if named {
+                self.names.push(ca.name.clone());
+            }
             below += self.walk(
                 ca,
                 child_value(va, &ca.name, ia),
                 cb,
                 child_value(vb, &cb.name, ib),
             );
+            if named {
+                self.names.pop();
+            }
             self.pa.pop();
             self.pb.pop();
         }
@@ -332,6 +496,78 @@ impl Walker<'_, '_> {
             self.out.b.below.insert(self.pb.clone(), below);
         }
         below + usize::from(self_changed)
+    }
+
+    /// The name of the list that is being compared, from the root: `header.entries`.
+    fn list_name(&self) -> String {
+        self.names.join(".")
+    }
+
+    /// The field to match the elements of this list by: the one a viewer chose, or the schema's.
+    fn key_field(&self, a: &TraceNode, b: &TraceNode) -> Option<String> {
+        self.keys
+            .get(&self.list_name())
+            .map(str::to_owned)
+            .or_else(|| a.compare_by.clone())
+            .or_else(|| b.compare_by.clone())
+    }
+
+    /// Pair the elements of the two lists by the key, if there is one and it can be used: for each element of A, the
+    /// index of the element of B that has the same key, and the field. Why a key could not be used is a note, and the
+    /// elements are matched by index.
+    fn pair_by_key(
+        &mut self,
+        a: &TraceNode,
+        va: Option<&Value>,
+        b: &TraceNode,
+        vb: Option<&Value>,
+    ) -> Option<(Vec<Option<usize>>, String)> {
+        let field = self.key_field(a, b)?;
+        let list = self.list_name();
+        let mut fall_back = |why: String| {
+            self.out
+                .notes
+                .push(format!("{list}: matched by index, not by {field}: {why}"));
+            None
+        };
+        if a.children.len() > MAX_KEYED || b.children.len() > MAX_KEYED {
+            return fall_back(format!("the list has more than {MAX_KEYED} elements"));
+        }
+        let (Some(Value::Array(items_a)), Some(Value::Array(items_b))) =
+            (va.map(strip), vb.map(strip))
+        else {
+            return fall_back("the values of the elements were not kept".to_owned());
+        };
+        if items_a.len() != a.children.len() || items_b.len() != b.children.len() {
+            return fall_back("the elements are not all in the parse".to_owned());
+        }
+        let keys_a = match keys_of(items_a, &field) {
+            Ok(keys) => keys,
+            Err(why) => return fall_back(format!("in A, {why}")),
+        };
+        let keys_b = match keys_of(items_b, &field) {
+            Ok(keys) => keys,
+            Err(why) => return fall_back(format!("in B, {why}")),
+        };
+        if let Some(key) = repeated(&keys_a) {
+            return fall_back(format!(
+                "in A, {} is the {field} of more than one element",
+                key.describe()
+            ));
+        }
+        if let Some(key) = repeated(&keys_b) {
+            return fall_back(format!(
+                "in B, {} is the {field} of more than one element",
+                key.describe()
+            ));
+        }
+        let positions: HashMap<&KeyValue, usize> =
+            keys_b.iter().enumerate().map(|(i, k)| (k, i)).collect();
+        let partners = keys_a
+            .iter()
+            .map(|key| positions.get(key).copied())
+            .collect();
+        Some((partners, field))
     }
 
     fn mark_changed(&mut self) {
@@ -496,4 +732,82 @@ fn byte_span(node: &TraceNode) -> Option<(u64, u64)> {
     }
     let span = node.span?;
     (span.end > span.start).then(|| (span.start_byte(), span.end_byte()))
+}
+
+/// A list of the first file, for a viewer that offers a field to match its elements by.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ListInfo {
+    /// Its path in the tree of the first file.
+    pub path: Vec<usize>,
+    /// Its name from the root, as [`Keys`] names it (`header.entries`).
+    pub name: String,
+    /// How many elements it has.
+    pub len: usize,
+    /// The fields that could match its elements ([`key_candidates`]); none for a list longer than
+    /// [`MAX_CANDIDATES`] elements, which a viewer is asked a field for by name.
+    pub candidates: Vec<String>,
+    /// The field the schema gives (`compare-by:`).
+    pub schema_key: Option<String>,
+}
+
+/// The longest list that is looked through for the fields that could match its elements.
+pub const MAX_CANDIDATES: usize = 200_000;
+
+/// The lists of a parse that have elements which are structs, with the fields that could match them. A list inside the
+/// elements of another is named once, from the first element.
+#[must_use]
+pub fn lists(input: &Input<'_>) -> Vec<ListInfo> {
+    let mut out = Vec::new();
+    collect_lists(
+        input.trace,
+        input.value,
+        &mut Vec::new(),
+        &mut Vec::new(),
+        &mut out,
+    );
+    out
+}
+
+fn collect_lists(
+    node: &TraceNode,
+    value: Option<&Value>,
+    path: &mut Vec<usize>,
+    names: &mut Vec<String>,
+    out: &mut Vec<ListInfo>,
+) {
+    let list = is_list(node, value);
+    if list && !node.children.is_empty() {
+        let candidates = if node.children.len() <= MAX_CANDIDATES {
+            key_candidates(value)
+        } else {
+            Vec::new()
+        };
+        out.push(ListInfo {
+            path: path.clone(),
+            name: names.join("."),
+            len: node.children.len(),
+            candidates,
+            schema_key: node.compare_by.clone(),
+        });
+    }
+    // a list inside the elements of a list is found in the first element only
+    let take = if list { 1 } else { node.children.len() };
+    for (index, child) in node.children.iter().enumerate().take(take) {
+        let is_field = !child.name.starts_with('[');
+        path.push(index);
+        if is_field {
+            names.push(child.name.clone());
+        }
+        collect_lists(
+            child,
+            child_value(value, &child.name, index),
+            path,
+            names,
+            out,
+        );
+        if is_field {
+            names.pop();
+        }
+        path.pop();
+    }
 }

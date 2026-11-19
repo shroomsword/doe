@@ -445,6 +445,7 @@ impl<'reg> Engine<'reg> {
                 trace.begin(&field.id, start_bits);
                 trace.decided_by(Self::decided_by(field));
                 trace.points_to(&field.points_to);
+                trace.compare_by(field.compare_by.as_deref());
                 depth
             });
             let value = match self.parse_field(field, ty, cursor, ctx) {
@@ -1494,6 +1495,7 @@ impl<'reg> Engine<'reg> {
                 InstanceKind::Read(field) => {
                     trace.decided_by(Self::decided_by(field));
                     trace.points_to(&field.points_to);
+                    trace.compare_by(field.compare_by.as_deref());
                 }
                 InstanceKind::Value { .. } => trace.points_to(&instance.points_to),
             }

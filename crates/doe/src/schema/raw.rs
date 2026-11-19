@@ -523,6 +523,12 @@ pub struct RawField {
     #[serde(rename = "points-to", default)]
     pub points_to: Option<String>,
 
+    /// The field of the elements of this repeated field that says which element is which (`compare-by: name`): a
+    /// comparison of two files pairs the elements that have the same value of it, whatever their places. It is
+    /// for a field that is repeated, of a type that has the field.
+    #[serde(rename = "compare-by", default)]
+    pub compare_by: Option<String>,
+
     /// What the value read may be; the parse fails if it is anything else. A
     /// bare value stands for `eq`.
     #[serde(default)]
@@ -753,6 +759,10 @@ pub struct RawInstance {
     #[serde(rename = "points-to", default)]
     pub points_to: Option<String>,
 
+    /// As on a field: the field of the elements of a repeated instance that says which element is which.
+    #[serde(rename = "compare-by", default)]
+    pub compare_by: Option<String>,
+
     /// What the value read may be; the parse fails if it is anything else. A
     /// bare value stands for `eq`.
     #[serde(default)]
@@ -802,6 +812,7 @@ impl RawInstance {
             if_expr: self.if_expr.clone(),
             pos: self.pos.clone(),
             points_to: self.points_to.clone(),
+            compare_by: self.compare_by.clone(),
             valid: self.valid.clone(),
             enum_ref: self.enum_ref.clone(),
             doc: self.doc.clone(),
