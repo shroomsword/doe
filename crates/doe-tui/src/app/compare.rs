@@ -286,8 +286,7 @@ impl App {
             .options
             .as_ref()
             .and_then(|o| o.compare.as_ref())
-            .map(|c| c.by.as_slice())
-            .unwrap_or_default()
+            .map_or_default(|c| c.by.as_slice())
         {
             keys.set(list, field);
         }
