@@ -1513,6 +1513,7 @@ Options:
       --no-transparent       With `--tui`: use the background of the theme, whatever the config file or the theme file says about `transparent`
       --no-mouse             With `--tui`: leave the mouse to the terminal, so that its own selection and copy work (the `mouse` key of the config file turns the viewer's mouse off too). Without it the viewer takes clicks, the wheel and drags; `z` in the viewer switches the mouse off and on
       --compare <FILE>       With `--tui`: compare FILE with this file, parsed with the same schema: the fields that differ, were added or were removed are marked, and so are the bytes (`>` and `<` go to the next and the previous difference, `=` leaves out what is the same, `V` shows the other file, `|` switches the way it is drawn)
+      --compare-by <LIST=FIELD>  With `--compare`: match the elements of a list by one of their fields instead of by index: `--compare-by entries=name` pairs the elements of `entries` that have the same `name`, wherever they are (a list inside another is named from the root with dots, `header.entries`). May be given more than once. It beats the key that the schema gives the list (`compare-by:`) and the one chosen in the viewer with `#`
       --compare-view <VIEW>  With `--compare`: how the comparison is drawn at first: `annotated` (the tree of the first file with marks; the default) or `side-by-side` (the two trees); the `compare-view` key of the config file changes the default
       --no-footer            With `--tui`: start without the row of the keys that matter now under the panes (the `footer` key of the config file hides it too); `K` in the viewer shows and hides it
       --no-restore           With `--tui`: do not remember where you were, and do not put it back (the viewer keeps the open nodes, the selection, the cursor, the scroll and the view settings of each file and schema in the state directory, and restores them when the same file is opened with the same schema; the `restore` key of the config file turns it off too)
@@ -1687,7 +1688,15 @@ view are read, so a file of many gigabytes opens and scrolls at once.
 **Comparing two files.** `doe --tui A --compare B` parses both files with the same schema and shows where they differ.
 The comparison is **by field path** (`entries[2].len`), not by offset: a field that moved because an earlier one grew is the
 same field, and is not a difference. The elements of a list are matched by index, so the extra elements of the longer list
-are differences, and so is the length of the list (matching by a key field is not done yet). The tree is the tree of A,
+are differences, and so is the length of the list, unless the list has a **key**: a field of its elements that says which is
+which (`compare-by: name` on the repeated field in the schema, `--compare-by entries=name` on the command line, or `#` on
+the selected list in the viewer, which proposes the fields that are different in every element; nothing typed goes back to
+the index). The elements that have the same key are the same element wherever they are: an element that was inserted or
+removed is one difference, one that moved is none, and the length of the list is not a difference of its own. A key that
+cannot be used (repeated in a file, missing from an element, not a number, a string or bytes, or a list of more than five
+million elements) is said in the line under the panes and the list is matched by index. The title says which lists were
+matched by a key (`matched by key: entries by name`). The choice made with `#` is kept for the schema, and `--compare-by`
+beats it; `#` works on the first file (`V` goes back to it). The tree is the tree of A,
 **marked**: `≠` a field whose value differs (or whose type, or whose list's length, does), `±` a field with differences
 below it (and how many), `−` a field or element that only A has, and `+ name = value` rows at the end of a parent for what
 only B has. The title says `A: 3 of 1204 fields differ · 1 only in A · 2 only in B`, or `A: identical`. The bytes that differ

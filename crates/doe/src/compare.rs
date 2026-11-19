@@ -82,12 +82,17 @@ impl Keys {
         self.by_list.insert(list.to_owned(), field.to_owned());
     }
 
-    /// Go back to the index (or the schema's key) for `list`.
+    /// Forget the choice for `list`: the key of the schema is used again, if it has one.
     pub fn clear(&mut self, list: &str) {
         self.by_list.remove(list);
     }
 
-    /// The field chosen for `list`.
+    /// Match the elements of `list` by index, whatever key the schema gives it.
+    pub fn use_index(&mut self, list: &str) {
+        self.by_list.insert(list.to_owned(), String::new());
+    }
+
+    /// The field chosen for `list`: empty when the index was chosen (`use_index`).
     #[must_use]
     pub fn get(&self, list: &str) -> Option<&str> {
         self.by_list.get(list).map(String::as_str)
@@ -505,11 +510,12 @@ impl Walker<'_, '_> {
 
     /// The field to match the elements of this list by: the one a viewer chose, or the schema's.
     fn key_field(&self, a: &TraceNode, b: &TraceNode) -> Option<String> {
-        self.keys
-            .get(&self.list_name())
-            .map(str::to_owned)
-            .or_else(|| a.compare_by.clone())
-            .or_else(|| b.compare_by.clone())
+        match self.keys.get(&self.list_name()) {
+            // the index was asked for
+            Some("") => None,
+            Some(field) => Some(field.to_owned()),
+            None => a.compare_by.clone().or_else(|| b.compare_by.clone()),
+        }
     }
 
     /// Pair the elements of the two lists by the key, if there is one and it can be used: for each element of A, the

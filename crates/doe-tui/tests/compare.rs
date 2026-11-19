@@ -59,6 +59,7 @@ impl Fixture {
             compare: Some(Comparing {
                 file: self.dir.path().join("b.bin"),
                 side_by_side: view == CompareView::SideBySide,
+                by: Vec::new(),
             }),
             restore: None,
             radix: None,

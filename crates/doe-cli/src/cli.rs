@@ -232,6 +232,13 @@ pub(crate) struct Cli {
     #[arg(long, value_name = "FILE", requires = "tui")]
     pub(crate) compare: Option<PathBuf>,
 
+    /// With `--compare`: match the elements of a list by one of their fields instead of by index: `--compare-by
+    /// entries=name` pairs the elements of `entries` that have the same `name`, wherever they are (a list inside another
+    /// is named from the root with dots, `header.entries`). May be given more than once. It beats the key that the schema
+    /// gives the list (`compare-by:`) and the one chosen in the viewer with `#`.
+    #[arg(long, value_name = "LIST=FIELD", requires = "compare", value_parser = parse_compare_by)]
+    pub(crate) compare_by: Vec<(String, String)>,
+
     /// With `--compare`: how the comparison is drawn at first: `annotated` (the tree of the first file with marks; the
     /// default) or `side-by-side` (the two trees); the `compare-view` key of the config file changes the default.
     #[arg(long, value_name = "VIEW", requires = "compare", value_parser = clap::value_parser!(doe::compare::View))]
@@ -303,5 +310,17 @@ impl From<LogLevelArg> for doe::config::LogLevel {
             LogLevelArg::Debug => Self::Debug,
             LogLevelArg::Trace => Self::Trace,
         }
+    }
+}
+
+/// `LIST=FIELD`: the name of a list from the root and the field of its elements that matches them.
+fn parse_compare_by(text: &str) -> Result<(String, String), String> {
+    match text.rsplit_once('=') {
+        Some((list, field)) if !list.is_empty() && !field.is_empty() => {
+            Ok((list.to_owned(), field.to_owned()))
+        }
+        _ => Err(format!(
+            "`{text}` is not LIST=FIELD (`entries=name`: the list, then the field of its elements that says which is which)"
+        )),
     }
 }

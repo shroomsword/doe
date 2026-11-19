@@ -8,12 +8,15 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use doe::compare::{Comparison, Input};
+use doe::compare::{Comparison, Input, Keys};
 
 use super::{App, FileBytes, Focus, LoadFailure, Loaded, read_range};
 use crate::format;
 use crate::tree::{GhostRow, TreeModel};
 use crate::tree_view::TreeView;
+
+/// What only the second file has, to be shown as rows under their parents in the tree of the first one.
+type Ghosts = HashMap<Vec<usize>, Vec<GhostRow>>;
 
 /// The second file of a comparison, and what is known of how the two differ.
 #[derive(Debug)]
@@ -37,7 +40,7 @@ pub struct Compared {
     /// Whether the other file is the current one (`V`).
     pub swapped: bool,
     /// What only the second file has, to be shown under its parents in the tree of the first one.
-    pub ghosts: HashMap<Vec<usize>, Vec<GhostRow>>,
+    pub ghosts: Ghosts,
     /// What the two trees looked like at the last synchronisation (the selection and what is open), so that nothing is
     /// done again when it has not changed.
     synced: Option<(Vec<usize>, Vec<Vec<usize>>)>,
@@ -87,7 +90,37 @@ impl App {
         if summary.only_b > 0 {
             parts.push(format!("{} only in B", summary.only_b));
         }
+        let matched = self.matched_lists();
+        if !matched.is_empty() {
+            parts.push(format!("matched by key: {}", matched.join(", ")));
+        }
         Some(parts.join(" · "))
+    }
+
+    /// The lists whose elements were matched by a key, as `entries by name`, in the order of the first file's tree.
+    fn matched_lists(&self) -> Vec<String> {
+        let Some(c) = &self.compare else {
+            return Vec::new();
+        };
+        // the first file's tree is the current one unless the files are swapped
+        let tree_a = if c.swapped { &c.tree } else { &self.tree };
+        let Some(root) = tree_a.node(&[]) else {
+            return Vec::new();
+        };
+        let mut found: Vec<(&Vec<usize>, String)> = c
+            .comparison
+            .a
+            .keyed
+            .iter()
+            .map(|(path, field)| {
+                (
+                    path,
+                    format!("{} by {field}", doe::copy::path_of(root, path)),
+                )
+            })
+            .collect();
+        found.sort();
+        found.into_iter().map(|(_, text)| text).collect()
     }
 
     /// Which of the two files is the current one: `A` (the one the viewer was opened on) or `B`.
@@ -144,37 +177,15 @@ impl App {
         let size = loaded.size;
         let byte_kinds = loaded.byte_kinds;
         let mut tree_b = TreeModel::new(loaded.trace, loaded.value).with_docs(loaded.docs);
+        if self.compare_keys.is_empty() {
+            self.compare_keys = self.starting_keys();
+        }
         let file_a = self.file.clone();
-        let read_a = |offset: u64, len: usize| read_range(&file_a, offset, len);
-        let read_b = |offset: u64, len: usize| read_range(file_b, offset, len);
-        let (Some(root_a), Some(root_b)) = (self.tree.node(&[]), tree_b.node(&[])) else {
+        let Some((comparison, ghosts)) =
+            Self::run_comparison(&self.tree, &tree_b, &file_a, file_b, &self.compare_keys)
+        else {
             return;
         };
-        let comparison = doe::compare::compare(
-            &Input {
-                trace: root_a,
-                value: self.tree.value_at(&[]),
-                read: &read_a,
-            },
-            &Input {
-                trace: root_b,
-                value: tree_b.value_at(&[]),
-                read: &read_b,
-            },
-        );
-        let mut ghosts: HashMap<Vec<usize>, Vec<GhostRow>> = HashMap::new();
-        for (parent, list) in &comparison.ghosts {
-            ghosts.insert(
-                parent.clone(),
-                list.iter()
-                    .map(|ghost| GhostRow {
-                        name: ghost.name.clone(),
-                        b_path: ghost.b_path.clone(),
-                        summary: tree_b.summary_at(&ghost.b_path),
-                    })
-                    .collect(),
-            );
-        }
         self.tree.set_comparison(
             &comparison.a,
             if side_by_side {
@@ -204,6 +215,230 @@ impl App {
                 format::safe(&file_b.display().to_string())
             )
         });
+        self.say_notes();
+    }
+
+    /// What a comparison could not do as asked (a key that cannot match), in the line under the panes.
+    fn say_notes(&mut self) {
+        let Some(c) = &self.compare else {
+            return;
+        };
+        if let Some(first) = c.comparison.notes.first() {
+            let more = c.comparison.notes.len() - 1;
+            let text = format::safe(first);
+            self.notice = Some(if more == 0 {
+                text
+            } else {
+                format!("{text} (and {more} more)")
+            });
+        }
+    }
+
+    /// Compare two trees with the keys: the comparison, and the rows that only the second one has.
+    fn run_comparison(
+        tree_a: &TreeModel,
+        tree_b: &TreeModel,
+        file_a: &Path,
+        file_b: &Path,
+        keys: &Keys,
+    ) -> Option<(Comparison, Ghosts)> {
+        let read_a = |offset: u64, len: usize| read_range(file_a, offset, len);
+        let read_b = |offset: u64, len: usize| read_range(file_b, offset, len);
+        let (root_a, root_b) = (tree_a.node(&[])?, tree_b.node(&[])?);
+        let comparison = doe::compare::compare_with(
+            &Input {
+                trace: root_a,
+                value: tree_a.value_at(&[]),
+                read: &read_a,
+            },
+            &Input {
+                trace: root_b,
+                value: tree_b.value_at(&[]),
+                read: &read_b,
+            },
+            keys,
+        );
+        let mut ghosts: HashMap<Vec<usize>, Vec<GhostRow>> = HashMap::new();
+        for (parent, list) in &comparison.ghosts {
+            ghosts.insert(
+                parent.clone(),
+                list.iter()
+                    .map(|ghost| GhostRow {
+                        name: ghost.name.clone(),
+                        b_path: ghost.b_path.clone(),
+                        summary: tree_b.summary_at(&ghost.b_path),
+                    })
+                    .collect(),
+            );
+        }
+        Some((comparison, ghosts))
+    }
+
+    /// The choices of fields to match lists by when a comparison starts: what was kept for this schema, then `--compare-by`.
+    fn starting_keys(&self) -> Keys {
+        let mut keys = Keys::new();
+        if let Some((store, key)) = self.keys_store() {
+            for (list, field) in store.read_keys(&key) {
+                keys.set(&list, &field);
+            }
+        }
+        for (list, field) in self
+            .options
+            .as_ref()
+            .and_then(|o| o.compare.as_ref())
+            .map(|c| c.by.as_slice())
+            .unwrap_or_default()
+        {
+            keys.set(list, field);
+        }
+        keys
+    }
+
+    /// Where the choices for this schema are kept, when the viewer keeps things.
+    fn keys_store(&self) -> Option<(crate::restore::Store, String)> {
+        let options = self.options.as_ref()?;
+        let dir = options.restore.as_ref()?;
+        if self.builder.is_some() {
+            return None;
+        }
+        let key = crate::restore::keys_key_of(&options.type_or_schema, &self.type_name);
+        Some((crate::restore::Store::new(dir), key))
+    }
+
+    /// `#`: ask which field matches the elements of the list that is selected.
+    pub(super) fn ask_match_key(&mut self) {
+        let Some(c) = self.compare.as_ref() else {
+            self.notice = Some("not comparing: start with --compare FILE".to_owned());
+            return;
+        };
+        if c.swapped {
+            self.notice = Some(
+                "go back to the first file (V) to choose how its lists are matched".to_owned(),
+            );
+            return;
+        }
+        let Some(root) = self.tree.node(&[]) else {
+            return;
+        };
+        let nothing = |_: u64, _: usize| None;
+        let lists = doe::compare::lists(&Input {
+            trace: root,
+            value: self.tree.value_at(&[]),
+            read: &nothing,
+        });
+        let selected = self.tree.selected_path().to_vec();
+        let Some(list) = lists
+            .into_iter()
+            .filter(|l| selected.starts_with(&l.path))
+            .max_by_key(|l| l.path.len())
+        else {
+            self.notice = Some(
+                "select a list of records (or something inside one) first: its elements are matched by a field of theirs".to_owned(),
+            );
+            return;
+        };
+        let current = self
+            .compare_keys
+            .get(&list.name)
+            .map(str::to_owned)
+            .or_else(|| list.schema_key.clone())
+            .or_else(|| list.candidates.first().cloned())
+            .unwrap_or_default();
+        self.notice = Some(if list.candidates.is_empty() {
+            format!(
+                "{}: no field is different in every element; type the name of one, or nothing for the index",
+                list.name
+            )
+        } else {
+            format!(
+                "{} can be matched by: {}",
+                list.name,
+                list.candidates.join(", ")
+            )
+        });
+        self.match_list = Some(list);
+        self.open_prompt_with(crate::prompt::Kind::MatchKey, &current);
+    }
+
+    /// The field was typed: match the list by it (nothing: by index), compare again and keep the choice.
+    pub(super) fn match_key_answered(&mut self, text: &str) {
+        let Some(list) = self.match_list.take() else {
+            return;
+        };
+        let field = text.trim();
+        if field.is_empty() {
+            self.compare_keys.use_index(&list.name);
+        } else {
+            self.compare_keys.set(&list.name, field);
+        }
+        self.recompare();
+        if let Some((store, key)) = self.keys_store() {
+            store.write_keys(&key, &self.chosen_keys());
+        }
+        let says = self
+            .matched_lists()
+            .into_iter()
+            .find(|m| m.starts_with(&format!("{} by", list.name)));
+        let first_note = self
+            .compare
+            .as_ref()
+            .and_then(|c| c.comparison.notes.first().cloned());
+        self.notice = Some(match (first_note, says) {
+            (Some(note), _) => format::safe(&note),
+            (None, Some(says)) => format!("matched: {says}"),
+            (None, None) => format!("{} is matched by index", list.name),
+        });
+    }
+
+    /// The choices that are kept: the lists that were given a field or the index.
+    fn chosen_keys(&self) -> Vec<(String, String)> {
+        let Some(root) = self.tree.node(&[]) else {
+            return Vec::new();
+        };
+        let nothing = |_: u64, _: usize| None;
+        doe::compare::lists(&Input {
+            trace: root,
+            value: self.tree.value_at(&[]),
+            read: &nothing,
+        })
+        .into_iter()
+        .filter_map(|l| {
+            self.compare_keys
+                .get(&l.name)
+                .map(|f| (l.name, f.to_owned()))
+        })
+        .collect()
+    }
+
+    /// Compare the two files again with the keys as they are now (the first file is the current one).
+    fn recompare(&mut self) {
+        let Some(c) = self.compare.as_ref() else {
+            return;
+        };
+        if c.swapped {
+            return;
+        }
+        let Some((comparison, ghosts)) =
+            Self::run_comparison(&self.tree, &c.tree, &self.file, &c.file, &self.compare_keys)
+        else {
+            return;
+        };
+        let Some(c) = self.compare.as_mut() else {
+            return;
+        };
+        self.tree.set_comparison(
+            &comparison.a,
+            if c.side_by_side {
+                HashMap::new()
+            } else {
+                ghosts.clone()
+            },
+        );
+        c.tree.set_comparison(&comparison.b, HashMap::new());
+        c.comparison = comparison;
+        c.ghosts = ghosts;
+        c.synced = None;
+        self.sync_other();
     }
 
     /// Read the second file again and compare (after the first one was read again).

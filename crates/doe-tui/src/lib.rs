@@ -72,6 +72,9 @@ pub struct Comparing {
     pub file: PathBuf,
     /// Whether the two trees are side by side; otherwise the tree of the first file is marked with what differs.
     pub side_by_side: bool,
+    /// The field to match the elements of a list by, for each list named from the root (`header.entries`, `name`):
+    /// `--compare-by`. They beat what the viewer kept from an earlier time, and the key of the schema.
+    pub by: Vec<(String, String)>,
 }
 
 /// What the viewer is asked to show.

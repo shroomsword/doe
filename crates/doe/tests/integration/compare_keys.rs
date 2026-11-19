@@ -170,6 +170,11 @@ fn a_key_that_a_viewer_chose_beats_the_schemas_and_names_the_list() {
     // clearing it goes back to the schema's
     keys.clear("records");
     assert_eq!(keys.get("records"), None);
+    // and the index can be asked for, whatever the schema says
+    keys.use_index("records");
+    let (c, _, _) = run(&schema(KEYED), &a, &b, &keys);
+    assert!(c.a.keyed.is_empty());
+    assert_eq!(c.notes, Vec::<String>::new());
 }
 
 #[test]
