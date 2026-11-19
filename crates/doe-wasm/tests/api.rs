@@ -629,3 +629,45 @@ fn the_builder_is_one_call_over_the_text_of_the_schema() {
     assert_eq!(parsed["ok"], true, "{parsed}");
     assert_eq!(parsed["value"]["a"], 7);
 }
+
+/// A table of records, up to the end of the file: an id, a letter and a value in each.
+const TABLE: &str = "meta:\n  id: table\n  endian: le\nseq:\n  - id: records\n    type: record\n    repeat: eos\ntypes:\n  record:\n    seq:\n      - id: id\n        type: u1\n      - id: letter\n        type: u1\n";
+
+#[test]
+fn a_list_is_matched_by_the_key_of_the_request_and_the_lists_are_named() {
+    // an element inserted at the front
+    let a = [1, b'a', 2, b'b', 3, b'c'];
+    let b = [9, b'z', 1, b'a', 2, b'b', 3, b'c'];
+    let by_index = compare(&json!({ "schema": TABLE }), &a, &b);
+    assert!(by_index["summary"]["changed"].as_u64().unwrap() > 1);
+    assert_eq!(by_index["notes"], json!([]));
+    // the lists, with the fields that could match them, are said whatever was asked
+    assert_eq!(by_index["lists"][0]["name"], "records");
+    assert_eq!(by_index["lists"][0]["candidates"], json!(["id", "letter"]));
+    assert_eq!(by_index["lists"][0]["schema_key"], Value::Null);
+    let keyed = compare(
+        &json!({ "schema": TABLE, "compare_keys": { "records": "id" } }),
+        &a,
+        &b,
+    );
+    assert_eq!(keyed["summary"]["only_b"], 1);
+    assert_eq!(keyed["summary"]["changed"], 0);
+    assert_eq!(keyed["a"]["trace"]["children"][0]["matched_by"], "id");
+    assert_eq!(keyed["b"]["trace"]["children"][0]["matched_by"], "id");
+    // and the key of the schema does the same without being asked
+    let schema = TABLE.replace("repeat: eos\n", "repeat: eos\n    compare-by: id\n");
+    let by_schema = compare(&json!({ "schema": schema }), &a, &b);
+    assert_eq!(by_schema["summary"], keyed["summary"]);
+    assert_eq!(by_schema["lists"][0]["schema_key"], "id");
+    // a key that cannot be used is a note, and the list is matched by index
+    let repeated = compare(
+        &json!({ "schema": TABLE, "compare_keys": { "records": "letter" } }),
+        &[1, b'a', 2, b'a'],
+        &[1, b'a', 2, b'a'],
+    );
+    assert_eq!(repeated["ok"], true);
+    assert!(
+        repeated["notes"][0].as_str().unwrap().contains("by index"),
+        "{repeated}"
+    );
+}

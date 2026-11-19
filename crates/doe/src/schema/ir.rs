@@ -156,6 +156,8 @@ pub struct CompiledField {
     pub pos: Option<Expr>,
     /// What `points-to:` names, as the names the schema writes: the fields this one points at.
     pub points_to: Vec<Vec<String>>,
+    /// The field of the elements of this repeated field that says which element is which (`compare-by:`).
+    pub compare_by: Option<String>,
     /// Name of the enum to apply, if present.
     pub enum_ref: Option<String>,
     /// Instances of the same type that the field's expressions use, which are

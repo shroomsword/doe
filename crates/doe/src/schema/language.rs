@@ -396,6 +396,10 @@ const FIELD_KEYS: &[(&str, &str)] = &[
         "Read the field at this byte offset instead of where the last one ended.",
     ),
     (
+        "compare-by",
+        "For a repeated field: the field of its elements that says which element is which; comparing two files pairs the elements that have the same one, whatever their places.",
+    ),
+    (
         "points-to",
         "The field or instance that this number points at, for an offset or a size that pos and size do not read as it is; the viewers jump there.",
     ),

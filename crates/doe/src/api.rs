@@ -49,6 +49,10 @@ pub struct Request {
     /// The type to parse with; the schema's own by default.
     #[serde(default, rename = "type")]
     pub type_name: Option<String>,
+    /// For [`compare`]: the field to match the elements of a list by, for each list (its name from the root, such as
+    /// `header.entries`); a list that is not here is matched by the key that the schema gives it, or by index.
+    #[serde(default)]
+    pub compare_keys: BTreeMap<String, String>,
 }
 
 /// A place in the text of the schema.
@@ -144,6 +148,8 @@ pub struct TraceOut {
     pub diff: Option<&'static str>,
     /// In a comparison: how many differences there are below this node, when there are.
     pub diff_below: Option<usize>,
+    /// In a comparison: for a list whose elements were matched by a key, the field that was the key.
+    pub matched_by: Option<String>,
     /// The parts inside.
     pub children: Vec<TraceOut>,
 }
@@ -854,6 +860,25 @@ pub struct CompareResponse {
     pub ghosts: Vec<GhostOut>,
     /// The counts.
     pub summary: Option<CompareSummary>,
+    /// What a viewer should say: a list that a key was asked for and could not match, and why.
+    pub notes: Vec<String>,
+    /// The lists of the first file that have elements which are structs, with the fields that could match them.
+    pub lists: Vec<ListOut>,
+}
+
+/// A list of the first file, for a viewer that offers a field to match its elements by.
+#[derive(Debug, Serialize)]
+pub struct ListOut {
+    /// Its path in the tree of the first file.
+    pub path: Vec<usize>,
+    /// Its name from the root (`header.entries`), as `compare_keys` names it.
+    pub name: String,
+    /// How many elements it has.
+    pub len: usize,
+    /// The fields that could match its elements, all different and numbers, strings or bytes.
+    pub candidates: Vec<String>,
+    /// The field the schema gives it (`compare-by:`).
+    pub schema_key: Option<String>,
 }
 
 /// Parse two files with the schema of a request and compare them by field: which differ, were added or were removed,
@@ -871,6 +896,8 @@ pub fn compare(request: &str, a: &[u8], b: &[u8]) -> CompareResponse {
             b: None,
             ghosts: Vec::new(),
             summary: None,
+            notes: Vec::new(),
+            lists: Vec::new(),
         }
     };
     let request = match request_from(request) {
@@ -913,17 +940,33 @@ pub fn compare(request: &str, a: &[u8], b: &[u8]) -> CompareResponse {
         let start = usize::try_from(offset).ok()?;
         b.get(start..start.checked_add(len)?).map(<[u8]>::to_vec)
     };
-    let comparison = crate::compare::compare(
-        &crate::compare::Input {
-            trace: &oa.trace,
-            value: oa.value.as_ref(),
-            read: &read_a,
-        },
+    let mut keys = crate::compare::Keys::new();
+    for (list, field) in &request.compare_keys {
+        keys.set(list, field);
+    }
+    let input_a = crate::compare::Input {
+        trace: &oa.trace,
+        value: oa.value.as_ref(),
+        read: &read_a,
+    };
+    let lists = crate::compare::lists(&input_a)
+        .into_iter()
+        .map(|list| ListOut {
+            path: list.path,
+            name: list.name,
+            len: list.len,
+            candidates: list.candidates,
+            schema_key: list.schema_key,
+        })
+        .collect();
+    let comparison = crate::compare::compare_with(
+        &input_a,
         &crate::compare::Input {
             trace: &ob.trace,
             value: ob.value.as_ref(),
             read: &read_b,
         },
+        &keys,
     );
     let side = |outcome: &crate::parser::engine::ParseOutcome, marks: &crate::compare::Side| {
         let mut trace = trace_out(&outcome.trace);
@@ -940,6 +983,11 @@ pub fn compare(request: &str, a: &[u8], b: &[u8]) -> CompareResponse {
         for (path, below) in &marks.below {
             if let Some(node) = trace_at(&mut trace, path) {
                 node.diff_below = Some(*below);
+            }
+        }
+        for (path, field) in &marks.keyed {
+            if let Some(node) = trace_at(&mut trace, path) {
+                node.matched_by = Some(field.clone());
             }
         }
         CompareSide {
@@ -985,6 +1033,8 @@ pub fn compare(request: &str, a: &[u8], b: &[u8]) -> CompareResponse {
             only_b: s.only_b,
             identical: s.identical(),
         }),
+        notes: comparison.notes.clone(),
+        lists,
     }
 }
 
@@ -1112,6 +1162,7 @@ fn trace_out(node: &TraceNode) -> TraceOut {
         points_to: None,
         diff: None,
         diff_below: None,
+        matched_by: None,
         children: node.children.iter().map(trace_out).collect(),
     }
 }

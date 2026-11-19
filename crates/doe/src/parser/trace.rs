@@ -85,6 +85,9 @@ pub struct TraceNode {
     /// The fields that the schema says this one points at (`points-to:`), as it writes them, resolved like
     /// `decided_by` by [`TraceNode::pointer_map`].
     pub points_to: Vec<Vec<String>>,
+    /// For a repeated field: the field of its elements that says which element is which (`compare-by:`), so that a
+    /// comparison of two files pairs the elements by it.
+    pub compare_by: Option<String>,
     /// The values inside this one.
     pub children: Vec<TraceNode>,
 }
@@ -110,6 +113,7 @@ impl TraceNode {
             processed: false,
             decided_by: Vec::new(),
             points_to: Vec::new(),
+            compare_by: None,
             children: Vec::new(),
         }
     }
@@ -431,6 +435,7 @@ impl TraceBuilder {
                 processed: self.processed > 0,
                 decided_by: Vec::new(),
                 points_to: Vec::new(),
+                compare_by: None,
                 children: Vec::new(),
             },
             children: Vec::new(),
@@ -468,6 +473,18 @@ impl TraceBuilder {
             && let Some(entry) = self.entries.get_mut(index)
         {
             entry.node.points_to = refs.to_vec();
+        }
+    }
+
+    /// Note the field of the elements that tells them apart (`compare-by:`) on the node being read.
+    pub(crate) fn compare_by(&mut self, key: Option<&str>) {
+        let Some(key) = key else {
+            return;
+        };
+        if let Some(&index) = self.open.last()
+            && let Some(entry) = self.entries.get_mut(index)
+        {
+            entry.node.compare_by = Some(key.to_owned());
         }
     }
 

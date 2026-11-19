@@ -10,6 +10,7 @@
 
 mod api;
 mod compare;
+mod compare_keys;
 mod compiler;
 mod config;
 mod conformance;
