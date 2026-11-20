@@ -1246,6 +1246,7 @@ selected, does not close it).
 | `A` | When building: add a field after the last one, from the next bytes of the file (click a byte after the last field first to say how many) |
 | `>` | When comparing two files: the next difference: in the Parsed pane the next field that differs, in the Bytes pane the next run of bytes that differ |
 | `<` | When comparing two files: the previous difference |
+| `#` | When comparing two files: match the elements of the selected list by one of their fields instead of by index, so that an inserted, removed or moved element is one difference or none |
 | `=` | When comparing two files: leave out the fields that are the same, or show them again |
 | `V` | When comparing two files: make the other file the one that is shown, with the same field selected, or go back to the first |
 | `\|` | When comparing two files: the two trees side by side, or the tree of the first file with marks |
@@ -1439,6 +1440,14 @@ differ), `=` leaves out what is the same, and `V` makes the other file the one t
 or `|` puts the two trees side by side under the names of the files, with the same field selected in both and a click in either
 selecting it in the other; the way chosen is kept in the browser, and the tree of the first file with marks is the first one.
 *Stop comparing* puts the page back.
+
+**Match by…** (in the Parsed pane while comparing, or `#`) matches the elements of the selected list by one of their fields,
+instead of by index: the elements that have the same value of the field are the same element wherever they are, so an element
+that was inserted, removed or moved is one difference or none, and the length of the list is not a difference of its own. The
+dialog lists the fields that are different in every element (any field can be typed; nothing typed, or **By index**, goes back
+to the index), and the summary says `matched by key: entries by name`. The key can also come from the schema (`compare-by:` on
+the repeated field), and a key that cannot match (repeated in a file, missing from an element, not a number, a string or bytes)
+is said in the status line while the list is matched by index. The choice is kept in the browser for the schema.
 
 **Follow a pointer.** A field that the schema's `pos:` or `size:` reads — the offset of a table, the size of
 a block — places or measures another value, and the tree shows an arrow after it (`→ 0x800`). `J`, or a click on the arrow, selects that

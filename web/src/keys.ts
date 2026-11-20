@@ -21,6 +21,7 @@ export type Action =
   | 'build'
   | 'add-field'
   | 'next-difference'
+  | 'match-by'
   | 'previous-difference'
   | 'only-differences'
   | 'other-file'
@@ -87,6 +88,7 @@ export const KEYS: readonly Key[] = [
   { key: 'A', action: 'add-field', label: 'When building: add a field after the last one, from the next bytes of the file (click a byte after the last field first to say how many)', needs: 'building' },
   { key: '>', action: 'next-difference', label: 'When comparing two files: the next difference: in the Parsed pane the next field that differs, in the Bytes pane the next run of bytes that differ', needs: 'comparing' },
   { key: '<', action: 'previous-difference', label: 'When comparing two files: the previous difference', needs: 'comparing' },
+  { key: '#', action: 'match-by', label: 'When comparing two files: match the elements of the selected list by one of their fields instead of by index, so that an inserted, removed or moved element is one difference or none', needs: 'comparing' },
   { key: '=', action: 'only-differences', label: 'When comparing two files: leave out the fields that are the same, or show them again', needs: 'comparing' },
   { key: 'V', action: 'other-file', label: 'When comparing two files: make the other file the one that is shown, with the same field selected, or go back to the first', needs: 'comparing' },
   { key: '|', action: 'compare-view', label: 'When comparing two files: the two trees side by side, or the tree of the first file with marks', needs: 'comparing' },

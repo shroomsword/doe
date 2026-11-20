@@ -3,7 +3,7 @@
 // anywhere.
 
 import { CallEnded, DoeClient } from './client.js';
-import type { CompareResponse, Diagnostic, Docs, ExportFormat, ExportResponse, InspectResponse, LanguageResponse, ParseResponse, Request, TraceNode } from './doe.js';
+import type { CompareList, CompareResponse, Diagnostic, Docs, ExportFormat, ExportResponse, InspectResponse, LanguageResponse, ParseResponse, Request, TraceNode } from './doe.js';
 import { SchemaEditor } from './editor.js';
 import { Help } from './help.js';
 import { type Action, type Needs, KEYS, byteQuery, findPattern, isField, keyName, keyOf } from './keys.js';
@@ -1932,6 +1932,9 @@ export class App {
       case 'compare-view':
         this.toggleCompareView();
         break;
+      case 'match-by':
+        this.openMatch();
+        break;
       case 'jump-back':
         this.walkJumps(false);
         break;
@@ -2171,6 +2174,8 @@ export class App {
     input('compare-input', (files) => void this.openOther(files[0]));
     element('compare-stop').addEventListener('click', () => this.stopComparing());
     element('compare-view').addEventListener('click', () => this.toggleCompareView());
+    element('compare-match').addEventListener('click', () => this.openMatch());
+    this.matchSetup();
     input('open-theme', (files) => void this.openTheme(files[0]));
     element<HTMLSelectElement>('theme').addEventListener('change', (event) => {
       this.themes.choose((event.target as HTMLSelectElement).value);
@@ -2752,7 +2757,8 @@ export class App {
       this.clearComparison();
       return;
     }
-    this.client.compare(request, this.other.bytes).then(
+    this.loadCompareKeys(response.id);
+    this.client.compare({ ...request, compare_keys: this.compareKeys }, this.other.bytes).then(
       (answer) => {
         if (mine === this.generation) this.applyComparison(answer);
       },
@@ -2788,6 +2794,14 @@ export class App {
     this.showCompareControls();
     this.showSideBySide();
     element('status').textContent += ` · compared with ${this.other?.name ?? 'the other file'}: ${this.compareText()}`;
+    // a key that could not match a list is said, and the list was matched by index
+    const note = answer.notes[0];
+    if (note) {
+      const more = answer.notes.length - 1;
+      const text = more > 0 ? `${note} (and ${more} more)` : note;
+      element('status').textContent += ` · ${text}`;
+      element('layout-live').textContent = text;
+    }
     this.showSelection(this.selection && this.trace ? nodeAt(this.trace, this.selection) : null);
   }
 
@@ -2808,7 +2822,102 @@ export class App {
     const parts = [`${summary.changed} of ${Math.max(summary.fields_a, summary.fields_b)} fields differ`];
     if (summary.only_a > 0) parts.push(`${summary.only_a} only in ${this.thisLetter()}`);
     if (summary.only_b > 0) parts.push(`${summary.only_b} only in ${this.otherLetter()}`);
+    const matched = (this.comparison?.lists ?? []).flatMap((list) => {
+      const by = this.comparison?.a ? nodeAt(this.comparison.a.trace, list.path)?.matched_by : null;
+      return by ? [`${list.name} by ${by}`] : [];
+    });
+    if (matched.length > 0) parts.push(`matched by key: ${matched.join(', ')}`);
     return parts.join(' · ');
+  }
+
+  // ── matching the elements of a list by a key ───────────────────────────────
+
+  /** The field chosen for each list (its name from the root); empty: by index. Kept in the browser, for the schema. */
+  private compareKeys: Record<string, string> = {};
+  private compareKeysFor: string | null = null;
+  /** The list that the dialog is asking about. */
+  private matchList: CompareList | null = null;
+
+  private compareKeysName(id: string | null): string {
+    return `doe.compare-keys.${id ?? ''}`;
+  }
+
+  /** The choices kept for the schema, when it is another one than the last time. */
+  private loadCompareKeys(id: string | null): void {
+    if (this.compareKeysFor === id) return;
+    this.compareKeysFor = id;
+    this.compareKeys = {};
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem(this.compareKeysName(id)) ?? '{}');
+      if (saved && typeof saved === 'object') {
+        for (const [list, field] of Object.entries(saved)) if (typeof field === 'string') this.compareKeys[list] = field;
+      }
+    } catch {
+      // nothing was kept
+    }
+  }
+
+  private saveCompareKeys(): void {
+    try {
+      localStorage.setItem(this.compareKeysName(this.compareKeysFor), JSON.stringify(this.compareKeys));
+    } catch {
+      // the choice is for this visit
+    }
+  }
+
+  /** `#`: ask which field matches the elements of the selected list. */
+  private openMatch(): void {
+    const answer = this.comparison;
+    if (!answer) {
+      this.say('Not comparing: open a second file with Compare with…');
+      return;
+    }
+    const selection = this.selection;
+    const list = selection
+      ? answer.lists
+          .filter((l) => l.path.length <= selection.length && l.path.every((index, at) => selection[at] === index))
+          .sort((x, y) => y.path.length - x.path.length)[0]
+      : undefined;
+    if (!list) {
+      this.say('Select a list of records (or something inside one) first: its elements are matched by a field of theirs');
+      return;
+    }
+    this.matchList = list;
+    const current = this.compareKeys[list.name] ?? list.schema_key ?? list.candidates[0] ?? '';
+    element('match-title').textContent = `Match the elements of ${list.name}`;
+    element('match-where').textContent =
+      list.candidates.length > 0
+        ? `${list.len} elements. Fields that are different in every one: ${list.candidates.join(', ')}.`
+        : `${list.len} elements. No field is different in every element (or the list is too long to look through): type the name of one, or leave it empty for the index.`;
+    element<HTMLInputElement>('match-field').value = current;
+    element('match-fields').replaceChildren(
+      ...list.candidates.map((name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        return option;
+      }),
+    );
+    element<HTMLDialogElement>('match-dialog').showModal();
+    element<HTMLInputElement>('match-field').select();
+  }
+
+  private matchSetup(): void {
+    const dialog = element<HTMLDialogElement>('match-dialog');
+    const choose = (field: string): void => {
+      const list = this.matchList;
+      if (!list) return;
+      this.compareKeys[list.name] = field;
+      this.saveCompareKeys();
+      dialog.close();
+      this.refreshNow();
+    };
+    element('match-close').addEventListener('click', () => dialog.close());
+    element('match-cancel').addEventListener('click', () => dialog.close());
+    element('match-index').addEventListener('click', () => choose(''));
+    element<HTMLFormElement>('match-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      choose(element<HTMLInputElement>('match-field').value.trim());
+    });
   }
 
   private showCompareControls(): void {
@@ -2818,6 +2927,7 @@ export class App {
     summary.textContent = this.comparison ? `${this.thisLetter()}: ${this.compareText()}` : '';
     summary.classList.toggle('identical', this.comparison?.summary?.identical ?? false);
     element('compare-view').hidden = this.comparison === null;
+    element('compare-match').hidden = this.comparison === null;
     element<HTMLButtonElement>('compare-view').setAttribute('aria-pressed', String(this.sideBySide));
   }
 
