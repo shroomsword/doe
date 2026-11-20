@@ -1,6 +1,6 @@
 [package]
 name = "doe-wasm"
-version = "0.7.0"
+version = "0.8.0"
 description = "doe for WebAssembly: the library behind the web IDE"
 edition.workspace = true
 rust-version.workspace = true
@@ -13,8 +13,8 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-doe = { version = "0.7.0", path = "../doe", default-features = false }
-doe-draft = { version = "0.7.0", path = "../doe-draft" }
+doe = { version = "0.8.0", path = "../doe", default-features = false }
+doe-draft = { version = "0.8.0", path = "../doe-draft" }
 serde = { workspace = true, features = ["std", "derive"] }
 serde_json = { workspace = true, features = ["std"] }
 # The version must be the one of the wasm-bindgen CLI that makes the glue (web/README.md).
@@ -25,5 +25,5 @@ workspace = true
 
 [dev-dependencies]
 # The tests compare with what the command line gives, which reads files.
-doe = { version = "0.7.0", path = "../doe", features = ["fs"] }
+doe = { version = "0.8.0", path = "../doe", features = ["fs"] }
 tempfile.workspace = true

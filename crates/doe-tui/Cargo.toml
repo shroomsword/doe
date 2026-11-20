@@ -1,6 +1,6 @@
 [package]
 name = "doe-tui"
-version = "0.7.0"
+version = "0.8.0"
 description = "doe — terminal viewer for decoded binary files"
 edition.workspace = true
 rust-version.workspace = true
@@ -9,8 +9,8 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
-doe = { version = "0.7.0", path = "../doe" }
-doe-draft = { version = "0.7.0", path = "../doe-draft" }
+doe = { version = "0.8.0", path = "../doe" }
+doe-draft = { version = "0.8.0", path = "../doe-draft" }
 anyhow = { workspace = true, features = ["std"] }
 serde = { workspace = true, features = ["std", "derive"] }
 toml = { workspace = true, features = ["std", "parse", "serde", "display"] }
