@@ -9,6 +9,8 @@ export interface Request {
   path?: string;
   include_paths?: string[];
   type?: string;
+  /** For `compare`: the field to match the elements of a list by, for each list (its name from the root, `header.entries`); empty: by index. */
+  compare_keys?: Record<string, string>;
 }
 
 export interface Position {
@@ -69,6 +71,8 @@ export interface TraceNode {
   diff?: 'changed' | 'inside' | 'only' | null;
   /** In a comparison: how many differences there are below this node. */
   diff_below?: number | null;
+  /** In a comparison: for a list whose elements were matched by a key, the field that was the key. */
+  matched_by?: string | null;
   /** What is wrong with a value that was read: a string with bytes that are not valid in its encoding. */
   problem: string | null;
   processed: boolean;
@@ -135,6 +139,23 @@ export interface CompareResponse {
   b: CompareSide | null;
   ghosts: Ghost[];
   summary: CompareSummary | null;
+  /** What could not be done as asked: a key that cannot match a list (the list was matched by index). */
+  notes: string[];
+  /** The lists of the first file whose elements are structs, with the fields that could match them. */
+  lists: CompareList[];
+}
+
+/** A list of the shown file, for the choice of the field that matches its elements. */
+export interface CompareList {
+  /** Its path in the tree. */
+  path: number[];
+  /** Its name from the root, as `compare_keys` names it. */
+  name: string;
+  len: number;
+  /** The fields that are numbers, strings or bytes and are different in every element. */
+  candidates: string[];
+  /** The field that the schema gives (`compare-by:`). */
+  schema_key: string | null;
 }
 
 /** The descriptions of fields: `docs[type][name]`. */

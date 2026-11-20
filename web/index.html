@@ -81,6 +81,7 @@
             <label id="compare-box" class="button" title="Compare the open file with another one, parsed with the same schema: the fields that differ, were added or were removed are marked (keys: > < = V |). The file is read in this browser and never uploaded.">Compare with…<input id="compare-input" type="file" /></label>
             <button id="compare-stop" type="button" hidden title="Stop comparing">Stop comparing</button>
             <button id="compare-view" type="button" class="icon" hidden aria-pressed="false" aria-label="Side by side" title="The two files side by side, or the first with marks (|)">⇆</button>
+            <button id="compare-match" type="button" hidden title="Match the elements of the selected list by one of their fields instead of by index (#)">Match by…</button>
             <span id="compare-summary" hidden role="status"></span>
             <label id="field-radix-box" hidden title="Write this field, in every element and every parse of this schema, in a radix of its own">This field
               <select id="field-radix">
@@ -245,6 +246,25 @@
           <div class="columns-buttons">
             <button type="submit" id="build-ask-apply">Apply</button>
             <button type="button" id="build-ask-cancel">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="match-dialog" aria-labelledby="match-title">
+      <div class="browse-bar">
+        <h3 id="match-title">Match the elements</h3>
+        <button id="match-close" type="button">Close</button>
+      </div>
+      <form id="match-form" novalidate>
+        <div id="match-body">
+          <p id="match-where" class="note"></p>
+          <label>Field of the elements <input id="match-field" type="text" list="match-fields" autocomplete="off" spellcheck="false" /></label>
+          <datalist id="match-fields"></datalist>
+          <p class="note">The elements that have the same value of the field are the same element, wherever they are: one that was inserted, removed or moved is one difference or none. Leave it empty to match by index.</p>
+          <div class="columns-buttons">
+            <button type="submit" id="match-apply">Match</button>
+            <button type="button" id="match-index">By index</button>
+            <button type="button" id="match-cancel">Cancel</button>
           </div>
         </div>
       </form>
