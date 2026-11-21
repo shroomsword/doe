@@ -83,11 +83,14 @@ allow_attributes_without_reason = "warn"
 
 # The WebAssembly build of the web IDE: small, without the whole-program
 # optimisation that the release binaries use.
+# The WebAssembly module of the web IDE: small, but not slower than it has to be. Link-time optimisation with one code
+# generation unit takes about 4% off its size (the builder of #424 added 4.8%); `opt-level = "z"` takes 13% off but
+# makes the code slower, which a parse of a large file in the page would feel.
 [profile.web]
 inherits = "release"
 opt-level = "s"
-lto = false
-codegen-units = 16
+lto = true
+codegen-units = 1
 
 [profile.release]
 lto = true
