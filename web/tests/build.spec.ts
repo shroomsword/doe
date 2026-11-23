@@ -225,3 +225,58 @@ test('a library type of an imported schema can be a kind of a field', async ({ p
   await expect(page.locator('#build-fields li').first()).toContainText('pair');
   expect(await editorText(page)).toContain('imports:');
 });
+
+test('a field can go before or after the selected one, and the ones after it move down', async ({ page }) => {
+  await building(page);
+  await add(page, 'u1', 'a');
+  await add(page, 'u1', 'b');
+  await add(page, 'u1', 'c');
+  const names = async (): Promise<string[]> => page.locator('#build-fields li[role="option"] .name').allTextContents();
+  expect(await names()).toEqual(['a', 'b', 'c']);
+  // after the first
+  await page.locator('#build-fields li[role="option"]').first().click();
+  await page.locator('#build-add').click();
+  await expect(page.locator('#build-position option')).toHaveText(['After the last field', 'After a', 'Before a']);
+  await page.locator('#build-position').selectOption('after');
+  await expect(page.locator('#build-where')).toContainText('the fields after it move down');
+  await page.locator('#build-name').fill('mid');
+  await page.locator('#build-apply').click();
+  await expect(page.locator('#build-dialog')).toBeHidden();
+  expect(await names()).toEqual(['a', 'mid', 'b', 'c']);
+  // the ones after it moved: b was at byte 1 and is at byte 2
+  await expect(page.locator('#build-fields li[role="option"]').nth(2)).toContainText('0x2..0x3');
+  // before the last
+  await page.locator('#build-fields li[role="option"]').nth(3).click();
+  await page.locator('#build-add').click();
+  await page.locator('#build-position').selectOption('before');
+  await page.locator('#build-name').fill('pre');
+  await page.locator('#build-apply').click();
+  await expect(page.locator('#build-dialog')).toBeHidden();
+  expect(await names()).toEqual(['a', 'mid', 'b', 'pre', 'c']);
+  // the bytes of a signature are the file's where the field goes
+  await page.locator('#build-fields li[role="option"]').nth(1).click();
+  await page.locator('#build-add').click();
+  await page.locator('#build-kind').selectOption('magic');
+  await page.locator('#build-position').selectOption('before');
+  await expect(page.locator('#build-magic')).toHaveValue('4c 49 50 01');
+  await page.locator('#build-cancel').click();
+  // and it is refused when the file is too short for the fields that move
+  await expect(page.locator('#layout-live')).not.toContainText('could not');
+});
+
+test('a field that would push the others past the end of the file is refused, and the text is not touched', async ({ page }) => {
+  // three bytes, three fields: nothing is left for a field in the middle
+  await building(page, Buffer.from([1, 2, 3]));
+  await add(page, 'u1', 'a');
+  await add(page, 'u1', 'b');
+  await add(page, 'u1', 'c');
+  const before = await editorText(page);
+  await page.locator('#build-fields li[role="option"]').first().click();
+  await page.locator('#build-add').click();
+  await page.locator('#build-position').selectOption('after');
+  await page.locator('#build-name').fill('mid');
+  await page.locator('#build-apply').click();
+  await expect(page.locator('#build-error')).toContainText('does not fit');
+  await page.locator('#build-cancel').click();
+  expect(await editorText(page)).toBe(before);
+});

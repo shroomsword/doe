@@ -85,7 +85,7 @@ export const KEYS: readonly Key[] = [
   { key: 's', action: 'save', label: 'Save the parsed value', needs: 'parsed' },
   { key: 'J', action: 'follow', label: 'Jump to what the selected field points at: the value its pos: places or its size: measures (a number that is an offset is a guess)', needs: 'parsed' },
   { key: 'B', action: 'build', label: 'Build the schema from the bytes of the open file: a panel and dialogs add, rename, change, remove and group fields, and the text in the Schema pane is what they write', needs: 'file' },
-  { key: 'A', action: 'add-field', label: 'When building: add a field after the last one, from the next bytes of the file (click a byte after the last field first to say how many)', needs: 'building' },
+  { key: 'A', action: 'add-field', label: 'When building: add a field (after the last one by default, or before or after the selected one), from the bytes of the file there (click a byte after the last field first to say how many)', needs: 'building' },
   { key: '>', action: 'next-difference', label: 'When comparing two files: the next difference: in the Parsed pane the next field that differs, in the Bytes pane the next run of bytes that differ', needs: 'comparing' },
   { key: '<', action: 'previous-difference', label: 'When comparing two files: the previous difference', needs: 'comparing' },
   { key: '#', action: 'match-by', label: 'When comparing two files: match the elements of the selected list by one of their fields instead of by index, so that an inserted, removed or moved element is one difference or none', needs: 'comparing' },

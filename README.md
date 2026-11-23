@@ -1243,7 +1243,7 @@ selected, does not close it).
 | `Alt+ArrowLeft` | Go back to where you were before the last jump |
 | `Alt+ArrowRight` | Go forward again after going back |
 | `B` | Build the schema from the bytes of the open file: a panel and dialogs add, rename, change, remove and group fields, and the text in the Schema pane is what they write |
-| `A` | When building: add a field after the last one, from the next bytes of the file (click a byte after the last field first to say how many) |
+| `A` | When building: add a field (after the last one by default, or before or after the selected one), from the bytes of the file there (click a byte after the last field first to say how many) |
 | `>` | When comparing two files: the next difference: in the Parsed pane the next field that differs, in the Bytes pane the next run of bytes that differ |
 | `<` | When comparing two files: the previous difference |
 | `#` | When comparing two files: match the elements of the selected list by one of their fields instead of by index, so that an inserted, removed or moved element is one difference or none |
@@ -1416,9 +1416,10 @@ builder as `doe --tui FILE --build OUT` (the rules are one implementation, in th
 A panel lists the fields that the schema has and where each one is (`0x4..0x6`, or the bits of a bit field). **Add field…**
 (`A`) opens a dialog for the kind (`u1`…`s8`, `f4`, `f8`, `bytes`, `str`, `strz`, `magic`, bits, or a type of an imported
 schema), what the kind needs (a length, an encoding, a terminator, the bytes of a signature, a size), how often it is
-repeated (a number, the name of an earlier number field, or `eos`) and a name that is proposed; the field is read from where
-the last one ends, and clicking a byte after it in the Bytes pane says how many bytes it has (the kind that fits is
-proposed). **Rename…** (`F2`), **Change kind…**, **Remove** (`Delete`), **Group…** (the selected field and the ones after it
+repeated (a number, the name of an earlier number field, or `eos`) and a name that is proposed. The field goes after the
+last one, read from where that one ends, and clicking a byte after it in the Bytes pane says how many bytes it has (the kind
+that fits is proposed); or, with a field selected, **Where** puts it **before** or **after** that field, and the fields
+after it move down (the file has to fit them where they are now, or the change is refused). **Rename…** (`F2`), **Change kind…**, **Remove** (`Delete`), **Group…** (the selected field and the ones after it
 become a new type) and **Take apart** change the field that is selected in the list, and **Byte order** switches
 little-endian and big-endian. Every change is one edit of the text in the Schema pane: it is plain schema text that can be
 edited by hand at any time, and `Ctrl-Z` undoes a change as it undoes typing. The rules are the terminal's (a name that is
