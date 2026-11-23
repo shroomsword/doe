@@ -397,6 +397,7 @@ export class BuildMode {
     element('build-dialog-close').addEventListener('click', () => dialog.close());
     element('build-cancel').addEventListener('click', () => dialog.close());
     element<HTMLSelectElement>('build-kind').addEventListener('change', () => void this.kindChosen());
+    element<HTMLSelectElement>('build-position').addEventListener('change', () => this.showWhere());
     element('build-type').addEventListener('input', () => void this.kindChosen());
     element('build-name').addEventListener('input', () => {
       this.nameTouched = true;
@@ -416,18 +417,59 @@ export class BuildMode {
   openAdd(): void {
     if (!this.ready) return;
     this.mode = { kind: 'add' };
-    const select = this.selectedRow();
-    const at = select?.at ?? null;
     element('build-title').textContent = 'Add a field';
     element('build-apply').textContent = 'Add';
-    element('build-where').textContent =
-      at === null
-        ? `It is read after the last field, from byte ${hex(this.end())}${this.pending ? `; ${this.pending.end - this.pending.first} byte${this.pending.end - this.pending.first === 1 ? '' : 's'} are chosen` : ''}.`
-        : `It goes at the end of the type ${at}.`;
+    element('build-position-label').hidden = false;
+    this.fillPositions();
     this.prepare(null);
+    this.showWhere();
     void this.propose();
     element<HTMLDialogElement>('build-dialog').showModal();
     element('build-kind').focus();
+  }
+
+  /** The places a field can go: at the end, and before or after the selected one. */
+  private fillPositions(): void {
+    const row = this.selectedRow();
+    const select = element<HTMLSelectElement>('build-position');
+    const option = (value: string, text: string): HTMLOptionElement => {
+      const item = document.createElement('option');
+      item.value = value;
+      item.textContent = text;
+      return item;
+    };
+    select.replaceChildren(option('end', row?.at ? `At the end of the type ${row.at}` : 'After the last field'));
+    if (row) {
+      select.append(option('after', `After ${row.slot.id}`), option('before', `Before ${row.slot.id}`));
+    }
+    select.value = 'end';
+  }
+
+  /** Where the new field goes, as the library takes it, and the byte it starts at when that is known. */
+  private insertion(): { at: string | null; index: number | undefined; first: number | null } {
+    const row = this.selectedRow();
+    const place = element<HTMLSelectElement>('build-position').value;
+    if (row && place === 'after') return { at: row.at, index: row.index + 1, first: row.at === null ? Math.ceil(row.slot.end_bit / 8) : null };
+    if (row && place === 'before') return { at: row.at, index: row.index, first: row.at === null ? Math.floor(row.slot.start_bit / 8) : null };
+    const at = row?.at ?? null;
+    return { at, index: undefined, first: at === null ? (this.pending?.first ?? this.end()) : null };
+  }
+
+  /** What the dialog says about where the field is read, and the signature bytes that are the file's there. */
+  private showWhere(): void {
+    const place = this.insertion();
+    const chosen = place.index === undefined && place.at === null && this.pending ? this.pending.end - this.pending.first : null;
+    element('build-where').textContent =
+      place.at !== null
+        ? `It goes in the type ${place.at}.`
+        : place.first === null
+          ? 'It is read after the last field.'
+          : `It is read from byte ${hex(place.first)}${chosen !== null ? `; ${chosen} byte${chosen === 1 ? '' : 's'} are chosen` : ''}${place.index === undefined ? '' : ', and the fields after it move down'}.`;
+    const bytes = this.host.bytes();
+    if (this.mode.kind === 'add' && bytes && place.first !== null) {
+      const length = chosen ?? 4;
+      element<HTMLInputElement>('build-magic').value = [...bytes.subarray(place.first, place.first + Math.max(1, length))].map((b) => b.toString(16).padStart(2, '0')).join(' ');
+    }
   }
 
   private openRetype(): void {
@@ -436,6 +478,7 @@ export class BuildMode {
     this.mode = { kind: 'retype', row };
     element('build-title').textContent = `Change the kind of ${row.slot.id}`;
     element('build-apply').textContent = 'Change';
+    element('build-position-label').hidden = true;
     element('build-where').textContent = `It is ${row.slot.kind} now (${rangeText(row.slot)}).`;
     this.prepare(row);
     this.showFields();
@@ -459,10 +502,7 @@ export class BuildMode {
     set('build-size', '');
     set('build-repeat', '');
     set('build-type', '');
-    const bytes = this.host.bytes();
-    const first = this.pending?.first ?? this.end();
-    const length = this.pending ? this.pending.end - this.pending.first : 4;
-    set('build-magic', bytes ? [...bytes.subarray(first, first + Math.max(1, length))].map((b) => b.toString(16).padStart(2, '0')).join(' ') : '');
+    set('build-magic', '');
     const known = this.pending ? this.pending.end - this.pending.first : null;
     if (known !== null) {
       set('build-length', String(known));
@@ -571,11 +611,14 @@ export class BuildMode {
     }
     const name = element<HTMLInputElement>('build-name').value.trim();
     const mode = this.mode;
+    const place = this.insertion();
     const op: DraftOp =
       mode.kind === 'add'
-        ? { op: 'add', at: this.selectedRow()?.at ?? null, ...(name ? { name } : {}), ...spec }
+        ? { op: 'add', at: place.at, ...(place.index === undefined ? {} : { index: place.index }), ...(name ? { name } : {}), ...spec }
         : { op: 'retype', at: mode.row.at, index: mode.row.index, ...spec };
-    const refused = await this.change(op, mode.kind === 'add' ? `added ${name || spec.kind}` : `${mode.row.slot.id} is ${spec.kind} now`);
+    const where = element<HTMLSelectElement>('build-position');
+    const placed = where.value === 'end' ? '' : ` ${where.selectedOptions[0]?.textContent?.toLowerCase() ?? ''}`;
+    const refused = await this.change(op, mode.kind === 'add' ? `added ${name || spec.kind}${placed}` : `${mode.row.slot.id} is ${spec.kind} now`);
     if (refused !== null) {
       error.hidden = false;
       error.textContent = refused;
