@@ -309,8 +309,16 @@ export class App {
     this.showFiles();
   }
 
+  /**
+   * Whether the person has changed the schema or opened a file since the page was loaded. The page starts by loading the
+   * parser and the gallery, which takes a while, and the work that was remembered is put back only after that: what was
+   * done meanwhile must not be taken away by it.
+   */
+  private touched = false;
+
   /** Open the work of a link (`#s=…`, made by an earlier version), or else the work this browser remembers. No file: the person opens it. */
   private async restore(): Promise<boolean> {
+    if (this.touched) return false;
     const code = codeOfHash(location.hash);
     const shared = code ? await decodeWork(code) : null;
     if (code && !shared) {
@@ -1030,6 +1038,7 @@ export class App {
   }
 
   private useServerInput(local: LocalApi, input: { name: string; size: number }): void {
+    this.touched = true;
     element<HTMLButtonElement>('detect').disabled = false;
     this.serverInput = input;
     this.layers = [];
@@ -1044,6 +1053,7 @@ export class App {
   }
 
   private setInput(bytes: Uint8Array, name: string): void {
+    this.touched = true;
     this.layers = [];
     this.layerIndex = 0;
     this.renderLayers();
@@ -2387,6 +2397,7 @@ export class App {
   /** The editor changed: the text belongs to the file that is shown. */
   private edited(): void {
     if (this.switching) return;
+    this.touched = true;
     const text = this.editor.text;
     if (this.active === null) this.mainText = text;
     else this.files.set(this.active, text);
