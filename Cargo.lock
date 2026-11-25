@@ -502,7 +502,7 @@ dependencies = [
 
 [[package]]
 name = "doe"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "brotli-decompressor",
  "bzip2",
@@ -527,7 +527,7 @@ dependencies = [
 
 [[package]]
 name = "doe-cli"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anstream",
  "anstyle",
@@ -552,7 +552,7 @@ dependencies = [
 
 [[package]]
 name = "doe-draft"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "doe",
  "serde",
@@ -561,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "doe-tui"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "crossterm",
@@ -583,7 +583,7 @@ dependencies = [
 
 [[package]]
 name = "doe-wasm"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "doe",
  "doe-draft",
