@@ -17,11 +17,13 @@ const schema = (key = ''): string => TABLE.replace('__KEY__', key ? `    compare
 
 async function compare(page: Page, text: string, first = A, second = B): Promise<void> {
   await page.goto('/');
+  // the page is ready when the worker has answered (a second visit restores what the first left, which must settle first)
+  await expect(page.locator('body')).toHaveAttribute('data-help', 'ready');
   await page.locator('.cm-content').click();
   await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.insertText(text);
   await page.setInputFiles('#open-input', { name: 'a.bin', mimeType: 'application/octet-stream', buffer: first });
-  await expect(page.locator('#status')).toContainText('a.bin');
+  await expect(page.locator('#status')).toContainText(`a.bin, ${first.length} bytes`);
   await page.setInputFiles('#compare-input', { name: 'b.bin', mimeType: 'application/octet-stream', buffer: second });
   await expect(page.locator('#compare-summary')).toBeVisible();
 }
