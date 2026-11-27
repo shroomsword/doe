@@ -1,6 +1,6 @@
 [package]
 name = "doe-draft"
-version = "0.8.0"
+version = "0.9.0"
 description = "doe — the schema that the viewers build from the bytes of a file: its model, its edits and its YAML"
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
-doe = { version = "0.8.0", path = "../doe", default-features = false }
+doe = { version = "0.9.0", path = "../doe", default-features = false }
 serde = { workspace = true, features = ["std", "derive"] }
 serde_json = { workspace = true, features = ["std"] }
 
