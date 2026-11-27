@@ -18,6 +18,8 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use serde::Serialize;
+
 use crate::parser::trace::TraceNode;
 use crate::value::Value;
 
@@ -224,7 +226,7 @@ pub struct Ghost {
 }
 
 /// How many fields were compared and how they differ.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub struct Summary {
     /// The fields of A.
     pub fields_a: usize,
@@ -265,6 +267,9 @@ pub struct Comparison {
     pub summary: Summary,
     /// What a viewer should say: a list that a key was asked for and could not match, and why (it was matched by index).
     pub notes: Vec<String>,
+    /// For each node of A that is marked [`Mark::Changed`], the path of the node of B that it was matched with (they
+    /// differ when a list is matched by a key).
+    pub partners: HashMap<Vec<usize>, Vec<usize>>,
 }
 
 /// A parse, and a way to read bytes of the file it was made from.
@@ -577,6 +582,7 @@ impl Walker<'_, '_> {
     }
 
     fn mark_changed(&mut self) {
+        self.out.partners.insert(self.pa.clone(), self.pb.clone());
         self.out.a.marks.insert(self.pa.clone(), Mark::Changed);
         self.out.b.marks.insert(self.pb.clone(), Mark::Changed);
         self.out.summary.changed += 1;
@@ -816,4 +822,327 @@ fn collect_lists(
         }
         path.pop();
     }
+}
+
+// ── the differences as a list ──────────────────────────────────────────────────
+
+/// How many characters of a value a difference shows.
+pub const VALUE_WIDTH: usize = 60;
+
+/// How two files differ at a path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiffStatus {
+    /// Both files have it, and it differs.
+    Changed,
+    /// Only the first file has it.
+    OnlyA,
+    /// Only the second file has it.
+    OnlyB,
+}
+
+/// What differs in a field that both files have.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiffKind {
+    /// The value (for a field that is in one file only, the value it has).
+    Value,
+    /// The type of a field that is a type.
+    Type,
+    /// The length of a list that is matched by index.
+    Length,
+}
+
+/// One difference between two files, by path.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Difference {
+    /// The path, as the viewers copy it (`entries[2].len`): in the first file's tree, and for what only the second file
+    /// has, in the second's.
+    pub path: String,
+    /// How it differs.
+    pub status: DiffStatus,
+    /// What differs.
+    pub kind: DiffKind,
+    /// The value, the type or the length in the first file, as text cut at [`VALUE_WIDTH`] characters.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub a: Option<String>,
+    /// The same in the second file.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub b: Option<String>,
+    /// For a field or element that only one file has and that has parts: how many fields are below it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fields: Option<usize>,
+    /// The bytes of the first file that differ in this field, as `[first, end)` ranges (all of them for a field that only
+    /// the first file has).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub a_bytes: Vec<(u64, u64)>,
+    /// The same in the second file.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub b_bytes: Vec<(u64, u64)>,
+}
+
+/// A value as one line of text, cut: a number or a string as `doe` prints it, bytes as hex.
+fn value_text(value: Option<&Value>) -> String {
+    let text = match value.map(strip) {
+        None => "?".to_owned(),
+        Some(Value::Bytes(bytes)) => bytes
+            .iter()
+            .take(VALUE_WIDTH)
+            .map(|b| format!("{b:02x}"))
+            .collect::<Vec<_>>()
+            .join(" "),
+        Some(Value::Struct { fields, .. }) => format!("{} fields", fields.len()),
+        Some(other) => other.to_string(),
+    };
+    if text.chars().count() > VALUE_WIDTH {
+        let cut: String = text.chars().take(VALUE_WIDTH).collect();
+        format!("{cut}…")
+    } else {
+        text
+    }
+}
+
+/// The node and the value at `path` (indexes of children from the root).
+fn at<'t>(
+    trace: &'t TraceNode,
+    value: Option<&'t Value>,
+    path: &[usize],
+) -> Option<(&'t TraceNode, Option<&'t Value>)> {
+    let mut node = trace;
+    let mut value = value;
+    for &index in path {
+        let child = node.children.get(index)?;
+        value = child_value(value, &child.name, index);
+        node = child;
+    }
+    Some((node, value))
+}
+
+/// The parts of the sorted `ranges` that are inside `span`.
+fn within(ranges: &[(u64, u64)], span: Option<(u64, u64)>) -> Vec<(u64, u64)> {
+    let Some((first, end)) = span else {
+        return Vec::new();
+    };
+    let from = ranges.partition_point(|r| r.1 <= first);
+    ranges
+        .iter()
+        .skip(from)
+        .take_while(|r| r.0 < end)
+        .map(|r| (r.0.max(first), r.1.min(end)))
+        .collect()
+}
+
+/// The differences of a comparison, one per field that changed, per field or element that only one file has (a whole
+/// subtree is one), in the order of the first file's tree, with what only the second file has after the children of the
+/// parent that would hold it. A container that only has differences below it is not listed.
+#[must_use]
+pub fn differences(a: &Input<'_>, b: &Input<'_>, comparison: &Comparison) -> Vec<Difference> {
+    let mut out = Vec::new();
+    let mut walk = Listing {
+        a,
+        b,
+        comparison,
+        path: Vec::new(),
+        out: &mut out,
+    };
+    walk.node(a.trace, a.value);
+    out
+}
+
+struct Listing<'x, 'a, 'o> {
+    a: &'x Input<'a>,
+    b: &'x Input<'a>,
+    comparison: &'x Comparison,
+    path: Vec<usize>,
+    out: &'o mut Vec<Difference>,
+}
+
+impl Listing<'_, '_, '_> {
+    fn node(&mut self, node: &TraceNode, value: Option<&Value>) {
+        match self.comparison.a.marks.get(&self.path) {
+            None => return,
+            Some(Mark::Only) => {
+                let leaf = node.children.is_empty();
+                self.out.push(Difference {
+                    path: crate::copy::path_of(self.a.trace, &self.path),
+                    status: DiffStatus::OnlyA,
+                    kind: DiffKind::Value,
+                    a: leaf.then(|| value_text(value)),
+                    b: None,
+                    fields: (!leaf).then(|| count_below(node)),
+                    a_bytes: byte_span(node).into_iter().collect(),
+                    b_bytes: Vec::new(),
+                });
+                return;
+            }
+            Some(Mark::Changed) => self.changed(node, value),
+            Some(Mark::Inside) => {}
+        }
+        for (index, child) in node.children.iter().enumerate() {
+            self.path.push(index);
+            self.node(child, child_value(value, &child.name, index));
+            self.path.pop();
+        }
+        // what only B has, under this node
+        for ghost in self.comparison.ghosts.get(&self.path).into_iter().flatten() {
+            let Some((node_b, value_b)) = at(self.b.trace, self.b.value, &ghost.b_path) else {
+                continue;
+            };
+            let leaf = node_b.children.is_empty();
+            self.out.push(Difference {
+                path: crate::copy::path_of(self.b.trace, &ghost.b_path),
+                status: DiffStatus::OnlyB,
+                kind: DiffKind::Value,
+                a: None,
+                b: leaf.then(|| value_text(value_b)),
+                fields: (!leaf).then(|| count_below(node_b)),
+                a_bytes: Vec::new(),
+                b_bytes: byte_span(node_b).into_iter().collect(),
+            });
+        }
+    }
+
+    fn changed(&mut self, node: &TraceNode, value: Option<&Value>) {
+        let Some(partner) = self.comparison.partners.get(&self.path) else {
+            return;
+        };
+        let Some((node_b, value_b)) = at(self.b.trace, self.b.value, partner) else {
+            return;
+        };
+        let (kind, a, b) = if node.children.is_empty() && node_b.children.is_empty() {
+            (DiffKind::Value, value_text(value), value_text(value_b))
+        } else if node.type_name != node_b.type_name {
+            (
+                DiffKind::Type,
+                node.type_name.clone().unwrap_or_else(|| "none".to_owned()),
+                node_b
+                    .type_name
+                    .clone()
+                    .unwrap_or_else(|| "none".to_owned()),
+            )
+        } else if is_list(node, value) && is_list(node_b, value_b) {
+            (
+                DiffKind::Length,
+                node.children.len().to_string(),
+                node_b.children.len().to_string(),
+            )
+        } else {
+            // a value in one file and parts in the other, or a parse that failed in one
+            let describe = |n: &TraceNode, v: Option<&Value>| {
+                if n.children.is_empty() {
+                    value_text(v)
+                } else {
+                    format!("{} fields", count_below(n))
+                }
+            };
+            (
+                DiffKind::Value,
+                describe(node, value),
+                describe(node_b, value_b),
+            )
+        };
+        self.out.push(Difference {
+            path: crate::copy::path_of(self.a.trace, &self.path),
+            status: DiffStatus::Changed,
+            kind,
+            a: Some(a),
+            b: Some(b),
+            fields: None,
+            a_bytes: within(&self.comparison.a.bytes, byte_span(node)),
+            b_bytes: within(&self.comparison.b.bytes, byte_span(node_b)),
+        });
+    }
+}
+
+/// Two files compared by their paths, and how they differ.
+#[cfg(feature = "fs")]
+#[derive(Debug)]
+pub struct FileComparison {
+    /// The type that both were parsed with.
+    pub type_name: String,
+    /// The comparison, and the notes in it.
+    pub comparison: Comparison,
+    /// The differences, in order.
+    pub differences: Vec<Difference>,
+}
+
+/// Parse two files with one schema and compare them. The files are read as the schema asks for them (by range), so their
+/// size does not decide how much memory is needed beyond the parses themselves.
+///
+/// # Errors
+///
+/// The schema cannot be found or compiled, a file cannot be read, or **a file does not parse with the schema** (it is not
+/// compared as far as it was read: two files that fail in the same place would be called the same).
+#[cfg(feature = "fs")]
+pub fn compare_files(
+    file_a: &std::path::Path,
+    file_b: &std::path::Path,
+    schema: &str,
+    include_paths: &[std::path::PathBuf],
+    keys: &Keys,
+) -> Result<FileComparison, crate::error::DoeError> {
+    use crate::error::DoeError;
+    use crate::parser::cursor::Cursor;
+    use crate::parser::engine::Engine;
+    use crate::schema::compiler::Compiler;
+
+    let mut compiler = Compiler::new(include_paths.to_vec());
+    let (schema_arg, wanted) = crate::split_type_arg(schema);
+    let id = if crate::is_schema_path(schema_arg) {
+        let raw = compiler.read_schema(std::path::Path::new(schema_arg))?;
+        let id = raw.id.clone();
+        compiler.process_schema(&raw)?;
+        id
+    } else {
+        compiler.load(schema_arg, None)?;
+        schema_arg.to_owned()
+    };
+    let type_name = crate::type_in_schema(&compiler.registry, &id, wanted)?;
+    let engine = Engine::new(&compiler.registry);
+    let parse = |path: &std::path::Path| -> Result<_, DoeError> {
+        let io = |source| DoeError::Io {
+            path: path.to_path_buf(),
+            source,
+        };
+        let file = std::fs::File::open(path).map_err(io)?;
+        let mut cursor = Cursor::from_file(file, path)?;
+        let outcome = engine.parse_type_partial(&type_name, &mut cursor)?;
+        if let Some(error) = outcome.error {
+            return Err(DoeError::Schema(format!(
+                "{} does not parse with {type_name}: {error}",
+                path.display()
+            )));
+        }
+        Ok(outcome)
+    };
+    let outcome_a = parse(file_a)?;
+    let outcome_b = parse(file_b)?;
+    let read = |path: std::path::PathBuf| {
+        move |offset: u64, len: usize| {
+            use std::io::{Read, Seek, SeekFrom};
+            let mut f = std::fs::File::open(&path).ok()?;
+            f.seek(SeekFrom::Start(offset)).ok()?;
+            let mut out = vec![0; len];
+            f.read_exact(&mut out).ok()?;
+            Some(out)
+        }
+    };
+    let (read_a, read_b) = (read(file_a.to_path_buf()), read(file_b.to_path_buf()));
+    let input_a = Input {
+        trace: &outcome_a.trace,
+        value: outcome_a.value.as_ref(),
+        read: &read_a,
+    };
+    let input_b = Input {
+        trace: &outcome_b.trace,
+        value: outcome_b.value.as_ref(),
+        read: &read_b,
+    };
+    let comparison = compare_with(&input_a, &input_b, keys);
+    let differences = differences(&input_a, &input_b, &comparison);
+    Ok(FileComparison {
+        type_name,
+        comparison,
+        differences,
+    })
 }

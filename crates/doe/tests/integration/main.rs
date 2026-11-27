@@ -10,6 +10,7 @@
 
 mod api;
 mod compare;
+mod compare_diff;
 mod compare_keys;
 mod compiler;
 mod config;

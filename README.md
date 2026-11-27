@@ -1522,9 +1522,11 @@ Options:
       --transparent          With `--tui`: leave the background of the screen to the terminal (a translucent or blurred one shows through), and use the theme's colours for the text; the selection, the status bar and the marks keep theirs (the `transparent` key of the config file, or of a theme file, changes that; `--no-transparent` overrides them)
       --no-transparent       With `--tui`: use the background of the theme, whatever the config file or the theme file says about `transparent`
       --no-mouse             With `--tui`: leave the mouse to the terminal, so that its own selection and copy work (the `mouse` key of the config file turns the viewer's mouse off too). Without it the viewer takes clicks, the wheel and drags; `z` in the viewer switches the mouse off and on
-      --compare <FILE>       With `--tui`: compare FILE with this file, parsed with the same schema: the fields that differ, were added or were removed are marked, and so are the bytes (`>` and `<` go to the next and the previous difference, `=` leaves out what is the same, `V` shows the other file, `|` switches the way it is drawn)
+      --compare <FILE>       Compare FILE with this file, parsed with the same schema: without `--tui`, print the fields that differ, one per line by path (`entries[2].len: 5 -> 7`, `only in A`, `only in B`) and a summary, or `identical`; `--json` or `--pretty` print the same as data. The exit status is 0 when the files are identical, 1 when they differ and 2 on an error (a schema that does not compile, a file that cannot be read or does not parse). With `--tui`: show the comparison in the viewer, where the fields that differ, were added or were removed are marked, and so are the bytes (`>` and `<` go to the next and the previous difference, `=` leaves out what is the same, `V` shows the other file, `|` switches the way it is drawn)
+      --diff-bytes           With `--compare` and no `--tui`: after the differences, the bytes of each file that differ, by matched field, as ranges (`bytes A: 0x4..0x5`); with `--json` or `--pretty`, on each difference too
+      --max-differences <N>  With `--compare` and no `--tui`: list at most N differences (the summary and the exit status are always of the whole comparison); 0 lists them all [default: 1000]
       --compare-by <LIST=FIELD>  With `--compare`: match the elements of a list by one of their fields instead of by index: `--compare-by entries=name` pairs the elements of `entries` that have the same `name`, wherever they are (a list inside another is named from the root with dots, `header.entries`). May be given more than once. It beats the key that the schema gives the list (`compare-by:`) and the one chosen in the viewer with `#`
-      --compare-view <VIEW>  With `--compare`: how the comparison is drawn at first: `annotated` (the tree of the first file with marks; the default) or `side-by-side` (the two trees); the `compare-view` key of the config file changes the default
+      --compare-view <VIEW>  With `--compare` and `--tui`: how the comparison is drawn at first: `annotated` (the tree of the first file with marks; the default) or `side-by-side` (the two trees); the `compare-view` key of the config file changes the default
       --no-footer            With `--tui`: start without the row of the keys that matter now under the panes (the `footer` key of the config file hides it too); `K` in the viewer shows and hides it
       --no-restore           With `--tui`: do not remember where you were, and do not put it back (the viewer keeps the open nodes, the selection, the cursor, the scroll and the view settings of each file and schema in the state directory, and restores them when the same file is opened with the same schema; the `restore` key of the config file turns it off too)
       --radix <RADIX>        With `--tui`: the radix in which integers are first shown, `dec` (the default), `hex`, `bin` or `oct`; `x` in the viewer goes through them, and `X` chooses one for the selected field (the `radix` key of the config file changes the default)
@@ -1676,6 +1678,44 @@ browser) does it on opening a file, when the editor is empty or the
 schema does not parse the file. With `doe --ide FILE` the types of the include
 paths are searched as well, natively, for the file named on the command line
 (`Use FILE`); a file opened in the page is searched among the gallery only.
+
+### Comparing two files
+
+`doe FILE TYPE_OR_SCHEMA --compare OTHER` (without `--tui`) parses both files with the same schema and prints what differs, by
+field path (`entries[2].len`, as in the viewers, so a path can be pasted into `--tui`), not by offset. The schema is given, or
+found for FILE as for any parse, and parses OTHER too.
+
+```text
+$ doe a.bin s.yaml --compare b.bin
+count: 2 -> 3
+items: length 2 -> 3
+items[0].b: 11 -> 99
++ items[2]: only in B (2 fields)
+tail: 7 -> 9
+4 of 14 fields differ · 1 only in B
+```
+
+One line per difference, in the order of the tree of FILE (`A`), with what only OTHER (`B`) has, marked `+`, after the children
+of the parent that would hold it: `PATH: VALUE_A -> VALUE_B` for a field whose value changed (a long value is cut at 60
+characters; bytes are hex), `PATH: type A -> B` for a field whose type changed, `PATH: length 2 -> 3` for a list matched by
+index whose length differs, and `PATH: only in A (N fields)` for a field or element that the other file does not have (a whole
+subtree is one line, and one difference). A container that only has differences below it is not listed: the lines have the full
+path. Last comes the summary, or `identical`. Lists can be matched by a key instead of by index (`--compare-by LIST=FIELD`, or
+`compare-by:` in the schema, see *Comparing two files* in the terminal viewer), and a key that cannot be used is said on stderr
+(`-q` silences it) while the list is matched by index.
+
+`--json` (or `--pretty`) prints the same as one object: `identical`, `summary` (`changed`, `fields_a`, `fields_b`, `only_a`,
+`only_b`), `differences` (each with `path`, `status`: `changed`, `only_a` or `only_b`, `kind`: `value`, `type` or `length`, the
+texts `a` and `b`, or `fields` for what only one file has), `notes`, `truncated` and `omitted`. **`--diff-bytes`** adds the bytes
+that differ, by matched field, as `[first, end)` ranges: `bytes A: 0x4..0x5` lines in text, and `bytes` (and `a_bytes` and
+`b_bytes` on each difference) in JSON. **`--max-differences N`** (default 1000; 0 lists them all) lists at most N differences,
+says `… and 4321 more` (`truncated` and `omitted` in JSON), and the summary and the exit status are always of the whole comparison.
+
+The **exit status** is that of `diff`: **0** when the files are identical, **1** when they differ (nothing more is said) and **2**
+on an error, with the reason on stderr: a schema that does not compile, a file that cannot be read, or a file that **does not
+parse** with the schema (it is not compared as far as it was read: two files that fail in the same place would be called the same,
+which the viewer, which shows what was read, can say better). A payload is not unwrapped (`--layer` and `--no-unwrap` do not apply):
+a file that holds another file is compared as the file it is.
 
 ### Terminal viewer
 
@@ -2359,8 +2399,8 @@ warning and carries on.
 | Code | Meaning |
 |------|---------|
 | 0 | Success (a closed stdout, as in `doe ... \| head`, is also success) |
-| 1 | Failure: unreadable or invalid input, schema or config |
-| 2 | Usage error: invalid arguments |
+| 1 | Failure: unreadable or invalid input, schema or config; with `--compare` (without `--tui`): the files differ |
+| 2 | Usage error: invalid arguments; with `--compare` (without `--tui`): the comparison could not be made |
 
 ## Configuration
 

@@ -226,11 +226,35 @@ pub(crate) struct Cli {
     #[arg(long, requires = "tui")]
     pub(crate) no_restore: bool,
 
-    /// With `--tui`: compare FILE with this file, parsed with the same schema: the fields that differ, were added or were
-    /// removed are marked, and so are the bytes (`>` and `<` go to the next and the previous difference, `=` leaves out what
-    /// is the same, `V` shows the other file, `|` switches the way it is drawn).
-    #[arg(long, value_name = "FILE", requires = "tui")]
+    /// Compare FILE with this file, parsed with the same schema: without `--tui`, print the fields that differ, one per line
+    /// by path (`entries[2].len: 5 -> 7`, `only in A`, `only in B`) and a summary, or `identical`; `--json` or `--pretty`
+    /// print the same as data. The exit status is 0 when the files are identical, 1 when they differ and 2 on an error (a
+    /// schema that does not compile, a file that cannot be read or does not parse). With `--tui`: show the comparison in the
+    /// viewer, where the fields that differ, were added or were removed are marked, and so are the bytes (`>` and `<` go to
+    /// the next and the previous difference, `=` leaves out what is the same, `V` shows the other file, `|` switches the way
+    /// it is drawn).
+    #[arg(
+        long,
+        value_name = "FILE",
+        conflicts_with_all = ["list_types", "install_types", "completions", "man", "ide", "layer", "no_unwrap", "build"]
+    )]
     pub(crate) compare: Option<PathBuf>,
+
+    /// With `--compare` and no `--tui`: after the differences, the bytes of each file that differ, by matched field, as
+    /// ranges (`bytes A: 0x4..0x5`); with `--json` or `--pretty`, on each difference too.
+    #[arg(long, requires = "compare", conflicts_with = "tui")]
+    pub(crate) diff_bytes: bool,
+
+    /// With `--compare` and no `--tui`: list at most N differences (the summary and the exit status are always of the whole
+    /// comparison); 0 lists them all.
+    #[arg(
+        long,
+        value_name = "N",
+        default_value_t = 1000,
+        requires = "compare",
+        conflicts_with = "tui"
+    )]
+    pub(crate) max_differences: usize,
 
     /// With `--compare`: match the elements of a list by one of their fields instead of by index: `--compare-by
     /// entries=name` pairs the elements of `entries` that have the same `name`, wherever they are (a list inside another
@@ -239,9 +263,9 @@ pub(crate) struct Cli {
     #[arg(long, value_name = "LIST=FIELD", requires = "compare", value_parser = parse_compare_by)]
     pub(crate) compare_by: Vec<(String, String)>,
 
-    /// With `--compare`: how the comparison is drawn at first: `annotated` (the tree of the first file with marks; the
+    /// With `--compare` and `--tui`: how the comparison is drawn at first: `annotated` (the tree of the first file with marks; the
     /// default) or `side-by-side` (the two trees); the `compare-view` key of the config file changes the default.
-    #[arg(long, value_name = "VIEW", requires = "compare", value_parser = clap::value_parser!(doe::compare::View))]
+    #[arg(long, value_name = "VIEW", requires_all = ["compare", "tui"], value_parser = clap::value_parser!(doe::compare::View))]
     pub(crate) compare_view: Option<doe::compare::View>,
 
     /// With `--tui`: start without the row of the keys that matter now under the panes (the `footer` key of the config

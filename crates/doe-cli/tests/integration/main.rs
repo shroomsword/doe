@@ -9,4 +9,5 @@
 )]
 
 mod cli;
+mod compare;
 mod voice;

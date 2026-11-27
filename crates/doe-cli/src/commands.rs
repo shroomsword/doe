@@ -21,6 +21,8 @@ pub(crate) fn dispatch(cli: &Cli, config: &Config) -> anyhow::Result<()> {
         ide(cli, config)
     } else if cli.tui {
         tui(cli, config)
+    } else if cli.compare.is_some() {
+        compare(cli, config)
     } else if let Some(dir) = &cli.install_types {
         install_types(dir.as_deref(), cli.force)
     } else if cli.list_types {
@@ -792,4 +794,191 @@ mod viewed_tests {
         assert_eq!(found.path, plain);
         assert_eq!(found.type_name.as_deref(), Some("gzip_file"));
     }
+}
+
+/// The files differ: the exit status says so (1), and nothing more is said.
+#[derive(Debug)]
+pub(crate) struct Differ;
+
+impl std::fmt::Display for Differ {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("the files differ")
+    }
+}
+
+impl std::error::Error for Differ {}
+
+/// `doe FILE TYPE --compare OTHER`: print what differs between the two files, parsed with one schema, as text or JSON.
+/// Exits with an error that is [`Differ`] when they differ.
+fn compare(cli: &Cli, config: &Config) -> anyhow::Result<()> {
+    use std::fmt::Write as _;
+
+    use doe::compare::{DiffKind, DiffStatus};
+
+    let (Some(file), Some(other)) = (&cli.file, &cli.compare) else {
+        anyhow::bail!("--compare needs a FILE and the file to compare it with");
+    };
+    let type_or_schema = match &cli.type_or_schema {
+        Some(given) => given.clone(),
+        None => detect_type(cli, config, file)?,
+    };
+    let mut keys = doe::compare::Keys::new();
+    for (list, field) in &cli.compare_by {
+        keys.set(list, field);
+    }
+    let found = doe::compare::compare_files(
+        file,
+        other,
+        &type_or_schema,
+        &include_paths(&cli.include_paths, config),
+        &keys,
+    )
+    .with_context(|| {
+        format!(
+            "could not compare {} with {}",
+            file.display(),
+            other.display()
+        )
+    })?;
+    for note in &found.comparison.notes {
+        log::warn!("{note}");
+    }
+    let summary = found.comparison.summary;
+    let all = found.differences.len();
+    let shown = if cli.max_differences == 0 {
+        all
+    } else {
+        all.min(cli.max_differences)
+    };
+    let mut differences = found.differences;
+    differences.truncate(shown);
+    if !cli.diff_bytes {
+        for difference in &mut differences {
+            difference.a_bytes.clear();
+            difference.b_bytes.clear();
+        }
+    }
+    let bytes = |ranges: &[(u64, u64)]| {
+        ranges
+            .iter()
+            .map(|(from, to)| format!("{from:#x}..{to:#x}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let mut out = String::new();
+    if cli.json || cli.pretty {
+        let mut object = serde_json::json!({
+            "identical": summary.identical(),
+            "summary": summary,
+            "differences": differences,
+            "notes": found.comparison.notes,
+            "truncated": shown < all,
+            "omitted": all - shown,
+        });
+        if cli.diff_bytes
+            && let Some(map) = object.as_object_mut()
+        {
+            map.insert(
+                "bytes".to_owned(),
+                serde_json::json!({
+                    "a": found.comparison.a.bytes,
+                    "b": found.comparison.b.bytes,
+                }),
+            );
+        }
+        out = if cli.pretty {
+            serde_json::to_string_pretty(&object)?
+        } else {
+            serde_json::to_string(&object)?
+        };
+        out.push('\n');
+    } else {
+        for difference in &differences {
+            let path = &difference.path;
+            let text = |value: &Option<String>| value.clone().unwrap_or_default();
+            let line = match (difference.status, difference.kind) {
+                (DiffStatus::Changed, DiffKind::Value) => {
+                    format!("{path}: {} -> {}", text(&difference.a), text(&difference.b))
+                }
+                (DiffStatus::Changed, DiffKind::Type) => {
+                    format!(
+                        "{path}: type {} -> {}",
+                        text(&difference.a),
+                        text(&difference.b)
+                    )
+                }
+                (DiffStatus::Changed, DiffKind::Length) => {
+                    format!(
+                        "{path}: length {} -> {}",
+                        text(&difference.a),
+                        text(&difference.b)
+                    )
+                }
+                (DiffStatus::OnlyA, _) => {
+                    format!(
+                        "{path}: only in A{}",
+                        only(difference, difference.a.as_ref())
+                    )
+                }
+                (DiffStatus::OnlyB, _) => {
+                    format!(
+                        "+ {path}: only in B{}",
+                        only(difference, difference.b.as_ref())
+                    )
+                }
+            };
+            out.push_str(&line);
+            out.push('\n');
+        }
+        if shown < all {
+            let _ = writeln!(out, "… and {} more", all - shown);
+        }
+        if cli.diff_bytes {
+            for (letter, ranges) in [
+                ("A", &found.comparison.a.bytes),
+                ("B", &found.comparison.b.bytes),
+            ] {
+                if !ranges.is_empty() {
+                    let _ = writeln!(out, "bytes {letter}: {}", bytes(ranges));
+                }
+            }
+        }
+        if summary.identical() {
+            out.push_str("identical\n");
+        } else {
+            out.push_str(&summary_line(&summary));
+            out.push('\n');
+        }
+    }
+    write_stdout(out.as_bytes())?;
+    if summary.identical() {
+        Ok(())
+    } else {
+        Err(Differ.into())
+    }
+}
+
+/// What follows `only in A`: the value of a leaf, or how many fields a field or element has.
+fn only(difference: &doe::compare::Difference, value: Option<&String>) -> String {
+    match (value, difference.fields) {
+        (Some(value), _) => format!(": {value}"),
+        (None, Some(n)) => format!(" ({n} field{})", if n == 1 { "" } else { "s" }),
+        (None, None) => String::new(),
+    }
+}
+
+/// `3 of 1204 fields differ · 1 only in A · 1 only in B`, as the viewers say it.
+fn summary_line(summary: &doe::compare::Summary) -> String {
+    let mut parts = vec![format!(
+        "{} of {} fields differ",
+        summary.changed,
+        summary.fields_a.max(summary.fields_b)
+    )];
+    if summary.only_a > 0 {
+        parts.push(format!("{} only in A", summary.only_a));
+    }
+    if summary.only_b > 0 {
+        parts.push(format!("{} only in B", summary.only_b));
+    }
+    parts.join(" · ")
 }
