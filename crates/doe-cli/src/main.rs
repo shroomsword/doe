@@ -30,10 +30,17 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     match try_main(&cli) {
         Ok(()) => ExitCode::SUCCESS,
+        // `--compare`, as `diff`: 1 when the files differ, which is not an error and says nothing more
+        Err(err) if err.is::<commands::Differ>() => ExitCode::from(1),
         Err(err) if is_broken_pipe(&err) => ExitCode::SUCCESS,
         Err(err) => {
             report(&cli, &err);
-            ExitCode::FAILURE
+            // ... and 2 when the comparison could not be made
+            if cli.compare.is_some() && !cli.tui {
+                ExitCode::from(2)
+            } else {
+                ExitCode::FAILURE
+            }
         }
     }
 }
