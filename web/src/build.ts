@@ -555,7 +555,10 @@ export class BuildMode {
       id: this.host.suggestedId(),
       op: { op: 'propose', kind: kind ?? 'u1', type_id: type },
     });
-    if (answer.proposal && !this.nameTouched) element<HTMLInputElement>('build-name').value = answer.proposal.name;
+    // Not while the name is being typed: a proposal that lands between the selecting and the typing of the first
+    // keystroke would leave the text typed after the proposed name.
+    const field = element<HTMLInputElement>('build-name');
+    if (answer.proposal && !this.nameTouched && document.activeElement !== field) field.value = answer.proposal.name;
   }
 
   /** The kind as the library spells it. */
